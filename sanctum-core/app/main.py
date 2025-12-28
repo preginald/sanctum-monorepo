@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import timedelta
@@ -8,6 +9,21 @@ from .database import get_db
 from . import models, schemas, auth
 
 app = FastAPI(title="Sanctum Core", version="1.1.0")
+
+# --- CORS POLICY (The Bridge) ---
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://159.223.82.75:5173", # Your Droplet IP
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # This tells FastAPI where to look for the token URL
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
