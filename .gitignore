@@ -1,0 +1,13 @@
+# --- Global ---
+.DS_Store
+.env
+
+# --- Backend (Python) ---
+sanctum-core/venv/
+sanctum-core/__pycache__/
+*.pyc
+
+# --- Frontend (Node) ---
+sanctum-web/node_modules/
+sanctum-web/dist/
+sanctum-web/.env.local
