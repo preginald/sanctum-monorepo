@@ -37,3 +37,43 @@ class AccountResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+# --- NESTED DETAIL SCHEMAS ---
+
+class ContactResponse(BaseModel):
+    id: UUID
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    is_primary_contact: bool
+    
+    class Config:
+        from_attributes = True
+
+class DealResponse(BaseModel):
+    id: UUID
+    title: str
+    amount: float
+    
+    class Config:
+        from_attributes = True
+
+class TicketResponse(BaseModel):
+    id: int
+    subject: str
+    status: str
+    priority: str
+    
+    class Config:
+        from_attributes = True
+
+# The Master View
+class AccountDetail(AccountResponse):
+    contacts: list[ContactResponse] = []
+    deals: list[DealResponse] = []
+    tickets: list[TicketResponse] = []
+    audit_data: dict | None = None # To see the website form data
+
+    class Config:
+        from_attributes = True

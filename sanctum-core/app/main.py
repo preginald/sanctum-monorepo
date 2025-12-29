@@ -161,3 +161,26 @@ def submit_public_lead(lead: LeadSchema, db: Session = Depends(get_db)):
     db.commit()
 
     return {"status": "received", "id": str(new_account.id)}
+
+@app.get("/accounts/{account_id}", response_model=schemas.AccountDetail)
+def get_account_detail(
+    account_id: str, # We use str to parse the UUID safely
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch the Account
+    account = db.query(models.Account).filter(models.Account.id == account_id).first()
+
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # 2. ENFORCE BIFURCATION SECURITY
+    # If user is 'nt_only' (Tech) AND account is 'ds' (Sanctum), BLOCK THEM.
+    if current_user.access_scope == 'nt_only' and account.brand_affinity == 'ds':
+        raise HTTPException(status_code=403, detail="Access Forbidden: Clearance Level Insufficient")
+
+    # If user is 'ds_only' AND account is 'nt', BLOCK THEM.
+    if current_user.access_scope == 'ds_only' and account.brand_affinity == 'nt':
+         raise HTTPException(status_code=403, detail="Access Forbidden: Segment Mismatch")
+
+    return account

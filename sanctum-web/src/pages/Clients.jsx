@@ -3,10 +3,12 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { Loader2, Building, Home } from 'lucide-react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // <--- Import
 
 const api = axios.create({ baseURL: '/api' });
 
 export default function Clients() {
+  const navigate = useNavigate();
   const { user, token } = useAuthStore();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +74,12 @@ export default function Clients() {
                   )}
                   
                   <td className="p-4 text-right">
-                    <button className="text-xs font-bold opacity-50 hover:opacity-100 uppercase">View Profile</button>
+		      <button
+  onClick={() => navigate(`/clients/${client.id}`)}
+  className="text-xs font-bold opacity-50 hover:opacity-100 uppercase"
+>
+  View Profile
+</button>
                   </td>
                 </tr>
               ))}
