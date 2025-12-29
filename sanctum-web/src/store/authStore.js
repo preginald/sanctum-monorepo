@@ -4,7 +4,8 @@ import { jwtDecode } from "jwt-decode";
 
 // Configure Axios base URL
 const api = axios.create({
-  baseURL: 'http://159.223.82.75:8000', // Your Droplet IP
+    // We point to /api, and Apache proxies it to the backend
+    baseURL: '/api',
 });
 
 // --- PERSISTENCE LOGIC ---
