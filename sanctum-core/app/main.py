@@ -15,6 +15,8 @@ origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://159.223.82.75:5173", # Your Droplet IP
+    "http://core.digitalsanctum.com.au",  
+    "https://core.digitalsanctum.com.au", 
 ]
 
 app.add_middleware(
