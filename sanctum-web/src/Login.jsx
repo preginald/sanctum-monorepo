@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- Added this
 import useAuthStore from './store/authStore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const login = useAuthStore((state) => state.login);
+  const navigate = useNavigate(); // <--- Initialize hook
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const success = await login(email, password);
     if (success) {
-      alert("Welcome, Sovereign.");
+      // No alert needed, just move
+      navigate('/'); // Redirects to Dashboard (Protected Route)
     } else {
       alert("Access Denied.");
     }
@@ -27,21 +30,21 @@ export default function Login() {
       {/* RIGHT: Login Form */}
       <div className="w-1/2 flex flex-col justify-center items-center bg-black/20">
         <form onSubmit={handleSubmit} className="w-80 flex flex-col gap-4">
-          <input 
-            type="email" 
+          <input
+            type="email"
             placeholder="Identity"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="p-3 bg-slate-800 text-white border border-slate-700 rounded focus:border-sanctum-blue outline-none"
           />
-          <input 
-            type="password" 
+          <input
+            type="password"
             placeholder="Cipher"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="p-3 bg-slate-800 text-white border border-slate-700 rounded focus:border-sanctum-blue outline-none"
           />
-          <button 
+          <button
             type="submit"
             className="p-3 bg-sanctum-blue hover:bg-blue-600 text-white font-bold rounded transition-colors"
           >
