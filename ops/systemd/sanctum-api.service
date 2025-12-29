@@ -1,0 +1,17 @@
+[Unit]
+Description=Sanctum Core API (FastAPI)
+After=network.target
+
+[Service]
+User=preginald
+Group=preginald
+WorkingDirectory=/home/preginald/DigitalSanctum/sanctum-core
+Environment="PATH=/home/preginald/DigitalSanctum/sanctum-core/venv/bin"
+EnvironmentFile=/home/preginald/DigitalSanctum/sanctum-core/.env
+# We bind to localhost only for security. Apache will proxy to it.
+# However, since your Frontend currently points to port 8000 externally, 
+# we will keep 0.0.0.0 for this transition phase.
+ExecStart=/home/preginald/DigitalSanctum/sanctum-core/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+[Install]
+WantedBy=multi-user.target
