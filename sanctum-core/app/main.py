@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import text, func
 from datetime import timedelta
 
 from .database import get_db
@@ -38,6 +38,34 @@ def read_root():
 def health_check(db: Session = Depends(get_db)):
     db.execute(text("SELECT 1"))
     return {"database": "connected"}
+
+@app.get("/dashboard/stats", response_model=schemas.DashboardStats)
+def get_dashboard_stats(
+    current_user: models.User = Depends(auth.get_current_active_user), # We need to create this dependency
+    db: Session = Depends(get_db)
+):
+    # 1. Initialize Defaults
+    revenue = 0.0
+    audits = 0
+    tickets = 0
+
+    # 2. BIFURCATION LOGIC
+    # If Global or Digital Sanctum (ds_only), calculate Revenue
+    if current_user.access_scope in ['global', 'ds_only']:
+        revenue_query = db.query(func.sum(models.Deal.amount)).scalar()
+        revenue = revenue_query if revenue_query else 0.0
+
+        audits = db.query(models.AuditReport).count()
+
+    # If Global or Naked Tech (nt_only), calculate Tickets
+    if current_user.access_scope in ['global', 'nt_only']:
+        tickets = db.query(models.Ticket).filter(models.Ticket.status != 'resolved').count()
+
+    return {
+        "revenue_mtd": revenue,
+        "active_audits": audits,
+        "open_tickets": tickets
+    }
 
 # --- AUTHENTICATION ENDPOINT ---
 @app.post("/token", response_model=schemas.Token)

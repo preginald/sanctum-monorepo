@@ -22,3 +22,8 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class DashboardStats(BaseModel):
+    revenue_mtd: float
+    active_audits: int
+    open_tickets: int

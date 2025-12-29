@@ -1,20 +1,23 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
-import { LogOut, Shield, Wifi, Users, DollarSign } from 'lucide-react';
-import clsx from 'clsx'; // Utility for conditional classes
+import { LogOut, Shield, Wifi, Users, DollarSign, Loader2 } from 'lucide-react'; // Added Loader2
+import clsx from 'clsx';
+import axios from 'axios';
+
+// Configure Axios Instance (Should really be in a separate file, but here for speed)
+const api = axios.create({
+  baseURL: '/api', // Uses the Apache Proxy
+});
 
 export default function Dashboard() {
-  const { user, logout } = useAuthStore();
-  
-   // 1. DECODE THE SCOPE
-   // We safely fallback to 'guest' if user is null for some reason
-   const scope = user?.scope || 'guest';
+  const { user, token, logout } = useAuthStore();
+  const [stats, setStats] = useState({ revenue_mtd: 0, active_audits: 0, open_tickets: 0 });
+  const [loading, setLoading] = useState(true);
 
-  
-  // 2. DEFINE THEME BASED ON BRAND
-  // If Naked Tech (nt_only), use Light Mode. Everyone else gets Dark Mode.
+  const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
-  
+
+  // THEME CONFIGURATION
   const theme = {
     bg: isNaked ? 'bg-slate-50' : 'bg-sanctum-dark',
     text: isNaked ? 'text-slate-900' : 'text-white',
@@ -23,9 +26,33 @@ export default function Dashboard() {
     button: isNaked ? 'bg-naked-pink hover:bg-pink-600' : 'bg-sanctum-blue hover:bg-blue-600',
   };
 
+  // DATA FETCHING
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await api.get('/dashboard/stats', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        setStats(response.data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard stats", error);
+        // If 401, maybe logout?
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) fetchStats();
+  }, [token]);
+
+  // FORMATTER
+  const formatCurrency = (val) => {
+    return new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
+  };
+
   return (
     <div className={`flex h-screen w-screen ${theme.bg} ${theme.text}`}>
-      
+
       {/* SIDEBAR */}
       <aside className={`w-64 flex flex-col ${theme.sidebar} transition-colors duration-300`}>
         <div className="p-6">
@@ -40,28 +67,18 @@ export default function Dashboard() {
         <nav className="flex-1 px-4 space-y-2">
           <NavItem icon={<Shield size={20} />} label="Overview" active theme={theme} />
           <NavItem icon={<Users size={20} />} label="Clients" theme={theme} />
-          
-          {/* Conditional Bifurcation: Only show Deals to Sanctum/CEO */}
-          {!isNaked && (
-            <NavItem icon={<DollarSign size={20} />} label="Deals Pipeline" theme={theme} />
-          )}
-
-          {/* Conditional Bifurcation: Only show Tickets to Naked/CEO */}
+          {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals Pipeline" theme={theme} />}
           <NavItem icon={<Wifi size={20} />} label="Service Tickets" theme={theme} />
         </nav>
 
         <div className="p-4 border-t border-slate-800/50">
-          <button 
-            onClick={logout} 
-            className="flex items-center gap-3 text-sm opacity-70 hover:opacity-100 transition-opacity"
-          >
-            <LogOut size={18} />
-            <span>Disconnect</span>
+          <button onClick={logout} className="flex items-center gap-3 text-sm opacity-70 hover:opacity-100">
+            <LogOut size={18} /> <span>Disconnect</span>
           </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
+      {/* MAIN CONTENT */}
       <main className="flex-1 p-8 overflow-auto">
         <header className="flex justify-between items-center mb-8">
           <div>
@@ -74,25 +91,31 @@ export default function Dashboard() {
         </header>
 
         {/* WIDGET GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Widget title="Revenue (MTD)" value="$42,500" theme={theme} />
-          <Widget title="Active Audits" value="3" theme={theme} />
-          <Widget title="Open Tickets" value="12" theme={theme} />
-        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 opacity-50"><Loader2 className="animate-spin" /> Loading Intel...</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {!isNaked && (
+              <Widget title="Revenue (MTD)" value={formatCurrency(stats.revenue_mtd)} theme={theme} />
+            )}
+            {!isNaked && (
+              <Widget title="Active Audits" value={stats.active_audits} theme={theme} />
+            )}
+            <Widget title="Open Tickets" value={stats.open_tickets} theme={theme} />
+          </div>
+        )}
       </main>
     </div>
   );
 }
 
-// Sub-Components for Cleanliness
 function NavItem({ icon, label, active, theme }) {
   return (
     <div className={clsx(
       "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all",
       active ? `${theme.button} text-white shadow-lg` : "hover:bg-white/5 opacity-70 hover:opacity-100"
     )}>
-      {icon}
-      <span className="font-medium">{label}</span>
+      {icon} <span className="font-medium">{label}</span>
     </div>
   );
 }
