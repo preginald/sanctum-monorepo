@@ -50,3 +50,13 @@ class AuditReport(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     security_score = Column(Integer)
+
+class Contact(Base):
+    __tablename__ = "contacts"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
+    first_name = Column(String)
+    last_name = Column(String)
+    email = Column(String)
+    phone = Column(String)
+    is_primary_contact = Column(Boolean, default=False)

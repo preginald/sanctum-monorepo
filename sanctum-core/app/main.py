@@ -17,6 +17,8 @@ origins = [
     "http://159.223.82.75:5173", # Your Droplet IP
     "http://core.digitalsanctum.com.au",  
     "https://core.digitalsanctum.com.au", 
+    "https://digitalsanctum.com.au",
+    "https://www.digitalsanctum.com.au",
 ]
 
 app.add_middleware(
@@ -111,3 +113,50 @@ def get_accounts(
     # 'global' sees everything
 
     return query.all()
+
+# --- PUBLIC LEAD INGESTION ---
+
+class LeadSchema(BaseModel):
+    name: str
+    email: str
+    company: str
+    size: str
+    challenge: str
+    message: str
+
+@app.post("/public/lead")
+def submit_public_lead(lead: LeadSchema, db: Session = Depends(get_db)):
+    # 1. Create the Account (Company)
+    new_account = models.Account(
+        name=lead.company,
+        type="business",
+        status="lead",         # Mark as Lead
+        brand_affinity="ds",   # It came from Digital Sanctum site
+        audit_data={           # Store the extra form data here
+            "size": lead.size,
+            "challenge": lead.challenge,
+            "initial_message": lead.message
+        }
+    )
+    db.add(new_account)
+    db.flush() # Generate the ID
+
+    # 2. Split Name (Simple logic)
+    name_parts = lead.name.split(" ", 1)
+    fname = name_parts[0]
+    lname = name_parts[1] if len(name_parts) > 1 else ""
+
+    # 3. Create the Contact (Person)
+    new_contact = models.Contact(
+        account_id=new_account.id,
+        first_name=fname,
+        last_name=lname,
+        email=lead.email,
+        is_primary_contact=True
+    )
+    db.add(new_contact)
+
+    # 4. Commit
+    db.commit()
+
+    return {"status": "received", "id": str(new_account.id)}
