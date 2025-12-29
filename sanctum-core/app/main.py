@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from datetime import timedelta
+from pydantic import BaseModel
 
 from .database import get_db
 from . import models, schemas, auth
@@ -15,8 +16,8 @@ origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://159.223.82.75:5173", # Your Droplet IP
-    "http://core.digitalsanctum.com.au",  
-    "https://core.digitalsanctum.com.au", 
+    "http://core.digitalsanctum.com.au",
+    "https://core.digitalsanctum.com.au",
     "https://digitalsanctum.com.au",
     "https://www.digitalsanctum.com.au",
 ]
