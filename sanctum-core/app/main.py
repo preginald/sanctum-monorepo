@@ -89,3 +89,25 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     )
 
     return {"access_token": access_token, "token_type": "bearer"}
+
+from typing import List
+
+@app.get("/accounts", response_model=List[schemas.AccountResponse])
+def get_accounts(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Account)
+
+    # BIFURCATION FILTERING
+    if current_user.access_scope == 'ds_only':
+        # Show Digital Sanctum AND Shared accounts
+        query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
+
+    elif current_user.access_scope == 'nt_only':
+        # Show Naked Tech AND Shared accounts
+        query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
+
+    # 'global' sees everything
+
+    return query.all()

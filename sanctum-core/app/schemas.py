@@ -27,3 +27,13 @@ class DashboardStats(BaseModel):
     revenue_mtd: float
     active_audits: int
     open_tickets: int
+
+class AccountResponse(BaseModel):
+    id: UUID
+    name: str
+    type: str
+    status: str
+    brand_affinity: str
+    
+    class Config:
+        from_attributes = True
