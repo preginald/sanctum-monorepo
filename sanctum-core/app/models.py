@@ -20,6 +20,8 @@ class Account(Base):
     name = Column(String)
     type = Column(String)
     brand_affinity = Column(String)
+    status = Column(String)
+
     # Relationships
     deals = relationship("Deal", back_populates="account")
     tickets = relationship("Ticket", back_populates="account")
