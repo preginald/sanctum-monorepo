@@ -21,6 +21,7 @@ class Account(Base):
     type = Column(String)
     brand_affinity = Column(String)
     status = Column(String)
+    audit_data = Column(JSONB)
 
     # Relationships
     deals = relationship("Deal", back_populates="account")
