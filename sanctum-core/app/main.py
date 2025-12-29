@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, func
 from datetime import timedelta
 from pydantic import BaseModel
@@ -168,8 +168,13 @@ def get_account_detail(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # 1. Fetch the Account
-    account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    # 1. Fetch the Account (Force load contacts, deals, tickets)
+    account = db.query(models.Account)\
+        .options(joinedload(models.Account.contacts))\
+        .options(joinedload(models.Account.deals))\
+        .options(joinedload(models.Account.tickets))\
+        .filter(models.Account.id == account_id)\
+        .first()
 
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
