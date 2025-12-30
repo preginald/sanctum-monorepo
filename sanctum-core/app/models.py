@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Float, Date, Text
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text
 from .database import Base
 
@@ -38,7 +38,14 @@ class Contact(Base):
     phone = Column(String)
     is_primary_contact = Column(Boolean, default=False)
 
-    account = relationship("Account", back_populates="contacts") # <--- LINK BACK
+    # --- PHASE 7 NEW COLUMNS ---
+    persona = Column(String) # 'Decision Maker', 'Champion', 'Blocker'
+    reports_to_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+
+    # Relationships
+    account = relationship("Account", back_populates="contacts")
+    # Adjacency List (The Hierarchy)
+    subordinates = relationship("Contact", backref=backref('manager', remote_side=[id]))
 
 class Deal(Base):
     __tablename__ = "deals"

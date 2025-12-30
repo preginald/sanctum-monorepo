@@ -51,6 +51,15 @@ class AccountResponse(BaseModel):
 
 # --- NESTED DETAIL SCHEMAS ---
 
+class ContactCreate(BaseModel):
+    account_id: UUID
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    persona: Optional[str] = None # New
+    reports_to_id: Optional[UUID] = None # New
+
 class ContactResponse(BaseModel):
     id: UUID
     first_name: str | None = None
@@ -58,7 +67,9 @@ class ContactResponse(BaseModel):
     email: str | None = None
     phone: str | None = None
     is_primary_contact: bool
-    
+    persona: str | None = None  # <--- Added
+    # We won't nest reports_to_id here to avoid recursion hell for now
+
     class Config:
         from_attributes = True
 

@@ -145,6 +145,40 @@ def create_account(
     
     return new_account
 
+@app.post("/contacts", response_model=schemas.ContactResponse)
+def create_contact(
+    contact: schemas.ContactCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Verify Parent Account Exists & Check Permissions
+    account = db.query(models.Account).filter(models.Account.id == contact.account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # 2. Enforce Brand Sovereignty
+    if current_user.access_scope == 'nt_only' and account.brand_affinity == 'ds':
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot modify Brand A assets.")
+    if current_user.access_scope == 'ds_only' and account.brand_affinity == 'nt':
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot modify Brand B assets.")
+
+    # 3. Create Contact
+    new_contact = models.Contact(
+        account_id=contact.account_id,
+        first_name=contact.first_name,
+        last_name=contact.last_name,
+        email=contact.email,
+        phone=contact.phone,
+        persona=contact.persona,
+        reports_to_id=contact.reports_to_id,
+        is_primary_contact=False # Default
+    )
+
+    db.add(new_contact)
+    db.commit()
+    db.refresh(new_contact)
+    return new_contact
+
 # --- PUBLIC LEAD INGESTION ---
 
 class LeadSchema(BaseModel):
