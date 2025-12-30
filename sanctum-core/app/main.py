@@ -115,6 +115,36 @@ def get_accounts(
 
     return query.all()
 
+@app.post("/accounts", response_model=schemas.AccountResponse)
+def create_account(
+    account: schemas.AccountCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. ENFORCE SOVEREIGNTY (Creation Permissions)
+    # A Naked Tech user can only create 'nt' or 'both'. Never 'ds'.
+    if current_user.access_scope == 'nt_only' and account.brand_affinity == 'ds':
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot create Brand A assets.")
+    
+    # A Digital Sanctum user can only create 'ds' or 'both'. Never 'nt'.
+    if current_user.access_scope == 'ds_only' and account.brand_affinity == 'nt':
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot create Brand B assets.")
+
+    # 2. Create Object
+    new_account = models.Account(
+        name=account.name,
+        type=account.type,
+        brand_affinity=account.brand_affinity,
+        status=account.status,
+        audit_data={} # Empty by default
+    )
+    
+    db.add(new_account)
+    db.commit()
+    db.refresh(new_account)
+    
+    return new_account
+
 # --- PUBLIC LEAD INGESTION ---
 
 class LeadSchema(BaseModel):

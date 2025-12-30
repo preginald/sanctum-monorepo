@@ -28,6 +28,12 @@ class DashboardStats(BaseModel):
     active_audits: int
     open_tickets: int
 
+class AccountCreate(BaseModel):
+    name: str
+    type: str # 'business' or 'residential'
+    brand_affinity: str # 'ds', 'nt', 'both'
+    status: str = 'prospect'
+
 class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
