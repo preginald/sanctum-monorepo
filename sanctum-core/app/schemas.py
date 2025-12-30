@@ -28,6 +28,11 @@ class DashboardStats(BaseModel):
     active_audits: int
     open_tickets: int
 
+class AccountUpdate(BaseModel):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+
 class AccountResponse(BaseModel):
     id: UUID
     name: str

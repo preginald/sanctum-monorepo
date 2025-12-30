@@ -162,6 +162,39 @@ def submit_public_lead(lead: LeadSchema, db: Session = Depends(get_db)):
 
     return {"status": "received", "id": str(new_account.id)}
 
+@app.put("/accounts/{account_id}", response_model=schemas.AccountResponse)
+def update_account(
+    account_id: str,
+    account_update: schemas.AccountUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch the Account
+    db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    if not db_account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    # 2. ENFORCE BIFURCATION SECURITY (Write Access Check)
+    # A Brand B Tech cannot edit a Brand A Client.
+    if current_user.access_scope == 'nt_only' and db_account.brand_affinity == 'ds':
+        raise HTTPException(status_code=403, detail="Access Forbidden: Clearance Level Insufficient")
+
+    if current_user.access_scope == 'ds_only' and db_account.brand_affinity == 'nt':
+         raise HTTPException(status_code=403, detail="Access Forbidden: Segment Mismatch")
+
+    # 3. Apply Updates
+    if account_update.name is not None:
+        db_account.name = account_update.name
+    if account_update.type is not None:
+        db_account.type = account_update.type
+    if account_update.status is not None:
+        db_account.status = account_update.status
+
+    # 4. Commit
+    db.commit()
+    db.refresh(db_account)
+    return db_account
+
 @app.get("/accounts/{account_id}", response_model=schemas.AccountDetail)
 def get_account_detail(
     account_id: str, # We use str to parse the UUID safely

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom'; // Get ID from URL
+import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { Loader2, ArrowLeft, Mail, Phone, Shield, FileText, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, Users, Shield, FileText, AlertCircle, Edit2, Save, X } from 'lucide-react';
 import axios from 'axios';
 
 const api = axios.create({ baseURL: '/api' });
@@ -11,34 +11,61 @@ export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
+
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // EDIT STATE
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({});
+
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
 
-  // Theme colors
   const cardBg = isNaked ? "bg-white border-slate-200" : "bg-slate-800 border-slate-700";
   const labelColor = isNaked ? "text-slate-500" : "text-slate-400";
   const valueColor = isNaked ? "text-slate-900" : "text-white";
+  const inputClass = isNaked
+    ? "bg-slate-50 border-slate-300 text-slate-900 focus:border-pink-500"
+    : "bg-black/20 border-white/10 text-white focus:border-sanctum-gold";
 
   useEffect(() => {
-    const fetchDetail = async () => {
-      try {
-        const response = await api.get(`/accounts/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setClient(response.data);
-      } catch (err) {
-        console.error(err);
-        setError(err.response?.status === 403 ? "Access Forbidden" : "Failed to load client");
-      } finally {
-        setLoading(false);
-      }
-    };
-    if (token && id) fetchDetail();
+    fetchDetail();
   }, [token, id]);
+
+  const fetchDetail = async () => {
+    try {
+      const response = await api.get(`/accounts/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setClient(response.data);
+      // Initialize form data
+      setFormData({
+        name: response.data.name,
+        status: response.data.status,
+        type: response.data.type
+      });
+    } catch (err) {
+      console.error(err);
+      setError(err.response?.status === 403 ? "Access Forbidden" : "Failed to load client");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await api.put(`/accounts/${id}`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setIsEditing(false);
+      fetchDetail(); // Refresh data
+    } catch (err) {
+      alert("Failed to save updates.");
+      console.error(err);
+    }
+  };
 
   if (loading) return <Layout title="Loading..."><div className="p-8 opacity-50"><Loader2 className="animate-spin"/></div></Layout>;
   if (error) return <Layout title="Error"><div className="p-8 text-red-500">{error}</div></Layout>;
@@ -46,32 +73,100 @@ export default function ClientDetail() {
 
   return (
     <Layout title="Client Profile">
-      
+
       {/* 1. HEADER / ACTIONS */}
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate('/clients')} className="p-2 rounded-full hover:bg-white/10 opacity-70">
-          <ArrowLeft size={20} />
-        </button>
-        <div>
-          <h1 className="text-3xl font-bold">{client.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${client.status === 'lead' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-green-500/20 text-green-500'}`}>
-              {client.status}
-            </span>
-            <span className="text-xs opacity-50 uppercase tracking-widest">{client.id}</span>
-          </div>
+      <div className="flex justify-between items-center mb-8">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/clients')} className="p-2 rounded-full hover:bg-white/10 opacity-70">
+            <ArrowLeft size={20} />
+          </button>
+
+          {isEditing ? (
+            <input
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className={`text-2xl font-bold px-2 py-1 rounded border ${inputClass} outline-none`}
+            />
+          ) : (
+            <div>
+              <h1 className="text-3xl font-bold">{client.name}</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`px-2 py-0.5 text-xs font-bold uppercase rounded ${client.status === 'lead' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-green-500/20 text-green-500'}`}>
+                  {client.status}
+                </span>
+                <span className="text-xs opacity-50 uppercase tracking-widest">{client.id}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* EDIT ACTIONS */}
+        <div className="flex gap-2">
+          {isEditing ? (
+            <>
+              <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 px-4 py-2 rounded bg-gray-600 text-white hover:bg-gray-500">
+                <X size={16} /> Cancel
+              </button>
+              <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 text-white hover:bg-green-500">
+                <Save size={16} /> Save Changes
+              </button>
+            </>
+          ) : (
+            <button onClick={() => setIsEditing(true)} className={`flex items-center gap-2 px-4 py-2 rounded border transition-colors ${isNaked ? 'border-slate-300 hover:bg-slate-50' : 'border-white/20 hover:bg-white/5'}`}>
+              <Edit2 size={16} /> Edit Profile
+            </button>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* 2. LEFT COLUMN: CONTACTS & INTELLIGENCE */}
+
+        {/* 2. LEFT COLUMN: DETAILS & CONTACTS */}
         <div className="space-y-8">
-          
+
+          {/* Main Info Card */}
+          <div className={`p-6 rounded-xl border ${cardBg}`}>
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4">Details</h3>
+            <div className="space-y-4">
+              <div>
+                <p className={`text-xs uppercase ${labelColor}`}>Status</p>
+                {isEditing ? (
+                   <select
+                     value={formData.status}
+                     onChange={(e) => setFormData({...formData, status: e.target.value})}
+                     className={`w-full mt-1 p-2 rounded border ${inputClass}`}
+                   >
+                     <option value="lead">Lead</option>
+                     <option value="prospect">Prospect</option>
+                     <option value="client">Active Client</option>
+                     <option value="churned">Churned</option>
+                   </select>
+                ) : (
+                  <p className={valueColor}>{client.status}</p>
+                )}
+              </div>
+              <div>
+                <p className={`text-xs uppercase ${labelColor}`}>Type</p>
+                {isEditing ? (
+                   <select
+                     value={formData.type}
+                     onChange={(e) => setFormData({...formData, type: e.target.value})}
+                     className={`w-full mt-1 p-2 rounded border ${inputClass}`}
+                   >
+                     <option value="business">Business</option>
+                     <option value="residential">Residential</option>
+                   </select>
+                ) : (
+                  <p className={valueColor}>{client.type}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* Contacts Card */}
           <div className={`p-6 rounded-xl border ${cardBg}`}>
             <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
-              <UsersIcon /> Key Contacts
+              <Users size={16} /> Key Contacts
             </h3>
             <div className="space-y-4">
               {client.contacts.map(c => (
@@ -85,29 +180,11 @@ export default function ClientDetail() {
               {client.contacts.length === 0 && <p className="opacity-50 text-sm">No contacts linked.</p>}
             </div>
           </div>
-
-          {/* Audit Data (The Form Submission) - Only show if exists */}
-          {client.audit_data && (
-            <div className={`p-6 rounded-xl border ${cardBg}`}>
-              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
-                <FileText size={16} /> Submission Data
-              </h3>
-              <div className="space-y-3 text-sm">
-                {Object.entries(client.audit_data).map(([key, val]) => (
-                  <div key={key}>
-                    <p className={`text-xs uppercase ${labelColor}`}>{key.replace('_', ' ')}</p>
-                    <p className={`${valueColor} break-words`}>{val}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* 3. RIGHT COLUMN: WORKFLOWS (Deals/Tickets) */}
+        {/* 3. RIGHT COLUMN: WORKFLOWS (Unchanged) */}
         <div className="lg:col-span-2 space-y-8">
-          
-          {/* Brand A: Deals (Only show for Sanctum/Global) */}
+           {/* Brand A: Deals */}
           {!isNaked && (
             <div className={`p-6 rounded-xl border ${cardBg}`}>
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-sanctum-gold flex items-center gap-2">
@@ -128,7 +205,7 @@ export default function ClientDetail() {
             </div>
           )}
 
-          {/* Brand B: Tickets (Always show) */}
+          {/* Brand B: Tickets */}
           <div className={`p-6 rounded-xl border ${cardBg}`}>
             <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2">
               <AlertCircle size={16} /> Technical Support
@@ -151,11 +228,9 @@ export default function ClientDetail() {
                 <p className="opacity-50 text-sm italic">No open tickets.</p>
               )}
           </div>
-
         </div>
+
       </div>
     </Layout>
   );
 }
-
-function UsersIcon() { return <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> }
