@@ -60,6 +60,14 @@ class ContactCreate(BaseModel):
     persona: Optional[str] = None # New
     reports_to_id: Optional[UUID] = None # New
 
+class ContactUpdate(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    persona: Optional[str] = None
+    reports_to_id: Optional[UUID] = None
+
 class ContactResponse(BaseModel):
     id: UUID
     first_name: str | None = None

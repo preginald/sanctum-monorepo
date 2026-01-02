@@ -286,3 +286,35 @@ def get_account_detail(
          raise HTTPException(status_code=403, detail="Access Forbidden: Segment Mismatch")
 
     return account
+
+@app.put("/contacts/{contact_id}", response_model=schemas.ContactResponse)
+def update_contact(
+    contact_id: str,
+    contact_update: schemas.ContactUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Contact
+    db_contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    if not db_contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+        
+    # 2. Fetch Parent Account for Permission Check
+    account = db.query(models.Account).filter(models.Account.id == db_contact.account_id).first()
+
+    # 3. Enforce Brand Sovereignty
+    if current_user.access_scope == 'nt_only' and account.brand_affinity == 'ds':
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot modify Brand A assets.")
+    if current_user.access_scope == 'ds_only' and account.brand_affinity == 'nt':
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot modify Brand B assets.")
+
+    # 4. Apply Updates
+    # Loop through fields to avoid repetitive if statements
+    update_data = contact_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_contact, key, value)
+
+    # 5. Commit
+    db.commit()
+    db.refresh(db_contact)
+    return db_contact
