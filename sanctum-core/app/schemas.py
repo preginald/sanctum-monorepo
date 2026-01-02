@@ -67,8 +67,8 @@ class ContactResponse(BaseModel):
     email: str | None = None
     phone: str | None = None
     is_primary_contact: bool
-    persona: str | None = None  # <--- Added
-    # We won't nest reports_to_id here to avoid recursion hell for now
+    persona: str | None = None
+    reports_to_id: Optional[UUID] = None # <--- THIS WAS MISSING
 
     class Config:
         from_attributes = True
