@@ -5,6 +5,7 @@ import useAuthStore from './store/authStore';
 import Clients from './pages/Clients'; // <--- Add import
 import ClientDetail from './pages/ClientDetail'; // <--- Import
 import Deals from './pages/Deals'; // <--- Import
+import AuditWizard from './pages/AuditWizard';
 
 
 // Protected Route Wrapper
@@ -30,6 +31,7 @@ function App() {
           <Route path="/clients" element={<Clients />} /> {/* <--- Add Route */}
 	        <Route path="/clients/:id" element={<ClientDetail />} /> {/* <--- New Route */}
           <Route path="/deals" element={<Deals />} /> {/* <--- Add Route */}
+          <Route path="/audit" element={<AuditWizard />} />
         </Routes>
     </ProtectedRoute>
   }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { LogOut, Shield, Wifi, Users, DollarSign } from 'lucide-react';
+import { LogOut, Shield, Wifi, Users, DollarSign, FileText } from 'lucide-react';
 import clsx from 'clsx';
 
 export default function Layout({ children, title }) {
@@ -53,6 +53,7 @@ export default function Layout({ children, title }) {
           <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
           {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals Pipeline" path="/deals" />}
           <NavItem icon={<Wifi size={20} />} label="Service Tickets" path="/tickets" />
+          <NavItem icon={<FileText size={20} />} label="Audit Engine" path="/audit" />
         </nav>
 
         <div className="p-4 border-t border-slate-800/50">

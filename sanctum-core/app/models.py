@@ -75,4 +75,14 @@ class AuditReport(Base):
     __tablename__ = "audit_reports"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
-    security_score = Column(Integer)
+    deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
+    
+    security_score = Column(Integer, default=0)
+    infrastructure_score = Column(Integer, default=0)
+    report_pdf_path = Column(String, nullable=True)
+    status = Column(String, default="draft")
+    content = Column(JSONB, default={}) # The Checklist Data
+    
+    # Relationships
+    account = relationship("Account")
+    deal = relationship("Deal")

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 
 # 1. Login Request
@@ -38,6 +38,32 @@ class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
+
+# --- AUDIT SCHEMAS ---
+
+class AuditItem(BaseModel):
+    category: str # e.g. "Network Security"
+    item: str     # e.g. "Firewall Config"
+    status: str   # "red", "amber", "green"
+    comment: str
+
+class AuditCreate(BaseModel):
+    account_id: UUID
+    deal_id: Optional[UUID] = None
+    items: List[AuditItem] = []
+
+class AuditResponse(BaseModel):
+    id: UUID
+    account_id: UUID
+    security_score: int
+    infrastructure_score: int
+    status: str
+    report_pdf_path: Optional[str]
+    content: dict # The JSON payload
+    created_at: Optional[str] = None # Simplified for now
+
+    class Config:
+        from_attributes = True
 
 class AccountResponse(BaseModel):
     id: UUID

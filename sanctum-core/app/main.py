@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, func
 from datetime import timedelta
@@ -9,7 +11,11 @@ from pydantic import BaseModel
 from .database import get_db
 from . import models, schemas, auth
 
+import os
+from .services import pdf_engine
+
 app = FastAPI(title="Sanctum Core", version="1.1.0")
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # --- CORS POLICY (The Bridge) ---
 origins = [
@@ -374,3 +380,88 @@ def update_deal(
     db.commit()
     db.refresh(deal)
     return deal
+
+# --- AUDIT ENGINE ENDPOINTS ---
+
+@app.post("/audits", response_model=schemas.AuditResponse)
+def create_audit_draft(
+    audit: schemas.AuditCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Validation
+    if current_user.access_scope == 'nt_only':
+        # Tech check logic here if needed (omitted for brevity)
+        pass
+
+    # 2. Create Object
+    # We dump the items list into the JSONB column
+    content_payload = {"items": [item.model_dump() for item in audit.items]}
+    
+    new_audit = models.AuditReport(
+        account_id=audit.account_id,
+        deal_id=audit.deal_id,
+        content=content_payload,
+        status="draft"
+    )
+    
+    db.add(new_audit)
+    db.commit()
+    db.refresh(new_audit)
+    return new_audit
+
+@app.post("/audits/{audit_id}/finalize", response_model=schemas.AuditResponse)
+def finalize_audit(
+    audit_id: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Audit & Account
+    audit_record = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
+    if not audit_record:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    
+    account = db.query(models.Account).filter(models.Account.id == audit_record.account_id).first()
+    
+    # 2. Calculate Scores (The Algorithm)
+    # Red = 0, Amber = 50, Green = 100
+    items = audit_record.content.get('items', [])
+    if not items:
+        raise HTTPException(status_code=400, detail="Cannot finalize empty audit")
+
+    total_score = 0
+    for item in items:
+        s = item.get('status', 'green')
+        if s == 'green': total_score += 100
+        elif s == 'amber': total_score += 50
+        elif s == 'red': total_score += 0
+    
+    # Simple average for now (can be split by category later)
+    final_score = int(total_score / len(items))
+    
+    # 3. Generate PDF
+    # Prepare data for the engine
+    pdf_data = {
+        "client_name": account.name,
+        "security_score": final_score,
+        "infrastructure_score": final_score, # Using same score for now
+        "content": audit_record.content
+    }
+    
+    # Define Path
+    filename = f"audit_{audit_id}.pdf"
+    output_path = os.path.join("app/static/reports", filename)
+    
+    # Draw it
+    pdf = pdf_engine.generate_audit_pdf(pdf_data)
+    pdf.output(output_path)
+    
+    # 4. Save to DB
+    audit_record.security_score = final_score
+    audit_record.infrastructure_score = final_score
+    audit_record.status = "finalized"
+    audit_record.report_pdf_path = f"/static/reports/{filename}"
+    
+    db.commit()
+    db.refresh(audit_record)
+    return audit_record
