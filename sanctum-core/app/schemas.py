@@ -81,10 +81,27 @@ class ContactResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class DealCreate(BaseModel):
+    account_id: UUID
+    title: str
+    amount: float
+    stage: str = "Infiltration"
+    probability: int = 10
+    expected_close_date: Optional[str] = None # ISO Date string
+
+class DealUpdate(BaseModel):
+    title: Optional[str] = None
+    amount: Optional[float] = None
+    stage: Optional[str] = None
+    probability: Optional[int] = None
+
 class DealResponse(BaseModel):
     id: UUID
     title: str
     amount: float
+    stage: str
+    probability: int
+    account_id: UUID # Useful for the frontend
     
     class Config:
         from_attributes = True

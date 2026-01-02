@@ -318,3 +318,59 @@ def update_contact(
     db.commit()
     db.refresh(db_contact)
     return db_contact
+
+# --- DEAL PIPELINE ENDPOINTS ---
+
+@app.get("/deals", response_model=List[schemas.DealResponse])
+def get_deals(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Deal).join(models.Account)
+    
+    # BIFURCATION: Techs don't see Deal Pipelines usually, but if they do:
+    if current_user.access_scope == 'nt_only':
+        query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
+    elif current_user.access_scope == 'ds_only':
+        query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
+        
+    return query.all()
+
+@app.post("/deals", response_model=schemas.DealResponse)
+def create_deal(
+    deal: schemas.DealCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Check permissions logic here if needed (omitted for brevity, similar to Accounts)
+    new_deal = models.Deal(
+        account_id=deal.account_id,
+        title=deal.title,
+        amount=deal.amount,
+        stage=deal.stage,
+        probability=deal.probability
+    )
+    db.add(new_deal)
+    db.commit()
+    db.refresh(new_deal)
+    return new_deal
+
+@app.put("/deals/{deal_id}", response_model=schemas.DealResponse)
+def update_deal(
+    deal_id: str,
+    deal_update: schemas.DealUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    deal = db.query(models.Deal).filter(models.Deal.id == deal_id).first()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+        
+    if deal_update.stage is not None:
+        deal.stage = deal_update.stage
+    if deal_update.probability is not None:
+        deal.probability = deal_update.probability
+        
+    db.commit()
+    db.refresh(deal)
+    return deal

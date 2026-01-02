@@ -53,6 +53,11 @@ class Deal(Base):
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     title = Column(String)
     amount = Column(Float)
+    
+    # --- PHASE 9 NEW COLUMNS ---
+    stage = Column(String, default='Infiltration')
+    probability = Column(Integer, default=10)
+    expected_close_date = Column(Date, nullable=True)
 
     account = relationship("Account", back_populates="deals")
 
