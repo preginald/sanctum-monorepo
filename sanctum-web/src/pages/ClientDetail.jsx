@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { Loader2, ArrowLeft, Mail, Users, Shield, FileText, AlertCircle, Edit2, Save, X, Plus, UserPlus } from 'lucide-react';
+import OrgChart from '../components/OrgChart'; // <--- NEW IMPORT
+import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network } from 'lucide-react';
 import axios from 'axios';
 
 const api = axios.create({ baseURL: '/api' });
@@ -15,21 +16,18 @@ export default function ClientDetail() {
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // EDIT STATE (Account)
   const [isEditing, setIsEditing] = useState(false);
   const [accountForm, setAccountForm] = useState({});
 
-  // CONTACT MODAL STATE
   const [showContactModal, setShowContactModal] = useState(false);
+  // Added reports_to_id to state
   const [contactForm, setContactForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer'
+    first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: ''
   });
 
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
 
-  // THEME CONFIG
   const theme = {
     cardBg: isNaked ? "bg-white border-slate-200" : "bg-slate-800 border-slate-700",
     textMain: isNaked ? "text-slate-900" : "text-white",
@@ -46,7 +44,7 @@ export default function ClientDetail() {
       const response = await api.get(`/accounts/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       setClient(response.data);
       setAccountForm({ name: response.data.name, status: response.data.status, type: response.data.type });
-    } catch (err) { setError("Access Denied or Network Error"); }
+    } catch (err) { setError("Access Denied"); }
     finally { setLoading(false); }
   };
 
@@ -60,10 +58,14 @@ export default function ClientDetail() {
   const createContact = async (e) => {
     e.preventDefault();
     try {
-      await api.post('/contacts', { ...contactForm, account_id: id }, { headers: { Authorization: `Bearer ${token}` } });
+      // Send empty string as null for UUID compatibility if not selected
+      const payload = { ...contactForm, account_id: id };
+      if (payload.reports_to_id === '') payload.reports_to_id = null;
+
+      await api.post('/contacts', payload, { headers: { Authorization: `Bearer ${token}` } });
       setShowContactModal(false);
-      setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer' });
-      fetchDetail(); // Refresh list
+      setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
+      fetchDetail();
     } catch (err) { alert("Failed to add human."); }
   };
 
@@ -73,7 +75,6 @@ export default function ClientDetail() {
   return (
     <Layout title="Client Profile">
 
-      {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/clients')} className="p-2 rounded-full hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
@@ -105,33 +106,16 @@ export default function ClientDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-        {/* LEFT COLUMN */}
+        {/* LEFT COLUMN: Details & Contacts */}
         <div className="space-y-8">
-
-          {/* INFO CARD */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4">Details</h3>
             <div className="space-y-4">
-              <div>
-                <p className={`text-xs uppercase ${theme.textSub}`}>Status</p>
-                {isEditing ? (
-                   <select value={accountForm.status} onChange={(e) => setAccountForm({...accountForm, status: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
-                     <option value="lead">Lead</option><option value="prospect">Prospect</option><option value="client">Active Client</option>
-                   </select>
-                ) : <p className={theme.textMain}>{client.status}</p>}
-              </div>
-              <div>
-                <p className={`text-xs uppercase ${theme.textSub}`}>Type</p>
-                {isEditing ? (
-                   <select value={accountForm.type} onChange={(e) => setAccountForm({...accountForm, type: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
-                     <option value="business">Business</option><option value="residential">Residential</option>
-                   </select>
-                ) : <p className={theme.textMain}>{client.type}</p>}
-              </div>
+              <div><p className={`text-xs uppercase ${theme.textSub}`}>Status</p><p className={theme.textMain}>{client.status}</p></div>
+              <div><p className={`text-xs uppercase ${theme.textSub}`}>Type</p><p className={theme.textMain}>{client.type}</p></div>
             </div>
           </div>
 
-          {/* CONTACTS CARD */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2"><Users size={16} /> Humans</h3>
@@ -143,12 +127,9 @@ export default function ClientDetail() {
                   <div className="flex justify-between items-start">
                     <div>
                       <p className={`font-bold ${theme.textMain}`}>{c.first_name} {c.last_name}</p>
-                      <p className={`text-xs font-mono uppercase mt-0.5 ${c.persona === 'Decision Maker' ? 'text-green-500' : 'opacity-60'}`}>{c.persona || 'Unknown Role'}</p>
+                      <p className={`text-xs font-bold uppercase mt-0.5 ${c.persona === 'Decision Maker' ? 'text-sanctum-gold' : c.persona === 'Blocker' ? 'text-red-500' : 'text-slate-500'}`}>{c.persona}</p>
                     </div>
                     {c.is_primary_contact && <span title="Primary" className="text-yellow-500">⭐</span>}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-xs opacity-70">
-                    <Mail size={12} /> {c.email}
                   </div>
                 </div>
               ))}
@@ -157,8 +138,23 @@ export default function ClientDetail() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN (Workflows) - Kept brief for space */}
+        {/* RIGHT COLUMN: The War Room & Workflows */}
         <div className="lg:col-span-2 space-y-8">
+
+          {/* THE VISUALIZER (Only show if there are contacts) */}
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-sanctum-gold flex items-center gap-2">
+              <Network size={16} /> Command Chain
+            </h3>
+            {client.contacts.length > 0 ? (
+              <OrgChart contacts={client.contacts} />
+            ) : (
+              <div className="h-32 flex items-center justify-center opacity-30 bg-black/20 rounded">
+                Map humans to activate the War Room.
+              </div>
+            )}
+          </div>
+
           {!isNaked && (
             <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-sanctum-gold flex items-center gap-2"><Shield size={16} /> Deals</h3>
@@ -166,11 +162,6 @@ export default function ClientDetail() {
               {client.deals.map(d => <div key={d.id} className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between"><span>{d.title}</span><span className="text-sanctum-gold">${d.amount}</span></div>)}
             </div>
           )}
-          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
-            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2"><AlertCircle size={16} /> Tickets</h3>
-            {client.tickets.length === 0 && <p className="opacity-50 text-sm">No active tickets.</p>}
-            {client.tickets.map(t => <div key={t.id} className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between"><span>{t.subject}</span><span className="opacity-50">{t.status}</span></div>)}
-          </div>
         </div>
       </div>
 
@@ -183,30 +174,32 @@ export default function ClientDetail() {
 
             <form onSubmit={createContact} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs uppercase opacity-70 block mb-1">First Name</label>
-                  <input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} />
-                </div>
-                <div>
-                  <label className="text-xs uppercase opacity-70 block mb-1">Last Name</label>
-                  <input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} />
-                </div>
+                <div><label className="text-xs uppercase opacity-70 block mb-1">First Name</label><input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} /></div>
+                <div><label className="text-xs uppercase opacity-70 block mb-1">Last Name</label><input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} /></div>
               </div>
 
-              <div>
-                <label className="text-xs uppercase opacity-70 block mb-1">Email</label>
-                <input type="email" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} />
-              </div>
+              <div><label className="text-xs uppercase opacity-70 block mb-1">Email</label><input type="email" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} /></div>
 
-              <div>
-                <label className="text-xs uppercase opacity-70 block mb-1">Persona Archetype</label>
-                <select className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.persona} onChange={e => setContactForm({...contactForm, persona: e.target.value})}>
-                  <option value="Decision Maker">Decision Maker (Signs Checks)</option>
-                  <option value="Champion">Champion (Internal Advocate)</option>
-                  <option value="Influencer">Influencer (Technical Veto)</option>
-                  <option value="Blocker">Blocker (The Problem)</option>
-                  <option value="End User">End User (The Staff)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs uppercase opacity-70 block mb-1">Persona</label>
+                  <select className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.persona} onChange={e => setContactForm({...contactForm, persona: e.target.value})}>
+                    <option value="Decision Maker">Decision Maker</option>
+                    <option value="Champion">Champion</option>
+                    <option value="Influencer">Influencer</option>
+                    <option value="Blocker">Blocker</option>
+                    <option value="End User">End User</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs uppercase opacity-70 block mb-1">Reports To</label>
+                  <select className={`w-full p-2 rounded border outline-none ${theme.input}`} value={contactForm.reports_to_id} onChange={e => setContactForm({...contactForm, reports_to_id: e.target.value})}>
+                    <option value="">(No Manager)</option>
+                    {client.contacts.map(c => (
+                      <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <button type="submit" className={`w-full py-3 mt-4 rounded font-bold text-white ${theme.btnPrimary}`}>Add to Hierarchy</button>

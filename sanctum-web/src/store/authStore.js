@@ -2,10 +2,9 @@ import { create } from 'zustand';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
 
-// Configure Axios base URL
+// Configure Axios to use the proxy (works locally and in prod)
 const api = axios.create({
-    // We point to /api, and Apache proxies it to the backend
-    baseURL: '/api',
+  baseURL: '/api',
 });
 
 // --- PERSISTENCE LOGIC ---
