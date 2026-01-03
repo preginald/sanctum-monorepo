@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { Loader2, Plus, Trash2, FileText, CheckCircle, AlertTriangle, XCircle, Download } from 'lucide-react';
-import axios from 'axios';
-
-const api = axios.create({ baseURL: '/api' });
+import api from '../lib/api';
 
 export default function AuditWizard() {
   const { token, user } = useAuthStore();

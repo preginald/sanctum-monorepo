@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout'; // Import the shell
 import { Loader2 } from 'lucide-react';
-import axios from 'axios';
-
-const api = axios.create({ baseURL: '/api' });
+import api from '../lib/api';
 
 export default function Dashboard() {
   const { user, token } = useAuthStore();

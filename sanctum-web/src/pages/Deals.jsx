@@ -3,9 +3,7 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Loader2, DollarSign, Plus } from 'lucide-react';
-import axios from 'axios';
-
-const api = axios.create({ baseURL: '/api' });
+import api from '../lib/api';
 
 const STAGES = {
   'Infiltration': { id: 'Infiltration', label: 'Infiltration', prob: 10, color: 'border-slate-500' },

@@ -1,19 +1,39 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- Added this
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from './store/authStore';
+import { AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [sessionError, setSessionError] = useState(false);
+  
   const login = useAuthStore((state) => state.login);
-  const navigate = useNavigate(); // <--- Initialize hook
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // CHECK FOR SESSION EXPIRATION FLAG
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('expired') === 'true') {
+      setSessionError(true);
+    }
+  }, [location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     const success = await login(email, password);
     if (success) {
-      // No alert needed, just move
-      navigate('/'); // Redirects to Dashboard (Protected Route)
+      // 1. Check for Redirect Param
+      const params = new URLSearchParams(location.search);
+      const redirectTarget = params.get('redirect');
+      
+      // 2. Navigate there, or default to Dashboard
+      if (redirectTarget) {
+        navigate(redirectTarget);
+      } else {
+        navigate('/');
+      }
     } else {
       alert("Access Denied.");
     }
@@ -21,7 +41,7 @@ export default function Login() {
 
   return (
     <div className="flex h-screen w-screen bg-sanctum-dark">
-      {/* LEFT: Digital Sanctum Branding */}
+      {/* LEFT: Branding */}
       <div className="w-1/2 flex flex-col justify-center items-center border-r border-sanctum-gold/20">
         <h1 className="text-4xl font-bold text-white mb-2">Digital Sanctum</h1>
         <p className="text-sanctum-gold tracking-widest uppercase text-sm">Sovereign Architecture</p>
@@ -29,6 +49,15 @@ export default function Login() {
 
       {/* RIGHT: Login Form */}
       <div className="w-1/2 flex flex-col justify-center items-center bg-black/20">
+        
+        {/* SESSION TIMEOUT ALERT */}
+        {sessionError && (
+          <div className="mb-6 p-4 bg-red-900/50 border border-red-500 rounded flex items-center gap-3 text-red-200 animate-pulse">
+            <AlertCircle size={20} />
+            <span>Session timed out. Please authenticate again.</span>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="w-80 flex flex-col gap-4">
           <input
             type="email"

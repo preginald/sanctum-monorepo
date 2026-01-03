@@ -1,31 +1,31 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
+import api from '../lib/api';
 
-// Configure Axios to use the proxy (works locally and in prod)
-const api = axios.create({
-  baseURL: '/api',
-});
 
 // --- PERSISTENCE LOGIC ---
-// Check if token exists on page load (so refresh doesn't kill session)
 const storedToken = localStorage.getItem('sanctum_token');
 let initialUser = null;
 
 if (storedToken) {
   try {
-    // Attempt to decode the stored token to get user data immediately
     initialUser = jwtDecode(storedToken);
+    // Check if expired client-side as well (optional safety)
+    if (initialUser.exp * 1000 < Date.now()) {
+      throw new Error("Token expired");
+    }
   } catch (error) {
-    console.error("Invalid token found, clearing storage.");
+    console.error("Invalid or expired token found, clearing storage.");
     localStorage.removeItem('sanctum_token');
+    storedToken = null; // Prevent auto-login
   }
 }
 
 const useAuthStore = create((set) => ({
   user: initialUser,
   token: storedToken,
-  isAuthenticated: !!storedToken, // True if token exists
+  isAuthenticated: !!storedToken,
 
   login: async (email, password) => {
     try {
@@ -36,20 +36,16 @@ const useAuthStore = create((set) => ({
       const response = await api.post('/token', formData);
       const { access_token } = response.data;
 
-      // 1. DECODE THE TOKEN
-      // This extracts { sub: "ceo@...", scope: "global" }
       const decodedUser = jwtDecode(access_token);
 
-      // 2. SAVE TO STORAGE
       localStorage.setItem('sanctum_token', access_token);
-
-      // 3. UPDATE STATE
-      set({
-        token: access_token,
-        user: decodedUser,
-        isAuthenticated: true
+      
+      set({ 
+        token: access_token, 
+        user: decodedUser, 
+        isAuthenticated: true 
       });
-
+      
       return true;
     } catch (error) {
       console.error("Login failed:", error);
