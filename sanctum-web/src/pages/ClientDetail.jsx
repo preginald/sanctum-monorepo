@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
-import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ClientDetail() {
@@ -12,6 +12,7 @@ export default function ClientDetail() {
   const { user } = useAuthStore();
   
   const [client, setClient] = useState(null);
+  const [audits, setAudits] = useState([]); // <--- ADDED MISSING STATE
   const [loading, setLoading] = useState(true);
   
   // EDIT MODES
@@ -48,6 +49,7 @@ export default function ClientDetail() {
 
   const fetchDetail = async () => {
     try {
+      // 1. Fetch Account
       const response = await api.get(`/accounts/${id}`);
       setClient(response.data);
       setAccountForm({ 
@@ -56,6 +58,11 @@ export default function ClientDetail() {
         type: response.data.type,
         brand_affinity: response.data.brand_affinity 
       });
+
+      // 2. Fetch Audits (Now this will work because state exists)
+      const auditRes = await api.get(`/audits?account_id=${id}`);
+      setAudits(auditRes.data);
+
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }
   };
@@ -158,8 +165,6 @@ export default function ClientDetail() {
                    </select>
                 ) : <p className={theme.textMain}>{client.status}</p>}
               </div>
-              
-              {/* BRAND EDITING (Only for Global/Sanctum) */}
               {!isNaked && isEditingAccount && (
                 <div>
                   <p className={`text-xs uppercase ${theme.textSub}`}>Brand Sovereignty</p>
@@ -168,7 +173,6 @@ export default function ClientDetail() {
                   </select>
                 </div>
               )}
-
               <div>
                 <p className={`text-xs uppercase ${theme.textSub}`}>Type</p>
                 {isEditingAccount ? (
@@ -204,6 +208,40 @@ export default function ClientDetail() {
               ))}
             </div>
           </div>
+
+          {/* RISK ASSESSMENTS CARD (NEW) */}
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2">
+                <FileText size={16} /> Risk Assessments
+              </h3>
+              <button onClick={() => navigate('/audit')} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`} title="New Audit">
+                <Plus size={16} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {audits.length === 0 && <p className="opacity-50 text-sm">No audits on file.</p>}
+              {audits.map(audit => (
+                <div key={audit.id} className="flex justify-between items-center p-3 border-b border-gray-500/20 last:border-0 pb-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold ${audit.security_score < 50 ? 'text-red-500' : audit.security_score < 80 ? 'text-orange-500' : 'text-green-500'}`}>
+                        {audit.security_score}/100
+                      </span>
+                      <span className="text-xs opacity-50 uppercase">{audit.status}</span>
+                    </div>
+                    <span className="text-[10px] font-mono opacity-30">REF: {audit.id.slice(0,8)}</span>
+                  </div>
+                  {audit.report_pdf_path && (
+                    <a href={audit.report_pdf_path} target="_blank" className="p-2 rounded hover:bg-white/10 text-sanctum-gold">
+                      <Download size={16} />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
 
         {/* RIGHT COLUMN */}
@@ -231,7 +269,7 @@ export default function ClientDetail() {
         </div>
       </div>
 
-      {/* CONTACT MODAL */}
+      {/* MODALS */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -259,7 +297,6 @@ export default function ClientDetail() {
         </div>
       )}
 
-      {/* DEAL MODAL */}
       {showDealModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>

@@ -14,6 +14,8 @@ from . import models, schemas, auth
 import os
 from .services import pdf_engine
 
+from typing import List, Optional
+
 app = FastAPI(title="Sanctum Core", version="1.1.0")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -386,6 +388,27 @@ def update_deal(
     return deal
 
 # --- AUDIT ENGINE ENDPOINTS ---
+
+@app.get("/audits", response_model=List[schemas.AuditResponse])
+def get_audits(
+    account_id: Optional[str] = None, # <--- This is what crashed it
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.AuditReport)
+    
+    # Filter by Account if provided
+    if account_id:
+        query = query.filter(models.AuditReport.account_id == account_id)
+        
+    # BIFURCATION SECURITY
+    # If Tech (nt_only), ensure they don't see DS audits (though account_id filter usually handles this)
+    if current_user.access_scope == 'nt_only':
+        query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['nt', 'both']))
+    elif current_user.access_scope == 'ds_only':
+        query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['ds', 'both']))
+        
+    return query.all()
 
 @app.post("/audits", response_model=schemas.AuditResponse)
 def create_audit_draft(
