@@ -38,6 +38,7 @@ class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
+    brand_affinity: Optional[str] = None
 
 # --- AUDIT SCHEMAS ---
 
@@ -120,6 +121,7 @@ class DealUpdate(BaseModel):
     amount: Optional[float] = None
     stage: Optional[str] = None
     probability: Optional[int] = None
+    expected_close_date: Optional[str] = None
 
 class DealResponse(BaseModel):
     id: UUID

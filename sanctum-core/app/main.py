@@ -239,28 +239,32 @@ def update_account(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # 1. Fetch the Account
     db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
     if not db_account:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    # 2. ENFORCE BIFURCATION SECURITY (Write Access Check)
-    # A Brand B Tech cannot edit a Brand A Client.
+    # SECURITY: Brand Sovereignty
     if current_user.access_scope == 'nt_only' and db_account.brand_affinity == 'ds':
-        raise HTTPException(status_code=403, detail="Access Forbidden: Clearance Level Insufficient")
-
+        raise HTTPException(status_code=403, detail="Forbidden")
     if current_user.access_scope == 'ds_only' and db_account.brand_affinity == 'nt':
-         raise HTTPException(status_code=403, detail="Access Forbidden: Segment Mismatch")
+         raise HTTPException(status_code=403, detail="Forbidden")
 
-    # 3. Apply Updates
+    # UPDATE LOGIC
     if account_update.name is not None:
         db_account.name = account_update.name
     if account_update.type is not None:
         db_account.type = account_update.type
     if account_update.status is not None:
         db_account.status = account_update.status
+    
+    # PRIORITY 2: BRAND MUTABILITY (Restricted)
+    if account_update.brand_affinity is not None:
+        # Only Global (CEO) or Sanctum (Strategists) can move assets. 
+        # Naked Tech (Technicians) cannot re-assign sovereignty.
+        if current_user.access_scope == 'nt_only':
+             raise HTTPException(status_code=403, detail="Insufficient clearance to change Sovereign Brand.")
+        db_account.brand_affinity = account_update.brand_affinity
 
-    # 4. Commit
     db.commit()
     db.refresh(db_account)
     return db_account
@@ -372,10 +376,10 @@ def update_deal(
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
         
-    if deal_update.stage is not None:
-        deal.stage = deal_update.stage
-    if deal_update.probability is not None:
-        deal.probability = deal_update.probability
+    # Apply all updates
+    update_data = deal_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(deal, key, value)
         
     db.commit()
     db.refresh(deal)
