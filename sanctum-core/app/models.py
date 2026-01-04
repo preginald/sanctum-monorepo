@@ -65,11 +65,14 @@ class Ticket(Base):
     __tablename__ = "tickets"
     id = Column(Integer, primary_key=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
+    assigned_tech_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True) # <--- Added mapping
     subject = Column(String)
-    status = Column(String)
-    priority = Column(String)
+    status = Column(String, default='new')
+    priority = Column(String, default='normal')
 
     account = relationship("Account", back_populates="tickets")
+    # Optional: Relationship to User if needed later
+
 
 class AuditReport(Base):
     __tablename__ = "audit_reports"

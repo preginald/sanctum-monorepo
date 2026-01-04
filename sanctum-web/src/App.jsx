@@ -6,6 +6,7 @@ import Clients from './pages/Clients'; // <--- Add import
 import ClientDetail from './pages/ClientDetail'; // <--- Import
 import Deals from './pages/Deals'; // <--- Import
 import AuditWizard from './pages/AuditWizard';
+import Tickets from './pages/Tickets';
 
 
 // Protected Route Wrapper
@@ -32,6 +33,7 @@ function App() {
 	        <Route path="/clients/:id" element={<ClientDetail />} /> {/* <--- New Route */}
           <Route path="/deals" element={<Deals />} /> {/* <--- Add Route */}
           <Route path="/audit" element={<AuditWizard />} />
+          <Route path="/tickets" element={<Tickets />} />
         </Routes>
     </ProtectedRoute>
   }

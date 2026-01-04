@@ -152,3 +152,26 @@ class AccountDetail(AccountResponse):
 
     class Config:
         from_attributes = True
+
+class TicketCreate(BaseModel):
+    account_id: UUID
+    subject: str
+    priority: str = 'normal'
+    assigned_tech_id: Optional[UUID] = None
+
+class TicketUpdate(BaseModel):
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    subject: Optional[str] = None
+    assigned_tech_id: Optional[UUID] = None
+
+class TicketResponse(BaseModel):
+    id: int
+    subject: str
+    status: str
+    priority: str
+    account_id: UUID
+    account_name: Optional[str] = None # Helper for list view
+    
+    class Config:
+        from_attributes = True

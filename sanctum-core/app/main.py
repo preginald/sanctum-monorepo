@@ -492,3 +492,72 @@ def finalize_audit(
     db.commit()
     db.refresh(audit_record)
     return audit_record
+
+# --- TICKET ENDPOINTS ---
+
+@app.get("/tickets", response_model=List[schemas.TicketResponse])
+def get_tickets(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Ticket).join(models.Account)
+    
+    # BIFURCATION
+    if current_user.access_scope == 'nt_only':
+        query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
+    elif current_user.access_scope == 'ds_only':
+        query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
+        
+    tickets = query.order_by(models.Ticket.id.desc()).all()
+    
+    # Enrich with Account Name manually for display
+    results = []
+    for t in tickets:
+        # Pydantic is picky, so we map manually or use ORM loading
+        # Let's simple map for now
+        t_dict = t.__dict__
+        t_dict['account_name'] = t.account.name
+        results.append(t_dict)
+        
+    return results
+
+@app.post("/tickets", response_model=schemas.TicketResponse)
+def create_ticket(
+    ticket: schemas.TicketCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Validation logic omitted for brevity (similar to Accounts)
+    new_ticket = models.Ticket(
+        account_id=ticket.account_id,
+        subject=ticket.subject,
+        priority=ticket.priority,
+        status='new',
+        assigned_tech_id=ticket.assigned_tech_id
+    )
+    db.add(new_ticket)
+    db.commit()
+    db.refresh(new_ticket)
+    
+    # Eager load for response
+    new_ticket.account_name = new_ticket.account.name 
+    return new_ticket
+
+@app.put("/tickets/{ticket_id}", response_model=schemas.TicketResponse)
+def update_ticket(
+    ticket_id: int,
+    ticket_update: schemas.TicketUpdate,
+    db: Session = Depends(get_db)
+):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+        
+    update_data = ticket_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(ticket, key, value)
+        
+    db.commit()
+    db.refresh(ticket)
+    ticket.account_name = ticket.account.name
+    return ticket
