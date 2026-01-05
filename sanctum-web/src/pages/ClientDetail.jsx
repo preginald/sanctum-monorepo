@@ -269,7 +269,19 @@ export default function ClientDetail() {
                 <button onClick={() => setShowDealModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`}><Plus size={16} /></button>
               </div>
               {client.deals.length === 0 && <p className="opacity-50 text-sm">No active deals.</p>}
-              {client.deals.map(d => <div key={d.id} className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between"><span>{d.title}</span><span className="text-sanctum-gold">${d.amount.toLocaleString()}</span></div>)}
+            {client.deals.map(d => (
+              <div 
+                key={d.id} 
+                onClick={() => navigate(`/deals/${d.id}`)}
+                className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors"
+              >
+                <span className="font-medium">{d.title}</span>
+                <div className="text-right">
+                  <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
+                  <span className="text-[10px] uppercase opacity-50">{d.stage}</span>
+                </div>
+              </div>
+            ))}
             </div>
           )}
 
