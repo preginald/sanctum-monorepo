@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from uuid import UUID
+from datetime import datetime
 
 # 1. Login Request
 class Token(BaseModel):
@@ -53,18 +54,26 @@ class AuditCreate(BaseModel):
     deal_id: Optional[UUID] = None
     items: List[AuditItem] = []
 
+class AuditUpdate(BaseModel):
+    items: List[AuditItem] # Reuse the item schema
+
 class AuditResponse(BaseModel):
     id: UUID
     account_id: UUID
-    security_score: int
-    infrastructure_score: int
+    # Change int to Optional[int] = 0 (or None)
+    security_score: Optional[int] = 0
+    infrastructure_score: Optional[int] = 0
     status: str
     report_pdf_path: Optional[str]
-    content: dict # The JSON payload
-    created_at: Optional[str] = None # Simplified for now
+    content: dict
+    # UPDATE TIMESTAMPS
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    finalized_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+
 
 class AccountResponse(BaseModel):
     id: UUID
@@ -123,22 +132,53 @@ class DealUpdate(BaseModel):
     probability: Optional[int] = None
     expected_close_date: Optional[str] = None
 
+# --- UPDATE DEAL RESPONSE (Add Client Name) ---
 class DealResponse(BaseModel):
     id: UUID
     title: str
     amount: float
     stage: str
     probability: int
-    account_id: UUID # Useful for the frontend
+    account_id: UUID
+    account_name: Optional[str] = None # <--- New for Kanban
     
     class Config:
         from_attributes = True
 
+class TicketCreate(BaseModel):
+    account_id: UUID
+    contact_ids: List[UUID] = [] # New list input
+    subject: str
+    description: Optional[str] = None # New
+    priority: str = 'normal'
+    assigned_tech_id: Optional[UUID] = None
+
+class TicketUpdate(BaseModel):
+    status: Optional[str] = None
+    priority: Optional[str] = None
+    subject: Optional[str] = None
+    description: Optional[str] = None
+    resolution: Optional[str] = None
+    assigned_tech_id: Optional[UUID] = None
+    contact_ids: Optional[List[UUID]] = None
+
 class TicketResponse(BaseModel):
     id: int
     subject: str
+    description: Optional[str] = None
     status: str
     priority: str
+    resolution: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None  # <--- Added
+    closed_at: Optional[datetime] = None
+    account_id: UUID
+    contact_ids: List[UUID] = [] # New list input
+    account_name: Optional[str] = None
+    contact_name: Optional[str] = None
+
+    # NEW FIELD: Allow the list of objects through
+    contacts: List[ContactResponse] = [] 
     
     class Config:
         from_attributes = True
@@ -153,25 +193,21 @@ class AccountDetail(AccountResponse):
     class Config:
         from_attributes = True
 
-class TicketCreate(BaseModel):
-    account_id: UUID
-    subject: str
-    priority: str = 'normal'
-    assigned_tech_id: Optional[UUID] = None
+# --- COMMENT SCHEMAS ---
+class CommentCreate(BaseModel):
+    body: str
+    visibility: str = 'internal'
+    # Polymorphic input: Only one should be sent
+    ticket_id: Optional[int] = None
+    deal_id: Optional[UUID] = None
+    audit_id: Optional[UUID] = None
 
-class TicketUpdate(BaseModel):
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    subject: Optional[str] = None
-    assigned_tech_id: Optional[UUID] = None
-
-class TicketResponse(BaseModel):
-    id: int
-    subject: str
-    status: str
-    priority: str
-    account_id: UUID
-    account_name: Optional[str] = None # Helper for list view
+class CommentResponse(BaseModel):
+    id: UUID
+    author_name: str
+    body: str
+    visibility: str
+    created_at: datetime
     
     class Config:
         from_attributes = True

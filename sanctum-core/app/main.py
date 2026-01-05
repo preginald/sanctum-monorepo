@@ -333,6 +333,26 @@ def update_contact(
 
 # --- DEAL PIPELINE ENDPOINTS ---
 
+@app.get("/deals/{deal_id}", response_model=schemas.DealResponse)
+def get_deal_detail(
+    deal_id: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    deal = db.query(models.Deal).filter(models.Deal.id == deal_id).first()
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    
+    # Permission Check (Bifurcation)
+    if current_user.access_scope == 'nt_only' and deal.account.brand_affinity == 'ds':
+        raise HTTPException(status_code=403, detail="Forbidden")
+    if current_user.access_scope == 'ds_only' and deal.account.brand_affinity == 'nt':
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Map Account Name
+    deal.account_name = deal.account.name
+    return deal
+
 @app.get("/deals", response_model=List[schemas.DealResponse])
 def get_deals(
     current_user: models.User = Depends(auth.get_current_active_user),
@@ -346,7 +366,11 @@ def get_deals(
     elif current_user.access_scope == 'ds_only':
         query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
         
-    return query.all()
+    deals = query.all()
+    # Map account name
+    for d in deals:
+        d.account_name = d.account.name
+    return deals
 
 @app.post("/deals", response_model=schemas.DealResponse)
 def create_deal(
@@ -409,6 +433,55 @@ def get_audits(
         query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['ds', 'both']))
         
     return query.all()
+
+@app.get("/audits/{audit_id}", response_model=schemas.AuditResponse)
+def get_audit_detail(
+    audit_id: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    audit = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    return audit
+
+@app.put("/audits/{audit_id}", response_model=schemas.AuditResponse)
+def update_audit_content(
+    audit_id: str,
+    audit_update: schemas.AuditUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    audit = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+    
+    # 1. Update Content
+    content_payload = {"items": [item.model_dump() for item in audit_update.items]}
+    audit.content = content_payload
+    
+    # 2. Recalculate Scores
+    total_score = 0
+    items = audit_update.items
+    if items:
+        for item in items:
+            s = item.status.lower()
+            if s == 'green': total_score += 100
+            elif s == 'amber': total_score += 50
+        final_score = int(total_score / len(items))
+    else:
+        final_score = 0
+
+    audit.security_score = final_score
+    audit.infrastructure_score = final_score
+    
+    # Timestamp update happens automatically via DB/ORM, 
+    # but we force touch if needed:
+    audit.updated_at = func.now()
+    
+    db.commit()
+    db.refresh(audit)
+    return audit
 
 @app.post("/audits", response_model=schemas.AuditResponse)
 def create_audit_draft(
@@ -488,7 +561,8 @@ def finalize_audit(
     audit_record.infrastructure_score = final_score
     audit_record.status = "finalized"
     audit_record.report_pdf_path = f"/static/reports/{filename}"
-    
+    audit_record.finalized_at = func.now() # <--- Capture the moment
+
     db.commit()
     db.refresh(audit_record)
     return audit_record
@@ -509,14 +583,19 @@ def get_tickets(
         query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
         
     tickets = query.order_by(models.Ticket.id.desc()).all()
-    
-    # Enrich with Account Name manually for display
     results = []
     for t in tickets:
-        # Pydantic is picky, so we map manually or use ORM loading
-        # Let's simple map for now
         t_dict = t.__dict__
         t_dict['account_name'] = t.account.name
+        
+        # 1. Create the Display String (For the Table/Header)
+        names = [f"{c.first_name} {c.last_name}" for c in t.contacts]
+        t_dict['contact_name'] = ", ".join(names) if names else None
+        
+        # 2. Attach the Objects (For the Edit Form)
+        # We explicitly set this so Pydantic picks it up
+        t_dict['contacts'] = t.contacts 
+        
         results.append(t_dict)
         
     return results
@@ -535,6 +614,12 @@ def create_ticket(
         status='new',
         assigned_tech_id=ticket.assigned_tech_id
     )
+
+    # Handle Many-to-Many
+    if ticket.contact_ids: # Schema needs update to accept list
+        selected_contacts = db.query(models.Contact).filter(models.Contact.id.in_(ticket.contact_ids)).all()
+        new_ticket.contacts = selected_contacts
+        
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)
@@ -554,10 +639,79 @@ def update_ticket(
         raise HTTPException(status_code=404, detail="Ticket not found")
         
     update_data = ticket_update.model_dump(exclude_unset=True)
+    
+    # 1. Handle Many-to-Many Contact Update
+    if 'contact_ids' in update_data:
+        ids = update_data.pop('contact_ids') # Remove from generic setattr loop
+        # Fetch the actual Contact objects
+        if ids:
+            new_contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
+            ticket.contacts = new_contacts # SQLAlchemy updates the join table
+        else:
+            ticket.contacts = [] # Clear if empty list sent
+
+    # 2. Handle Auto-Close Timestamp
+    if 'status' in update_data and update_data['status'] == 'resolved' and ticket.status != 'resolved':
+        ticket.closed_at = func.now()
+        
+    # 3. Generic Update for other fields
     for key, value in update_data.items():
         setattr(ticket, key, value)
         
     db.commit()
     db.refresh(ticket)
+    
+    # 4. Refresh Name Mappings for Response
     ticket.account_name = ticket.account.name
+    names = [f"{c.first_name} {c.last_name}" for c in ticket.contacts]
+    ticket.contact_name = ", ".join(names) if names else None
+    
     return ticket
+
+@app.get("/comments", response_model=List[schemas.CommentResponse])
+def get_comments(
+    ticket_id: Optional[int] = None,
+    deal_id: Optional[str] = None,
+    audit_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Comment)
+    if ticket_id: query = query.filter(models.Comment.ticket_id == ticket_id)
+    if deal_id: query = query.filter(models.Comment.deal_id == deal_id)
+    if audit_id: query = query.filter(models.Comment.audit_id == audit_id)
+    
+    comments = query.order_by(models.Comment.created_at.desc()).all()
+    
+    # Map author name
+    results = []
+    for c in comments:
+        c.author_name = c.author.full_name
+        results.append(c)
+    return results
+
+@app.post("/comments", response_model=schemas.CommentResponse)
+def create_comment(
+    comment: schemas.CommentCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    try:
+        new_comment = models.Comment(
+            author_id=current_user.id,
+            body=comment.body,
+            visibility=comment.visibility,
+            ticket_id=comment.ticket_id,
+            deal_id=comment.deal_id,
+            audit_id=comment.audit_id
+        )
+        db.add(new_comment)
+        db.commit()
+        db.refresh(new_comment)
+        
+        # SAFETY: Handle missing full_name to prevent Pydantic 500 Error
+        new_comment.author_name = current_user.full_name or current_user.email
+        
+        return new_comment
+    except Exception as e:
+        print(f"COMMENT ERROR: {str(e)}") # Print to console for debugging
+        raise HTTPException(status_code=500, detail=str(e))

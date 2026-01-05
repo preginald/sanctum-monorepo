@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- NEW IMPORT
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -14,9 +15,9 @@ const STAGES = {
 };
 
 export default function Deals() {
+  const navigate = useNavigate(); // <--- NEW HOOK INITIALIZATION
   const { token, user } = useAuthStore();
   const [deals, setDeals] = useState([]);
-  const [columns, setColumns] = useState(STAGES);
   const [loading, setLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
 
@@ -24,7 +25,7 @@ export default function Deals() {
 
   const fetchDeals = async () => {
     try {
-      const res = await api.get('/deals', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await api.get('/deals');
       setDeals(res.data);
       calculateTotal(res.data);
     } catch (err) { console.error(err); } 
@@ -36,7 +37,6 @@ export default function Deals() {
     setTotalValue(total);
   };
 
-  // Group deals by stage
   const getDealsByStage = (stage) => deals.filter(d => d.stage === stage);
 
   const onDragEnd = async (result) => {
@@ -47,22 +47,17 @@ export default function Deals() {
     const newStage = destination.droppableId;
     const newProb = STAGES[newStage].prob;
 
-    // Optimistic Update (UI updates instantly)
     const updatedDeals = deals.map(d => 
       d.id === draggableId ? { ...d, stage: newStage, probability: newProb } : d
     );
     setDeals(updatedDeals);
     calculateTotal(updatedDeals);
 
-    // API Update
     try {
-      await api.put(`/deals/${draggableId}`, 
-        { stage: newStage, probability: newProb }, 
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await api.put(`/deals/${draggableId}`, { stage: newStage, probability: newProb });
     } catch (err) {
       alert("Move failed");
-      fetchDeals(); // Revert on error
+      fetchDeals(); 
     }
   };
 
@@ -76,14 +71,12 @@ export default function Deals() {
             {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(totalValue)}
           </h2>
         </div>
-        {/* We can add a Create Deal button here later */}
       </div>
 
       <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-200px)]">
         <DragDropContext onDragEnd={onDragEnd}>
           {Object.values(STAGES).map((stage) => (
             <div key={stage.id} className="min-w-[280px] w-1/5 bg-slate-900/50 rounded-xl border border-slate-700 flex flex-col">
-              {/* Column Header */}
               <div className={`p-4 border-b-2 ${stage.color} bg-black/20 rounded-t-xl`}>
                 <h3 className="font-bold text-sm uppercase">{stage.label}</h3>
                 <div className="flex justify-between text-xs opacity-50 mt-1">
@@ -92,7 +85,6 @@ export default function Deals() {
                 </div>
               </div>
 
-              {/* Droppable Area */}
               <Droppable droppableId={stage.id}>
                 {(provided, snapshot) => (
                   <div
@@ -107,10 +99,14 @@ export default function Deals() {
                             ref={provided.innerRef}
                             {...provided.draggableProps}
                             {...provided.dragHandleProps}
-                            className={`p-4 mb-3 rounded bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-colors ${snapshot.isDragging ? 'rotate-2 shadow-xl' : ''}`}
+                            onClick={() => navigate(`/deals/${deal.id}`)}
+                            className={`p-4 mb-3 rounded bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-colors cursor-pointer group ${snapshot.isDragging ? 'rotate-2 shadow-xl' : ''}`}
                           >
-                            <h4 className="font-bold text-sm mb-1">{deal.title}</h4>
-                            <p className="text-sanctum-gold font-mono text-sm">
+                            <div className="flex justify-between items-start mb-2">
+                              <span className="text-[10px] uppercase font-bold tracking-wider opacity-50">{deal.account_name}</span>
+                            </div>
+                            <h4 className="font-bold text-sm mb-1 group-hover:text-sanctum-gold transition-colors">{deal.title}</h4>
+                            <p className="text-white font-mono text-sm">
                               ${deal.amount.toLocaleString()}
                             </p>
                           </div>

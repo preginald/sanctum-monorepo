@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- Import
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { Loader2, Plus, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 import api from '../lib/api';
 
 export default function Tickets() {
+  const navigate = useNavigate(); // <--- Initialize
   const { token, user } = useAuthStore();
   const [tickets, setTickets] = useState([]);
   const [clients, setClients] = useState([]);
@@ -44,7 +46,8 @@ export default function Tickets() {
     } catch (e) { alert("Error creating ticket"); }
   };
 
-  const updateStatus = async (id, newStatus) => {
+  const updateStatus = async (e, id, newStatus) => {
+    e.stopPropagation(); // <--- Prevent row click
     try {
       // Optimistic update
       setTickets(tickets.map(t => t.id === id ? { ...t, status: newStatus } : t));
@@ -74,7 +77,11 @@ export default function Tickets() {
           </thead>
           <tbody className="text-sm">
             {tickets.map(t => (
-              <tr key={t.id} className="border-b border-white/5 hover:bg-white/5">
+              <tr 
+                key={t.id} 
+                onClick={() => navigate(`/tickets/${t.id}`)} // <--- Navigate on click
+                className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
+              >
                 <td className="p-4 font-mono opacity-50">#{t.id}</td>
                 <td className="p-4 font-bold">{t.account_name}</td>
                 <td className="p-4">{t.subject}</td>
@@ -94,8 +101,11 @@ export default function Tickets() {
                 </td>
                 <td className="p-4 text-right">
                   {t.status !== 'resolved' && (
-                    <button onClick={() => updateStatus(t.id, 'resolved')} className="text-green-500 hover:underline text-xs">
-                      Mark Resolved
+                    <button 
+                      onClick={(e) => updateStatus(e, t.id, 'resolved')} 
+                      className="text-green-500 hover:underline text-xs"
+                    >
+                      Quick Resolve
                     </button>
                   )}
                 </td>
