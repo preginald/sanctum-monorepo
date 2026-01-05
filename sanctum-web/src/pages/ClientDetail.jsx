@@ -222,7 +222,11 @@ export default function ClientDetail() {
             <div className="space-y-3">
               {audits.length === 0 && <p className="opacity-50 text-sm">No audits on file.</p>}
               {audits.map(audit => (
-                <div key={audit.id} className="flex justify-between items-center p-3 border-b border-gray-500/20 last:border-0 pb-3">
+                <div 
+                  key={audit.id} 
+                  onClick={() => navigate(`/audit/${audit.id}`)}
+                  className="flex justify-between items-center p-3 border-b border-gray-500/20 last:border-0 pb-3 cursor-pointer hover:bg-white/5 transition-colors rounded"
+                >
                   <div>
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-bold ${audit.security_score < 50 ? 'text-red-500' : audit.security_score < 80 ? 'text-orange-500' : 'text-green-500'}`}>
@@ -232,8 +236,15 @@ export default function ClientDetail() {
                     </div>
                     <span className="text-[10px] font-mono opacity-30">REF: {audit.id.slice(0,8)}</span>
                   </div>
+                  
                   {audit.report_pdf_path && (
-                    <a href={audit.report_pdf_path} target="_blank" className="p-2 rounded hover:bg-white/10 text-sanctum-gold">
+                    <a 
+                      href={audit.report_pdf_path} 
+                      target="_blank" 
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-2 rounded hover:bg-white/10 text-sanctum-gold"
+                      title="Download PDF"
+                    >
                       <Download size={16} />
                     </a>
                   )}
