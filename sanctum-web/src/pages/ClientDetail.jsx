@@ -262,9 +262,43 @@ export default function ClientDetail() {
             </div>
           )}
 
+          {/* TICKETS CARD */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
-            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2"><AlertCircle size={16} /> Tickets</h3>
-            {client.tickets.length === 0 && <p className="opacity-50 text-sm">No active tickets.</p>}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2">
+                <AlertCircle size={16} /> Tickets
+              </h3>
+              {/* Optional: Add New Ticket Button here if desired */}
+            </div>
+
+            {client.tickets.length === 0 ? (
+              <p className="opacity-50 text-sm">No active tickets.</p>
+            ) : (
+              <div className="space-y-2">
+                {client.tickets.map(t => (
+                  <div 
+                    key={t.id} 
+                    onClick={() => navigate(`/tickets/${t.id}`)}
+                    className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                          {t.priority}
+                        </span>
+                        <span className="font-medium text-sm">{t.subject}</span>
+                      </div>
+                      <span className="text-[10px] opacity-40 font-mono">#{t.id} • {t.status}</span>
+                    </div>
+                    {t.status === 'resolved' ? (
+                      <CheckCircle size={16} className="text-green-500" />
+                    ) : (
+                      <Clock size={16} className="text-yellow-500" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
