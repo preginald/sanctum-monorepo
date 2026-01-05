@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
-import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ClientDetail() {
