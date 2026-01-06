@@ -25,12 +25,13 @@ class UserResponse(BaseModel):
 
 # --- ANALYTICS V2 ---
 class DashboardStats(BaseModel):
-    revenue_realized: float    # Closed/Won (Accession)
-    pipeline_value: float      # Active Opportunities
+    revenue_realized: float    
+    pipeline_value: float      
     active_audits: int
     open_tickets: int
-    critical_tickets: int      # High Priority Only
+    critical_tickets: int      
 
+# --- ACCOUNT SCHEMAS ---
 class AccountCreate(BaseModel):
     name: str
     type: str 
@@ -43,8 +44,17 @@ class AccountUpdate(BaseModel):
     status: Optional[str] = None
     brand_affinity: Optional[str] = None
 
-# --- AUDIT SCHEMAS ---
+class AccountResponse(BaseModel):
+    id: UUID
+    name: str
+    type: str
+    status: str
+    brand_affinity: str
+    
+    class Config:
+        from_attributes = True
 
+# --- AUDIT SCHEMAS ---
 class AuditItem(BaseModel):
     category: str 
     item: str     
@@ -74,19 +84,7 @@ class AuditResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-class AccountResponse(BaseModel):
-    id: UUID
-    name: str
-    type: str
-    status: str
-    brand_affinity: str
-    
-    class Config:
-        from_attributes = True
-
 # --- NESTED DETAIL SCHEMAS ---
-
 class ContactCreate(BaseModel):
     account_id: UUID
     first_name: str
@@ -144,6 +142,27 @@ class DealResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- TIME ENTRY SCHEMAS (Must be defined before Tickets) ---
+class TimeEntryCreate(BaseModel):
+    start_time: datetime
+    end_time: datetime
+    description: Optional[str] = None
+
+class TimeEntryResponse(BaseModel):
+    id: UUID
+    ticket_id: int
+    user_id: UUID
+    user_name: Optional[str] = None
+    start_time: datetime
+    end_time: datetime
+    duration_minutes: int 
+    description: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# --- TICKET SCHEMAS (Must be defined before AccountDetail) ---
 class TicketCreate(BaseModel):
     account_id: UUID
     contact_ids: List[UUID] = [] 
@@ -160,6 +179,10 @@ class TicketUpdate(BaseModel):
     resolution: Optional[str] = None
     assigned_tech_id: Optional[UUID] = None
     contact_ids: Optional[List[UUID]] = None
+    
+    # TIME TRAVEL FIELDS
+    created_at: Optional[datetime] = None
+    closed_at: Optional[datetime] = None
 
 class TicketResponse(BaseModel):
     id: int
@@ -178,10 +201,14 @@ class TicketResponse(BaseModel):
 
     contacts: List[ContactResponse] = [] 
     
+    # NEW: Include logs in the detail view
+    time_entries: List[TimeEntryResponse] = []
+    total_hours: float = 0.0
+
     class Config:
         from_attributes = True
 
-# The Master View
+# --- MASTER VIEW (Dependent on all above) ---
 class AccountDetail(AccountResponse):
     contacts: list[ContactResponse] = []
     deals: list[DealResponse] = []

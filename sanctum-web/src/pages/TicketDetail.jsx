@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 
 export default function TicketDetail() {
@@ -10,30 +10,34 @@ export default function TicketDetail() {
   const navigate = useNavigate();
   
   const [ticket, setTicket] = useState(null);
-  const [contacts, setContacts] = useState([]); // All available contacts for the client
+  const [contacts, setContacts] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Time Entry State
+  const [newEntry, setNewEntry] = useState({ start_time: '', end_time: '', description: '' });
+  const [showTimeForm, setShowTimeForm] = useState(false);
   
   const [formData, setFormData] = useState({
     status: '',
     priority: '',
     description: '',
     resolution: '',
-    contact_ids: [] // <--- Initialize as Array to prevent crash
+    created_at: '', // Time Travel
+    closed_at: '',  // Time Travel
+    contact_ids: [] 
   });
 
   useEffect(() => { fetchTicket(); }, [id]);
 
   const fetchTicket = async () => {
     try {
-      // 1. Get Ticket Data
       const res = await api.get('/tickets'); 
       const target = res.data.find(t => t.id === parseInt(id));
       
       if (target) {
         setTicket(target);
         
-        // 2. Map existing linked contacts to IDs
         const existingIds = target.contacts ? target.contacts.map(c => c.id) : [];
 
         setFormData({
@@ -41,10 +45,12 @@ export default function TicketDetail() {
           priority: target.priority,
           description: target.description || '',
           resolution: target.resolution || '',
+          // Format for datetime-local input (YYYY-MM-DDTHH:MM)
+          created_at: target.created_at ? target.created_at.slice(0, 16) : '',
+          closed_at: target.closed_at ? target.closed_at.slice(0, 16) : '',
           contact_ids: existingIds 
         });
 
-        // 3. Fetch All Contacts for this Account (to populate dropdown)
         fetchContacts(target.account_id);
       }
     } catch (e) { console.error(e); } 
@@ -65,11 +71,46 @@ export default function TicketDetail() {
       alert("Resolution note is required to close a ticket.");
       return;
     }
+    
+    // Convert empty string to null for API
+    const payload = { ...formData };
+    if (!payload.closed_at) delete payload.closed_at; // Let backend handle it or leave null
+
     try {
-      await api.put(`/tickets/${id}`, formData);
+      await api.put(`/tickets/${id}`, payload);
       await fetchTicket(); 
       setIsEditing(false); 
     } catch (e) { alert("Update failed"); }
+  };
+
+  const handleAddTime = async (e) => {
+    e.preventDefault();
+    try {
+        await api.post(`/tickets/${id}/time_entries`, newEntry);
+        setNewEntry({ start_time: '', end_time: '', description: '' });
+        setShowTimeForm(false);
+        fetchTicket(); // Refresh to show new total hours
+    } catch (error) { alert("Failed to log time."); }
+  };
+
+  const handleDeleteTime = async (entryId) => {
+    if(!confirm("Remove this time log?")) return;
+    try {
+        await api.delete(`/tickets/${id}/time_entries/${entryId}`);
+        fetchTicket();
+    } catch (e) { alert("Failed to delete log"); }
+  };
+
+  // Helper for UI display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString();
+  };
+  
+  const formatDuration = (mins) => {
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return `${h}h ${m}m`;
   };
 
   // CONTACT TOGGLE LOGIC
@@ -80,11 +121,6 @@ export default function TicketDetail() {
     } else {
       setFormData({ ...formData, contact_ids: [...current, contactId] });
     }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
   };
 
   const getPriorityColor = (p) => {
@@ -108,7 +144,6 @@ export default function TicketDetail() {
             <h1 className="text-2xl font-bold">{ticket.subject}</h1>
             <p className="opacity-50 text-sm flex items-center gap-2">
               {ticket.account_name} 
-              {/* Show Linked Contacts in Header */}
               {ticket.contact_name && (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 text-xs text-sanctum-gold">
                   <User size={10} /> {ticket.contact_name}
@@ -164,24 +199,27 @@ export default function TicketDetail() {
                   </p>
                 </div>
 
+                {/* TIMESTAMPS DISPLAY */}
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800">
                   <div>
                     <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1"><Clock size={12}/> Opened</label>
                     <span className="text-sm font-mono opacity-80">{formatDate(ticket.created_at)}</span>
                   </div>
                   <div>
-                    <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-yellow-500"><Clock size={12}/> Last Modified</label>
-                    <span className="text-sm font-mono opacity-80">{ticket.updated_at ? formatDate(ticket.updated_at) : 'Never'}</span>
+                    {ticket.closed_at ? (
+                       <>
+                        <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-green-500"><CheckCircle size={12}/> Closed</label>
+                        <span className="text-sm font-mono opacity-80">{formatDate(ticket.closed_at)}</span>
+                       </>
+                    ) : (
+                        <>
+                        <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-yellow-500"><Clock size={12}/> Last Activity</label>
+                        <span className="text-sm font-mono opacity-80">{ticket.updated_at ? formatDate(ticket.updated_at) : 'Never'}</span>
+                        </>
+                    )}
                   </div>
                 </div>
                 
-                {ticket.closed_at && (
-                  <div className="pt-2">
-                    <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-green-500"><CheckCircle size={12}/> Closed</label>
-                    <span className="text-sm font-mono opacity-80">{formatDate(ticket.closed_at)}</span>
-                  </div>
-                )}
-
                 {ticket.resolution && (
                   <div className="pt-4 border-t border-slate-800">
                     <label className="text-xs uppercase opacity-50 block mb-2 text-green-400">Resolution Note</label>
@@ -211,11 +249,22 @@ export default function TicketDetail() {
                   </div>
                 </div>
 
-                {/* MULTI-CONTACT SELECTOR */}
+                {/* TIME MACHINE INPUTS */}
+                <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
+                    <div>
+                        <label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Time Machine: Opened</label>
+                        <input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.created_at} onChange={e => setFormData({...formData, created_at: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Time Machine: Closed</label>
+                        <input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.closed_at} onChange={e => setFormData({...formData, closed_at: e.target.value})} />
+                    </div>
+                </div>
+
+                {/* MULTI-CONTACT SELECTOR (Unchanged Logic) */}
                 <div>
                   <label className="block text-xs uppercase opacity-50 mb-1">Affected Humans</label>
                   <div className="flex flex-wrap gap-2 mb-2 min-h-[30px] p-2 bg-black/20 rounded border border-slate-700">
-                    {formData.contact_ids.length === 0 && <span className="text-xs opacity-30 italic">No contacts linked</span>}
                     {formData.contact_ids.map(id => {
                       const c = contacts.find(x => x.id === id);
                       return c ? (
@@ -226,12 +275,7 @@ export default function TicketDetail() {
                       ) : null;
                     })}
                   </div>
-                  
-                  <select 
-                    className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm"
-                    onChange={(e) => { if(e.target.value) toggleContact(e.target.value); }}
-                    value=""
-                  >
+                  <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" onChange={(e) => { if(e.target.value) toggleContact(e.target.value); }} value="">
                     <option value="">+ Add Person</option>
                     {contacts.filter(c => !formData.contact_ids.includes(c.id)).map(c => (
                       <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({c.persona || 'Staff'})</option>
@@ -250,7 +294,64 @@ export default function TicketDetail() {
                 </div>
               </div>
             )}
-
+          </div>
+          
+          {/* --- NEW: TIME LOGS SECTION --- */}
+          <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+             <div className="flex justify-between items-center mb-4">
+                 <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                     <Clock className="w-4 h-4 text-sanctum-gold" /> Billable Time Logs
+                 </h3>
+                 <div className="text-right">
+                     <span className="text-xs opacity-50 uppercase mr-2">Total Hours</span>
+                     <span className="text-xl font-mono font-bold text-sanctum-gold">{ticket.total_hours}h</span>
+                 </div>
+             </div>
+             
+             <div className="space-y-3">
+                 {ticket.time_entries && ticket.time_entries.map(entry => (
+                     <div key={entry.id} className="flex justify-between items-center p-3 bg-white/5 rounded border border-white/5 text-sm">
+                         <div>
+                             <div className="font-mono text-xs opacity-50 mb-1">{formatDate(entry.start_time)} → {formatDate(entry.end_time)}</div>
+                             <div className="font-bold">{entry.description || "Work Session"}</div>
+                             <div className="text-xs text-sanctum-blue mt-1">Tech: {entry.user_name}</div>
+                         </div>
+                         <div className="flex items-center gap-4">
+                             <span className="font-mono font-bold">{formatDuration(entry.duration_minutes)}</span>
+                             <button onClick={() => handleDeleteTime(entry.id)} className="text-red-500 opacity-50 hover:opacity-100"><Trash2 size={14}/></button>
+                         </div>
+                     </div>
+                 ))}
+                 
+                 {ticket.time_entries.length === 0 && <div className="text-center opacity-30 italic py-4">No time recorded yet.</div>}
+             </div>
+             
+             {!showTimeForm ? (
+                 <button onClick={() => setShowTimeForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2">
+                     <Plus size={14} /> Add Manual Entry
+                 </button>
+             ) : (
+                 <form onSubmit={handleAddTime} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3">
+                     <div className="grid grid-cols-2 gap-3">
+                         <div>
+                             <label className="text-xs opacity-50 block mb-1">Start</label>
+                             <input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} />
+                         </div>
+                         <div>
+                             <label className="text-xs opacity-50 block mb-1">End</label>
+                             <input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} />
+                         </div>
+                     </div>
+                     <div>
+                        <label className="text-xs opacity-50 block mb-1">Description</label>
+                        <input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" placeholder="What was done?" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} />
+                     </div>
+                     <div className="flex gap-2">
+                         <button type="button" onClick={() => setShowTimeForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button>
+                         <button type="submit" className="flex-1 py-1 bg-sanctum-gold text-slate-900 font-bold rounded text-xs">Log Time</button>
+                     </div>
+                 </form>
+             )}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text, func
 from sqlalchemy.types import TIMESTAMP
 from .database import Base
+from datetime import datetime
 
 # 1. ASSOCIATION TABLES
 ticket_contacts = Table('ticket_contacts', Base.metadata,
@@ -12,6 +13,7 @@ ticket_contacts = Table('ticket_contacts', Base.metadata,
 )
 
 # 2. CORE MODELS
+
 class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
@@ -82,6 +84,46 @@ class Ticket(Base):
     account = relationship("Account", back_populates="tickets")
     contacts = relationship("Contact", secondary=ticket_contacts, backref="tickets")
     comments = relationship("Comment", back_populates="ticket", order_by="desc(Comment.created_at)")
+    
+    # Relationships
+    time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
+
+    # Dynamic Properties
+    @property
+    def total_hours(self):
+        total_mins = 0
+        for entry in self.time_entries:
+            if entry.start_time and entry.end_time:
+                delta = entry.end_time - entry.start_time
+                total_mins += int(delta.total_seconds() / 60)
+        return round(total_mins / 60, 2)
+
+class TicketTimeEntry(Base):
+    __tablename__ = "ticket_time_entries"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    ticket_id = Column(Integer, ForeignKey("tickets.id"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id")) 
+    
+    start_time = Column(TIMESTAMP(timezone=True), nullable=False)
+    end_time = Column(TIMESTAMP(timezone=True), nullable=False)
+    description = Column(String, nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    ticket = relationship("Ticket", back_populates="time_entries")
+    user = relationship("User") 
+
+    # Properties
+    @property
+    def duration_minutes(self):
+        if self.start_time and self.end_time:
+            delta = self.end_time - self.start_time
+            return int(delta.total_seconds() / 60)
+        return 0
+
+    @property
+    def user_name(self):
+        return self.user.full_name if self.user else "Unknown"
 
 class AuditReport(Base):
     __tablename__ = "audit_reports"
@@ -95,12 +137,10 @@ class AuditReport(Base):
     status = Column(String, default="draft")
     content = Column(JSONB, default={})
     
-    # NEW COLUMNS
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     finalized_at = Column(TIMESTAMP(timezone=True))
 
-    
     account = relationship("Account")
     deal = relationship("Deal")
     comments = relationship("Comment", back_populates="audit", order_by="desc(Comment.created_at)")
