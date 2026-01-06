@@ -11,8 +11,7 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
-# 2. User Output (What we send back to the frontend)
-# We NEVER send the password_hash back.
+# 2. User Output
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
@@ -24,15 +23,18 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- ANALYTICS V2 ---
 class DashboardStats(BaseModel):
-    revenue_mtd: float
+    revenue_realized: float    # Closed/Won (Accession)
+    pipeline_value: float      # Active Opportunities
     active_audits: int
     open_tickets: int
+    critical_tickets: int      # High Priority Only
 
 class AccountCreate(BaseModel):
     name: str
-    type: str # 'business' or 'residential'
-    brand_affinity: str # 'ds', 'nt', 'both'
+    type: str 
+    brand_affinity: str 
     status: str = 'prospect'
 
 class AccountUpdate(BaseModel):
@@ -44,9 +46,9 @@ class AccountUpdate(BaseModel):
 # --- AUDIT SCHEMAS ---
 
 class AuditItem(BaseModel):
-    category: str # e.g. "Network Security"
-    item: str     # e.g. "Firewall Config"
-    status: str   # "red", "amber", "green"
+    category: str 
+    item: str     
+    status: str   
     comment: str
 
 class AuditCreate(BaseModel):
@@ -55,18 +57,16 @@ class AuditCreate(BaseModel):
     items: List[AuditItem] = []
 
 class AuditUpdate(BaseModel):
-    items: List[AuditItem] # Reuse the item schema
+    items: List[AuditItem] 
 
 class AuditResponse(BaseModel):
     id: UUID
     account_id: UUID
-    # Change int to Optional[int] = 0 (or None)
     security_score: Optional[int] = 0
     infrastructure_score: Optional[int] = 0
     status: str
     report_pdf_path: Optional[str]
     content: dict
-    # UPDATE TIMESTAMPS
     created_at: datetime
     updated_at: Optional[datetime] = None
     finalized_at: Optional[datetime] = None
@@ -93,8 +93,8 @@ class ContactCreate(BaseModel):
     last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
-    persona: Optional[str] = None # New
-    reports_to_id: Optional[UUID] = None # New
+    persona: Optional[str] = None 
+    reports_to_id: Optional[UUID] = None 
 
 class ContactUpdate(BaseModel):
     first_name: Optional[str] = None
@@ -112,7 +112,7 @@ class ContactResponse(BaseModel):
     phone: str | None = None
     is_primary_contact: bool
     persona: str | None = None
-    reports_to_id: Optional[UUID] = None # <--- THIS WAS MISSING
+    reports_to_id: Optional[UUID] = None 
 
     class Config:
         from_attributes = True
@@ -123,7 +123,7 @@ class DealCreate(BaseModel):
     amount: float
     stage: str = "Infiltration"
     probability: int = 10
-    expected_close_date: Optional[str] = None # ISO Date string
+    expected_close_date: Optional[str] = None 
 
 class DealUpdate(BaseModel):
     title: Optional[str] = None
@@ -132,7 +132,6 @@ class DealUpdate(BaseModel):
     probability: Optional[int] = None
     expected_close_date: Optional[str] = None
 
-# --- UPDATE DEAL RESPONSE (Add Client Name) ---
 class DealResponse(BaseModel):
     id: UUID
     title: str
@@ -140,16 +139,16 @@ class DealResponse(BaseModel):
     stage: str
     probability: int
     account_id: UUID
-    account_name: Optional[str] = None # <--- New for Kanban
+    account_name: Optional[str] = None 
     
     class Config:
         from_attributes = True
 
 class TicketCreate(BaseModel):
     account_id: UUID
-    contact_ids: List[UUID] = [] # New list input
+    contact_ids: List[UUID] = [] 
     subject: str
-    description: Optional[str] = None # New
+    description: Optional[str] = None 
     priority: str = 'normal'
     assigned_tech_id: Optional[UUID] = None
 
@@ -170,14 +169,13 @@ class TicketResponse(BaseModel):
     priority: str
     resolution: Optional[str] = None
     created_at: datetime
-    updated_at: Optional[datetime] = None  # <--- Added
+    updated_at: Optional[datetime] = None  
     closed_at: Optional[datetime] = None
     account_id: UUID
-    contact_ids: List[UUID] = [] # New list input
+    contact_ids: List[UUID] = [] 
     account_name: Optional[str] = None
     contact_name: Optional[str] = None
 
-    # NEW FIELD: Allow the list of objects through
     contacts: List[ContactResponse] = [] 
     
     class Config:
@@ -188,7 +186,7 @@ class AccountDetail(AccountResponse):
     contacts: list[ContactResponse] = []
     deals: list[DealResponse] = []
     tickets: list[TicketResponse] = []
-    audit_data: dict | None = None # To see the website form data
+    audit_data: dict | None = None 
 
     class Config:
         from_attributes = True
@@ -197,7 +195,6 @@ class AccountDetail(AccountResponse):
 class CommentCreate(BaseModel):
     body: str
     visibility: str = 'internal'
-    # Polymorphic input: Only one should be sent
     ticket_id: Optional[int] = None
     deal_id: Optional[UUID] = None
     audit_id: Optional[UUID] = None
