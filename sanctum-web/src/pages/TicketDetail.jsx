@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, AlertCircle, Copy } from 'lucide-react';
 import api from '../lib/api';
 
 export default function TicketDetail() {
@@ -99,7 +99,6 @@ export default function TicketDetail() {
 
   const startEditTime = (entry) => {
       setEditingTimeId(entry.id);
-      // Ensure formatting for datetime-local
       setTimeEditForm({
           start_time: entry.start_time.slice(0,16),
           end_time: entry.end_time.slice(0,16),
@@ -119,6 +118,13 @@ export default function TicketDetail() {
   const handleDeleteTime = async (entryId) => {
     if(!confirm("Remove log?")) return;
     try { await api.delete(`/tickets/${id}/time_entries/${entryId}`); fetchTicket(); } catch(e){}
+  };
+
+  const handleDuplicateTime = async (entryId) => {
+      try {
+          await api.post(`/tickets/time_entries/${entryId}/duplicate`);
+          fetchTicket(); 
+      } catch (e) { alert("Failed to duplicate entry"); }
   };
 
   // --- MATERIAL LOGIC ---
@@ -163,10 +169,20 @@ export default function TicketDetail() {
       } catch(e) { alert(e.response?.data?.detail || "Generation Failed"); }
   };
 
+  // --- UI HELPERS & CALCULATIONS ---
   const formatDate = (d) => d ? new Date(d).toLocaleString() : 'N/A';
   const formatDuration = (m) => `${Math.floor(m/60)}h ${m%60}m`;
+  const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val || 0);
+
+  // Robust calculation: Use backend value OR calculate locally if missing
+  const getEntryValue = (e) => e.calculated_value ?? ((e.duration_minutes / 60) * (e.product_id ? (products.find(p=>p.id===e.product_id)?.unit_price || 0) : 0));
+  const getMatValue = (m) => m.calculated_value ?? (m.quantity * m.unit_price);
 
   if (loading || !ticket) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
+
+  // TOTALS
+  const totalLaborValue = ticket.time_entries?.reduce((sum, e) => sum + getEntryValue(e), 0) || 0;
+  const totalMatValue = ticket.materials?.reduce((sum, m) => sum + getMatValue(m), 0) || 0;
 
   return (
     <Layout title={`Ticket #${ticket.id}`}>
@@ -206,6 +222,8 @@ export default function TicketDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* TICKET DETAILS CARD */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative">
             {!isEditing ? (
               <div className="space-y-6">
@@ -249,11 +267,18 @@ export default function TicketDetail() {
             )}
           </div>
           
-          {/* BILLABLE TIME LOGS - WITH INLINE EDITING */}
+          {/* BILLABLE TIME LOGS */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
              <div className="flex justify-between items-center mb-4">
-                 <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-sanctum-gold" /> Billable Labor</h3>
-                 <span className="text-xl font-mono font-bold text-sanctum-gold">{ticket.total_hours}h</span>
+                 <div className="flex items-center gap-4">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-sanctum-gold" /> Billable Labor
+                    </h3>
+                    <span className="bg-sanctum-gold/10 text-sanctum-gold px-2 py-0.5 rounded text-xs font-bold border border-sanctum-gold/20">
+                        {formatCurrency(totalLaborValue)}
+                    </span>
+                 </div>
+                 <span className="text-xl font-mono font-bold text-white">{ticket.total_hours}h</span>
              </div>
              <div className="space-y-3">
                  {ticket.time_entries?.map(entry => (
@@ -285,8 +310,16 @@ export default function TicketDetail() {
                                      <div className="text-xs text-sanctum-blue mt-1">Tech: {entry.user_name}</div>
                                  </div>
                                  <div className="flex items-center gap-4">
-                                     <span className="font-mono font-bold">{formatDuration(entry.duration_minutes)}</span>
+                                     <div className="text-right">
+                                         <span className="block font-mono font-bold">{formatDuration(entry.duration_minutes)}</span>
+                                         {getEntryValue(entry) > 0 && (
+                                             <span className="block text-[10px] text-sanctum-gold opacity-70">
+                                                 {formatCurrency(getEntryValue(entry))}
+                                             </span>
+                                         )}
+                                     </div>
                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                         <button onClick={() => handleDuplicateTime(entry.id)} className="text-slate-400 hover:text-sanctum-gold" title="Duplicate Entry"><Copy size={14}/></button>
                                          <button onClick={() => startEditTime(entry)} className="text-slate-400 hover:text-white"><Edit2 size={14}/></button>
                                          <button onClick={() => handleDeleteTime(entry.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
                                      </div>
@@ -319,10 +352,17 @@ export default function TicketDetail() {
              )}
           </div>
 
-          {/* BILLABLE MATERIALS - WITH INLINE EDITING */}
+          {/* BILLABLE MATERIALS */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
              <div className="flex justify-between items-center mb-4">
-                 <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Package className="w-4 h-4 text-orange-400" /> Materials Used</h3>
+                 <div className="flex items-center gap-4">
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                        <Package className="w-4 h-4 text-orange-400" /> Materials Used
+                    </h3>
+                    <span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded text-xs font-bold border border-orange-500/20">
+                        {formatCurrency(totalMatValue)}
+                    </span>
+                 </div>
              </div>
              <div className="space-y-3">
                  {ticket.materials?.map(mat => (
@@ -343,7 +383,9 @@ export default function TicketDetail() {
                                      <div className="text-xs opacity-50">${mat.unit_price} x {mat.quantity}</div>
                                  </div>
                                  <div className="flex items-center gap-4">
-                                     <span className="font-mono font-bold text-orange-400">${(mat.unit_price * mat.quantity).toFixed(2)}</span>
+                                     <span className="font-mono font-bold text-orange-400">
+                                         {formatCurrency(getMatValue(mat))}
+                                     </span>
                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                          <button onClick={() => startEditMat(mat)} className="text-slate-400 hover:text-white"><Edit2 size={14}/></button>
                                          <button onClick={() => handleDeleteMaterial(mat.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>

@@ -343,6 +343,39 @@ def create_time_entry(
     
     return new_entry
 
+@app.post("/tickets/time_entries/{entry_id}/duplicate", response_model=schemas.TimeEntryResponse)
+def duplicate_time_entry(
+    entry_id: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Source
+    original = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id).first()
+    if not original:
+        raise HTTPException(status_code=404, detail="Entry not found")
+
+    # 2. Create Clone
+    # We copy exact timestamps. User can edit the date on the new row if needed.
+    new_entry = models.TicketTimeEntry(
+        ticket_id=original.ticket_id,
+        user_id=current_user.id, # The person duplicating owns the new entry
+        product_id=original.product_id,
+        start_time=original.start_time,
+        end_time=original.end_time,
+        description=original.description
+    )
+    
+    db.add(new_entry)
+    db.commit()
+    db.refresh(new_entry)
+    
+    # 3. Hydrate Relations for Response
+    new_entry.user = db.query(models.User).filter(models.User.id == current_user.id).first()
+    if new_entry.product_id:
+        new_entry.product = db.query(models.Product).filter(models.Product.id == new_entry.product_id).first()
+        
+    return new_entry
+
 @app.delete("/tickets/{ticket_id}/time_entries/{entry_id}")
 def delete_time_entry(ticket_id: int, entry_id: str, db: Session = Depends(get_db)):
     entry = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id, models.TicketTimeEntry.ticket_id == ticket_id).first()

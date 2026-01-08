@@ -142,6 +142,13 @@ class TicketTimeEntry(Base):
     def service_name(self):
         return self.product.name if self.product else "General Labor"
 
+    # NEW: Calculate Value
+    @property
+    def calculated_value(self):
+        if not self.product: return 0.0
+        hours = self.duration_minutes / 60
+        return round(hours * self.product.unit_price, 2)
+
 class TicketMaterial(Base):
     __tablename__ = "ticket_materials"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
@@ -160,6 +167,12 @@ class TicketMaterial(Base):
     @property
     def unit_price(self):
         return self.product.unit_price if self.product else 0.0
+
+    # NEW: Calculate Value
+    @property
+    def calculated_value(self):
+        if not self.product: return 0.0
+        return round(self.quantity * self.product.unit_price, 2)
 
 class Product(Base):
     __tablename__ = "products"

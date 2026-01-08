@@ -149,6 +149,7 @@ class TimeEntryResponse(BaseModel):
     description: Optional[str] = None
     product_id: Optional[UUID] = None
     service_name: Optional[str] = None
+    calculated_value: float = 0.0 # NEW
     created_at: datetime
 
     class Config:
