@@ -10,7 +10,9 @@ import AuditIndex from './pages/AuditIndex';
 import AuditDetail from './pages/AuditDetail';
 import Tickets from './pages/Tickets';
 import TicketDetail from './pages/TicketDetail';
-
+import Catalog from './pages/Catalog';
+import Diagnostics from './pages/Diagnostics';
+import InvoiceDetail from './pages/InvoiceDetail';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -41,6 +43,9 @@ function App() {
           <Route path="/audit/:id" element={<AuditDetail />} />
           <Route path="/tickets" element={<Tickets />} />
           <Route path="/tickets/:id" element={<TicketDetail />} />
+          <Route path="/catalog" element={<Catalog/>} />
+          <Route path="/admin/health" element={<Diagnostics />} />
+          <Route path="/invoices/:id" element={<InvoiceDetail />} />
         </Routes>
     </ProtectedRoute>
   }

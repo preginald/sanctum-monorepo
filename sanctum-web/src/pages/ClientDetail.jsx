@@ -3,7 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
-import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle } from 'lucide-react';
+// FIX: Added 'Trash2' to imports
+import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ClientDetail() {
@@ -12,7 +13,7 @@ export default function ClientDetail() {
   const { user } = useAuthStore();
   
   const [client, setClient] = useState(null);
-  const [audits, setAudits] = useState([]); // <--- ADDED MISSING STATE
+  const [audits, setAudits] = useState([]); 
   const [loading, setLoading] = useState(true);
   
   // EDIT MODES
@@ -49,7 +50,6 @@ export default function ClientDetail() {
 
   const fetchDetail = async () => {
     try {
-      // 1. Fetch Account
       const response = await api.get(`/accounts/${id}`);
       setClient(response.data);
       setAccountForm({ 
@@ -59,7 +59,6 @@ export default function ClientDetail() {
         brand_affinity: response.data.brand_affinity 
       });
 
-      // 2. Fetch Audits (Now this will work because state exists)
       const auditRes = await api.get(`/audits?account_id=${id}`);
       setAudits(auditRes.data);
 
@@ -99,6 +98,16 @@ export default function ClientDetail() {
     } catch (err) { alert("Failed to create deal."); }
   };
 
+  const handleDeleteInvoice = async (invId) => {
+    if(!confirm("Permanently delete this invoice record?")) return;
+    try {
+        await api.delete(`/invoices/${invId}`);
+        fetchDetail(); 
+    } catch (e) {
+        alert("Failed to delete invoice");
+    }
+  };
+
   const openEditContact = (c) => {
     setEditingContactId(c.id);
     setContactForm({
@@ -113,6 +122,9 @@ export default function ClientDetail() {
     setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
     setShowContactModal(true);
   };
+
+  const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
 
   if (loading) return <Layout title="Loading..."><div className="p-8 opacity-50"><Loader2 className="animate-spin"/></div></Layout>;
   if (!client) return null;
@@ -209,7 +221,7 @@ export default function ClientDetail() {
             </div>
           </div>
 
-          {/* RISK ASSESSMENTS CARD (NEW) */}
+          {/* RISK ASSESSMENTS */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2">
@@ -222,37 +234,19 @@ export default function ClientDetail() {
             <div className="space-y-3">
               {audits.length === 0 && <p className="opacity-50 text-sm">No audits on file.</p>}
               {audits.map(audit => (
-                <div 
-                  key={audit.id} 
-                  onClick={() => navigate(`/audit/${audit.id}`)}
-                  className="flex justify-between items-center p-3 border-b border-gray-500/20 last:border-0 pb-3 cursor-pointer hover:bg-white/5 transition-colors rounded"
-                >
+                <div key={audit.id} onClick={() => navigate(`/audit/${audit.id}`)} className="flex justify-between items-center p-3 border-b border-gray-500/20 last:border-0 pb-3 cursor-pointer hover:bg-white/5 transition-colors rounded">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-sm font-bold ${audit.security_score < 50 ? 'text-red-500' : audit.security_score < 80 ? 'text-orange-500' : 'text-green-500'}`}>
-                        {audit.security_score}/100
-                      </span>
+                      <span className={`text-sm font-bold ${audit.security_score < 50 ? 'text-red-500' : audit.security_score < 80 ? 'text-orange-500' : 'text-green-500'}`}>{audit.security_score}/100</span>
                       <span className="text-xs opacity-50 uppercase">{audit.status}</span>
                     </div>
                     <span className="text-[10px] font-mono opacity-30">REF: {audit.id.slice(0,8)}</span>
                   </div>
-                  
-                  {audit.report_pdf_path && (
-                    <a 
-                      href={audit.report_pdf_path} 
-                      target="_blank" 
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-2 rounded hover:bg-white/10 text-sanctum-gold"
-                      title="Download PDF"
-                    >
-                      <Download size={16} />
-                    </a>
-                  )}
+                  {audit.report_pdf_path && <a href={audit.report_pdf_path} target="_blank" onClick={(e) => e.stopPropagation()} className="p-2 rounded hover:bg-white/10 text-sanctum-gold"><Download size={16} /></a>}
                 </div>
               ))}
             </div>
           </div>
-
         </div>
 
         {/* RIGHT COLUMN */}
@@ -269,55 +263,89 @@ export default function ClientDetail() {
                 <button onClick={() => setShowDealModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`}><Plus size={16} /></button>
               </div>
               {client.deals.length === 0 && <p className="opacity-50 text-sm">No active deals.</p>}
-            {client.deals.map(d => (
-              <div 
-                key={d.id} 
-                onClick={() => navigate(`/deals/${d.id}`)}
-                className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors"
-              >
-                <span className="font-medium">{d.title}</span>
-                <div className="text-right">
-                  <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
-                  <span className="text-[10px] uppercase opacity-50">{d.stage}</span>
+              {client.deals.map(d => (
+                <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors">
+                  <span className="font-medium">{d.title}</span>
+                  <div className="text-right">
+                    <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
+                    <span className="text-[10px] uppercase opacity-50">{d.stage}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
             </div>
           )}
 
-          {/* TICKETS CARD */}
+          {/* FINANCIAL LEDGER */}
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 text-green-500 flex items-center gap-2">
+                <Receipt size={16} /> Financial Ledger
+              </h3>
+            </div>
+            {client.invoices?.length === 0 ? (
+              <p className="opacity-50 text-sm">No invoices generated.</p>
+            ) : (
+              <div className="space-y-2">
+                {client.invoices?.map(inv => (
+                  <div key={inv.id} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center group">
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs opacity-50">#{inv.id.slice(0,8)}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${inv.status === 'paid' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                                {inv.status}
+                            </span>
+                        </div>
+                        <div className="text-xs opacity-50 mt-1">
+                            Due: {formatDate(inv.due_date)}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <div className="text-right">
+                            <span className="block font-bold font-mono">{formatCurrency(inv.total_amount)}</span>
+                            {inv.gst_amount > 0 && (
+                                <span className="block text-[10px] opacity-40">
+                                    (Inc. {formatCurrency(inv.gst_amount)} GST)
+                                </span>
+                            )}
+                        </div>
+                        <button 
+                            onClick={() => navigate(`/invoices/${inv.id}`)} 
+                            className="text-[10px] text-blue-400 hover:underline mt-1">
+                            Open Invoice
+                        </button>
+                        {/* DELETE BUTTON */}
+                        <button 
+                            onClick={() => handleDeleteInvoice(inv.id)} 
+                            className="p-2 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                            title="Delete Invoice"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2">
                 <AlertCircle size={16} /> Tickets
               </h3>
-              {/* Optional: Add New Ticket Button here if desired */}
             </div>
-
-            {client.tickets.length === 0 ? (
-              <p className="opacity-50 text-sm">No active tickets.</p>
-            ) : (
+            {client.tickets.length === 0 ? <p className="opacity-50 text-sm">No active tickets.</p> : (
               <div className="space-y-2">
                 {client.tickets.map(t => (
-                  <div 
-                    key={t.id} 
-                    onClick={() => navigate(`/tickets/${t.id}`)}
-                    className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors"
-                  >
+                  <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>
-                          {t.priority}
-                        </span>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>{t.priority}</span>
                         <span className="font-medium text-sm">{t.subject}</span>
                       </div>
                       <span className="text-[10px] opacity-40 font-mono">#{t.id} • {t.status}</span>
                     </div>
-                    {t.status === 'resolved' ? (
-                      <CheckCircle size={16} className="text-green-500" />
-                    ) : (
-                      <Clock size={16} className="text-yellow-500" />
-                    )}
+                    {t.status === 'resolved' ? <CheckCircle size={16} className="text-green-500" /> : <Clock size={16} className="text-yellow-500" />}
                   </div>
                 ))}
               </div>

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 
 # 1. Login Request
 class Token(BaseModel):
@@ -23,13 +23,31 @@ class UserResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- ANALYTICS V2 ---
+# --- ANALYTICS ---
 class DashboardStats(BaseModel):
     revenue_realized: float    
     pipeline_value: float      
     active_audits: int
     open_tickets: int
     critical_tickets: int      
+
+# --- PRODUCT SCHEMAS ---
+class ProductCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    type: str 
+    unit_price: float
+
+class ProductResponse(BaseModel):
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    type: str
+    unit_price: float
+    is_active: bool
+    
+    class Config:
+        from_attributes = True
 
 # --- ACCOUNT SCHEMAS ---
 class AccountCreate(BaseModel):
@@ -51,36 +69,6 @@ class AccountResponse(BaseModel):
     status: str
     brand_affinity: str
     
-    class Config:
-        from_attributes = True
-
-# --- AUDIT SCHEMAS ---
-class AuditItem(BaseModel):
-    category: str 
-    item: str     
-    status: str   
-    comment: str
-
-class AuditCreate(BaseModel):
-    account_id: UUID
-    deal_id: Optional[UUID] = None
-    items: List[AuditItem] = []
-
-class AuditUpdate(BaseModel):
-    items: List[AuditItem] 
-
-class AuditResponse(BaseModel):
-    id: UUID
-    account_id: UUID
-    security_score: Optional[int] = 0
-    infrastructure_score: Optional[int] = 0
-    status: str
-    report_pdf_path: Optional[str]
-    content: dict
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    finalized_at: Optional[datetime] = None
-
     class Config:
         from_attributes = True
 
@@ -115,6 +103,7 @@ class ContactResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# --- DEAL SCHEMAS ---
 class DealCreate(BaseModel):
     account_id: UUID
     title: str
@@ -142,11 +131,12 @@ class DealResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- TIME ENTRY SCHEMAS (Must be defined before Tickets) ---
+# --- TICKET SUB-SCHEMAS ---
 class TimeEntryCreate(BaseModel):
     start_time: datetime
     end_time: datetime
     description: Optional[str] = None
+    product_id: Optional[UUID] = None
 
 class TimeEntryResponse(BaseModel):
     id: UUID
@@ -157,12 +147,38 @@ class TimeEntryResponse(BaseModel):
     end_time: datetime
     duration_minutes: int 
     description: Optional[str] = None
+    product_id: Optional[UUID] = None
+    service_name: Optional[str] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
 
-# --- TICKET SCHEMAS (Must be defined before AccountDetail) ---
+class TicketMaterialCreate(BaseModel):
+    product_id: UUID
+    quantity: int = 1
+
+class TicketMaterialResponse(BaseModel):
+    id: UUID
+    product_id: UUID
+    product_name: Optional[str] = None
+    quantity: int
+    unit_price: float = 0.0
+
+    class Config:
+        from_attributes = True
+
+class TimeEntryUpdate(BaseModel):
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    description: Optional[str] = None
+    product_id: Optional[UUID] = None
+
+class TicketMaterialUpdate(BaseModel):
+    product_id: Optional[UUID] = None
+    quantity: Optional[int] = None
+
+# --- TICKET SCHEMAS ---
 class TicketCreate(BaseModel):
     account_id: UUID
     contact_ids: List[UUID] = [] 
@@ -179,8 +195,6 @@ class TicketUpdate(BaseModel):
     resolution: Optional[str] = None
     assigned_tech_id: Optional[UUID] = None
     contact_ids: Optional[List[UUID]] = None
-    
-    # TIME TRAVEL FIELDS
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
 
@@ -200,20 +214,95 @@ class TicketResponse(BaseModel):
     contact_name: Optional[str] = None
 
     contacts: List[ContactResponse] = [] 
-    
-    # NEW: Include logs in the detail view
     time_entries: List[TimeEntryResponse] = []
+    materials: List[TicketMaterialResponse] = [] # Added for Phase 15.3
     total_hours: float = 0.0
 
     class Config:
         from_attributes = True
 
-# --- MASTER VIEW (Dependent on all above) ---
+# --- AUDIT SCHEMAS ---
+class AuditItem(BaseModel):
+    category: str 
+    item: str     
+    status: str   
+    comment: str
+
+class AuditCreate(BaseModel):
+    account_id: UUID
+    deal_id: Optional[UUID] = None
+    items: List[AuditItem] = []
+
+class AuditUpdate(BaseModel):
+    items: List[AuditItem] 
+
+class AuditResponse(BaseModel):
+    id: UUID
+    account_id: UUID
+    security_score: Optional[int] = 0
+    infrastructure_score: Optional[int] = 0
+    status: str
+    report_pdf_path: Optional[str]
+    content: dict
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    finalized_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+# --- INVOICE SCHEMAS ---
+class InvoiceItemCreate(BaseModel):
+    description: str
+    quantity: float = 1.0
+    unit_price: float = 0.0
+
+class InvoiceItemUpdate(BaseModel):
+    description: Optional[str] = None
+    quantity: Optional[float] = None
+    unit_price: Optional[float] = None
+
+class InvoiceItemSchema(BaseModel):
+    id: UUID
+    description: str
+    quantity: float
+    unit_price: float
+    total: float
+    
+    # NEW
+    ticket_id: Optional[int] = None
+    source_type: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
+class InvoiceUpdate(BaseModel):
+    status: Optional[str] = None
+    due_date: Optional[date] = None
+
+class InvoiceResponse(BaseModel):
+    id: UUID
+    account_id: UUID
+    account_name: Optional[str] = None # Added for UI
+    status: str
+    subtotal_amount: float
+    gst_amount: float
+    total_amount: float
+    due_date: Optional[date] = None
+    generated_at: datetime
+    pdf_path: Optional[str] = None
+    items: List[InvoiceItemSchema] = []
+
+    class Config:
+        from_attributes = True
+
+# --- MASTER VIEW ---
 class AccountDetail(AccountResponse):
     contacts: list[ContactResponse] = []
     deals: list[DealResponse] = []
     tickets: list[TicketResponse] = []
     audit_data: dict | None = None 
+    invoices: list[InvoiceResponse] = [] 
 
     class Config:
         from_attributes = True

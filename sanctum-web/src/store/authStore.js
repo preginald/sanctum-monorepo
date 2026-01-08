@@ -1,24 +1,23 @@
 import { create } from 'zustand';
-import axios from 'axios';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api';
 
-
 // --- PERSISTENCE LOGIC ---
-const storedToken = localStorage.getItem('sanctum_token');
+let storedToken = localStorage.getItem('sanctum_token');
 let initialUser = null;
 
 if (storedToken) {
   try {
     initialUser = jwtDecode(storedToken);
-    // Check if expired client-side as well (optional safety)
+    // Check if expired client-side as well
     if (initialUser.exp * 1000 < Date.now()) {
       throw new Error("Token expired");
     }
   } catch (error) {
     console.error("Invalid or expired token found, clearing storage.");
     localStorage.removeItem('sanctum_token');
-    storedToken = null; // Prevent auto-login
+    storedToken = null; 
+    initialUser = null;
   }
 }
 
@@ -50,6 +49,21 @@ const useAuthStore = create((set) => ({
     } catch (error) {
       console.error("Login failed:", error);
       return false;
+    }
+  },
+
+  // --- THIS IS THE MISSING ACTION ---
+  setToken: (access_token) => {
+    try {
+        const decodedUser = jwtDecode(access_token);
+        localStorage.setItem('sanctum_token', access_token);
+        set({ 
+            token: access_token, 
+            user: decodedUser, 
+            isAuthenticated: true 
+        });
+    } catch (e) {
+        console.error("Failed to set token:", e);
     }
   },
 
