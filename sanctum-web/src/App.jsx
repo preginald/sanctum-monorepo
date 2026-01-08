@@ -13,6 +13,9 @@ import TicketDetail from './pages/TicketDetail';
 import Catalog from './pages/Catalog';
 import Diagnostics from './pages/Diagnostics';
 import InvoiceDetail from './pages/InvoiceDetail';
+import ProjectIndex from './pages/ProjectIndex';
+import ProjectDetail from './pages/ProjectDetail';
+
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -46,6 +49,8 @@ function App() {
           <Route path="/catalog" element={<Catalog/>} />
           <Route path="/admin/health" element={<Diagnostics />} />
           <Route path="/invoices/:id" element={<InvoiceDetail />} />
+          <Route path="/projects" element={<ProjectIndex />} />
+          <Route path="/projects/:id" element={<ProjectDetail />} />
         </Routes>
     </ProtectedRoute>
   }

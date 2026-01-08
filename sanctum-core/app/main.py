@@ -572,10 +572,12 @@ def run_system_diagnostics(db: Session = Depends(get_db)):
         (models.Deal, "deals"),
         (models.Ticket, "tickets"),
         (models.TicketTimeEntry, "ticket_time_entries"),
-        (models.TicketMaterial, "ticket_materials"), # NEW
-        (models.DealItem, "deal_items"),             # NEW
-        (models.Invoice, "invoices"),                # NEW
-        (models.InvoiceItem, "invoice_items"),       # NEW
+        (models.TicketMaterial, "ticket_materials"),
+        (models.Project, "projects"),       # <--- ADDED
+        (models.Milestone, "milestones"),   # <--- ADDED
+        (models.DealItem, "deal_items"),
+        (models.Invoice, "invoices"),
+        (models.InvoiceItem, "invoice_items"),
         (models.AuditReport, "audit_reports"),
         (models.Product, "products"),
         (models.Comment, "comments")
@@ -869,3 +871,105 @@ def delete_invoice_item(
     db.commit()
     
     return recalculate_invoice(parent_id, db)
+
+@app.get("/projects", response_model=List[schemas.ProjectResponse])
+def get_projects(
+    account_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Project).join(models.Account)
+    if account_id:
+        query = query.filter(models.Project.account_id == account_id)
+        
+    projects = query.all()
+    for p in projects:
+        p.account_name = p.account.name
+    return projects
+
+@app.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
+def get_project_detail(project_id: str, db: Session = Depends(get_db)):
+    project = db.query(models.Project)\
+        .options(joinedload(models.Project.milestones))\
+        .options(joinedload(models.Project.account))\
+        .filter(models.Project.id == project_id).first()
+    if not project: raise HTTPException(status_code=404, detail="Project not found")
+    
+    project.account_name = project.account.name
+    return project
+
+@app.post("/projects", response_model=schemas.ProjectResponse)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+    new_project = models.Project(**project.model_dump())
+    db.add(new_project)
+    db.commit()
+    db.refresh(new_project)
+    # Eager load account name
+    new_project.account = db.query(models.Account).filter(models.Account.id == project.account_id).first()
+    new_project.account_name = new_project.account.name
+    return new_project
+
+# --- MILESTONE ENDPOINTS ---
+
+@app.post("/projects/{project_id}/milestones", response_model=schemas.MilestoneResponse)
+def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Session = Depends(get_db)):
+    new_milestone = models.Milestone(**milestone.model_dump(), project_id=project_id)
+    db.add(new_milestone)
+    db.commit()
+    db.refresh(new_milestone)
+    return new_milestone
+
+@app.put("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
+def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Session = Depends(get_db)):
+    ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
+    if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    if update.status: ms.status = update.status
+    if update.name: ms.name = update.name
+    
+    db.commit()
+    db.refresh(ms)
+    return ms
+
+@app.post("/milestones/{milestone_id}/invoice", response_model=schemas.InvoiceResponse)
+def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db)):
+    # 1. Fetch Milestone
+    ms = db.query(models.Milestone).join(models.Project).filter(models.Milestone.id == milestone_id).first()
+    if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    if ms.billable_amount <= 0: raise HTTPException(status_code=400, detail="Nothing to bill")
+    if ms.invoice_id: raise HTTPException(status_code=400, detail="Already invoiced")
+
+    # 2. Calculate GST
+    subtotal = ms.billable_amount
+    gst = round(subtotal * 0.10, 2)
+    total = round(subtotal + gst, 2)
+
+    # 3. Create Invoice
+    new_invoice = models.Invoice(
+        account_id=ms.project.account_id,
+        status="draft",
+        subtotal_amount=subtotal,
+        gst_amount=gst,
+        total_amount=total,
+        due_date=datetime.now() + timedelta(days=14),
+        generated_at=func.now()
+    )
+    db.add(new_invoice)
+    db.flush()
+
+    # 4. Create Line Item
+    line_item = models.InvoiceItem(
+        invoice_id=new_invoice.id,
+        description=f"Project Milestone: {ms.project.name} - {ms.name}",
+        quantity=1,
+        unit_price=subtotal,
+        total=subtotal
+    )
+    db.add(line_item)
+    
+    # 5. Link Milestone to Invoice
+    ms.invoice_id = new_invoice.id
+    ms.status = 'completed' # Auto-complete milestone on billing?
+
+    db.commit()
+    db.refresh(new_invoice)
+    return new_invoice

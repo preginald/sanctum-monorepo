@@ -36,6 +36,8 @@ class Account(Base):
     tickets = relationship("Ticket", back_populates="account")
     contacts = relationship("Contact", back_populates="account")
     invoices = relationship("Invoice", back_populates="account")
+    projects = relationship("Project", back_populates="account")
+
 
 class Contact(Base):
     __tablename__ = "contacts"
@@ -78,6 +80,42 @@ class DealItem(Base):
     deal = relationship("Deal", back_populates="items")
     product = relationship("Product")
 
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
+    deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
+    
+    name = Column(String)
+    description = Column(Text)
+    status = Column(String, default='planning') # planning, active, on_hold, completed
+    start_date = Column(Date, nullable=True)
+    due_date = Column(Date, nullable=True)
+    budget = Column(Float, default=0.0)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    account = relationship("Account", back_populates="projects") # Needs update in Account class
+    deal = relationship("Deal")
+    milestones = relationship("Milestone", back_populates="project", cascade="all, delete-orphan")
+
+class Milestone(Base):
+    __tablename__ = "milestones"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
+    
+    name = Column(String)
+    due_date = Column(Date, nullable=True)
+    status = Column(String, default='pending')
+    billable_amount = Column(Float, default=0.0)
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    project = relationship("Project", back_populates="milestones")
+    tickets = relationship("Ticket", back_populates="milestone")
+    invoice = relationship("Invoice")
+
 class Ticket(Base):
     __tablename__ = "tickets"
     id = Column(Integer, primary_key=True)
@@ -89,6 +127,8 @@ class Ticket(Base):
     status = Column(String, default='new')
     priority = Column(String, default='normal')
     resolution = Column(Text)
+
+    milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
     
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
@@ -100,6 +140,8 @@ class Ticket(Base):
     
     time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
+
+    milestone = relationship("Milestone", back_populates="tickets")
 
     @property
     def total_hours(self):

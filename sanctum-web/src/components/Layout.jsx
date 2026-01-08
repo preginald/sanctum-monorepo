@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, RefreshCw } from 'lucide-react';
+import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, RefreshCw, Briefcase } from 'lucide-react';
 import clsx from 'clsx';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
@@ -94,6 +94,8 @@ export default function Layout({ children, title }) {
           <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
           <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
           {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals Pipeline" path="/deals" />}
+
+          {!isNaked && <NavItem icon={<Briefcase size={20} />} label="Projects" path="/projects" />}
           <NavItem icon={<Wifi size={20} />} label="Service Tickets" path="/tickets" />
           <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
           <NavItem icon={<FileText size={20} />} label="Audit Engine" path="/audit" />

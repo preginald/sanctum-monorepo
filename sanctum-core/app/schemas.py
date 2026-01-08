@@ -179,6 +179,54 @@ class TicketMaterialUpdate(BaseModel):
     product_id: Optional[UUID] = None
     quantity: Optional[int] = None
 
+# --- MILESTONE SCHEMAS ---
+class MilestoneCreate(BaseModel):
+    name: str
+    due_date: Optional[date] = None
+    status: str = 'pending'
+    billable_amount: float = 0.0
+
+class MilestoneUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
+    invoice_id: Optional[UUID] = None
+
+class MilestoneResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    name: str
+    due_date: Optional[date] = None
+    status: str
+    billable_amount: float
+    invoice_id: Optional[UUID] = None
+    
+    class Config:
+        from_attributes = True
+
+# --- PROJECT SCHEMAS ---
+class ProjectCreate(BaseModel):
+    account_id: UUID
+    deal_id: Optional[UUID] = None
+    name: str
+    description: Optional[str] = None
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    budget: float = 0.0
+
+class ProjectResponse(BaseModel):
+    id: UUID
+    account_id: UUID
+    account_name: Optional[str] = None
+    name: str
+    status: str
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    budget: float
+    milestones: List[MilestoneResponse] = []
+    
+    class Config:
+        from_attributes = True
+
 # --- TICKET SCHEMAS ---
 class TicketCreate(BaseModel):
     account_id: UUID
@@ -187,6 +235,7 @@ class TicketCreate(BaseModel):
     description: Optional[str] = None 
     priority: str = 'normal'
     assigned_tech_id: Optional[UUID] = None
+    milestone_id: Optional[UUID] = None
 
 class TicketUpdate(BaseModel):
     status: Optional[str] = None
@@ -213,6 +262,9 @@ class TicketResponse(BaseModel):
     contact_ids: List[UUID] = [] 
     account_name: Optional[str] = None
     contact_name: Optional[str] = None
+
+    milestone_id: Optional[UUID] = None
+    milestone_name: Optional[str] = None
 
     contacts: List[ContactResponse] = [] 
     time_entries: List[TimeEntryResponse] = []
