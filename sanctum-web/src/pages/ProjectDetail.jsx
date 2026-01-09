@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Loader2, ArrowLeft, Plus, CheckCircle, Circle, Receipt, Calendar, Flag, Activity, Bug, Zap, Clipboard, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, CheckCircle, Circle, Receipt, Calendar, Flag, Activity, Bug, Zap, Clipboard, X, Edit2 } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ProjectDetail() {
@@ -13,10 +13,11 @@ export default function ProjectDetail() {
   
   // MODALS
   const [showMsModal, setShowMsModal] = useState(false);
-  const [showTicketModal, setShowTicketModal] = useState(false); // NEW
-
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  
   // FORMS
-  const [msForm, setMsForm] = useState({ name: '', billable_amount: '', due_date: '' });
+  const [editingMsId, setEditingMsId] = useState(null); // Track if editing
+  const [msForm, setMsForm] = useState({ name: '', billable_amount: '', due_date: '', sequence: 1 });
   const [ticketForm, setTicketForm] = useState({ subject: '', priority: 'normal', ticket_type: 'task', milestone_id: '' });
 
   useEffect(() => { fetchProject(); }, [id]);
@@ -27,6 +28,8 @@ export default function ProjectDetail() {
           api.get(`/projects/${id}`),
           api.get('/tickets') 
       ]);
+      // Sort Milestones by Sequence
+      pRes.data.milestones.sort((a, b) => a.sequence - b.sequence);
       setProject(pRes.data);
       setTickets(tRes.data);
     } catch (e) { console.error(e); } 
@@ -35,32 +38,37 @@ export default function ProjectDetail() {
 
   // --- ACTIONS ---
 
-  const handleCreateMilestone = async (e) => {
+  const handleSaveMilestone = async (e) => {
       e.preventDefault();
       try {
           const payload = {
               name: msForm.name,
               billable_amount: parseFloat(msForm.billable_amount) || 0,
+              sequence: parseInt(msForm.sequence) || 1,
               due_date: msForm.due_date ? msForm.due_date : null
           };
-          await api.post(`/projects/${id}/milestones`, payload);
-          setShowMsModal(false);
-          setMsForm({ name: '', billable_amount: '', due_date: '' });
+
+          if (editingMsId) {
+              await api.put(`/milestones/${editingMsId}`, payload);
+          } else {
+              await api.post(`/projects/${id}/milestones`, payload);
+          }
+          
+          closeMsModal();
           fetchProject();
-      } catch(e) { alert("Failed to create milestone."); }
+      } catch(e) { alert("Failed to save milestone."); }
   };
 
   const handleCreateTicket = async (e) => {
       e.preventDefault();
       try {
-          // Pre-fill account_id from the project
           await api.post('/tickets', { 
               ...ticketForm, 
               account_id: project.account_id 
           });
           setShowTicketModal(false);
           setTicketForm({ subject: '', priority: 'normal', ticket_type: 'task', milestone_id: '' });
-          fetchProject(); // Reload to show new ticket
+          fetchProject();
       } catch (e) { alert("Failed to create ticket"); }
   };
 
@@ -82,12 +90,38 @@ export default function ProjectDetail() {
 
   // --- HELPERS ---
 
+  const openNewMsModal = () => {
+      setEditingMsId(null);
+      // Auto-increment sequence logic
+      const nextSeq = project.milestones.length > 0 
+        ? Math.max(...project.milestones.map(m => m.sequence)) + 1 
+        : 1;
+      setMsForm({ name: '', billable_amount: '', due_date: '', sequence: nextSeq });
+      setShowMsModal(true);
+  };
+
+  const openEditMsModal = (ms) => {
+      setEditingMsId(ms.id);
+      setMsForm({
+          name: ms.name,
+          billable_amount: ms.billable_amount,
+          due_date: ms.due_date || '',
+          sequence: ms.sequence
+      });
+      setShowMsModal(true);
+  };
+
+  const closeMsModal = () => {
+      setShowMsModal(false);
+      setEditingMsId(null);
+  }
+
   const openTicketModal = (msId) => {
       setTicketForm({ 
           subject: '', 
           priority: 'normal', 
           ticket_type: 'task', 
-          milestone_id: msId // PRE-LINK TO MILESTONE
+          milestone_id: msId 
       });
       setShowTicketModal(true);
   };
@@ -117,7 +151,7 @@ export default function ProjectDetail() {
             </p>
           </div>
         </div>
-        <button onClick={() => setShowMsModal(true)} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 rounded font-bold">
+        <button onClick={openNewMsModal} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 rounded font-bold">
             <Plus size={16}/> Add Milestone
         </button>
       </div>
@@ -156,9 +190,16 @@ export default function ProjectDetail() {
                           <div key={ms.id} className="p-4 bg-black/20 rounded border border-white/5">
                               <div className="flex justify-between items-start mb-4">
                                   <div className="flex items-center gap-4">
-                                      {ms.status === 'completed' ? <CheckCircle className="text-green-500" size={24} /> : <Circle className="text-slate-600" size={24} />}
+                                      {/* SEQUENCE BADGE */}
+                                      <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600">
+                                          {ms.sequence}
+                                      </div>
+                                      
                                       <div>
-                                          <h4 className={`font-bold ${ms.status === 'completed' ? 'text-slate-500 line-through' : 'text-white'}`}>{ms.name}</h4>
+                                          <div className="flex items-center gap-2">
+                                              <h4 className={`font-bold ${ms.status === 'completed' ? 'text-slate-500 line-through' : 'text-white'}`}>{ms.name}</h4>
+                                              <button onClick={() => openEditMsModal(ms)} className="text-slate-500 hover:text-sanctum-gold"><Edit2 size={12}/></button>
+                                          </div>
                                           <p className="text-xs opacity-50">Due: {ms.due_date || 'TBD'} • ${ms.billable_amount.toLocaleString()}</p>
                                       </div>
                                   </div>
@@ -168,7 +209,6 @@ export default function ProjectDetail() {
                                           <option value="pending">Pending</option><option value="active">Active</option><option value="completed">Completed</option>
                                       </select>
 
-                                      {/* NEW TICKET BUTTON */}
                                       <button onClick={() => openTicketModal(ms.id)} className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-white" title="Add Task">
                                           <Plus size={14} />
                                       </button>
@@ -204,28 +244,41 @@ export default function ProjectDetail() {
       {/* MILESTONE MODAL */}
       {showMsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-sm">
-                <h2 className="text-lg font-bold mb-4">Add Milestone</h2>
-                <form onSubmit={handleCreateMilestone} className="space-y-3">
-                    <input required placeholder="Name" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.name} onChange={e => setMsForm({...msForm, name: e.target.value})} />
-                    <input required type="number" placeholder="Billable ($)" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.billable_amount} onChange={e => setMsForm({...msForm, billable_amount: e.target.value})} />
-                    <input type="date" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.due_date} onChange={e => setMsForm({...msForm, due_date: e.target.value})} />
-                    <div className="flex gap-2 pt-2">
-                        <button type="button" onClick={() => setShowMsModal(false)} className="flex-1 py-2 bg-slate-700 rounded text-sm text-white">Cancel</button>
-                        <button type="submit" className="flex-1 py-2 bg-sanctum-gold rounded text-sm text-slate-900 font-bold">Add</button>
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-sm relative">
+                <button onClick={closeMsModal} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
+                <h2 className="text-lg font-bold mb-4">{editingMsId ? 'Edit Milestone' : 'Add Milestone'}</h2>
+                <form onSubmit={handleSaveMilestone} className="space-y-3">
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Sequence</label>
+                        <input required type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.sequence} onChange={e => setMsForm({...msForm, sequence: e.target.value})} />
                     </div>
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Name</label>
+                        <input required placeholder="Name (e.g. Prototype)" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.name} onChange={e => setMsForm({...msForm, name: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Billable Value ($)</label>
+                        <input required type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.billable_amount} onChange={e => setMsForm({...msForm, billable_amount: e.target.value})} />
+                    </div>
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Target Date</label>
+                        <input type="date" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.due_date} onChange={e => setMsForm({...msForm, due_date: e.target.value})} />
+                    </div>
+                    <button type="submit" className="w-full py-2 bg-sanctum-gold rounded text-sm text-slate-900 font-bold mt-2">
+                        {editingMsId ? 'Save Changes' : 'Create Milestone'}
+                    </button>
                 </form>
             </div>
         </div>
       )}
 
-      {/* TICKET MODAL (NEW) */}
+      {/* TICKET MODAL */}
       {showTicketModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-md relative">
                 <button onClick={() => setShowTicketModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                    <Clipboard size={20} className="text-sanctum-gold"/> Add Task to Milestone
+                    <Clipboard size={20} className="text-sanctum-gold"/> Add Task
                 </h2>
                 <form onSubmit={handleCreateTicket} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">

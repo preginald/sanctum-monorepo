@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import useAuthStore from './store/authStore';
-import { AlertCircle } from 'lucide-react';
+import useAuthStore from './store/authStore'; // Adjusted import path to match standard structure
+import { AlertCircle, Loader2 } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [sessionError, setSessionError] = useState(false);
+  const [loading, setLoading] = useState(false); // Added loading state for UX
   
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
@@ -22,13 +23,25 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+
     const success = await login(email, password);
+    
     if (success) {
-      // 1. Check for Redirect Param
+      // 1. GET USER ROLE
+      // We access the store state directly to see who just logged in
+      const user = useAuthStore.getState().user;
+
+      // 2. CLIENT PORTAL FORK
+      if (user?.role === 'client') {
+          navigate('/portal');
+          return;
+      }
+
+      // 3. ADMIN / STAFF REDIRECT
       const params = new URLSearchParams(location.search);
       const redirectTarget = params.get('redirect');
       
-      // 2. Navigate there, or default to Dashboard
       if (redirectTarget) {
         navigate(redirectTarget);
       } else {
@@ -37,6 +50,7 @@ export default function Login() {
     } else {
       alert("Access Denied.");
     }
+    setLoading(false);
   };
 
   return (
@@ -64,20 +78,22 @@ export default function Login() {
             placeholder="Identity"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="p-3 bg-slate-800 text-white border border-slate-700 rounded focus:border-sanctum-blue outline-none"
+            className="p-3 bg-slate-800 text-white border border-slate-700 rounded focus:border-sanctum-blue outline-none transition-colors"
           />
           <input
             type="password"
             placeholder="Cipher"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="p-3 bg-slate-800 text-white border border-slate-700 rounded focus:border-sanctum-blue outline-none"
+            className="p-3 bg-slate-800 text-white border border-slate-700 rounded focus:border-sanctum-blue outline-none transition-colors"
           />
           <button
             type="submit"
-            className="p-3 bg-sanctum-blue hover:bg-blue-600 text-white font-bold rounded transition-colors"
+            disabled={loading}
+            className="p-3 bg-sanctum-blue hover:bg-blue-600 text-white font-bold rounded transition-colors flex justify-center items-center gap-2"
           >
-            Authenticate
+            {loading && <Loader2 className="animate-spin" size={18} />}
+            {loading ? 'Authenticating...' : 'Authenticate'}
           </button>
         </form>
       </div>

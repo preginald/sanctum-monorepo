@@ -3,7 +3,12 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
-import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, Trash2, Briefcase, Bug, Zap, Clipboard, LifeBuoy } from 'lucide-react';
+// Icons
+import { 
+  Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, 
+  Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, 
+  Trash2, Briefcase, Bug, Zap, Clipboard, LifeBuoy, Key 
+} from 'lucide-react';
 import api from '../lib/api';
 
 export default function ClientDetail() {
@@ -11,67 +16,36 @@ export default function ClientDetail() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   
+  // === STATE: DATA ===
   const [client, setClient] = useState(null);
-  const [audits, setAudits] = useState([]); 
+  const [audits, setAudits] = useState([]);
+  const [portalUsers, setPortalUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // EDIT MODES
+  // === STATE: UI MODES ===
   const [isEditingAccount, setIsEditingAccount] = useState(false);
-  const [accountForm, setAccountForm] = useState({});
-
-  // MODALS STATE
+  
+  // === STATE: MODAL VISIBILITY ===
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDealModal, setShowDealModal] = useState(false);
-  const [showProjectModal, setShowProjectModal] = useState(false); // NEW
-  const [showTicketModal, setShowTicketModal] = useState(false);   // NEW
+  const [showProjectModal, setShowProjectModal] = useState(false);
+  const [showTicketModal, setShowTicketModal] = useState(false);
+  const [showPortalModal, setShowPortalModal] = useState(false);
 
-  // FORMS
-  const [contactForm, setContactForm] = useState({
-    first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: ''
-  });
-  const [dealForm, setDealForm] = useState({
-    title: '', amount: 0, stage: 'Infiltration', probability: 10
-  });
-  const [projectForm, setProjectForm] = useState({
-    name: '', budget: '', due_date: ''
-  });
-  const [ticketForm, setTicketForm] = useState({
-    subject: '', priority: 'normal', description: ''
-  });
-
+  // === STATE: FORMS ===
+  const [accountForm, setAccountForm] = useState({});
+  const [contactForm, setContactForm] = useState({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
+  const [dealForm, setDealForm] = useState({ title: '', amount: 0, stage: 'Infiltration', probability: 10 });
+  const [projectForm, setProjectForm] = useState({ name: '', budget: '', due_date: '' });
+  const [ticketForm, setTicketForm] = useState({ subject: '', priority: 'normal', description: '' });
+  const [portalForm, setPortalForm] = useState({ email: '', password: '', full_name: '' });
+  
   const [editingContactId, setEditingContactId] = useState(null);
 
+  // === THEME & PERMISSIONS ===
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
   const isGlobal = scope === 'global';
-
-    const handleDeleteProject = async (e, pId) => {
-      e.stopPropagation(); // Prevent navigating to project
-      if(!confirm("Archive this project?")) return;
-      try {
-          await api.delete(`/projects/${pId}`);
-          fetchDetail();
-      } catch(err) { alert("Failed to archive project"); }
-  };
-
-  const handleDeleteTicket = async (e, tId) => {
-      e.stopPropagation(); // Prevent navigating to ticket
-      if(!confirm("Archive this ticket?")) return;
-      try {
-          await api.delete(`/tickets/${tId}`);
-          fetchDetail();
-      } catch(err) { alert("Failed to archive ticket"); }
-  };
-
-  const getTypeIcon = (type) => {
-      switch(type) {
-          case 'bug': return <Bug size={14} className="text-red-400" />;
-          case 'feature': return <Zap size={14} className="text-yellow-400" />;
-          case 'task': return <Clipboard size={14} className="text-blue-400" />;
-          default: return <AlertCircle size={14} className="text-slate-400" />; // Default icon
-      }
-  };
-
 
   const theme = {
     cardBg: isNaked ? "bg-white border-slate-200" : "bg-slate-800 border-slate-700",
@@ -82,10 +56,12 @@ export default function ClientDetail() {
     btnPrimary: isNaked ? "bg-naked-pink hover:bg-pink-600" : "bg-sanctum-blue hover:bg-blue-600"
   };
 
+  // === INITIALIZATION ===
   useEffect(() => { fetchDetail(); }, [id]);
 
   const fetchDetail = async () => {
     try {
+      // 1. Fetch Client
       const response = await api.get(`/accounts/${id}`);
       setClient(response.data);
       setAccountForm({ 
@@ -95,20 +71,52 @@ export default function ClientDetail() {
         brand_affinity: response.data.brand_affinity 
       });
 
+      // 2. Fetch Audits
       const auditRes = await api.get(`/audits?account_id=${id}`);
       setAudits(auditRes.data);
+
+      // 3. Fetch Portal Users
+      api.get(`/accounts/${id}/users`).then(res => setPortalUsers(res.data));
 
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }
   };
 
-  // --- SAVE HANDLERS ---
+  // === HELPERS: FORMATTING & ICONS ===
+  const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
+  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
+  
+  const getTypeIcon = (type) => {
+      switch(type) {
+          case 'bug': return <Bug size={14} className="text-red-400" />;
+          case 'feature': return <Zap size={14} className="text-yellow-400" />;
+          case 'task': return <Clipboard size={14} className="text-blue-400" />;
+          default: return <AlertCircle size={14} className="text-slate-400" />;
+      }
+  };
 
+  // === HANDLERS: ACCOUNT ===
   const saveAccount = async () => {
     try {
       await api.put(`/accounts/${id}`, accountForm);
       setIsEditingAccount(false); fetchDetail();
     } catch (err) { alert("Update failed: " + err.response?.data?.detail); }
+  };
+
+  // === HANDLERS: CONTACTS ===
+  const openEditContact = (c) => {
+    setEditingContactId(c.id);
+    setContactForm({
+      first_name: c.first_name, last_name: c.last_name, email: c.email || '', 
+      phone: c.phone || '', persona: c.persona || 'Influencer', reports_to_id: c.reports_to_id || ''
+    });
+    setShowContactModal(true);
+  };
+
+  const openNewContact = () => {
+    setEditingContactId(null);
+    setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
+    setShowContactModal(true);
   };
 
   const saveContact = async (e) => {
@@ -126,6 +134,24 @@ export default function ClientDetail() {
     } catch (err) { alert("Failed to save contact."); }
   };
 
+  // === HANDLERS: PORTAL USERS ===
+  const handleCreatePortalUser = async (e) => {
+      e.preventDefault();
+      try {
+          await api.post(`/accounts/${id}/users`, portalForm);
+          setShowPortalModal(false);
+          setPortalForm({ email: '', password: '', full_name: '' });
+          fetchDetail();
+          alert("Access Granted. Credentials are live.");
+      } catch (e) { alert("Failed to create user. Email might be duplicate."); }
+  };
+
+  const handleRevokeAccess = async (userId) => {
+      if(!confirm("Revoke portal access for this user?")) return;
+      try { await api.delete(`/users/${userId}`); fetchDetail(); } catch(e) { alert("Failed"); }
+  };
+
+  // === HANDLERS: PROJECTS & DEALS ===
   const saveDeal = async (e) => {
     e.preventDefault();
     try {
@@ -139,7 +165,6 @@ export default function ClientDetail() {
   const saveProject = async (e) => {
       e.preventDefault();
       try {
-          // Santization for Pydantic
           const payload = {
               account_id: id,
               name: projectForm.name,
@@ -153,6 +178,13 @@ export default function ClientDetail() {
       } catch (e) { alert("Failed to create project"); }
   };
 
+  const handleDeleteProject = async (e, pId) => {
+      e.stopPropagation();
+      if(!confirm("Archive this project?")) return;
+      try { await api.delete(`/projects/${pId}`); fetchDetail(); } catch(err) { alert("Failed"); }
+  };
+
+  // === HANDLERS: TICKETS & INVOICES ===
   const saveTicket = async (e) => {
       e.preventDefault();
       try {
@@ -163,41 +195,26 @@ export default function ClientDetail() {
       } catch (e) { alert("Failed to create ticket"); }
   };
 
+  const handleDeleteTicket = async (e, tId) => {
+      e.stopPropagation();
+      if(!confirm("Archive this ticket?")) return;
+      try { await api.delete(`/tickets/${tId}`); fetchDetail(); } catch(err) { alert("Failed"); }
+  };
+
   const handleDeleteInvoice = async (invId) => {
     if(!confirm("Permanently delete this invoice record?")) return;
-    try {
-        await api.delete(`/invoices/${invId}`);
-        fetchDetail(); 
-    } catch (e) { alert("Failed to delete invoice"); }
+    try { await api.delete(`/invoices/${invId}`); fetchDetail(); } catch (e) { alert("Failed to delete invoice"); }
   };
 
-  // --- HELPERS ---
 
-  const openEditContact = (c) => {
-    setEditingContactId(c.id);
-    setContactForm({
-      first_name: c.first_name, last_name: c.last_name, email: c.email || '', 
-      phone: c.phone || '', persona: c.persona || 'Influencer', reports_to_id: c.reports_to_id || ''
-    });
-    setShowContactModal(true);
-  };
-
-  const openNewContact = () => {
-    setEditingContactId(null);
-    setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
-    setShowContactModal(true);
-  };
-
-  const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
-
+  // === RENDER START ===
   if (loading) return <Layout title="Loading..."><div className="p-8 opacity-50"><Loader2 className="animate-spin"/></div></Layout>;
   if (!client) return null;
 
   return (
     <Layout title="Client Profile">
       
-      {/* HEADER */}
+      {/* --- HEADER SECTION --- */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/clients')} className="p-2 rounded-full hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
@@ -229,10 +246,63 @@ export default function ClientDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEFT COLUMN (Contacts, Audits) */}
+        {/* --- LEFT COLUMN --- */}
         <div className="space-y-8">
           
-          {/* CONTACTS */}
+          {/* CARD: DETAILS */}
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4">Details</h3>
+            <div className="space-y-4">
+              <div>
+                <p className={`text-xs uppercase ${theme.textSub}`}>Status</p>
+                {isEditingAccount ? (
+                   <select value={accountForm.status} onChange={(e) => setAccountForm({...accountForm, status: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
+                     <option value="lead">Lead</option><option value="prospect">Prospect</option><option value="client">Active Client</option><option value="churned">Churned</option>
+                   </select>
+                ) : <p className={theme.textMain}>{client.status}</p>}
+              </div>
+              {!isNaked && isEditingAccount && (
+                <div>
+                  <p className={`text-xs uppercase ${theme.textSub}`}>Brand Sovereignty</p>
+                  <select value={accountForm.brand_affinity} onChange={(e) => setAccountForm({...accountForm, brand_affinity: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
+                    <option value="ds">Digital Sanctum</option><option value="nt">Naked Tech</option><option value="both">Shared</option>
+                  </select>
+                </div>
+              )}
+              <div>
+                <p className={`text-xs uppercase ${theme.textSub}`}>Type</p>
+                {isEditingAccount ? (
+                   <select value={accountForm.type} onChange={(e) => setAccountForm({...accountForm, type: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
+                     <option value="business">Business</option><option value="residential">Residential</option>
+                   </select>
+                ) : <p className={theme.textMain}>{client.type}</p>}
+              </div>
+            </div>
+          </div>
+
+          {/* CARD: PORTAL ACCESS */}
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2">
+                  <Key size={16} /> Portal Access
+              </h3>
+              <button onClick={() => setShowPortalModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`} title="Grant Access"><Plus size={16} /></button>
+            </div>
+            <div className="space-y-3">
+              {portalUsers.length === 0 && <p className="opacity-50 text-sm">No external access granted.</p>}
+              {portalUsers.map(u => (
+                  <div key={u.id} className="flex justify-between items-center p-3 border-b border-gray-500/20 last:border-0">
+                      <div>
+                          <div className={`font-bold text-sm ${theme.textMain}`}>{u.full_name}</div>
+                          <div className="text-xs opacity-50">{u.email}</div>
+                      </div>
+                      <button onClick={() => handleRevokeAccess(u.id)} className="text-red-500 hover:text-red-400 text-xs font-bold uppercase">Revoke</button>
+                  </div>
+              ))}
+            </div>
+          </div>
+
+          {/* CARD: CONTACTS */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2"><Users size={16} /> Humans</h3>
@@ -258,7 +328,7 @@ export default function ClientDetail() {
             </div>
           </div>
 
-          {/* RISK ASSESSMENTS */}
+          {/* CARD: RISK ASSESSMENTS */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2">
@@ -286,17 +356,16 @@ export default function ClientDetail() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN (Projects, Deals, Ledger, Tickets) */}
+        {/* --- RIGHT COLUMN --- */}
         <div className="lg:col-span-2 space-y-8">
           
-          {/* PROJECTS */}
+          {/* CARD: PROJECTS */}
           {!isNaked && (
             <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 text-sanctum-gold flex items-center gap-2">
                     <Briefcase size={16} /> Projects
                 </h3>
-                {/* 1. NEW PROJECT BUTTON */}
                 <button onClick={() => setShowProjectModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`} title="New Project"><Plus size={16} /></button>
               </div>
               {client.projects?.length === 0 ? <p className="opacity-50 text-sm">No active projects.</p> : (
@@ -310,13 +379,14 @@ export default function ClientDetail() {
                               <div>
                                   <div className="font-bold text-white flex items-center gap-2">
                                       {p.name}
-                                      {/* ... status badge ... */}
+                                      <span className={`px-1.5 py-0.5 rounded text-[10px] uppercase font-bold ${p.status === 'active' ? 'bg-green-500/20 text-green-500' : 'bg-slate-700 text-slate-400'}`}>
+                                          {p.status}
+                                      </span>
                                   </div>
                                   <div className="text-xs opacity-50">Deadline: {p.due_date || 'TBD'}</div>
                               </div>
                               <div className="flex items-center gap-4">
                                   <span className="block font-mono text-sanctum-gold">${p.budget.toLocaleString()}</span>
-                                  {/* DELETE BUTTON */}
                                   <button onClick={(e) => handleDeleteProject(e, p.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                       <Trash2 size={14} />
                                   </button>
@@ -328,7 +398,7 @@ export default function ClientDetail() {
             </div>
           )}
 
-          {/* DEALS */}
+          {/* CARD: DEALS */}
           {!isNaked && (
             <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
               <div className="flex justify-between items-center mb-4">
@@ -348,7 +418,7 @@ export default function ClientDetail() {
             </div>
           )}
 
-          {/* FINANCIAL LEDGER */}
+          {/* CARD: FINANCIAL LEDGER */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 text-green-500 flex items-center gap-2">
@@ -386,21 +456,19 @@ export default function ClientDetail() {
             )}
           </div>
 
-          {/* TICKETS */}
+          {/* CARD: TICKETS */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2">
                 <AlertCircle size={16} /> Tickets
               </h3>
-              {/* 2. NEW TICKET BUTTON */}
-              <button onClick={() => setShowTicketModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`} title="New Ticket"><Plus size={16} /></button>
+              <button onClick={() => setShowTicketModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`}><Plus size={16} /></button>
             </div>
             {client.tickets.length === 0 ? <p className="opacity-50 text-sm">No active tickets.</p> : (
               <div className="space-y-2">
                 {client.tickets.map(t => (
                   <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors group">
                     <div>
-                      {/* ... existing details ... */}
                       <div className="flex items-center gap-2">
                         {getTypeIcon(t.ticket_type)}
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>{t.priority}</span>
@@ -411,7 +479,6 @@ export default function ClientDetail() {
                     
                     <div className="flex items-center gap-3">
                         {t.status === 'resolved' ? <CheckCircle size={16} className="text-green-500" /> : <Clock size={16} className="text-yellow-500" />}
-                        {/* DELETE BUTTON */}
                         <button onClick={(e) => handleDeleteTicket(e, t.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Trash2 size={14} />
                         </button>
@@ -422,10 +489,9 @@ export default function ClientDetail() {
             )}
           </div>
         </div>
-      
       </div>
 
-      {/* FULL WIDTH BOTTOM ROW: ORG CHART */}
+      {/* --- BOTTOM ROW: ORG CHART --- */}
       <div className="mt-8">
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-sanctum-gold flex items-center gap-2"><Network size={16} /> Command Chain</h3>
@@ -441,7 +507,7 @@ export default function ClientDetail() {
 
       {/* --- MODALS --- */}
 
-      {/* 1. CONTACT MODAL */}
+      {/* MODAL: CONTACT */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -469,7 +535,7 @@ export default function ClientDetail() {
         </div>
       )}
 
-      {/* 2. DEAL MODAL */}
+      {/* MODAL: DEAL */}
       {showDealModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -502,7 +568,7 @@ export default function ClientDetail() {
         </div>
       )}
 
-      {/* 3. NEW PROJECT MODAL */}
+      {/* MODAL: PROJECT (NEW) */}
       {showProjectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -529,7 +595,7 @@ export default function ClientDetail() {
         </div>
       )}
 
-      {/* 4. NEW TICKET MODAL */}
+      {/* MODAL: TICKET (NEW) */}
       {showTicketModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -550,6 +616,27 @@ export default function ClientDetail() {
                         </select>
                     </div>
                     <button type="submit" className={`w-full py-3 mt-4 rounded font-bold text-white ${theme.btnPrimary}`}>Create Ticket</button>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* MODAL: PORTAL USER (NEW) */}
+      {showPortalModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
+                <button onClick={() => setShowPortalModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
+                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">Grant Portal Access</h2>
+                <form onSubmit={handleCreatePortalUser} className="space-y-4">
+                    <input required placeholder="Full Name" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={portalForm.full_name} onChange={e => setPortalForm({...portalForm, full_name: e.target.value})} />
+                    <input required type="email" placeholder="Email Address" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={portalForm.email} onChange={e => setPortalForm({...portalForm, email: e.target.value})} />
+                    <input required type="password" placeholder="Password" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={portalForm.password} onChange={e => setPortalForm({...portalForm, password: e.target.value})} />
+                    
+                    <div className="p-3 bg-yellow-500/10 border border-yellow-500/20 rounded text-xs text-yellow-500">
+                        <strong>Warning:</strong> This user will have read-only access to all Tickets, Invoices, and Projects for this client.
+                    </div>
+
+                    <button type="submit" className={`w-full py-3 mt-4 rounded font-bold text-white ${theme.btnPrimary}`}>Create Credentials</button>
                 </form>
             </div>
         </div>
