@@ -113,6 +113,7 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     account = db.query(models.Account)\
         .options(joinedload(models.Account.contacts))\
         .options(joinedload(models.Account.deals))\
+        .options(joinedload(models.Account.projects))\
         .options(joinedload(models.Account.invoices))\
         .options(
             joinedload(models.Account.tickets)
@@ -121,7 +122,14 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
         )\
         .filter(models.Account.id == account_id)\
         .first()
+        
     if not account: raise HTTPException(status_code=404, detail="Account not found")
+
+    # SOFT DELETE FILTERING (Python Side)
+    # We filter the relationships before returning to Pydantic
+    account.projects = [p for p in account.projects if not p.is_deleted]
+    account.tickets = [t for t in account.tickets if not t.is_deleted]
+
     return account
 
 @app.post("/accounts", response_model=schemas.AccountResponse)
@@ -223,7 +231,8 @@ def get_tickets(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product)
-        )
+        )\
+        .filter(models.Ticket.is_deleted == False)
     
     # Bifurcation (Optional - keep if you had it, otherwise standard query)
     if current_user.access_scope == 'nt_only':
@@ -873,17 +882,11 @@ def delete_invoice_item(
     return recalculate_invoice(parent_id, db)
 
 @app.get("/projects", response_model=List[schemas.ProjectResponse])
-def get_projects(
-    account_id: Optional[str] = None,
-    db: Session = Depends(get_db)
-):
-    query = db.query(models.Project).join(models.Account)
-    if account_id:
-        query = query.filter(models.Project.account_id == account_id)
-        
+def get_projects(account_id: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Project).join(models.Account).filter(models.Project.is_deleted == False) # FILTER
+    if account_id: query = query.filter(models.Project.account_id == account_id)
     projects = query.all()
-    for p in projects:
-        p.account_name = p.account.name
+    for p in projects: p.account_name = p.account.name
     return projects
 
 @app.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
@@ -973,3 +976,21 @@ def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db))
     db.commit()
     db.refresh(new_invoice)
     return new_invoice
+
+@app.delete("/projects/{project_id}")
+def delete_project(project_id: str, db: Session = Depends(get_db)):
+    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not proj: raise HTTPException(status_code=404, detail="Project not found")
+    
+    proj.is_deleted = True # Soft Delete
+    db.commit()
+    return {"status": "archived"}
+
+@app.delete("/tickets/{ticket_id}")
+def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    tick = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not tick: raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    tick.is_deleted = True # Soft Delete
+    db.commit()
+    return {"status": "archived"}

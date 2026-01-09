@@ -354,6 +354,7 @@ class AccountDetail(AccountResponse):
     contacts: list[ContactResponse] = []
     deals: list[DealResponse] = []
     tickets: list[TicketResponse] = []
+    projects: list[ProjectResponse] = []
     audit_data: dict | None = None 
     invoices: list[InvoiceResponse] = [] 
 

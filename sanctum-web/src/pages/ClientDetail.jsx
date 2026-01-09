@@ -3,8 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
-// FIX: Added 'Trash2' to imports
-import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, Trash2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, Trash2, Briefcase } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ClientDetail() {
@@ -20,9 +19,11 @@ export default function ClientDetail() {
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [accountForm, setAccountForm] = useState({});
 
-  // MODALS
+  // MODALS STATE
   const [showContactModal, setShowContactModal] = useState(false);
   const [showDealModal, setShowDealModal] = useState(false);
+  const [showProjectModal, setShowProjectModal] = useState(false); // NEW
+  const [showTicketModal, setShowTicketModal] = useState(false);   // NEW
 
   // FORMS
   const [contactForm, setContactForm] = useState({
@@ -31,11 +32,37 @@ export default function ClientDetail() {
   const [dealForm, setDealForm] = useState({
     title: '', amount: 0, stage: 'Infiltration', probability: 10
   });
+  const [projectForm, setProjectForm] = useState({
+    name: '', budget: '', due_date: ''
+  });
+  const [ticketForm, setTicketForm] = useState({
+    subject: '', priority: 'normal', description: ''
+  });
+
   const [editingContactId, setEditingContactId] = useState(null);
 
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
   const isGlobal = scope === 'global';
+
+    const handleDeleteProject = async (e, pId) => {
+      e.stopPropagation(); // Prevent navigating to project
+      if(!confirm("Archive this project?")) return;
+      try {
+          await api.delete(`/projects/${pId}`);
+          fetchDetail();
+      } catch(err) { alert("Failed to archive project"); }
+  };
+
+  const handleDeleteTicket = async (e, tId) => {
+      e.stopPropagation(); // Prevent navigating to ticket
+      if(!confirm("Archive this ticket?")) return;
+      try {
+          await api.delete(`/tickets/${tId}`);
+          fetchDetail();
+      } catch(err) { alert("Failed to archive ticket"); }
+  };
+
 
   const theme = {
     cardBg: isNaked ? "bg-white border-slate-200" : "bg-slate-800 border-slate-700",
@@ -65,6 +92,8 @@ export default function ClientDetail() {
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }
   };
+
+  // --- SAVE HANDLERS ---
 
   const saveAccount = async () => {
     try {
@@ -98,15 +127,42 @@ export default function ClientDetail() {
     } catch (err) { alert("Failed to create deal."); }
   };
 
+  const saveProject = async (e) => {
+      e.preventDefault();
+      try {
+          // Santization for Pydantic
+          const payload = {
+              account_id: id,
+              name: projectForm.name,
+              budget: parseFloat(projectForm.budget) || 0,
+              due_date: projectForm.due_date ? projectForm.due_date : null
+          };
+          await api.post('/projects', payload);
+          setShowProjectModal(false);
+          setProjectForm({ name: '', budget: '', due_date: '' });
+          fetchDetail();
+      } catch (e) { alert("Failed to create project"); }
+  };
+
+  const saveTicket = async (e) => {
+      e.preventDefault();
+      try {
+          await api.post('/tickets', { ...ticketForm, account_id: id });
+          setShowTicketModal(false);
+          setTicketForm({ subject: '', priority: 'normal', description: '' });
+          fetchDetail();
+      } catch (e) { alert("Failed to create ticket"); }
+  };
+
   const handleDeleteInvoice = async (invId) => {
     if(!confirm("Permanently delete this invoice record?")) return;
     try {
         await api.delete(`/invoices/${invId}`);
         fetchDetail(); 
-    } catch (e) {
-        alert("Failed to delete invoice");
-    }
+    } catch (e) { alert("Failed to delete invoice"); }
   };
+
+  // --- HELPERS ---
 
   const openEditContact = (c) => {
     setEditingContactId(c.id);
@@ -164,38 +220,10 @@ export default function ClientDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* LEFT COLUMN */}
+        {/* LEFT COLUMN (Contacts, Audits) */}
         <div className="space-y-8">
-          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
-            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4">Details</h3>
-            <div className="space-y-4">
-              <div>
-                <p className={`text-xs uppercase ${theme.textSub}`}>Status</p>
-                {isEditingAccount ? (
-                   <select value={accountForm.status} onChange={(e) => setAccountForm({...accountForm, status: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
-                     <option value="lead">Lead</option><option value="prospect">Prospect</option><option value="client">Active Client</option><option value="churned">Churned</option>
-                   </select>
-                ) : <p className={theme.textMain}>{client.status}</p>}
-              </div>
-              {!isNaked && isEditingAccount && (
-                <div>
-                  <p className={`text-xs uppercase ${theme.textSub}`}>Brand Sovereignty</p>
-                  <select value={accountForm.brand_affinity} onChange={(e) => setAccountForm({...accountForm, brand_affinity: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
-                    <option value="ds">Digital Sanctum</option><option value="nt">Naked Tech</option><option value="both">Shared</option>
-                  </select>
-                </div>
-              )}
-              <div>
-                <p className={`text-xs uppercase ${theme.textSub}`}>Type</p>
-                {isEditingAccount ? (
-                   <select value={accountForm.type} onChange={(e) => setAccountForm({...accountForm, type: e.target.value})} className={`w-full mt-1 p-2 rounded border ${theme.input}`}>
-                     <option value="business">Business</option><option value="residential">Residential</option>
-                   </select>
-                ) : <p className={theme.textMain}>{client.type}</p>}
-              </div>
-            </div>
-          </div>
-
+          
+          {/* CONTACTS */}
           <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2"><Users size={16} /> Humans</h3>
@@ -249,22 +277,58 @@ export default function ClientDetail() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
+        {/* RIGHT COLUMN (Projects, Deals, Ledger, Tickets) */}
         <div className="lg:col-span-2 space-y-8">
-          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
-            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-sanctum-gold flex items-center gap-2"><Network size={16} /> Command Chain</h3>
-            {client.contacts.length > 0 ? <OrgChart contacts={client.contacts} /> : <div className="h-32 flex items-center justify-center opacity-30 bg-black/20 rounded">Map humans to activate.</div>}
-          </div>
-
+          
+          {/* PROJECTS */}
           {!isNaked && (
             <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 text-sanctum-gold flex items-center gap-2"><Shield size={16} /> Deals</h3>
+                <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 text-sanctum-gold flex items-center gap-2">
+                    <Briefcase size={16} /> Projects
+                </h3>
+                {/* 1. NEW PROJECT BUTTON */}
+                <button onClick={() => setShowProjectModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`} title="New Project"><Plus size={16} /></button>
+              </div>
+              {client.projects?.length === 0 ? <p className="opacity-50 text-sm">No active projects.</p> : (
+                  <div className="space-y-2">
+                      {client.projects?.map(p => (
+                          <div 
+                            key={p.id} 
+                            onClick={() => navigate(`/projects/${p.id}`)} 
+                            className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors group"
+                          >
+                              <div>
+                                  <div className="font-bold text-white flex items-center gap-2">
+                                      {p.name}
+                                      {/* ... status badge ... */}
+                                  </div>
+                                  <div className="text-xs opacity-50">Deadline: {p.due_date || 'TBD'}</div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                  <span className="block font-mono text-sanctum-gold">${p.budget.toLocaleString()}</span>
+                                  {/* DELETE BUTTON */}
+                                  <button onClick={(e) => handleDeleteProject(e, p.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <Trash2 size={14} />
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              )}
+            </div>
+          )}
+
+          {/* DEALS */}
+          {!isNaked && (
+            <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 text-blue-400 flex items-center gap-2"><Shield size={16} /> Deals</h3>
                 <button onClick={() => setShowDealModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`}><Plus size={16} /></button>
               </div>
               {client.deals.length === 0 && <p className="opacity-50 text-sm">No active deals.</p>}
               {client.deals.map(d => (
-                <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors">
+                <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="p-3 bg-black/20 mb-2 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-blue-400/50 transition-colors">
                   <span className="font-medium">{d.title}</span>
                   <div className="text-right">
                     <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
@@ -295,30 +359,50 @@ export default function ClientDetail() {
                                 {inv.status}
                             </span>
                         </div>
-                        <div className="text-xs opacity-50 mt-1">
-                            Due: {formatDate(inv.due_date)}
-                        </div>
+                        <div className="text-xs opacity-50 mt-1">Due: {formatDate(inv.due_date)}</div>
                     </div>
                     <div className="flex items-center gap-4">
                         <div className="text-right">
                             <span className="block font-bold font-mono">{formatCurrency(inv.total_amount)}</span>
-                            {inv.gst_amount > 0 && (
-                                <span className="block text-[10px] opacity-40">
-                                    (Inc. {formatCurrency(inv.gst_amount)} GST)
-                                </span>
-                            )}
+                            {inv.gst_amount > 0 && <span className="block text-[10px] opacity-40">(Inc. {formatCurrency(inv.gst_amount)} GST)</span>}
                         </div>
-                        <button 
-                            onClick={() => navigate(`/invoices/${inv.id}`)} 
-                            className="text-[10px] text-blue-400 hover:underline mt-1">
-                            Open Invoice
-                        </button>
+                        <div className="flex gap-2">
+                            <button onClick={() => navigate(`/invoices/${inv.id}`)} className="text-[10px] text-blue-400 hover:underline">Open</button>
+                            <button onClick={() => handleDeleteInvoice(inv.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                        </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* TICKETS */}
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2">
+                <AlertCircle size={16} /> Tickets
+              </h3>
+              {/* 2. NEW TICKET BUTTON */}
+              <button onClick={() => setShowTicketModal(true)} className={`p-1 rounded hover:bg-white/10 ${theme.textMain}`} title="New Ticket"><Plus size={16} /></button>
+            </div>
+            {client.tickets.length === 0 ? <p className="opacity-50 text-sm">No active tickets.</p> : (
+              <div className="space-y-2">
+                {client.tickets.map(t => (
+                  <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors group">
+                    <div>
+                      {/* ... existing details ... */}
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>{t.priority}</span>
+                        <span className="font-medium text-sm">{t.subject}</span>
+                      </div>
+                      <span className="text-[10px] opacity-40 font-mono">#{t.id} • {t.status}</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        {t.status === 'resolved' ? <CheckCircle size={16} className="text-green-500" /> : <Clock size={16} className="text-yellow-500" />}
                         {/* DELETE BUTTON */}
-                        <button 
-                            onClick={() => handleDeleteInvoice(inv.id)} 
-                            className="p-2 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                            title="Delete Invoice"
-                        >
+                        <button onClick={(e) => handleDeleteTicket(e, t.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                             <Trash2 size={14} />
                         </button>
                     </div>
@@ -327,34 +411,27 @@ export default function ClientDetail() {
               </div>
             )}
           </div>
-
-          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-pink-500 flex items-center gap-2">
-                <AlertCircle size={16} /> Tickets
-              </h3>
-            </div>
-            {client.tickets.length === 0 ? <p className="opacity-50 text-sm">No active tickets.</p> : (
-              <div className="space-y-2">
-                {client.tickets.map(t => (
-                  <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>{t.priority}</span>
-                        <span className="font-medium text-sm">{t.subject}</span>
-                      </div>
-                      <span className="text-[10px] opacity-40 font-mono">#{t.id} • {t.status}</span>
-                    </div>
-                    {t.status === 'resolved' ? <CheckCircle size={16} className="text-green-500" /> : <Clock size={16} className="text-yellow-500" />}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
+      
       </div>
 
-      {/* MODALS */}
+      {/* FULL WIDTH BOTTOM ROW: ORG CHART */}
+      <div className="mt-8">
+          <div className={`p-6 rounded-xl border ${theme.cardBg}`}>
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 text-sanctum-gold flex items-center gap-2"><Network size={16} /> Command Chain</h3>
+            <div className="w-full h-[400px] bg-black/20 rounded border border-white/5 relative overflow-hidden">
+                {client.contacts.length > 0 ? (
+                    <OrgChart contacts={client.contacts} />
+                ) : (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-30">Map humans to activate visualization.</div>
+                )}
+            </div>
+          </div>
+      </div>
+
+      {/* --- MODALS --- */}
+
+      {/* 1. CONTACT MODAL */}
       {showContactModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -382,6 +459,7 @@ export default function ClientDetail() {
         </div>
       )}
 
+      {/* 2. DEAL MODAL */}
       {showDealModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
@@ -411,6 +489,59 @@ export default function ClientDetail() {
               <button type="submit" className={`w-full py-3 mt-4 rounded font-bold text-white ${theme.btnPrimary}`}>Initialize Deal</button>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* 3. NEW PROJECT MODAL */}
+      {showProjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
+                <button onClick={() => setShowProjectModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
+                <h2 className="text-xl font-bold mb-6">Initialize Project</h2>
+                <form onSubmit={saveProject} className="space-y-4">
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Project Name</label>
+                        <input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} placeholder="e.g. Cloud Migration" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs opacity-50 block mb-1">Budget ($)</label>
+                            <input required type="number" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={projectForm.budget} onChange={e => setProjectForm({...projectForm, budget: e.target.value})} />
+                        </div>
+                        <div>
+                            <label className="text-xs opacity-50 block mb-1">Due Date</label>
+                            <input type="date" className={`w-full p-2 rounded border outline-none ${theme.input}`} value={projectForm.due_date} onChange={e => setProjectForm({...projectForm, due_date: e.target.value})} />
+                        </div>
+                    </div>
+                    <button type="submit" className={`w-full py-3 mt-4 rounded font-bold text-white ${theme.btnPrimary}`}>Create Project</button>
+                </form>
+            </div>
+        </div>
+      )}
+
+      {/* 4. NEW TICKET MODAL */}
+      {showTicketModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div className={`w-full max-w-md p-6 rounded-xl shadow-2xl relative ${theme.modalBg}`}>
+                <button onClick={() => setShowTicketModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
+                <h2 className="text-xl font-bold mb-6">Create Ticket</h2>
+                <form onSubmit={saveTicket} className="space-y-4">
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Subject</label>
+                        <input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} placeholder="e.g. User Cannot Login" />
+                    </div>
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Priority</label>
+                        <select className={`w-full p-2 rounded border outline-none ${theme.input}`} value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}>
+                            <option value="low">Low</option>
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="critical">Critical</option>
+                        </select>
+                    </div>
+                    <button type="submit" className={`w-full py-3 mt-4 rounded font-bold text-white ${theme.btnPrimary}`}>Create Ticket</button>
+                </form>
+            </div>
         </div>
       )}
 
