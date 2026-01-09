@@ -24,14 +24,27 @@ export default function ProjectDetail() {
     finally { setLoading(false); }
   };
 
+  // --- FIX APPLIED HERE ---
   const handleCreateMilestone = async (e) => {
       e.preventDefault();
       try {
-          await api.post(`/projects/${id}/milestones`, msForm);
+          // SANITIZATION LAYER
+          const payload = {
+              name: msForm.name,
+              // Convert string to float, default to 0
+              billable_amount: parseFloat(msForm.billable_amount) || 0,
+              // Convert empty string to null
+              due_date: msForm.due_date ? msForm.due_date : null
+          };
+
+          await api.post(`/projects/${id}/milestones`, payload);
           setShowModal(false);
           setMsForm({ name: '', billable_amount: '', due_date: '' });
           fetchProject();
-      } catch(e) { alert("Failed"); }
+      } catch(e) { 
+          console.error(e);
+          alert("Failed to create milestone. Check inputs."); 
+      }
   };
 
   const generateInvoice = async (msId) => {
@@ -47,7 +60,7 @@ export default function ProjectDetail() {
 
   // Burn Down Calc
   const totalBilled = project.milestones.reduce((sum, m) => m.invoice_id ? sum + m.billable_amount : sum, 0);
-  const percentUsed = Math.min(100, (totalBilled / project.budget) * 100);
+  const percentUsed = project.budget > 0 ? Math.min(100, (totalBilled / project.budget) * 100) : 0;
 
   return (
     <Layout title="Mission Control">
