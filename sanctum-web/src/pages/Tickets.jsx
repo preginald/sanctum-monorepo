@@ -8,6 +8,7 @@ import api from '../lib/api';
 export default function Tickets() {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
+  const isAdmin = user?.role !== 'client';
   const [tickets, setTickets] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,9 +68,11 @@ export default function Tickets() {
   return (
     <Layout title="Service Desk">
       <div className="flex justify-end mb-6">
+        {isAdmin && (
         <button onClick={() => setShowModal(true)} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white shadow-lg ${theme.btn}`}>
           <Plus size={18} /> New Ticket
         </button>
+        )}
       </div>
 
       <div className="bg-white/5 rounded-xl border border-white/10 overflow-hidden">

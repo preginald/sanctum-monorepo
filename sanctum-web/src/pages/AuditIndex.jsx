@@ -7,7 +7,8 @@ import api from '../lib/api';
 
 export default function AuditIndex() {
   const navigate = useNavigate();
-  const { token } = useAuthStore();
+  const { token, user } = useAuthStore();
+  const isAdmin = user?.role !== 'client';
   const [audits, setAudits] = useState([]);
   const [clients, setClients] = useState({});
   const [loading, setLoading] = useState(true);
@@ -34,12 +35,14 @@ export default function AuditIndex() {
   return (
     <Layout title="Audit Registry">
       <div className="flex justify-end mb-6">
+        {isAdmin && (
         <button 
           onClick={() => navigate('/audit/new')} 
           className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold bg-sanctum-gold text-slate-900 hover:bg-yellow-500 shadow-lg transition-transform hover:-translate-y-1"
         >
           <Plus size={18} /> Initialize Audit
         </button>
+        )}
       </div>
 
       <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">

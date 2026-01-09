@@ -11,7 +11,6 @@ class Token(BaseModel):
 class TokenData(BaseModel):
     email: Optional[str] = None
 
-# 2. User Output
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
@@ -19,9 +18,16 @@ class UserResponse(BaseModel):
     role: str
     access_scope: str
     is_active: bool
+    account_id: Optional[UUID] = None # NEW
 
     class Config:
         from_attributes = True
+
+# NEW: Client User Creation
+class ClientUserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
 
 # --- ANALYTICS ---
 class DashboardStats(BaseModel):
@@ -203,6 +209,34 @@ class MilestoneResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class MilestoneCreate(BaseModel):
+    name: str
+    due_date: Optional[date] = None
+    status: str = 'pending'
+    billable_amount: float = 0.0
+    sequence: int = 1 # NEW
+
+class MilestoneUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
+    billable_amount: Optional[float] = None # NEW
+    due_date: Optional[date] = None # NEW
+    sequence: Optional[int] = None # NEW
+    invoice_id: Optional[UUID] = None
+
+class MilestoneResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    name: str
+    due_date: Optional[date] = None
+    status: str
+    billable_amount: float
+    invoice_id: Optional[UUID] = None
+    sequence: int = 1 # NEW
+    
+    class Config:
+        from_attributes = True
+
 # --- PROJECT SCHEMAS ---
 class ProjectCreate(BaseModel):
     account_id: UUID
@@ -358,6 +392,14 @@ class InvoiceResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# NEW: The Read-Only Portal Payload
+class PortalDashboard(BaseModel):
+    account: AccountResponse
+    security_score: int
+    open_tickets: List[TicketResponse]
+    invoices: List[InvoiceResponse]
+    projects: List[ProjectResponse]
 
 # --- MASTER VIEW ---
 class AccountDetail(AccountResponse):

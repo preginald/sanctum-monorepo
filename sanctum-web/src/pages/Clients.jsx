@@ -7,7 +7,8 @@ import api from '../lib/api';
 
 export default function Clients() {
   const navigate = useNavigate();
-  const { user, token } = useAuthStore();
+  const { token, user } = useAuthStore();
+  const isAdmin = user?.role !== 'client';
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,12 +71,14 @@ export default function Clients() {
 
       {/* TOOLBAR */}
       <div className="flex justify-end mb-6">
+        {isAdmin && (
         <button
           onClick={() => setShowModal(true)}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold shadow-lg transition-all hover:-translate-y-1 ${btnClass}`}
         >
           <Plus size={18} /> New Client
         </button>
+        )}
       </div>
 
       {loading ? (

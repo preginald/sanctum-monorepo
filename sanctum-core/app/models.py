@@ -19,9 +19,15 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     full_name = Column(String)
-    role = Column(String)
+    role = Column(String) # 'admin', 'tech', 'client'
     access_scope = Column(String)
     is_active = Column(Boolean, default=True)
+    
+    # NEW: External Link
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
+    
+    # Relations
+    account = relationship("Account", foreign_keys=[account_id]) # The client they belong to
 
 class Account(Base):
     __tablename__ = "accounts"
@@ -109,8 +115,9 @@ class Milestone(Base):
     due_date = Column(Date, nullable=True)
     status = Column(String, default='pending')
     billable_amount = Column(Float, default=0.0)
+    sequence = Column(Integer, default=1) # NEW
     invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
-    is_deleted = Column(Boolean, default=False)
+    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     project = relationship("Project", back_populates="milestones")

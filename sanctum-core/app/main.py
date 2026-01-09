@@ -61,52 +61,61 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     if not user or not auth.verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect username or password")
-    access_token = auth.create_access_token(data={"sub": user.email, "scope": user.access_scope})
-    return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/dashboard/stats", response_model=schemas.DashboardStats)
-def get_dashboard_stats(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    revenue_realized = 0.0
-    pipeline_value = 0.0
-    active_audits = 0
-    open_tickets = 0
-    critical_tickets = 0
-
-    if current_user.access_scope in ['global', 'ds_only']:
-        rev_q = db.query(func.sum(models.Deal.amount)).filter(models.Deal.stage == 'Accession').scalar()
-        revenue_realized = rev_q if rev_q else 0.0
-        pipe_q = db.query(func.sum(models.Deal.amount)).filter(models.Deal.stage != 'Accession').filter(models.Deal.stage != 'Lost').scalar()
-        pipeline_value = pipe_q if pipe_q else 0.0
-        active_audits = db.query(models.AuditReport).filter(models.AuditReport.status == 'draft').count()
-
-    if current_user.access_scope in ['global', 'nt_only']:
-        open_tickets = db.query(models.Ticket).filter(models.Ticket.status != 'resolved').count()
-        critical_tickets = db.query(models.Ticket).filter(models.Ticket.status != 'resolved').filter(models.Ticket.priority == 'high').count()
-
-    return {
-        "revenue_realized": revenue_realized,
-        "pipeline_value": pipeline_value,
-        "active_audits": active_audits,
-        "open_tickets": open_tickets,
-        "critical_tickets": critical_tickets
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    # CRITICAL FIX: Include ROLE and ACCOUNT_ID in the token
+    token_payload = {
+        "sub": user.email, 
+        "scope": user.access_scope,
+        "role": user.role,           # <--- This fixes the Buttons
+        "id": str(user.id),
+        "account_id": str(user.account_id) if user.account_id else None
     }
+    
+    access_token = auth.create_access_token(
+        data=token_payload,
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/refresh", response_model=schemas.Token)
 def refresh_session(
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    """Issues a new token for the currently logged in user."""
     access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    
+    # CRITICAL FIX: Include ROLE in refresh too
+    token_payload = {
+        "sub": current_user.email, 
+        "scope": current_user.access_scope,
+        "role": current_user.role,   # <--- Fix
+        "id": str(current_user.id),
+        "account_id": str(current_user.account_id) if current_user.account_id else None
+    }
+
     access_token = auth.create_access_token(
-        data={"sub": current_user.email, "scope": current_user.access_scope},
+        data=token_payload,
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- ACCOUNT ENDPOINTS ---
+# --- 1. SECURE ACCOUNTS LIST ---
 @app.get("/accounts", response_model=List[schemas.AccountResponse])
 def get_accounts(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    return db.query(models.Account).all()
+    query = db.query(models.Account)
+    
+    # SECURITY PATCH: Clients only see themselves
+    if current_user.role == 'client':
+        query = query.filter(models.Account.id == current_user.account_id)
+    
+    # Existing Staff Filters
+    elif current_user.access_scope == 'ds_only':
+        query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
+    elif current_user.access_scope == 'nt_only':
+        query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
+        
+    return query.all()
 
 @app.get("/accounts/{account_id}", response_model=schemas.AccountDetail)
 def get_account_detail(account_id: str, db: Session = Depends(get_db)):
@@ -133,7 +142,10 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     return account
 
 @app.post("/accounts", response_model=schemas.AccountResponse)
-def create_account(account: schemas.AccountCreate, db: Session = Depends(get_db)):
+def create_account(account: schemas.AccountCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    # BLOCK CLIENTS
+    if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
+    
     new_account = models.Account(**account.model_dump(), audit_data={})
     db.add(new_account)
     db.commit()
@@ -174,14 +186,23 @@ def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, db: S
     return contact
 
 # --- DEAL ENDPOINTS (Restored) ---
+# --- SECURE DEALS (Fixes "Seeing other clients' deals") ---
 @app.get("/deals", response_model=List[schemas.DealResponse])
-def get_deals(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+def get_deals(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
     query = db.query(models.Deal).join(models.Account)
-    if current_user.access_scope == 'nt_only':
+    
+    # SECURITY PATCH: Clients only see THEIR deals
+    if current_user.role == 'client':
+        query = query.filter(models.Account.id == current_user.account_id)
+    
+    elif current_user.access_scope == 'nt_only':
         query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
         query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
-    
+        
     deals = query.all()
     for d in deals: d.account_name = d.account.name
     return deals
@@ -219,6 +240,7 @@ def update_deal(deal_id: str, deal_update: schemas.DealUpdate, current_user: mod
 
 # --- TICKET ENDPOINTS (PATCHED FOR MATERIALS) ---
 
+# --- 3. SECURE TICKET LIST ---
 @app.get("/tickets", response_model=List[schemas.TicketResponse])
 def get_tickets(
     current_user: models.User = Depends(auth.get_current_active_user),
@@ -230,12 +252,16 @@ def get_tickets(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
-            # DEEP LOAD: Milestone -> Project
             joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)
         )\
         .filter(models.Ticket.is_deleted == False)
 
-    if current_user.access_scope == 'nt_only':
+    # SECURITY PATCH: Clients only see their own tickets
+    if current_user.role == 'client':
+        query = query.filter(models.Ticket.account_id == current_user.account_id)
+        
+    # Existing Staff Filters
+    elif current_user.access_scope == 'nt_only':
         query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
         query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
@@ -254,7 +280,6 @@ def get_tickets(
         t_dict['time_entries'] = t.time_entries 
         t_dict['materials'] = t.materials 
         
-        # Hydrate Milestone & Project Info
         if t.milestone:
             t_dict['milestone_name'] = t.milestone.name
             if t.milestone.project:
@@ -438,6 +463,7 @@ def update_ticket_material(
     return mat
 
 # --- AUDIT ENDPOINTS (RESTORED) ---
+# --- SECURE AUDITS (Fixes "Seeing unknown client audits") ---
 @app.get("/audits", response_model=List[schemas.AuditResponse])
 def get_audits(
     account_id: Optional[str] = None, 
@@ -445,13 +471,18 @@ def get_audits(
     db: Session = Depends(get_db)
 ):
     query = db.query(models.AuditReport)
-    if account_id:
-        query = query.filter(models.AuditReport.account_id == account_id)
+    
+    # SECURITY PATCH: Clients only see THEIR audits
+    if current_user.role == 'client':
+        query = query.filter(models.AuditReport.account_id == current_user.account_id)
         
-    if current_user.access_scope == 'nt_only':
+    elif current_user.access_scope == 'nt_only':
         query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
         query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['ds', 'both']))
+        
+    if account_id:
+        query = query.filter(models.AuditReport.account_id == account_id)
         
     return query.all()
 
@@ -537,7 +568,10 @@ def finalize_audit(audit_id: str, db: Session = Depends(get_db)):
 
 # --- PRODUCT ENDPOINTS ---
 @app.get("/products", response_model=List[schemas.ProductResponse])
-def get_products(db: Session = Depends(get_db)):
+def get_products(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    # HIDE CATALOG FROM CLIENTS
+    if current_user.role == 'client': return []
+    
     return db.query(models.Product).filter(models.Product.is_active == True).all()
 
 @app.post("/products", response_model=schemas.ProductResponse)
@@ -887,10 +921,22 @@ def delete_invoice_item(
     
     return recalculate_invoice(parent_id, db)
 
+# --- 2. SECURE PROJECTS LIST ---
 @app.get("/projects", response_model=List[schemas.ProjectResponse])
-def get_projects(account_id: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(models.Project).join(models.Account).filter(models.Project.is_deleted == False) # FILTER
-    if account_id: query = query.filter(models.Project.account_id == account_id)
+def get_projects(
+    account_id: Optional[str] = None,
+    current_user: models.User = Depends(auth.get_current_active_user), # ADDED USER CHECK
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Project).join(models.Account).filter(models.Project.is_deleted == False)
+    
+    # SECURITY PATCH: Clients only see their own projects
+    if current_user.role == 'client':
+        query = query.filter(models.Project.account_id == current_user.account_id)
+
+    if account_id:
+        query = query.filter(models.Project.account_id == account_id)
+        
     projects = query.all()
     for p in projects: p.account_name = p.account.name
     return projects
@@ -907,12 +953,14 @@ def get_project_detail(project_id: str, db: Session = Depends(get_db)):
     return project
 
 @app.post("/projects", response_model=schemas.ProjectResponse)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+def create_project(project: schemas.ProjectCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    # BLOCK CLIENTS
+    if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
+
     new_project = models.Project(**project.model_dump())
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
-    # Eager load account name
     new_project.account = db.query(models.Account).filter(models.Account.id == project.account_id).first()
     new_project.account_name = new_project.account.name
     return new_project
@@ -928,12 +976,20 @@ def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Se
     return new_milestone
 
 @app.put("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
-def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Session = Depends(get_db)):
+def update_milestone(
+    milestone_id: str,
+    update: schemas.MilestoneUpdate,
+    db: Session = Depends(get_db)
+):
     ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
     if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
     
+    # Update all allowed fields
     if update.status: ms.status = update.status
     if update.name: ms.name = update.name
+    if update.billable_amount is not None: ms.billable_amount = update.billable_amount
+    if update.due_date: ms.due_date = update.due_date
+    if update.sequence is not None: ms.sequence = update.sequence
     
     db.commit()
     db.refresh(ms)
@@ -1000,3 +1056,97 @@ def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
     tick.is_deleted = True # Soft Delete
     db.commit()
     return {"status": "archived"}
+
+# --- PORTAL ADMINISTRATION (For Staff) ---
+
+@app.post("/accounts/{account_id}/users", response_model=schemas.UserResponse)
+def create_client_user(
+    account_id: str,
+    user_data: schemas.ClientUserCreate,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Permission Check
+    if current_user.role == 'client':
+        raise HTTPException(status_code=403, detail="Clients cannot create users.")
+
+    # 2. Check existence
+    if db.query(models.User).filter(models.User.email == user_data.email).first():
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    # 3. Create User
+    hashed_pw = auth.get_password_hash(user_data.password)
+    new_user = models.User(
+        email=user_data.email,
+        password_hash=hashed_pw,
+        full_name=user_data.full_name,
+        role="client",
+        access_scope="restricted",
+        account_id=account_id
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
+
+@app.get("/accounts/{account_id}/users", response_model=List[schemas.UserResponse])
+def get_client_users(
+    account_id: str,
+    db: Session = Depends(get_db)
+):
+    return db.query(models.User).filter(models.User.account_id == account_id).all()
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: str, db: Session = Depends(get_db)):
+    # Simple delete for now
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user: raise HTTPException(status_code=404, detail="User not found")
+    db.delete(user)
+    db.commit()
+    return {"status": "deleted"}
+
+# --- THE MIRROR (Client Facing API) ---
+
+@app.get("/portal/dashboard", response_model=schemas.PortalDashboard)
+def get_portal_dashboard(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. STRICT SECURITY GATE
+    if current_user.role != 'client' or not current_user.account_id:
+        raise HTTPException(status_code=403, detail="Portal access only.")
+
+    aid = current_user.account_id
+
+    # 2. Fetch Context
+    account = db.query(models.Account).filter(models.Account.id == aid).first()
+    
+    # 3. Fetch Operations (Read Only views)
+    tickets = db.query(models.Ticket)\
+        .options(joinedload(models.Ticket.time_entries), joinedload(models.Ticket.materials))\
+        .filter(models.Ticket.account_id == aid, models.Ticket.is_deleted == False)\
+        .order_by(desc(models.Ticket.created_at)).all()
+
+    invoices = db.query(models.Invoice)\
+        .options(joinedload(models.Invoice.items))\
+        .filter(models.Invoice.account_id == aid)\
+        .order_by(desc(models.Invoice.generated_at)).all()
+        
+    projects = db.query(models.Project)\
+        .options(joinedload(models.Project.milestones))\
+        .filter(models.Project.account_id == aid, models.Project.is_deleted == False).all()
+
+    # 4. Get Latest Audit Score
+    last_audit = db.query(models.AuditReport)\
+        .filter(models.AuditReport.account_id == aid, models.AuditReport.status == 'finalized')\
+        .order_by(desc(models.AuditReport.finalized_at)).first()
+    
+    score = last_audit.security_score if last_audit else 0
+
+    return {
+        "account": account,
+        "security_score": score,
+        "open_tickets": tickets,
+        "invoices": invoices,
+        "projects": projects
+    }
