@@ -131,6 +131,7 @@ class Ticket(Base):
 
     milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
     is_deleted = Column(Boolean, default=False)
+    ticket_type = Column(String, default='support') # bug, feature, task, support
     
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, AlertCircle, Copy } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, AlertCircle, Copy, Briefcase, Bug, Zap, Clipboard, LifeBuoy } from 'lucide-react';
 import api from '../lib/api';
 
 export default function TicketDetail() {
@@ -12,30 +12,39 @@ export default function TicketDetail() {
   const [ticket, setTicket] = useState(null);
   const [contacts, setContacts] = useState([]); 
   const [products, setProducts] = useState([]); 
+  const [accountProjects, setAccountProjects] = useState([]); 
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   
-  // EDIT STATE FOR ITEMS
+  // EDIT STATE
   const [editingTimeId, setEditingTimeId] = useState(null);
   const [timeEditForm, setTimeEditForm] = useState({});
-  
   const [editingMatId, setEditingMatId] = useState(null);
   const [matEditForm, setMatEditForm] = useState({});
 
-  // Sub-Forms (Add New)
+  // Sub-Forms
   const [newEntry, setNewEntry] = useState({ start_time: '', end_time: '', description: '', product_id: '' });
   const [newMaterial, setNewMaterial] = useState({ product_id: '', quantity: 1 });
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [showMatForm, setShowMatForm] = useState(false);
   
   const [formData, setFormData] = useState({
-    status: '', priority: '', description: '', resolution: '', created_at: '', closed_at: '', contact_ids: [] 
+    status: '', priority: '', description: '', resolution: '', created_at: '', closed_at: '', contact_ids: [],
+    ticket_type: 'support', milestone_id: ''
   });
 
   useEffect(() => { 
       fetchTicket(); 
       fetchCatalog();
   }, [id]);
+
+  useEffect(() => {
+      if (ticket?.account_id) {
+          api.get(`/projects?account_id=${ticket.account_id}`)
+             .then(res => setAccountProjects(res.data))
+             .catch(console.error);
+      }
+  }, [ticket?.account_id]);
 
   const fetchTicket = async () => {
     try {
@@ -51,7 +60,9 @@ export default function TicketDetail() {
           resolution: target.resolution || '',
           created_at: target.created_at ? target.created_at.slice(0, 16) : '',
           closed_at: target.closed_at ? target.closed_at.slice(0, 16) : '',
-          contact_ids: existingIds 
+          contact_ids: existingIds,
+          ticket_type: target.ticket_type || 'support',
+          milestone_id: target.milestone_id || ''
         });
         fetchContacts(target.account_id);
       }
@@ -73,19 +84,18 @@ export default function TicketDetail() {
       } catch (e) { }
   };
 
-  // --- SAVE ACTIONS ---
+  // --- ACTIONS ---
 
   const handleSave = async () => {
     const payload = { ...formData };
-    if (!payload.closed_at) delete payload.closed_at; 
+    if (!payload.closed_at) delete payload.closed_at;
+    if (!payload.milestone_id) payload.milestone_id = null;
     try {
       await api.put(`/tickets/${id}`, payload);
       await fetchTicket(); 
       setIsEditing(false); 
     } catch (e) { alert("Update failed"); }
   };
-
-  // --- TIME ENTRY LOGIC ---
 
   const handleAddTime = async (e) => {
     e.preventDefault();
@@ -127,8 +137,6 @@ export default function TicketDetail() {
       } catch (e) { alert("Failed to duplicate entry"); }
   };
 
-  // --- MATERIAL LOGIC ---
-
   const handleAddMaterial = async (e) => {
       e.preventDefault();
       try {
@@ -169,45 +177,95 @@ export default function TicketDetail() {
       } catch(e) { alert(e.response?.data?.detail || "Generation Failed"); }
   };
 
-  // --- UI HELPERS & CALCULATIONS ---
+  // --- UI HELPERS ---
   const formatDate = (d) => d ? new Date(d).toLocaleString() : 'N/A';
   const formatDuration = (m) => `${Math.floor(m/60)}h ${m%60}m`;
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val || 0);
 
-  // Robust calculation: Use backend value OR calculate locally if missing
   const getEntryValue = (e) => e.calculated_value ?? ((e.duration_minutes / 60) * (e.product_id ? (products.find(p=>p.id===e.product_id)?.unit_price || 0) : 0));
   const getMatValue = (m) => m.calculated_value ?? (m.quantity * m.unit_price);
 
+  const getTypeIcon = (type) => {
+      switch(type) {
+          case 'bug': return <Bug size={24} className="text-red-400" />;
+          case 'feature': return <Zap size={24} className="text-yellow-400" />;
+          case 'task': return <Clipboard size={24} className="text-blue-400" />;
+          default: return <LifeBuoy size={24} className="text-slate-400" />;
+      }
+  };
+
   if (loading || !ticket) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
-  // TOTALS
   const totalLaborValue = ticket.time_entries?.reduce((sum, e) => sum + getEntryValue(e), 0) || 0;
   const totalMatValue = ticket.materials?.reduce((sum, m) => sum + getMatValue(m), 0) || 0;
 
   return (
     <Layout title={`Ticket #${ticket.id}`}>
       
-      {/* HEADER */}
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/tickets')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
-          <div>
-            <h1 className="text-2xl font-bold">{ticket.subject}</h1>
-            <p className="opacity-50 text-sm flex items-center gap-2">
-              {ticket.account_name} 
-              {ticket.contact_name && <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-white/10 text-xs text-sanctum-gold"><User size={10} /> {ticket.contact_name}</span>}
-            </p>
+      {/* HEADER: REFINED FOR CLARITY */}
+      <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
+        
+        {/* LEFT: TITLE & META */}
+        <div className="flex items-start gap-4 flex-1">
+          <button onClick={() => navigate('/tickets')} className="p-2 rounded hover:bg-white/10 opacity-70 mt-1"><ArrowLeft size={20} /></button>
+          
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-1">
+                {/* ICON BADGE */}
+                <div className="p-1.5 bg-white/5 rounded border border-white/10 flex items-center justify-center">
+                    {getTypeIcon(ticket.ticket_type)}
+                </div>
+                {/* STATUS BADGE */}
+                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${ticket.status === 'resolved' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                    {ticket.status}
+                </span>
+                {/* PRIORITY BADGE */}
+                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${ticket.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                    {ticket.priority}
+                </span>
+            </div>
+
+            {/* SUBJECT */}
+            <h1 className="text-2xl font-bold leading-tight mb-2 break-words max-w-2xl">
+                {ticket.subject}
+            </h1>
+
+            {/* BREADCRUMBS */}
+            <div className="opacity-60 text-sm flex flex-wrap items-center gap-2">
+              <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="hover:text-white hover:underline flex items-center gap-1 font-bold">
+                <User size={12} /> {ticket.account_name}
+              </button>
+
+              {ticket.project_id && (
+                  <>
+                    <span>/</span>
+                    <button onClick={() => navigate(`/projects/${ticket.project_id}`)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors">
+                        <Briefcase size={12} /> {ticket.project_name}
+                    </button>
+                    <span>/</span>
+                    <span className="text-sanctum-gold">{ticket.milestone_name}</span>
+                  </>
+              )}
+
+              {ticket.contact_name && (
+                  <>
+                    <span>•</span>
+                    <span className="flex items-center gap-1">{ticket.contact_name}</span>
+                  </>
+              )}
+            </div>
           </div>
         </div>
 
+        {/* RIGHT: ACTIONS */}
         <div className="flex gap-2">
             {!isEditing && (
-                <button onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg">
+                <button onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5">
                     <Receipt size={16} /> Generate Invoice
                 </button>
             )}
             {!isEditing ? (
-            <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold">
+            <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors">
                 <Edit2 size={16} /> Edit
             </button>
             ) : (
@@ -227,22 +285,12 @@ export default function TicketDetail() {
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative">
             {!isEditing ? (
               <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs uppercase opacity-50 block mb-1">Status</label>
-                    <span className={`px-3 py-1 rounded text-sm font-bold uppercase ${ticket.status === 'resolved' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>{ticket.status}</span>
-                  </div>
-                  <div>
-                    <label className="text-xs uppercase opacity-50 block mb-1">Priority</label>
-                    <span className="font-bold uppercase">{ticket.priority}</span>
-                  </div>
+                <div className="pt-2">
+                  <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{ticket.description || 'No description provided.'}</p>
                 </div>
-                <div className="pt-4 border-t border-slate-800">
-                  <p className="text-sm text-gray-300 whitespace-pre-wrap">{ticket.description || 'No description.'}</p>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-sm font-mono opacity-80">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50">
                   <div>Opened: {formatDate(ticket.created_at)}</div>
-                  <div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Updated: ${formatDate(ticket.updated_at)}`}</div>
+                  <div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div>
                 </div>
                 {ticket.resolution && (
                   <div className="pt-4 border-t border-slate-800">
@@ -253,10 +301,44 @@ export default function TicketDetail() {
               </div>
             ) : (
               <div className="space-y-6">
+                {/* EDIT FORM */}
                 <div className="grid grid-cols-2 gap-6">
                     <div><label className="block text-xs uppercase opacity-50 mb-1">Status</label><select className="w-full p-3 rounded bg-black/40 border border-slate-600 text-white" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value="new">New</option><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option></select></div>
                     <div><label className="block text-xs uppercase opacity-50 mb-1">Priority</label><select className="w-full p-3 rounded bg-black/40 border border-slate-600 text-white" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}><option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></div>
                 </div>
+
+                {/* PROJECT & MILESTONE SELECTOR */}
+                <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
+                    <div>
+                        <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Project / Milestone</label>
+                        <select 
+                            className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" 
+                            value={formData.milestone_id || ""} 
+                            onChange={e => setFormData({...formData, milestone_id: e.target.value || null})}
+                        >
+                            <option value="">(No Link)</option>
+                            {accountProjects.map(p => (
+                                <optgroup key={p.id} label={p.name}>
+                                    {p.milestones.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}
+                                </optgroup>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Ticket Type</label>
+                        <select 
+                            className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" 
+                            value={formData.ticket_type || "support"} 
+                            onChange={e => setFormData({...formData, ticket_type: e.target.value})}
+                        >
+                            <option value="support">Support Request</option>
+                            <option value="bug">Bug Report</option>
+                            <option value="feature">Feature Request</option>
+                            <option value="task">Project Task</option>
+                        </select>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
                     <div><label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Opened (Time Travel)</label><input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.created_at} onChange={e => setFormData({...formData, created_at: e.target.value})} /></div>
                     <div><label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Closed (Time Travel)</label><input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.closed_at} onChange={e => setFormData({...formData, closed_at: e.target.value})} /></div>
@@ -271,12 +353,8 @@ export default function TicketDetail() {
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
              <div className="flex justify-between items-center mb-4">
                  <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-sanctum-gold" /> Billable Labor
-                    </h3>
-                    <span className="bg-sanctum-gold/10 text-sanctum-gold px-2 py-0.5 rounded text-xs font-bold border border-sanctum-gold/20">
-                        {formatCurrency(totalLaborValue)}
-                    </span>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Clock className="w-4 h-4 text-sanctum-gold" /> Billable Labor</h3>
+                    <span className="bg-sanctum-gold/10 text-sanctum-gold px-2 py-0.5 rounded text-xs font-bold border border-sanctum-gold/20">{formatCurrency(totalLaborValue)}</span>
                  </div>
                  <span className="text-xl font-mono font-bold text-white">{ticket.total_hours}h</span>
              </div>
@@ -312,11 +390,7 @@ export default function TicketDetail() {
                                  <div className="flex items-center gap-4">
                                      <div className="text-right">
                                          <span className="block font-mono font-bold">{formatDuration(entry.duration_minutes)}</span>
-                                         {getEntryValue(entry) > 0 && (
-                                             <span className="block text-[10px] text-sanctum-gold opacity-70">
-                                                 {formatCurrency(getEntryValue(entry))}
-                                             </span>
-                                         )}
+                                         {getEntryValue(entry) > 0 && <span className="block text-[10px] text-sanctum-gold opacity-70">{formatCurrency(getEntryValue(entry))}</span>}
                                      </div>
                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                          <button onClick={() => handleDuplicateTime(entry.id)} className="text-slate-400 hover:text-sanctum-gold" title="Duplicate Entry"><Copy size={14}/></button>
@@ -330,9 +404,7 @@ export default function TicketDetail() {
                  ))}
                  {(!ticket.time_entries || ticket.time_entries.length === 0) && <div className="text-center opacity-30 italic py-4">No time logged.</div>}
              </div>
-             {!showTimeForm && (
-                 <button onClick={() => setShowTimeForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2"><Plus size={14} /> Log Time</button>
-             )}
+             {!showTimeForm && <button onClick={() => setShowTimeForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2"><Plus size={14} /> Log Time</button>}
              {showTimeForm && (
                  <form onSubmit={handleAddTime} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3">
                      <div className="grid grid-cols-2 gap-3">
@@ -352,16 +424,12 @@ export default function TicketDetail() {
              )}
           </div>
 
-          {/* BILLABLE MATERIALS */}
+          {/* BILLABLE MATERIALS - WITH INLINE EDITING */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
              <div className="flex justify-between items-center mb-4">
                  <div className="flex items-center gap-4">
-                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                        <Package className="w-4 h-4 text-orange-400" /> Materials Used
-                    </h3>
-                    <span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded text-xs font-bold border border-orange-500/20">
-                        {formatCurrency(totalMatValue)}
-                    </span>
+                    <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Package className="w-4 h-4 text-orange-400" /> Materials Used</h3>
+                    <span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded text-xs font-bold border border-orange-500/20">{formatCurrency(totalMatValue)}</span>
                  </div>
              </div>
              <div className="space-y-3">
@@ -383,9 +451,7 @@ export default function TicketDetail() {
                                      <div className="text-xs opacity-50">${mat.unit_price} x {mat.quantity}</div>
                                  </div>
                                  <div className="flex items-center gap-4">
-                                     <span className="font-mono font-bold text-orange-400">
-                                         {formatCurrency(getMatValue(mat))}
-                                     </span>
+                                     <span className="font-mono font-bold text-orange-400">{formatCurrency(getMatValue(mat))}</span>
                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                          <button onClick={() => startEditMat(mat)} className="text-slate-400 hover:text-white"><Edit2 size={14}/></button>
                                          <button onClick={() => handleDeleteMaterial(mat.id)} className="text-red-500 hover:text-red-400"><Trash2 size={14}/></button>
@@ -397,19 +463,11 @@ export default function TicketDetail() {
                  ))}
                  {(!ticket.materials || ticket.materials.length === 0) && <div className="text-center opacity-30 italic py-4">No materials used.</div>}
              </div>
-             {!showMatForm && (
-                 <button onClick={() => setShowMatForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2"><Plus size={14} /> Add Item</button>
-             )}
+             {!showMatForm && <button onClick={() => setShowMatForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2"><Plus size={14} /> Add Item</button>}
              {showMatForm && (
                  <form onSubmit={handleAddMaterial} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3">
                      <div className="grid grid-cols-3 gap-3">
-                         <div className="col-span-2">
-                             <label className="text-xs opacity-50 block mb-1">Item</label>
-                             <select required className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newMaterial.product_id} onChange={e => setNewMaterial({...newMaterial, product_id: e.target.value})}>
-                                 <option value="">-- Select Product --</option>
-                                 {products.filter(p => p.type === 'hardware').map(p => <option key={p.id} value={p.id}>{p.name} (${p.unit_price})</option>)}
-                             </select>
-                         </div>
+                         <div className="col-span-2"><label className="text-xs opacity-50 block mb-1">Item</label><select required className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newMaterial.product_id} onChange={e => setNewMaterial({...newMaterial, product_id: e.target.value})}><option value="">-- Select Product --</option>{products.filter(p => p.type === 'hardware').map(p => <option key={p.id} value={p.id}>{p.name} (${p.unit_price})</option>)}</select></div>
                          <div><label className="text-xs opacity-50 block mb-1">Qty</label><input required type="number" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newMaterial.quantity} onChange={e => setNewMaterial({...newMaterial, quantity: e.target.value})} /></div>
                      </div>
                      <div className="flex gap-2"><button type="button" onClick={() => setShowMatForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button><button type="submit" className="flex-1 py-1 bg-orange-600 text-white font-bold rounded text-xs">Add</button></div>

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
-import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, Trash2, Briefcase } from 'lucide-react';
+import { Loader2, ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, X, Plus, UserPlus, Network, Phone, DollarSign, FileText, Download, Clock, CheckCircle, Receipt, Trash2, Briefcase, Bug, Zap, Clipboard, LifeBuoy } from 'lucide-react';
 import api from '../lib/api';
 
 export default function ClientDetail() {
@@ -61,6 +61,15 @@ export default function ClientDetail() {
           await api.delete(`/tickets/${tId}`);
           fetchDetail();
       } catch(err) { alert("Failed to archive ticket"); }
+  };
+
+  const getTypeIcon = (type) => {
+      switch(type) {
+          case 'bug': return <Bug size={14} className="text-red-400" />;
+          case 'feature': return <Zap size={14} className="text-yellow-400" />;
+          case 'task': return <Clipboard size={14} className="text-blue-400" />;
+          default: return <AlertCircle size={14} className="text-slate-400" />; // Default icon
+      }
   };
 
 
@@ -393,6 +402,7 @@ export default function ClientDetail() {
                     <div>
                       {/* ... existing details ... */}
                       <div className="flex items-center gap-2">
+                        {getTypeIcon(t.ticket_type)}
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'}`}>{t.priority}</span>
                         <span className="font-medium text-sm">{t.subject}</span>
                       </div>

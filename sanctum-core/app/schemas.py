@@ -235,6 +235,8 @@ class TicketCreate(BaseModel):
     description: Optional[str] = None 
     priority: str = 'normal'
     assigned_tech_id: Optional[UUID] = None
+    # NEW FIELDS
+    ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
 
 class TicketUpdate(BaseModel):
@@ -247,6 +249,9 @@ class TicketUpdate(BaseModel):
     contact_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
+    # NEW FIELDS
+    ticket_type: Optional[str] = None
+    milestone_id: Optional[UUID] = None
 
 class TicketResponse(BaseModel):
     id: int
@@ -262,13 +267,18 @@ class TicketResponse(BaseModel):
     contact_ids: List[UUID] = [] 
     account_name: Optional[str] = None
     contact_name: Optional[str] = None
-
+    
+    ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
-    milestone_name: Optional[str] = None
+    milestone_name: Optional[str] = None # For UI convenience
+
+    # NEW FIELDS
+    project_id: Optional[UUID] = None
+    project_name: Optional[str] = None
 
     contacts: List[ContactResponse] = [] 
     time_entries: List[TimeEntryResponse] = []
-    materials: List[TicketMaterialResponse] = [] # Added for Phase 15.3
+    materials: List[TicketMaterialResponse] = [] 
     total_hours: float = 0.0
 
     class Config:

@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- Import
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { Loader2, Plus, AlertCircle, CheckCircle, Clock } from 'lucide-react';
+import { Loader2, Plus, AlertCircle, CheckCircle, Clock, Bug, Zap, Clipboard, LifeBuoy } from 'lucide-react';
 import api from '../lib/api';
 
 export default function Tickets() {
-  const navigate = useNavigate(); // <--- Initialize
+  const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const [tickets, setTickets] = useState([]);
   const [clients, setClients] = useState([]);
@@ -14,7 +14,7 @@ export default function Tickets() {
   const [showModal, setShowModal] = useState(false);
   
   // Create Form
-  const [form, setForm] = useState({ account_id: '', subject: '', priority: 'normal' });
+  const [form, setForm] = useState({ account_id: '', subject: '', priority: 'normal', ticket_type: 'support' });
 
   const isNaked = user?.scope === 'nt_only';
   const theme = {
@@ -41,18 +41,27 @@ export default function Tickets() {
     try {
       await api.post('/tickets', form);
       setShowModal(false);
-      setForm({ account_id: '', subject: '', priority: 'normal' });
+      setForm({ account_id: '', subject: '', priority: 'normal', ticket_type: 'support' });
       fetchData();
     } catch (e) { alert("Error creating ticket"); }
   };
 
   const updateStatus = async (e, id, newStatus) => {
-    e.stopPropagation(); // <--- Prevent row click
+    e.stopPropagation(); 
     try {
-      // Optimistic update
       setTickets(tickets.map(t => t.id === id ? { ...t, status: newStatus } : t));
       await api.put(`/tickets/${id}`, { status: newStatus });
     } catch (e) { fetchData(); }
+  };
+
+  // ICON HELPER
+  const getTypeIcon = (type) => {
+      switch(type) {
+          case 'bug': return <Bug size={16} className="text-red-400" />;
+          case 'feature': return <Zap size={16} className="text-yellow-400" />;
+          case 'task': return <Clipboard size={16} className="text-blue-400" />;
+          default: return <LifeBuoy size={16} className="text-slate-400" />;
+      }
   };
 
   return (
@@ -67,6 +76,7 @@ export default function Tickets() {
         <table className="w-full text-left">
           <thead className={`text-xs uppercase ${theme.header}`}>
             <tr>
+              <th className="p-4 w-16">Type</th>
               <th className="p-4">ID</th>
               <th className="p-4">Client</th>
               <th className="p-4">Subject</th>
@@ -79,12 +89,22 @@ export default function Tickets() {
             {tickets.map(t => (
               <tr 
                 key={t.id} 
-                onClick={() => navigate(`/tickets/${t.id}`)} // <--- Navigate on click
+                onClick={() => navigate(`/tickets/${t.id}`)} 
                 className="border-b border-white/5 hover:bg-white/5 cursor-pointer transition-colors"
               >
+                <td className="p-4" title={t.ticket_type.toUpperCase()}>
+                    {getTypeIcon(t.ticket_type)}
+                </td>
                 <td className="p-4 font-mono opacity-50">#{t.id}</td>
                 <td className="p-4 font-bold">{t.account_name}</td>
-                <td className="p-4">{t.subject}</td>
+                <td className="p-4">
+                    {t.subject}
+                    {t.milestone_name && (
+                        <span className="ml-2 px-1.5 py-0.5 rounded bg-blue-900/50 text-[10px] text-blue-300 border border-blue-800">
+                            {t.milestone_name}
+                        </span>
+                    )}
+                </td>
                 <td className="p-4">
                   <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${
                     t.priority === 'critical' ? 'bg-red-500/20 text-red-500' : 'bg-blue-500/20 text-blue-500'
@@ -128,18 +148,29 @@ export default function Tickets() {
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Type</label>
+                    <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.ticket_type} onChange={e => setForm({...form, ticket_type: e.target.value})}>
+                        <option value="support">Support</option>
+                        <option value="bug">Bug Report</option>
+                        <option value="feature">Feature Request</option>
+                        <option value="task">Internal Task</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Priority</label>
+                    <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
+                        <option value="low">Low</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                  </div>
+              </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Subject</label>
                 <input required className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder="e.g. Printer Offline" />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 block mb-1">Priority</label>
-                <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
-                  <option value="low">Low</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
-                </select>
               </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="flex-1 py-2 bg-slate-700 rounded text-white">Cancel</button>

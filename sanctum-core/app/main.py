@@ -224,17 +224,17 @@ def get_tickets(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # EAGER LOAD: Time Entries (+User) AND Materials (+Product)
     query = db.query(models.Ticket)\
         .join(models.Account)\
         .options(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
-            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product)
+            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
+            # DEEP LOAD: Milestone -> Project
+            joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)
         )\
         .filter(models.Ticket.is_deleted == False)
-    
-    # Bifurcation (Optional - keep if you had it, otherwise standard query)
+
     if current_user.access_scope == 'nt_only':
         query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
@@ -250,14 +250,17 @@ def get_tickets(
         names = [f"{c.first_name} {c.last_name}" for c in t.contacts]
         t_dict['contact_name'] = ", ".join(names) if names else None
         t_dict['contacts'] = t.contacts 
-        
-        # Manually trigger properties for the Dictionary response
         t_dict['total_hours'] = t.total_hours
         t_dict['time_entries'] = t.time_entries 
-        
-        # NEW: Ensure materials are passed
         t_dict['materials'] = t.materials 
         
+        # Hydrate Milestone & Project Info
+        if t.milestone:
+            t_dict['milestone_name'] = t.milestone.name
+            if t.milestone.project:
+                t_dict['project_id'] = t.milestone.project.id
+                t_dict['project_name'] = t.milestone.project.name
+            
         results.append(t_dict)
     return results
 
@@ -272,8 +275,11 @@ def create_ticket(
         subject=ticket.subject,
         priority=ticket.priority,
         status='new',
-        assigned_tech_id=ticket.assigned_tech_id
+        assigned_tech_id=ticket.assigned_tech_id,
+        ticket_type=ticket.ticket_type,     # NEW
+        milestone_id=ticket.milestone_id    # NEW
     )
+
     if ticket.contact_ids: 
         new_ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ticket.contact_ids)).all()
         
