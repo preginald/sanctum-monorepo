@@ -15,6 +15,8 @@ import os
 from .services import pdf_engine
 from typing import List, Optional
 
+from .services.email_service import email_service # <--- NEW IMPORT
+
 app = FastAPI(title="Sanctum Core", version="1.5.2")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -296,14 +298,37 @@ def create_ticket(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
+    # 1. SECURITY & CONTEXT OVERRIDE
+    target_account_id = ticket.account_id
+    
+    if current_user.role == 'client':
+        # Force the ticket to belong to the client's account
+        target_account_id = current_user.account_id
+        # Clients can't assign techs or link milestones
+        ticket.assigned_tech_id = None
+        ticket.milestone_id = None
+        if not ticket.ticket_type: ticket.ticket_type = 'support'
+
+        # --- IDENTITY UNIFICATION (NEW) ---
+        # Look for a Contact record matching this User's email
+        linked_contact = db.query(models.Contact).filter(
+            models.Contact.account_id == current_user.account_id,
+            models.Contact.email == current_user.email
+        ).first()
+
+        # If found, auto-add them to the ticket
+        if linked_contact:
+            if linked_contact.id not in ticket.contact_ids:
+                ticket.contact_ids.append(linked_contact.id)
+
     new_ticket = models.Ticket(
-        account_id=ticket.account_id,
+        account_id=target_account_id,
         subject=ticket.subject,
         priority=ticket.priority,
         status='new',
         assigned_tech_id=ticket.assigned_tech_id,
-        ticket_type=ticket.ticket_type,     # NEW
-        milestone_id=ticket.milestone_id    # NEW
+        ticket_type=ticket.ticket_type,
+        milestone_id=ticket.milestone_id
     )
 
     if ticket.contact_ids: 
@@ -312,7 +337,31 @@ def create_ticket(
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)
+    
+    new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
     new_ticket.account_name = new_ticket.account.name 
+    
+    # 2. NOTIFICATIONS
+    if current_user.role == 'client':
+        try:
+            admin_html = f"""
+            <p><strong>New Portal Request</strong></p>
+            <p><strong>Client:</strong> {new_ticket.account_name}</p>
+            <p><strong>User:</strong> {current_user.full_name} ({current_user.email})</p>
+            <p><strong>Subject:</strong> {new_ticket.subject}</p>
+            <p><a href="https://core.digitalsanctum.com.au/tickets/{new_ticket.id}">View in Core</a></p>
+            """
+            email_service.send(email_service.admin_email, f"New Ticket: {new_ticket.subject}", admin_html)
+            
+            receipt_html = f"""
+            <p>We received your request: <strong>{new_ticket.subject}</strong></p>
+            <p>Ticket ID: #{new_ticket.id}</p>
+            <p>Our team is reviewing it now.</p>
+            """
+            email_service.send(current_user.email, f"Ticket #{new_ticket.id} Received", receipt_html)
+        except Exception as e:
+            print(f"Email failed: {e}")
+    
     return new_ticket
 
 @app.put("/tickets/{ticket_id}", response_model=schemas.TicketResponse)
@@ -1070,15 +1119,12 @@ def create_client_user(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    # 1. Permission Check
     if current_user.role == 'client':
         raise HTTPException(status_code=403, detail="Clients cannot create users.")
 
-    # 2. Check existence
     if db.query(models.User).filter(models.User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    # 3. Create User
     hashed_pw = auth.get_password_hash(user_data.password)
     new_user = models.User(
         email=user_data.email,
@@ -1091,6 +1137,21 @@ def create_client_user(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+    
+    # NOTIFICATION (NEW)
+    # Note: In a real app, we'd send a reset link, but for now we send the raw password (MVP Only)
+    # or just a "You have access" email.
+    
+    welcome_html = f"""
+    <h1>Welcome to Sanctum Core</h1>
+    <p>Hello {user_data.full_name},</p>
+    <p>You have been granted access to the Client Portal.</p>
+    <p><strong>Login:</strong> {user_data.email}</p>
+    <p><strong>Password:</strong> {user_data.password}</p> 
+    <p><a href="https://core.digitalsanctum.com.au/login">Login Here</a></p>
+    """
+    email_service.send(user_data.email, "Portal Access Granted", welcome_html)
+    
     return new_user
 
 @app.get("/accounts/{account_id}/users", response_model=List[schemas.UserResponse])
@@ -1154,3 +1215,68 @@ def get_portal_dashboard(
         "invoices": invoices,
         "projects": projects
     }
+
+# --- PUBLIC LEAD INGESTION (RESTORED & UPGRADED) ---
+
+@app.post("/public/lead")
+def submit_public_lead(lead: schemas.LeadSchema, db: Session = Depends(get_db)):
+    # 1. Create the Account (Company)
+    new_account = models.Account(
+        name=lead.company,
+        type="business",
+        status="lead",         
+        brand_affinity="ds",   
+        audit_data={           
+            "size": lead.size,
+            "challenge": lead.challenge,
+            "initial_message": lead.message
+        }
+    )
+    db.add(new_account)
+    db.flush() 
+
+    # 2. Create the Contact
+    # Simple name split logic
+    name_parts = lead.name.split(" ", 1)
+    fname = name_parts[0]
+    lname = name_parts[1] if len(name_parts) > 1 else ""
+
+    new_contact = models.Contact(
+        account_id=new_account.id,
+        first_name=fname,
+        last_name=lname,
+        email=lead.email,
+        is_primary_contact=True
+    )
+    db.add(new_contact)
+    db.commit()
+
+    # 3. PHASE 20: EMAIL NOTIFICATIONS
+    
+    # A. Internal Alert (To You)
+    try:
+        internal_html = f"""
+        <h1>New Lead Detected</h1>
+        <p><strong>Company:</strong> {lead.company}</p>
+        <p><strong>Contact:</strong> {lead.name} ({lead.email})</p>
+        <p><strong>Challenge:</strong> {lead.challenge}</p>
+        <p><strong>Message:</strong><br>{lead.message}</p>
+        <p><a href="https://core.digitalsanctum.com.au/clients/{new_account.id}">View in Core</a></p>
+        """
+        email_service.send(email_service.admin_email, f"New Lead: {lead.company}", internal_html)
+    except Exception as e:
+        print(f"Failed to send internal alert: {e}")
+
+    # B. Auto-Responder (To Client)
+    try:
+        client_html = f"""
+        <p>Hi {fname},</p>
+        <p>Thank you for contacting Digital Sanctum regarding <strong>{lead.company}</strong>.</p>
+        <p>We have received your application. A strategist will review your technical requirements and contact you within 24 hours to schedule a deep-dive.</p>
+        <p>Regards,<br><strong>The Sanctum Team</strong></p>
+        """
+        email_service.send(lead.email, "Application Received - Digital Sanctum", client_html)
+    except Exception as e:
+        print(f"Failed to send auto-responder: {e}")
+
+    return {"status": "received", "id": str(new_account.id)}
