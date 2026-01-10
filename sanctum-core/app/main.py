@@ -252,19 +252,18 @@ def get_tickets(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
-            joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)
+            joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
+            joinedload(models.Ticket.contacts) # <--- PLURAL (M2M)
         )\
         .filter(models.Ticket.is_deleted == False)
 
-    # SECURITY PATCH: Clients only see their own tickets
-    if current_user.role == 'client':
-        query = query.filter(models.Ticket.account_id == current_user.account_id)
-        
-    # Existing Staff Filters
-    elif current_user.access_scope == 'nt_only':
+    if current_user.access_scope == 'nt_only':
         query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
         query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
+    
+    if current_user.role == 'client':
+        query = query.filter(models.Ticket.account_id == current_user.account_id)
 
     tickets = query.order_by(models.Ticket.id.desc()).all()
     
@@ -273,8 +272,10 @@ def get_tickets(
         t_dict = t.__dict__.copy() 
         t_dict['account_name'] = t.account.name
         
+        # MAP LIST OF CONTACTS TO STRING
         names = [f"{c.first_name} {c.last_name}" for c in t.contacts]
         t_dict['contact_name'] = ", ".join(names) if names else None
+        
         t_dict['contacts'] = t.contacts 
         t_dict['total_hours'] = t.total_hours
         t_dict['time_entries'] = t.time_entries 
@@ -320,12 +321,12 @@ def update_ticket(
     ticket_update: schemas.TicketUpdate,
     db: Session = Depends(get_db)
 ):
-    # Eager load EVERYTHING needed for the response
     ticket = db.query(models.Ticket)\
         .options(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
-            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product)
+            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
+            joinedload(models.Ticket.contacts) # <--- PLURAL
         )\
         .filter(models.Ticket.id == ticket_id).first()
         
@@ -333,8 +334,10 @@ def update_ticket(
         
     update_data = ticket_update.model_dump(exclude_unset=True)
     
+    # HANDLE M2M CONTACTS
     if 'contact_ids' in update_data:
         ids = update_data.pop('contact_ids') 
+        # Replace the entire list with the new selection
         ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
 
     if 'status' in update_data and update_data['status'] == 'resolved' and ticket.status != 'resolved':
@@ -347,6 +350,7 @@ def update_ticket(
     db.commit()
     db.refresh(ticket)
     
+    # RESPONSE MAPPING
     ticket.account_name = ticket.account.name
     names = [f"{c.first_name} {c.last_name}" for c in ticket.contacts]
     ticket.contact_name = ", ".join(names) if names else None

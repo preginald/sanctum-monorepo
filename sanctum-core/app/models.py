@@ -129,6 +129,9 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     assigned_tech_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+
+    # NEW: Primary Contact Link
+    contact_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
     
     subject = Column(String)
     description = Column(Text)
@@ -145,13 +148,19 @@ class Ticket(Base):
     closed_at = Column(TIMESTAMP(timezone=True))
 
     account = relationship("Account", back_populates="tickets")
-    contacts = relationship("Contact", secondary=ticket_contacts, backref="tickets")
-    comments = relationship("Comment", back_populates="ticket", order_by="desc(Comment.created_at)")
+
+    # RELATIONSHIPS
+    # 1. Primary Contact (Singular)
+    contact = relationship("Contact", foreign_keys=[contact_id])
     
+    # 2. Legacy M2M (Plural - Keep for backward compatibility if needed, or deprecate)
+    contacts = relationship("Contact", secondary=ticket_contacts, backref="tickets")
+    
+    comments = relationship("Comment", back_populates="ticket", order_by="desc(Comment.created_at)")
     time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
-
     milestone = relationship("Milestone", back_populates="tickets")
+
 
     @property
     def total_hours(self):
