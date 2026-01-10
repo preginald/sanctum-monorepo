@@ -318,6 +318,14 @@ class TicketResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class LeadSchema(BaseModel):
+    name: str
+    email: EmailStr
+    company: str
+    size: str
+    challenge: str
+    message: str
+
 # --- AUDIT SCHEMAS ---
 class AuditItem(BaseModel):
     category: str 
