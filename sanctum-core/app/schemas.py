@@ -99,6 +99,13 @@ class InvoiceSendRequest(BaseModel):
     subject: Optional[str] = None
     message: Optional[str] = None
 
+class InvoiceLite(BaseModel):
+    id: UUID
+    status: str
+    total_amount: float
+    class Config:
+        from_attributes = True
+
 # --- NESTED DETAIL SCHEMAS ---
 class ContactCreate(BaseModel):
     account_id: UUID
@@ -289,6 +296,14 @@ class ProjectUpdate(BaseModel):
     budget: Optional[float] = None
     due_date: Optional[date] = None
 
+# --- PROJECT/MILESTONE ---
+class MilestoneReorderItem(BaseModel):
+    id: UUID
+    sequence: int
+
+class MilestoneReorderRequest(BaseModel):
+    items: List[MilestoneReorderItem]
+
 # --- TICKET SCHEMAS ---
 class TicketCreate(BaseModel):
     account_id: UUID
@@ -316,6 +331,7 @@ class TicketUpdate(BaseModel):
     milestone_id: Optional[UUID] = None
 
 class TicketResponse(BaseModel):
+    # ... [Keep existing fields] ...
     id: int
     subject: str
     description: Optional[str] = None
@@ -332,11 +348,12 @@ class TicketResponse(BaseModel):
     
     ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
-    milestone_name: Optional[str] = None # For UI convenience
-
-    # NEW FIELDS
+    milestone_name: Optional[str] = None
     project_id: Optional[UUID] = None
     project_name: Optional[str] = None
+    
+    # NEW: Financial Guard
+    related_invoices: List[InvoiceLite] = [] 
 
     contacts: List[ContactResponse] = [] 
     time_entries: List[TimeEntryResponse] = []
@@ -412,6 +429,7 @@ class InvoiceItemSchema(BaseModel):
 class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
     due_date: Optional[date] = None
+    generated_at: Optional[datetime] = None # NEW: Issue Date
     payment_terms: Optional[str] = None
 
 class InvoiceResponse(BaseModel):

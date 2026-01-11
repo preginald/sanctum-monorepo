@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, Clock, User, X, Plus, Trash2, Package, Receipt, Copy, Briefcase } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, Copy, Briefcase } from 'lucide-react';
 import api from '../lib/api';
 // IMPORT REFACTOR
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
-import ReactMarkdown from 'react-markdown'; 
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -81,7 +80,6 @@ export default function TicketDetail() {
   };
 
   // --- SUB HANDLERS (Time/Material) ---
-  // (Logic kept inline for stability in this step, but now it's easier to read with less UI code above)
   const handleAddTime = async (e) => { e.preventDefault(); try { await api.post(`/tickets/${id}/time_entries`, newEntry); setNewEntry({ start_time: '', end_time: '', description: '', product_id: '' }); setShowTimeForm(false); fetchTicket(); } catch (error) { alert("Failed."); } };
   const startEditTime = (entry) => { setEditingTimeId(entry.id); setTimeEditForm({ start_time: entry.start_time.slice(0,16), end_time: entry.end_time.slice(0,16), description: entry.description, product_id: entry.product_id }); };
   const saveEditTime = async () => { try { await api.put(`/tickets/time_entries/${editingTimeId}`, timeEditForm); setEditingTimeId(null); fetchTicket(); } catch(e) { alert("Failed"); } };
@@ -91,7 +89,25 @@ export default function TicketDetail() {
   const startEditMat = (mat) => { setEditingMatId(mat.id); setMatEditForm({ product_id: mat.product_id, quantity: mat.quantity }); };
   const saveEditMat = async () => { try { await api.put(`/tickets/materials/${editingMatId}`, matEditForm); setEditingMatId(null); fetchTicket(); } catch(e) { alert("Failed"); } };
   const handleDeleteMaterial = async (matId) => { if(!confirm("Remove material?")) return; try { await api.delete(`/tickets/${id}/materials/${matId}`); fetchTicket(); } catch(e){} };
-  const handleGenerateInvoice = async () => { if(!confirm("Generate Draft Invoice?")) return; try { const res = await api.post(`/tickets/${id}/invoice`); alert(`Invoice Generated! Total: $${res.data.total_amount}`); navigate(`/clients/${ticket.account_id}`); } catch(e) { alert(e.response?.data?.detail || "Failed"); } };
+  
+  // --- FINANCIAL GUARD ---
+  const handleGenerateInvoice = async () => { 
+      // CHECK FOR EXISTING INVOICES
+      if (ticket.related_invoices && ticket.related_invoices.length > 0) {
+          const invIds = ticket.related_invoices.map(i => `#${i.id.slice(0,8)}`).join(', ');
+          if (!confirm(`WARNING: This ticket is already linked to Invoice(s) ${invIds}. \n\nGenerate another invoice anyway?`)) {
+              return;
+          }
+      } else {
+          if(!confirm("Generate Draft Invoice from billable items?")) return; 
+      }
+      
+      try { 
+          const res = await api.post(`/tickets/${id}/invoice`); 
+          alert(`Invoice Generated! Total: $${res.data.total_amount}`); 
+          navigate(`/clients/${ticket.account_id}`); 
+      } catch(e) { alert(e.response?.data?.detail || "Failed"); } 
+  };
 
   // --- HELPERS ---
   const formatDate = (d) => d ? new Date(d).toLocaleString() : 'N/A';
@@ -122,7 +138,12 @@ export default function TicketDetail() {
 
             <h1 className="text-2xl font-bold leading-tight mb-2 break-words max-w-2xl">{ticket.subject}</h1>
             <div className="opacity-60 text-sm flex flex-wrap items-center gap-2">
-              <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="hover:text-white hover:underline flex items-center gap-1 font-bold"><User size={12} /> {ticket.account_name}</button>
+              
+              {/* DEEP LINK: CLIENT */}
+              <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="hover:text-white hover:underline flex items-center gap-1 font-bold">
+                <User size={12} /> {ticket.account_name}
+              </button>
+
               {ticket.project_id && (<><span>/</span><button onClick={() => navigate(`/projects/${ticket.project_id}`)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors"><Briefcase size={12} /> {ticket.project_name}</button><span>/</span><span className="text-sanctum-gold">{ticket.milestone_name}</span></>)}
             </div>
           </div>
@@ -137,6 +158,27 @@ export default function TicketDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         <div className="lg:col-span-2 space-y-6">
+          
+          {/* FINANCIAL GUARD (BLUE BOX) */}
+          {ticket.related_invoices?.length > 0 && (
+              <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                      <Receipt className="text-blue-400" size={20} />
+                      <div>
+                          <h4 className="text-sm font-bold text-blue-100">Billed Logic Active</h4>
+                          <p className="text-xs text-blue-300">
+                              Linked to: {ticket.related_invoices.map(i => (
+                                  <span key={i.id} onClick={() => navigate(`/invoices/${i.id}`)} className="underline cursor-pointer ml-1">
+                                      #{i.id.slice(0,8)} ({i.status})
+                                  </span>
+                              ))}
+                          </p>
+                      </div>
+                  </div>
+              </div>
+          )}
+
+          {/* TICKET DETAILS CARD */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative">
             {!isEditing ? (
               <div className="space-y-6">
@@ -144,32 +186,9 @@ export default function TicketDetail() {
                   <div><label className="text-xs uppercase opacity-50 block mb-1">Status</label><StatusBadge status={ticket.status} /></div>
                   <div><label className="text-xs uppercase opacity-50 block mb-1">Priority</label><PriorityBadge priority={ticket.priority} /></div>
                 </div>
-                {/* CONTACT LIST READ MODE */}
                 <div className="pt-2 border-t border-slate-800"><label className="text-xs uppercase opacity-50 block mb-2">Affected Humans</label><div className="flex flex-wrap gap-2">{ticket.contacts && ticket.contacts.length > 0 ? ticket.contacts.map(c => (<span key={c.id} className="bg-white/10 px-2 py-1 rounded text-xs flex items-center gap-1">{c.first_name} {c.last_name}</span>)) : <span className="text-xs opacity-30 italic">No contacts linked.</span>}</div></div>
-                <div className="pt-4 border-t border-slate-800">
-                  {/* REPLACED PLAIN TEXT WITH MARKDOWN */}
-                  <div className="text-sm text-gray-300 leading-relaxed prose prose-invert max-w-none">
-                    <ReactMarkdown>
-                      {ticket.description || '*No description provided.*'}
-                    </ReactMarkdown>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50">
-                  <div>Opened: {formatDate(ticket.created_at)}</div>
-                  <div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div>
-                </div>
-
-                {ticket.resolution && (
-                  <div className="pt-4 border-t border-slate-800">
-                    <label className="text-xs uppercase opacity-50 block mb-2 text-green-400">Resolution</label>
-                    <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300 prose prose-invert max-w-none">
-                      {/* REPLACED PLAIN TEXT WITH MARKDOWN */}
-                      <ReactMarkdown>
-                          {ticket.resolution}
-                      </ReactMarkdown>
-                    </div>
-                  </div>
-                )}
+                <div className="pt-2 border-t border-slate-800"><p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{ticket.description || 'No description provided.'}</p></div>
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50"><div>Opened: {formatDate(ticket.created_at)}</div><div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div></div>
               </div>
             ) : (
               <div className="space-y-6">
@@ -182,7 +201,6 @@ export default function TicketDetail() {
 
                 <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
                     <div><label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Project / Milestone</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.milestone_id || ""} onChange={e => setFormData({...formData, milestone_id: e.target.value || null})}><option value="">(No Link)</option>{accountProjects.map(p => (<optgroup key={p.id} label={p.name}>{p.milestones.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}</optgroup>))}</select></div>
-                    {/* UNIFIED CONTACT SELECTOR */}
                     <div><label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Contacts</label><div className="flex flex-wrap gap-1 mb-1">{formData.contact_ids.map(id => { const c = contacts.find(x => x.id === id); return c ? <span key={id} className="text-[10px] bg-slate-600 px-1 rounded flex items-center">{c.first_name}<button type="button" onClick={() => toggleContact(id)} className="ml-1"><X size={10}/></button></span> : null; })}</div><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" onChange={(e) => { if(e.target.value) toggleContact(e.target.value); }} value=""><option value="">+ Add Person</option>{contacts.filter(c => !formData.contact_ids.includes(c.id)).map(c => (<option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>))}</select></div>
                 </div>
 
@@ -219,7 +237,6 @@ export default function TicketDetail() {
                          )}
                      </div>
                  ))}
-                 {(!ticket.time_entries || ticket.time_entries.length === 0) && <div className="text-center opacity-30 italic py-4">No time logged.</div>}
              </div>
              {!showTimeForm && <button onClick={() => setShowTimeForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2"><Plus size={14} /> Log Time</button>}
              {showTimeForm && <form onSubmit={handleAddTime} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs opacity-50 block mb-1">Start</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} /></div><div><label className="text-xs opacity-50 block mb-1">End</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} /></div></div><div><label className="text-xs opacity-50 block mb-1">Rate / Service Type</label><select required className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.product_id} onChange={e => setNewEntry({...newEntry, product_id: e.target.value})}><option value="">-- Select Rate --</option>{products.filter(p => p.type === 'service').map(p => <option key={p.id} value={p.id}>{p.name} (${p.unit_price}/hr)</option>)}</select></div><div><label className="text-xs opacity-50 block mb-1">Description</label><input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" placeholder="What was done?" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} /></div><div className="flex gap-2"><button type="button" onClick={() => setShowTimeForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button><button type="submit" className="flex-1 py-1 bg-sanctum-gold text-slate-900 font-bold rounded text-xs">Log Time</button></div></form>}

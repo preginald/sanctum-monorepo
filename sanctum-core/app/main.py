@@ -282,6 +282,18 @@ def get_tickets(
         t_dict['total_hours'] = t.total_hours
         t_dict['time_entries'] = t.time_entries 
         t_dict['materials'] = t.materials 
+
+        # FINANCIAL GUARD: Find invoices linked to this ticket
+        # We query invoice_items that reference this ticket_id
+        linked_items = db.query(models.InvoiceItem).options(joinedload(models.InvoiceItem.invoice))\
+            .filter(models.InvoiceItem.ticket_id == t.id).all()
+        
+        unique_invoices = {}
+        for item in linked_items:
+            if item.invoice:
+                unique_invoices[item.invoice.id] = item.invoice
+        
+        t_dict['related_invoices'] = list(unique_invoices.values())
         
         if t.milestone:
             t_dict['milestone_name'] = t.milestone.name
@@ -1016,12 +1028,14 @@ def update_invoice_meta(
     if update.status: inv.status = update.status
     if update.due_date: inv.due_date = update.due_date
     if update.payment_terms: inv.payment_terms = update.payment_terms
+    if update.generated_at: inv.generated_at = update.generated_at # NEW
     
     # Trigger PDF regeneration needed? 
     # If we change terms, the PDF on disk is outdated.
     # Simple fix: invalidate the path.
-    if update.payment_terms:
-        inv.pdf_path = None
+    # Invalidate PDF if dates changed
+    if update.due_date or update.generated_at or update.payment_terms:
+        inv.pdf_path = None 
 
     db.commit()
     db.refresh(inv)
@@ -1238,6 +1252,19 @@ def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db))
     db.commit()
     db.refresh(new_invoice)
     return new_invoice
+
+@app.post("/projects/{project_id}/milestones/reorder")
+def reorder_milestones(
+    project_id: str,
+    payload: schemas.MilestoneReorderRequest,
+    db: Session = Depends(get_db)
+):
+    for item in payload.items:
+        ms = db.query(models.Milestone).filter(models.Milestone.id == item.id, models.Milestone.project_id == project_id).first()
+        if ms:
+            ms.sequence = item.sequence
+    db.commit()
+    return {"status": "updated"}
 
 @app.delete("/projects/{project_id}")
 def delete_project(project_id: str, db: Session = Depends(get_db)):
