@@ -36,6 +36,7 @@ class Account(Base):
     type = Column(String)
     brand_affinity = Column(String)
     status = Column(String)
+    billing_email = Column(String, nullable=True) 
     audit_data = Column(JSONB)
 
     deals = relationship("Deal", back_populates="account")
@@ -275,6 +276,7 @@ class Invoice(Base):
     subtotal_amount = Column(Float, default=0.0) # Net
     gst_amount = Column(Float, default=0.0)      # Tax (10%)
     total_amount = Column(Float, default=0.0)    # Gross (Net + Tax)
+    payment_terms = Column(String, default='Net 14 Days')
     
     due_date = Column(Date, nullable=True)
     generated_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
@@ -282,6 +284,7 @@ class Invoice(Base):
 
     account = relationship("Account", back_populates="invoices")
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")
+    delivery_logs = relationship("InvoiceDeliveryLog", back_populates="invoice", order_by="desc(InvoiceDeliveryLog.sent_at)")
 
 class InvoiceItem(Base):
     __tablename__ = "invoice_items"
@@ -317,3 +320,17 @@ class Comment(Base):
     ticket = relationship("Ticket", back_populates="comments")
     deal = relationship("Deal", back_populates="comments")
     audit = relationship("AuditReport", back_populates="comments")
+
+class InvoiceDeliveryLog(Base):
+    __tablename__ = "invoice_delivery_logs"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"))
+    sent_by_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    
+    sent_to = Column(String)
+    sent_cc = Column(String, nullable=True)
+    status = Column(String, default='sent')
+    sent_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    invoice = relationship("Invoice", back_populates="delivery_logs")
+    sender = relationship("User")

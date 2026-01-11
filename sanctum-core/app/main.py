@@ -16,6 +16,7 @@ from .services import pdf_engine
 from typing import List, Optional
 
 from .services.email_service import email_service # <--- NEW IMPORT
+from .services.pdf_engine import pdf_engine
 
 app = FastAPI(title="Sanctum Core", version="1.5.2")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -145,7 +146,6 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
 
 @app.post("/accounts", response_model=schemas.AccountResponse)
 def create_account(account: schemas.AccountCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    # BLOCK CLIENTS
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
     
     new_account = models.Account(**account.model_dump(), audit_data={})
@@ -793,6 +793,8 @@ def generate_invoice_from_ticket(
             desc = f"Labor: General Service ({entry.user_name})"
         
         if entry.description: desc += f" - {entry.description}"
+        # REQUEST 4: SHOW TICKET NUMBER
+        desc += f" [Ticket #{ticket_id}]" # <--- ADDED
         line_total = hours * rate
         
         invoice_items_buffer.append({
@@ -815,6 +817,7 @@ def generate_invoice_from_ticket(
         else:
             price = 0.0
             name = "Hardware: Unidentified Item"
+            name += f" [Ticket #{ticket_id}]" 
         
         line_total = mat.quantity * price
         invoice_items_buffer.append({
@@ -875,13 +878,132 @@ def get_invoice_detail(
     db: Session = Depends(get_db)
 ):
     inv = db.query(models.Invoice)\
-        .options(joinedload(models.Invoice.items))\
+        .options(
+            joinedload(models.Invoice.items).joinedload(models.InvoiceItem.ticket).joinedload(models.Ticket.contacts),
+            joinedload(models.Invoice.delivery_logs).joinedload(models.InvoiceDeliveryLog.sender)
+        )\
         .filter(models.Invoice.id == invoice_id).first()
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
     
-    # Hydrate Account Name
     inv.account_name = inv.account.name
+    
+    # 1. Map Log Sender Names
+    for log in inv.delivery_logs:
+        if log.sender:
+            log.sender_name = log.sender.full_name
+
+    # 2. Smart Context (CC Suggestions)
+    # Collect all emails from contacts linked to tickets linked to this invoice
+    cc_set = set()
+    for item in inv.items:
+        if item.ticket:
+            for contact in item.ticket.contacts:
+                if contact.email: cc_set.add(contact.email)
+    
+    inv.suggested_cc = list(cc_set)
+
     return inv
+
+@app.post("/invoices/{invoice_id}/send")
+def send_invoice_email(
+    invoice_id: str,
+    request: schemas.InvoiceSendRequest,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # 1. Fetch Invoice
+    inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+    if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
+
+    # 2. AUTO-GENERATE PDF IF MISSING
+    # This fixes the 400 Bad Request
+    abs_path = ""
+    
+    if not inv.pdf_path or not os.path.exists(os.path.join(os.getcwd(), "app", inv.pdf_path.lstrip("/"))):
+        print("DEBUG: PDF Missing. Regenerating...")
+        
+        # Prepare Data for Engine
+        # LOGIC UPGRADE: Append [Ref: #ID] if it's missing from description
+        items_data = []
+        for item in inv.items:
+            description = item.description
+            # Dynamically append Ticket Ref if linked and not already present in text
+            if item.ticket_id and f"#{item.ticket_id}" not in description:
+                description += f" [Ref: Ticket #{item.ticket_id}]"
+            
+            items_data.append({
+                "desc": description,
+                "qty": item.quantity,
+                "price": item.unit_price,
+                "total": item.total
+            })
+
+        data = {
+            "id": str(inv.id),
+            "client_name": inv.account.name,
+            "date": str(inv.generated_at.date()),
+            "subtotal": inv.subtotal_amount,
+            "gst": inv.gst_amount,
+            "total": inv.total_amount,
+            "payment_terms": inv.payment_terms,
+            "items": items_data
+        }
+        
+        # Generate
+        pdf = pdf_engine.generate_invoice_pdf(data)
+        
+        # Save
+        filename = f"invoice_{inv.id}.pdf"
+        rel_path = f"/static/reports/{filename}"
+        abs_path = os.path.join(os.getcwd(), "app/static/reports", filename)
+        
+        pdf.output(abs_path)
+        
+        # Update DB
+        inv.pdf_path = rel_path
+        db.commit()
+    else:
+        rel_path = inv.pdf_path.lstrip("/")
+        abs_path = os.path.join(os.getcwd(), "app", rel_path)
+
+    # 3. Construct Email
+    subject = request.subject or f"Invoice #{inv.id} from Digital Sanctum"
+    
+    html_body = request.message or f"""
+    <p>Dear Client,</p>
+    <p>Please find attached invoice #{str(inv.id)[:8]} for <strong>${inv.total_amount:,.2f}</strong>.</p>
+    <p>Due Date: {inv.due_date}</p>
+    <p>You can also view this invoice in your <a href="https://core.digitalsanctum.com.au/portal">Client Portal</a>.</p>
+    <p>Regards,<br>Digital Sanctum Accounts</p>
+    """
+    if "\n" in html_body and "<p>" not in html_body:
+        html_body = html_body.replace("\n", "<br>")
+
+    # 4. Send
+    success = email_service.send(
+        to_emails=[request.to_email],
+        subject=subject,
+        html_content=html_body,
+        cc_emails=request.cc_emails,
+        attachments=[abs_path] # Now guaranteed to exist
+    )
+    
+    if not success:
+        raise HTTPException(status_code=500, detail="Email service failed (Check API Key).")
+
+    # 5. Log & Update Status
+    log = models.InvoiceDeliveryLog(
+        invoice_id=inv.id,
+        sent_by_user_id=current_user.id,
+        sent_to=request.to_email,
+        sent_cc=", ".join(request.cc_emails) if request.cc_emails else None,
+        status="sent"
+    )
+    db.add(log)
+    inv.status = 'sent'
+    db.commit()
+    
+    return {"status": "sent"}
 
 @app.put("/invoices/{invoice_id}", response_model=schemas.InvoiceResponse)
 def update_invoice_meta(
@@ -894,7 +1016,14 @@ def update_invoice_meta(
     
     if update.status: inv.status = update.status
     if update.due_date: inv.due_date = update.due_date
+    if update.payment_terms: inv.payment_terms = update.payment_terms
     
+    # Trigger PDF regeneration needed? 
+    # If we change terms, the PDF on disk is outdated.
+    # Simple fix: invalidate the path.
+    if update.payment_terms:
+        inv.pdf_path = None
+
     db.commit()
     db.refresh(inv)
     inv.account_name = inv.account.name

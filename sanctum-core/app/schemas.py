@@ -61,12 +61,14 @@ class AccountCreate(BaseModel):
     type: str 
     brand_affinity: str 
     status: str = 'prospect'
+    billing_email: Optional[str] = None
 
 class AccountUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
     status: Optional[str] = None
     brand_affinity: Optional[str] = None
+    billing_email: Optional[str] = None
 
 class AccountResponse(BaseModel):
     id: UUID
@@ -74,9 +76,28 @@ class AccountResponse(BaseModel):
     type: str
     status: str
     brand_affinity: str
+    billing_email: Optional[str] = None
     
     class Config:
         from_attributes = True
+
+# --- INVOICE DELIVERY ---
+class InvoiceDeliveryLogResponse(BaseModel):
+    id: UUID
+    sent_at: datetime
+    sent_to: str
+    sent_cc: Optional[str]
+    status: str
+    sender_name: Optional[str] = None # Hydrated from User
+
+    class Config:
+        from_attributes = True
+
+class InvoiceSendRequest(BaseModel):
+    to_email: EmailStr
+    cc_emails: List[EmailStr] = []
+    subject: Optional[str] = None
+    message: Optional[str] = None
 
 # --- NESTED DETAIL SCHEMAS ---
 class ContactCreate(BaseModel):
@@ -384,6 +405,7 @@ class InvoiceItemSchema(BaseModel):
 class InvoiceUpdate(BaseModel):
     status: Optional[str] = None
     due_date: Optional[date] = None
+    payment_terms: Optional[str] = None
 
 class InvoiceResponse(BaseModel):
     id: UUID
@@ -393,10 +415,14 @@ class InvoiceResponse(BaseModel):
     subtotal_amount: float
     gst_amount: float
     total_amount: float
+    payment_terms: str
     due_date: Optional[date] = None
     generated_at: datetime
     pdf_path: Optional[str] = None
     items: List[InvoiceItemSchema] = []
+
+    delivery_logs: List[InvoiceDeliveryLogResponse] = []
+    suggested_cc: List[str] = [] # Helper for UI
 
     class Config:
         from_attributes = True

@@ -68,7 +68,8 @@ export default function ClientDetail() {
         name: response.data.name, 
         status: response.data.status, 
         type: response.data.type,
-        brand_affinity: response.data.brand_affinity 
+        brand_affinity: response.data.brand_affinity,
+        billing_email: response.data.billing_email || '' // NEW
       });
 
       // 2. Fetch Audits
