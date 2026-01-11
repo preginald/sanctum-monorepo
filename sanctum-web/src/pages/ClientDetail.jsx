@@ -603,9 +603,21 @@ export default function ClientDetail() {
                 <button onClick={() => setShowTicketModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-6">Create Ticket</h2>
                 <form onSubmit={saveTicket} className="space-y-4">
+                    {/* ... Subject Input ... */}
                     <div>
                         <label className="text-xs opacity-50 block mb-1">Subject</label>
                         <input required className={`w-full p-2 rounded border outline-none ${theme.input}`} value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} placeholder="e.g. User Cannot Login" />
+                    </div>
+
+                    {/* NEW: DESCRIPTION INPUT */}
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Description</label>
+                        <textarea 
+                            className={`w-full p-2 h-24 rounded border outline-none ${theme.input} text-sm`} 
+                            value={ticketForm.description || ''} 
+                            onChange={e => setTicketForm({...ticketForm, description: e.target.value})} 
+                            placeholder="Details..." 
+                        />
                     </div>
                     <div>
                         <label className="text-xs opacity-50 block mb-1">Priority</label>

@@ -302,21 +302,17 @@ def create_ticket(
     target_account_id = ticket.account_id
     
     if current_user.role == 'client':
-        # Force the ticket to belong to the client's account
         target_account_id = current_user.account_id
-        # Clients can't assign techs or link milestones
         ticket.assigned_tech_id = None
         ticket.milestone_id = None
         if not ticket.ticket_type: ticket.ticket_type = 'support'
 
-        # --- IDENTITY UNIFICATION (NEW) ---
-        # Look for a Contact record matching this User's email
+        # Identity Unification (Link Portal User to Contact)
         linked_contact = db.query(models.Contact).filter(
             models.Contact.account_id == current_user.account_id,
             models.Contact.email == current_user.email
         ).first()
 
-        # If found, auto-add them to the ticket
         if linked_contact:
             if linked_contact.id not in ticket.contact_ids:
                 ticket.contact_ids.append(linked_contact.id)
@@ -324,6 +320,7 @@ def create_ticket(
     new_ticket = models.Ticket(
         account_id=target_account_id,
         subject=ticket.subject,
+        description=ticket.description, # <--- THE MISSING LINK
         priority=ticket.priority,
         status='new',
         assigned_tech_id=ticket.assigned_tech_id,
@@ -338,10 +335,11 @@ def create_ticket(
     db.commit()
     db.refresh(new_ticket)
     
+    # Eager load for response/email
     new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
     new_ticket.account_name = new_ticket.account.name 
     
-    # 2. NOTIFICATIONS
+    # 2. NOTIFICATIONS (Client Creation)
     if current_user.role == 'client':
         try:
             admin_html = f"""
@@ -349,6 +347,7 @@ def create_ticket(
             <p><strong>Client:</strong> {new_ticket.account_name}</p>
             <p><strong>User:</strong> {current_user.full_name} ({current_user.email})</p>
             <p><strong>Subject:</strong> {new_ticket.subject}</p>
+            <p><strong>Description:</strong><br>{new_ticket.description}</p>
             <p><a href="https://core.digitalsanctum.com.au/tickets/{new_ticket.id}">View in Core</a></p>
             """
             email_service.send(email_service.admin_email, f"New Ticket: {new_ticket.subject}", admin_html)
@@ -1146,6 +1145,25 @@ def create_project(project: schemas.ProjectCreate, current_user: models.User = D
     new_project.account = db.query(models.Account).filter(models.Account.id == project.account_id).first()
     new_project.account_name = new_project.account.name
     return new_project
+
+@app.put("/projects/{project_id}", response_model=schemas.ProjectResponse)
+def update_project(
+    project_id: str,
+    update: schemas.ProjectUpdate,
+    db: Session = Depends(get_db)
+):
+    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not proj: raise HTTPException(status_code=404, detail="Project not found")
+    
+    if update.status: proj.status = update.status
+    if update.name: proj.name = update.name
+    if update.budget is not None: proj.budget = update.budget
+    if update.due_date: proj.due_date = update.due_date
+    
+    db.commit()
+    db.refresh(proj)
+    proj.account_name = proj.account.name
+    return proj
 
 # --- MILESTONE ENDPOINTS ---
 

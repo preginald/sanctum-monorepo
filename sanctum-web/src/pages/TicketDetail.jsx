@@ -6,6 +6,7 @@ import { Loader2, ArrowLeft, Save, Edit2, Clock, User, X, Plus, Trash2, Package,
 import api from '../lib/api';
 // IMPORT REFACTOR
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
+import ReactMarkdown from 'react-markdown'; 
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -145,8 +146,30 @@ export default function TicketDetail() {
                 </div>
                 {/* CONTACT LIST READ MODE */}
                 <div className="pt-2 border-t border-slate-800"><label className="text-xs uppercase opacity-50 block mb-2">Affected Humans</label><div className="flex flex-wrap gap-2">{ticket.contacts && ticket.contacts.length > 0 ? ticket.contacts.map(c => (<span key={c.id} className="bg-white/10 px-2 py-1 rounded text-xs flex items-center gap-1">{c.first_name} {c.last_name}</span>)) : <span className="text-xs opacity-30 italic">No contacts linked.</span>}</div></div>
-                <div className="pt-2 border-t border-slate-800"><p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{ticket.description || 'No description provided.'}</p></div>
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50"><div>Opened: {formatDate(ticket.created_at)}</div><div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div></div>
+                <div className="pt-4 border-t border-slate-800">
+                  {/* REPLACED PLAIN TEXT WITH MARKDOWN */}
+                  <div className="text-sm text-gray-300 leading-relaxed prose prose-invert max-w-none">
+                    <ReactMarkdown>
+                      {ticket.description || '*No description provided.*'}
+                    </ReactMarkdown>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50">
+                  <div>Opened: {formatDate(ticket.created_at)}</div>
+                  <div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div>
+                </div>
+
+                {ticket.resolution && (
+                  <div className="pt-4 border-t border-slate-800">
+                    <label className="text-xs uppercase opacity-50 block mb-2 text-green-400">Resolution</label>
+                    <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300 prose prose-invert max-w-none">
+                      {/* REPLACED PLAIN TEXT WITH MARKDOWN */}
+                      <ReactMarkdown>
+                          {ticket.resolution}
+                      </ReactMarkdown>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="space-y-6">

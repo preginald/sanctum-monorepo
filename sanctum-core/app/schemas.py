@@ -282,6 +282,13 @@ class ProjectResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    budget: Optional[float] = None
+    due_date: Optional[date] = None
+
 # --- TICKET SCHEMAS ---
 class TicketCreate(BaseModel):
     account_id: UUID

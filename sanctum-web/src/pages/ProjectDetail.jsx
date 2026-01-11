@@ -303,6 +303,17 @@ export default function ProjectDetail() {
                         <label className="text-xs opacity-50 block mb-1">Subject</label>
                         <input autoFocus required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} placeholder="e.g. Design Database Schema" />
                     </div>
+
+                    {/* NEW: DESCRIPTION INPUT */}
+                    <div>
+                        <label className="text-xs opacity-50 block mb-1">Description</label>
+                        <textarea 
+                            className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm" 
+                            value={ticketForm.description || ''} 
+                            onChange={e => setTicketForm({...ticketForm, description: e.target.value})} 
+                            placeholder="Task details..." 
+                        />
+                    </div>
                     <button type="submit" className="w-full py-2 bg-sanctum-gold text-slate-900 font-bold rounded">Create Task</button>
                 </form>
             </div>
