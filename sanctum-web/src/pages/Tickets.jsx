@@ -8,6 +8,7 @@ import api from '../lib/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import KanbanBoard from '../components/ui/KanbanBoard';
+import Loading from '../components/ui/Loading'; // <--- NEW IMPORT
 
 // ICONS
 import { Plus, LayoutList, Kanban as KanbanIcon, Filter } from 'lucide-react';
@@ -42,6 +43,7 @@ export default function Tickets() {
   useEffect(() => { fetchData(); }, [token]);
 
   const fetchData = async () => {
+    setLoading(true); // Ensure loader shows on refresh
     try {
       const res = await api.get('/tickets');
       setTickets(res.data);
@@ -95,17 +97,24 @@ export default function Tickets() {
     try { await api.put(`/tickets/${ticketId}`, { status: newStatus }); } catch (e) { fetchData(); }
   };
 
+  // --- LOADING STATE ---
+  if (loading) {
+      return (
+          <Layout title="Service Desk">
+              <Loading message="Synchronizing Tickets..." />
+          </Layout>
+      );
+  }
+
   return (
     <Layout title="Service Desk">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
-            {/* View Toggle */}
             <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
                 <button onClick={() => setViewMode('list')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><LayoutList size={16} /> List</button>
                 <button onClick={() => setViewMode('board')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'board' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><KanbanIcon size={16} /> Board</button>
             </div>
             
-            {/* Filters */}
             <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
                 <div className="px-2 text-slate-500"><Filter size={14}/></div>
                 <select className="bg-slate-900 text-sm text-white outline-none border-r border-slate-700 pr-2 cursor-pointer" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -157,7 +166,6 @@ export default function Tickets() {
           {sortedTickets.length === 0 && <div className="p-8 text-center opacity-30">No tickets match filters.</div>}
         </div>
       ) : (
-          /* USE GENERIC KANBAN */
           <KanbanBoard 
             columns={COLUMNS} 
             items={sortedTickets} 
@@ -168,14 +176,19 @@ export default function Tickets() {
                     className="p-4 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group"
                 >
                     <div className="flex justify-between items-start mb-2">
-                        <TicketTypeIcon type={t.ticket_type} />
+                        <div className="flex items-center gap-2">
+                            <TicketTypeIcon type={t.ticket_type} />
+                            <span className="font-mono text-xs opacity-50">#{t.id}</span>
+                        </div>
                         <PriorityBadge priority={t.priority} />
                     </div>
-                    <h4 className="font-bold text-sm mb-1 text-white group-hover:text-blue-300">{t.subject}</h4>
+                    <h4 className="font-bold text-sm mb-1 text-white group-hover:text-blue-300 line-clamp-2">{t.subject}</h4>
                     <div className="text-xs opacity-50 mb-2">{t.account_name}</div>
+                    
+                    {/* FIX: MILESTONE VISIBILITY IN KANBAN */}
                     {t.milestone_name && (
                         <div className="mt-2 pt-2 border-t border-slate-700">
-                            <span className="text-[10px] text-sanctum-gold font-bold">{t.milestone_name}</span>
+                            <Badge variant="info">{t.milestone_name}</Badge>
                         </div>
                     )}
                 </div>

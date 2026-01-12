@@ -7,7 +7,12 @@ import api from '../lib/api';
 
 export default function Layout({ children, title }) {
   const { user, token, setToken, logout } = useAuthStore();
-  const [collapsed, setCollapsed] = useState(false);
+
+  // FIX: PERSIST STATE
+  const [collapsed, setCollapsed] = useState(() => {
+      return localStorage.getItem('sanctum_sidebar') === 'true';
+  });
+
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,6 +55,13 @@ export default function Layout({ children, title }) {
     return () => clearInterval(interval);
   }, [token, setToken]);
 
+  // FIX: SAVE ON TOGGLE
+  const toggleSidebar = () => {
+      const newState = !collapsed;
+      setCollapsed(newState);
+      localStorage.setItem('sanctum_sidebar', newState);
+  };
+
   const NavItem = ({ icon, label, path }) => {
     const active = location.pathname === path;
     // Dynamic Class Construction
@@ -83,8 +95,8 @@ export default function Layout({ children, title }) {
                 </p>
               </div>
           )}
-          {/* TOGGLE BUTTON */}
-          <button onClick={() => setCollapsed(!collapsed)} className="opacity-50 hover:opacity-100 mt-1">
+          {/* UPDATE TOGGLE HANDLER */}
+          <button onClick={toggleSidebar} className="opacity-50 hover:opacity-100 mt-1">
               {collapsed ? <ChevronRight size={20}/> : <ChevronLeft size={20}/>}
           </button>
         </div>
