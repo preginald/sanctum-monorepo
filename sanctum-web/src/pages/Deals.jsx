@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- NEW IMPORT
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { Loader2, DollarSign, Plus } from 'lucide-react';
+import { Loader2, Plus, Shield } from 'lucide-react';
 import api from '../lib/api';
+
+// UI KIT
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import KanbanBoard from '../components/ui/KanbanBoard';
+import Modal from '../components/ui/Modal'; // Use generic modal
 
 const STAGES = {
   'Infiltration': { id: 'Infiltration', label: 'Infiltration', prob: 10, color: 'border-slate-500' },
@@ -15,19 +20,28 @@ const STAGES = {
 };
 
 export default function Deals() {
-  const navigate = useNavigate(); // <--- NEW HOOK INITIALIZATION
+  const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const [deals, setDeals] = useState([]);
+  const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+  
+  // Modal State
+  const [showModal, setShowModal] = useState(false);
+  const [form, setForm] = useState({ account_id: '', title: '', amount: 0 });
 
   useEffect(() => { fetchDeals(); }, [token]);
 
   const fetchDeals = async () => {
     try {
-      const res = await api.get('/deals');
-      setDeals(res.data);
-      calculateTotal(res.data);
+      const [dRes, cRes] = await Promise.all([
+          api.get('/deals'),
+          api.get('/accounts')
+      ]);
+      setDeals(dRes.data);
+      setClients(cRes.data);
+      calculateTotal(dRes.data);
     } catch (err) { console.error(err); } 
     finally { setLoading(false); }
   };
@@ -37,29 +51,35 @@ export default function Deals() {
     setTotalValue(total);
   };
 
-  const getDealsByStage = (stage) => deals.filter(d => d.stage === stage);
-
   const onDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
+    const { destination, draggableId } = result;
     if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+    if (destination.droppableId === result.source.droppableId && destination.index === result.source.index) return;
 
     const newStage = destination.droppableId;
     const newProb = STAGES[newStage].prob;
 
-    const updatedDeals = deals.map(d => 
-      d.id === draggableId ? { ...d, stage: newStage, probability: newProb } : d
-    );
+    const updatedDeals = deals.map(d => d.id === draggableId ? { ...d, stage: newStage, probability: newProb } : d);
     setDeals(updatedDeals);
     calculateTotal(updatedDeals);
 
-    try {
-      await api.put(`/deals/${draggableId}`, { stage: newStage, probability: newProb });
-    } catch (err) {
-      alert("Move failed");
-      fetchDeals(); 
-    }
+    try { await api.put(`/deals/${draggableId}`, { stage: newStage, probability: newProb }); } 
+    catch (err) { alert("Move failed"); fetchDeals(); }
   };
+
+  const handleCreate = async (e) => {
+      e.preventDefault();
+      try {
+          // Defaults
+          const payload = { ...form, stage: 'Infiltration', probability: 10 };
+          await api.post('/deals', payload);
+          setShowModal(false);
+          setForm({ account_id: '', title: '', amount: 0 });
+          fetchDeals();
+      } catch(e) { alert("Failed to create deal"); }
+  };
+
+  const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
 
   return (
     <Layout title="Revenue Pipeline">
@@ -67,60 +87,50 @@ export default function Deals() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <p className="text-sm opacity-50 uppercase tracking-widest">Weighted Forecast</p>
-          <h2 className="text-3xl font-bold text-sanctum-gold">
-            {new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(totalValue)}
-          </h2>
+          <h2 className="text-3xl font-bold text-sanctum-gold">{formatCurrency(totalValue)}</h2>
         </div>
+        <Button variant="gold" icon={Plus} onClick={() => setShowModal(true)}>New Deal</Button>
       </div>
 
-      <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-200px)]">
-        <DragDropContext onDragEnd={onDragEnd}>
-          {Object.values(STAGES).map((stage) => (
-            <div key={stage.id} className="min-w-[280px] w-1/5 bg-slate-900/50 rounded-xl border border-slate-700 flex flex-col">
-              <div className={`p-4 border-b-2 ${stage.color} bg-black/20 rounded-t-xl`}>
-                <h3 className="font-bold text-sm uppercase">{stage.label}</h3>
-                <div className="flex justify-between text-xs opacity-50 mt-1">
-                  <span>{getDealsByStage(stage.id).length} Deals</span>
-                  <span>{stage.prob}% Prob</span>
+      <KanbanBoard 
+        columns={STAGES}
+        items={deals}
+        statusField="stage"
+        onDragEnd={onDragEnd}
+        renderCard={(deal) => (
+            <div 
+                onClick={() => navigate(`/deals/${deal.id}`)}
+                className="p-4 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group"
+            >
+                <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] uppercase font-bold tracking-wider opacity-50">{deal.account_name}</span>
+                    <Shield size={14} className="text-blue-500" />
                 </div>
-              </div>
-
-              <Droppable droppableId={stage.id}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`flex-1 p-3 transition-colors ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}
-                  >
-                    {getDealsByStage(stage.id).map((deal, index) => (
-                      <Draggable key={deal.id} draggableId={deal.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            onClick={() => navigate(`/deals/${deal.id}`)}
-                            className={`p-4 mb-3 rounded bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-colors cursor-pointer group ${snapshot.isDragging ? 'rotate-2 shadow-xl' : ''}`}
-                          >
-                            <div className="flex justify-between items-start mb-2">
-                              <span className="text-[10px] uppercase font-bold tracking-wider opacity-50">{deal.account_name}</span>
-                            </div>
-                            <h4 className="font-bold text-sm mb-1 group-hover:text-sanctum-gold transition-colors">{deal.title}</h4>
-                            <p className="text-white font-mono text-sm">
-                              ${deal.amount.toLocaleString()}
-                            </p>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
+                <h4 className="font-bold text-base mb-1 group-hover:text-sanctum-gold transition-colors">{deal.title}</h4>
+                <div className="flex justify-between items-end mt-4">
+                    <span className="text-white font-mono text-lg font-bold">${deal.amount.toLocaleString()}</span>
+                    <span className="text-xs opacity-50">{deal.probability}%</span>
+                </div>
             </div>
-          ))}
-        </DragDropContext>
-      </div>
+        )}
+      />
+
+      {/* CREATE MODAL */}
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Initialize Deal">
+          <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                  <label className="text-xs opacity-50 block mb-1">Client</label>
+                  <select required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" value={form.account_id} onChange={e => setForm({...form, account_id: e.target.value})}>
+                      <option value="">Select...</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+              </div>
+              <input required placeholder="Deal Title" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
+              <input type="number" required placeholder="Value ($)" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} />
+              <Button type="submit" className="w-full">Create</Button>
+          </form>
+      </Modal>
+
     </Layout>
   );
 }

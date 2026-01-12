@@ -2,10 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { Loader2, Plus, LayoutList, Kanban as KanbanIcon, Filter } from 'lucide-react';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
 
+// UI KIT
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import KanbanBoard from '../components/ui/KanbanBoard';
+
+// ICONS
+import { Plus, LayoutList, Kanban as KanbanIcon, Filter } from 'lucide-react';
+
+// COMPONENTS
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import TicketCreateModal from '../components/tickets/TicketCreateModal';
 
@@ -19,11 +26,13 @@ const COLUMNS = {
 export default function Tickets() {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
+  
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
-  
   const [viewMode, setViewMode] = useState('list');
   const [showModal, setShowModal] = useState(false);
+  
+  // Filters & Sort
   const [statusFilter, setStatusFilter] = useState('active');
   const [priorityFilter, setPriorityFilter] = useState('all');
   const [sortConfig, setSortConfig] = useState({ key: 'id', direction: 'desc' });
@@ -46,6 +55,7 @@ export default function Tickets() {
       setSortConfig({ key, direction });
   };
 
+  // Filter Logic
   const filteredTickets = tickets.filter(t => {
       if (statusFilter === 'active' && t.status === 'resolved') return false;
       if (statusFilter === 'resolved' && t.status !== 'resolved') return false;
@@ -53,6 +63,7 @@ export default function Tickets() {
       return true;
   });
 
+  // Sort Logic
   const sortedTickets = React.useMemo(() => {
       let items = [...filteredTickets];
       if (sortConfig.key) {
@@ -72,11 +83,14 @@ export default function Tickets() {
   }, [filteredTickets, sortConfig]);
 
   const onDragEnd = async (result) => {
-    const { destination, source, draggableId } = result;
+    const { destination, draggableId } = result;
     if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+    if (destination.droppableId === result.source.droppableId && destination.index === result.source.index) return;
+    
     const newStatus = destination.droppableId;
     const ticketId = parseInt(draggableId);
+    
+    // Optimistic Update
     setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
     try { await api.put(`/tickets/${ticketId}`, { status: newStatus }); } catch (e) { fetchData(); }
   };
@@ -85,10 +99,13 @@ export default function Tickets() {
     <Layout title="Service Desk">
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
+            {/* View Toggle */}
             <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
                 <button onClick={() => setViewMode('list')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><LayoutList size={16} /> List</button>
                 <button onClick={() => setViewMode('board')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'board' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><KanbanIcon size={16} /> Board</button>
             </div>
+            
+            {/* Filters */}
             <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
                 <div className="px-2 text-slate-500"><Filter size={14}/></div>
                 <select className="bg-slate-900 text-sm text-white outline-none border-r border-slate-700 pr-2 cursor-pointer" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -105,7 +122,10 @@ export default function Tickets() {
                 </select>
             </div>
         </div>
-        {isAdmin && <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-white shadow-lg bg-sanctum-blue hover:bg-blue-600"><Plus size={18} /> New Ticket</button>}
+        
+        {isAdmin && (
+            <Button variant="primary" icon={Plus} onClick={() => setShowModal(true)}>New Ticket</Button>
+        )}
       </div>
 
       {viewMode === 'list' ? (
@@ -127,7 +147,7 @@ export default function Tickets() {
                   <td className="p-4"><TicketTypeIcon type={t.ticket_type} /></td>
                   <td className="p-4 font-mono opacity-50">#{t.id}</td>
                   <td className="p-4 font-bold hover:text-sanctum-gold">{t.account_name}</td>
-                  <td className="p-4"><div className="flex items-center gap-2"><span className="font-medium">{t.subject}</span>{t.milestone_name && <span className="whitespace-nowrap px-1.5 py-0.5 rounded bg-blue-900/50 text-[10px] text-blue-300 border border-blue-800">{t.milestone_name}</span>}</div></td>
+                  <td className="p-4"><div className="flex items-center gap-2"><span className="font-medium">{t.subject}</span>{t.milestone_name && <Badge variant="info">{t.milestone_name}</Badge>}</div></td>
                   <td className="p-4"><PriorityBadge priority={t.priority} /></td>
                   <td className="p-4"><StatusBadge status={t.status} /></td>
                 </tr>
@@ -137,37 +157,30 @@ export default function Tickets() {
           {sortedTickets.length === 0 && <div className="p-8 text-center opacity-30">No tickets match filters.</div>}
         </div>
       ) : (
-          <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-200px)]">
-            <DragDropContext onDragEnd={onDragEnd}>
-              {Object.values(COLUMNS).map((col) => {
-                 const itemsInCol = sortedTickets.filter(t => t.status === col.id);
-                 return (
-                    <div key={col.id} className="min-w-[300px] w-1/4 bg-slate-900/50 rounded-xl border border-slate-700 flex flex-col">
-                    <div className={`p-4 border-b-2 ${col.color} bg-black/20 rounded-t-xl sticky top-0`}><h3 className="font-bold text-sm uppercase flex justify-between">{col.label}<span className="opacity-50">{itemsInCol.length}</span></h3></div>
-                    <Droppable droppableId={col.id}>
-                        {(provided, snapshot) => (
-                        <div ref={provided.innerRef} {...provided.droppableProps} className={`flex-1 p-3 overflow-y-auto ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}>
-                            {itemsInCol.map((t, index) => (
-                            <Draggable key={t.id} draggableId={String(t.id)} index={index}>
-                                {(provided, snapshot) => (
-                                <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} onClick={() => navigate(`/tickets/${t.id}`)} className={`p-4 mb-3 rounded bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-colors cursor-pointer group ${snapshot.isDragging ? 'rotate-2 shadow-xl' : ''}`}>
-                                    <div className="flex justify-between items-start mb-2"><TicketTypeIcon type={t.ticket_type} /><PriorityBadge priority={t.priority} /></div>
-                                    <h4 className="font-bold text-sm mb-1 text-white group-hover:text-blue-300">{t.subject}</h4>
-                                    <div className="text-xs opacity-50 mb-2">{t.account_name}</div>
-                                    {t.milestone_name && <div className="mt-2 pt-2 border-t border-slate-700"><span className="text-[10px] text-sanctum-gold">{t.milestone_name}</span></div>}
-                                </div>
-                                )}
-                            </Draggable>
-                            ))}
-                            {provided.placeholder}
-                        </div>
-                        )}
-                    </Droppable>
+          /* USE GENERIC KANBAN */
+          <KanbanBoard 
+            columns={COLUMNS} 
+            items={sortedTickets} 
+            onDragEnd={onDragEnd}
+            renderCard={(t) => (
+                <div 
+                    onClick={() => navigate(`/tickets/${t.id}`)}
+                    className="p-4 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group"
+                >
+                    <div className="flex justify-between items-start mb-2">
+                        <TicketTypeIcon type={t.ticket_type} />
+                        <PriorityBadge priority={t.priority} />
                     </div>
-                 );
-              })}
-            </DragDropContext>
-          </div>
+                    <h4 className="font-bold text-sm mb-1 text-white group-hover:text-blue-300">{t.subject}</h4>
+                    <div className="text-xs opacity-50 mb-2">{t.account_name}</div>
+                    {t.milestone_name && (
+                        <div className="mt-2 pt-2 border-t border-slate-700">
+                            <span className="text-[10px] text-sanctum-gold font-bold">{t.milestone_name}</span>
+                        </div>
+                    )}
+                </div>
+            )}
+          />
       )}
 
       <TicketCreateModal isOpen={showModal} onClose={() => setShowModal(false)} onSuccess={fetchData} />
