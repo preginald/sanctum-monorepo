@@ -153,7 +153,8 @@ export default function TicketDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <div className="lg:col-span-2 space-y-6">
+        {/* ADD min-w-0 TO PREVENT GRID BLOWOUT */}
+        <div className="lg:col-span-2 space-y-6 min-w-0">
           
           {/* FINANCIAL GUARD */}
           {ticket.related_invoices?.length > 0 && (
@@ -184,20 +185,20 @@ export default function TicketDetail() {
                 </div>
                 <div className="pt-2 border-t border-slate-800"><label className="text-xs uppercase opacity-50 block mb-2">Affected Humans</label><div className="flex flex-wrap gap-2">{ticket.contacts && ticket.contacts.length > 0 ? ticket.contacts.map(c => (<span key={c.id} className="bg-white/10 px-2 py-1 rounded text-xs flex items-center gap-1">{c.first_name} {c.last_name}</span>)) : <span className="text-xs opacity-30 italic">No contacts linked.</span>}</div></div>
                 
-                {/* RESTORED: MARKDOWN DESCRIPTION */}
+                {/* FIXED: Added overflow-x-auto to contain the Markdown */}
                 <div className="pt-2 border-t border-slate-800">
-                    <div className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed prose prose-invert max-w-none">
+                    <div className="text-sm text-gray-300 leading-relaxed prose prose-invert max-w-none overflow-x-auto">
                         <ReactMarkdown>{ticket.description || 'No description provided.'}</ReactMarkdown>
                     </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50"><div>Opened: {formatDate(ticket.created_at)}</div><div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div></div>
                 
-                {/* RESTORED: MARKDOWN RESOLUTION */}
+                {/* FIXED: Added overflow-x-auto to contain the Markdown */}
                 {ticket.resolution && (
                     <div className="pt-4 border-t border-slate-800">
                         <label className="text-xs uppercase opacity-50 block mb-2 text-green-400">Resolution</label>
-                        <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300 prose prose-invert max-w-none">
+                        <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300 prose prose-invert max-w-none overflow-x-auto">
                             <ReactMarkdown>{ticket.resolution}</ReactMarkdown>
                         </div>
                     </div>
@@ -222,18 +223,7 @@ export default function TicketDetail() {
                     <div><label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Closed</label><input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.closed_at} onChange={e => setFormData({...formData, closed_at: e.target.value})} /></div>
                 </div>
                 <div><label className="block text-xs uppercase opacity-50 mb-1">Description</label><textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} /></div>
-                
-                {/* RESTORED: RESOLUTION EDIT FIELD */}
-                <div className={formData.status === 'resolved' ? 'opacity-100' : 'opacity-50 grayscale'}>
-                    <label className="block text-xs uppercase opacity-50 mb-1 flex items-center gap-2"><CheckCircle size={12} className="text-green-500" /> Resolution Note (Markdown)</label>
-                    <textarea 
-                        className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white focus:border-green-500 outline-none font-mono text-sm" 
-                        value={formData.resolution} 
-                        onChange={e => setFormData({...formData, resolution: e.target.value})} 
-                        placeholder="Describe the fix..." 
-                        disabled={formData.status !== 'resolved'} 
-                    />
-                </div>
+                <div className={formData.status === 'resolved' ? 'opacity-100' : 'opacity-50 grayscale'}><label className="block text-xs uppercase opacity-50 mb-1">Resolution</label><textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" value={formData.resolution} onChange={e => setFormData({...formData, resolution: e.target.value})} disabled={formData.status !== 'resolved'} /></div>
               </div>
             )}
           </div>
@@ -262,7 +252,6 @@ export default function TicketDetail() {
                          )}
                      </div>
                  ))}
-                 {(!ticket.time_entries || ticket.time_entries.length === 0) && <div className="text-center opacity-30 italic py-4">No time logged.</div>}
              </div>
              {!showTimeForm && <button onClick={() => setShowTimeForm(true)} className="w-full py-2 mt-4 rounded bg-white/5 hover:bg-white/10 text-xs font-bold uppercase tracking-wide flex items-center justify-center gap-2"><Plus size={14} /> Log Time</button>}
              {showTimeForm && <form onSubmit={handleAddTime} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3"><div className="grid grid-cols-2 gap-3"><div><label className="text-xs opacity-50 block mb-1">Start</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} /></div><div><label className="text-xs opacity-50 block mb-1">End</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} /></div></div><div><label className="text-xs opacity-50 block mb-1">Rate / Service Type</label><select required className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.product_id} onChange={e => setNewEntry({...newEntry, product_id: e.target.value})}><option value="">-- Select Rate --</option>{products.filter(p => p.type === 'service').map(p => <option key={p.id} value={p.id}>{p.name} (${p.unit_price}/hr)</option>)}</select></div><div><label className="text-xs opacity-50 block mb-1">Description</label><input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" placeholder="What was done?" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} /></div><div className="flex gap-2"><button type="button" onClick={() => setShowTimeForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button><button type="submit" className="flex-1 py-1 bg-sanctum-gold text-slate-900 font-bold rounded text-xs">Log Time</button></div></form>}
