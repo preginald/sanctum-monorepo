@@ -8,10 +8,12 @@ import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 // MARKDOWN
 import ReactMarkdown from 'react-markdown';
+import { useToast } from '../context/ToastContext';
 
 export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   
   const [ticket, setTicket] = useState(null);
   const [contacts, setContacts] = useState([]); 
@@ -79,19 +81,100 @@ export default function TicketDetail() {
     if (!payload.closed_at) delete payload.closed_at;
     if (!payload.milestone_id) payload.milestone_id = null;
     if (!payload.contact_id) payload.contact_id = null;
-    try { await api.put(`/tickets/${id}`, payload); await fetchTicket(); setIsEditing(false); } catch (e) { alert("Update failed"); }
+    try { 
+      await api.put(`/tickets/${id}`, payload); 
+      await fetchTicket(); 
+      setIsEditing(false); 
+      addToast("Ticket updated successfully", "success");
+    } catch (e) { 
+      addToast("Update failed", "danger"); 
+    }
   };
 
   // --- SUB HANDLERS (Time/Material) ---
-  const handleAddTime = async (e) => { e.preventDefault(); try { await api.post(`/tickets/${id}/time_entries`, newEntry); setNewEntry({ start_time: '', end_time: '', description: '', product_id: '' }); setShowTimeForm(false); fetchTicket(); } catch (error) { alert("Failed."); } };
+  const handleAddTime = async (e) => { 
+    e.preventDefault(); 
+    try { 
+      await api.post(`/tickets/${id}/time_entries`, newEntry); 
+      setNewEntry({ start_time: '', end_time: '', description: '', product_id: '' }); 
+      setShowTimeForm(false); 
+      fetchTicket(); 
+      addToast("Time logged", "success");
+    } catch (error) { 
+      addToast("Failed to log time", "danger"); 
+    } 
+  };
+
   const startEditTime = (entry) => { setEditingTimeId(entry.id); setTimeEditForm({ start_time: entry.start_time.slice(0,16), end_time: entry.end_time.slice(0,16), description: entry.description, product_id: entry.product_id }); };
-  const saveEditTime = async () => { try { await api.put(`/tickets/time_entries/${editingTimeId}`, timeEditForm); setEditingTimeId(null); fetchTicket(); } catch(e) { alert("Failed"); } };
-  const handleDeleteTime = async (entryId) => { if(!confirm("Remove log?")) return; try { await api.delete(`/tickets/${id}/time_entries/${entryId}`); fetchTicket(); } catch(e){} };
-  const handleDuplicateTime = async (entryId) => { try { await api.post(`/tickets/time_entries/${entryId}/duplicate`); fetchTicket(); } catch (e) { alert("Failed"); } };
-  const handleAddMaterial = async (e) => { e.preventDefault(); try { await api.post(`/tickets/${id}/materials`, newMaterial); setNewMaterial({ product_id: '', quantity: 1 }); setShowMatForm(false); fetchTicket(); } catch(e) { alert("Failed"); } };
+  
+  const saveEditTime = async () => { 
+    try { 
+      await api.put(`/tickets/time_entries/${editingTimeId}`, timeEditForm); 
+      setEditingTimeId(null); 
+      fetchTicket(); 
+      addToast("Time entry updated", "success");
+    } catch(e) { 
+      addToast("Failed to update time entry", "danger"); 
+    } 
+  };
+
+  const handleDeleteTime = async (entryId) => { 
+    if(!confirm("Remove log?")) return; 
+    try { 
+      await api.delete(`/tickets/${id}/time_entries/${entryId}`); 
+      fetchTicket(); 
+      addToast("Time entry removed", "info");
+    } catch(e){ 
+      addToast("Failed to remove time entry", "danger");
+    } 
+  };
+
+  const handleDuplicateTime = async (entryId) => { 
+    try { 
+      await api.post(`/tickets/time_entries/${entryId}/duplicate`); 
+      fetchTicket(); 
+      addToast("Time entry duplicated", "success");
+    } catch (e) { 
+      addToast("Failed to duplicate entry", "danger"); 
+    } 
+  };
+
+  const handleAddMaterial = async (e) => { 
+    e.preventDefault(); 
+    try { 
+      await api.post(`/tickets/${id}/materials`, newMaterial); 
+      setNewMaterial({ product_id: '', quantity: 1 }); 
+      setShowMatForm(false); 
+      fetchTicket(); 
+      addToast("Material added", "success");
+    } catch(e) { 
+      addToast("Failed to add material", "danger"); 
+    } 
+  };
+
   const startEditMat = (mat) => { setEditingMatId(mat.id); setMatEditForm({ product_id: mat.product_id, quantity: mat.quantity }); };
-  const saveEditMat = async () => { try { await api.put(`/tickets/materials/${editingMatId}`, matEditForm); setEditingMatId(null); fetchTicket(); } catch(e) { alert("Failed"); } };
-  const handleDeleteMaterial = async (matId) => { if(!confirm("Remove material?")) return; try { await api.delete(`/tickets/${id}/materials/${matId}`); fetchTicket(); } catch(e){} };
+  
+  const saveEditMat = async () => { 
+    try { 
+      await api.put(`/tickets/materials/${editingMatId}`, matEditForm); 
+      setEditingMatId(null); 
+      fetchTicket(); 
+      addToast("Material updated", "success");
+    } catch(e) { 
+      addToast("Failed to update material", "danger"); 
+    } 
+  };
+
+  const handleDeleteMaterial = async (matId) => { 
+    if(!confirm("Remove material?")) return; 
+    try { 
+      await api.delete(`/tickets/${id}/materials/${matId}`); 
+      fetchTicket(); 
+      addToast("Material removed", "info");
+    } catch(e){ 
+      addToast("Failed to remove material", "danger");
+    } 
+  };
   
   const handleGenerateInvoice = async () => { 
       if (ticket.related_invoices && ticket.related_invoices.length > 0) {
@@ -105,9 +188,11 @@ export default function TicketDetail() {
       
       try { 
           const res = await api.post(`/tickets/${id}/invoice`); 
-          alert(`Invoice Generated! Total: $${res.data.total_amount}`); 
+          addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success"); 
           navigate(`/clients/${ticket.account_id}`); 
-      } catch(e) { alert(e.response?.data?.detail || "Failed"); } 
+      } catch(e) { 
+          addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
+      } 
   };
 
   // --- HELPERS ---
