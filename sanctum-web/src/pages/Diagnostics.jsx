@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { Loader2, CheckCircle, XCircle, Activity, Server, Database, HardDrive, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Activity, Server, Database, HardDrive, RefreshCw, Megaphone, Ticket, Receipt, Briefcase, Users } from 'lucide-react';
 import api from '../lib/api';
+
+// UI Components
+import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import Card from '../components/ui/Card';
+import Loading from '../components/ui/Loading';
 
 export default function Diagnostics() {
   const [report, setReport] = useState(null);
@@ -28,8 +34,21 @@ export default function Diagnostics() {
     if (name.includes('PostgreSQL')) return <Database size={18} />;
     if (name.includes('Storage')) return <HardDrive size={18} />;
     if (name.includes('Schema')) return <Server size={18} />;
+    if (name.includes('Campaign')) return <Megaphone size={18} />;
+    if (name.includes('Ticket')) return <Ticket size={18} />;
+    if (name.includes('Invoice')) return <Receipt size={18} />;
+    if (name.includes('Project')) return <Briefcase size={18} />;
+    if (name.includes('Client') || name.includes('Account')) return <Users size={18} />;
     return <Activity size={18} />;
   };
+
+  if (loading && !report) {
+      return (
+          <Layout title="System Diagnostics">
+              <Loading message="Running System Self-Test..." />
+          </Layout>
+      );
+  }
 
   return (
     <Layout title="System Diagnostics">
@@ -37,28 +56,30 @@ export default function Diagnostics() {
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             Status: 
-            {!loading && report && (
-              <span className={`uppercase px-2 py-1 rounded text-sm ${report.status === 'nominal' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+            {report && (
+              <Badge variant={report.status === 'nominal' ? 'success' : 'danger'}>
                 {report.status}
-              </span>
+              </Badge>
             )}
           </h2>
           <p className="text-sm opacity-50">
             Last Check: {lastRun ? lastRun.toLocaleTimeString() : 'Pending...'}
           </p>
         </div>
-        <button 
+        <Button 
           onClick={runDiagnostics} 
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-sanctum-blue hover:bg-blue-600 rounded text-white font-bold disabled:opacity-50"
+          icon={RefreshCw}
+          variant="primary"
+          className={loading ? "opacity-80" : ""}
         >
-          <RefreshCw size={18} className={loading ? "animate-spin" : ""} /> Run Self-Test
-        </button>
+          {loading ? 'Running...' : 'Run Self-Test'}
+        </Button>
       </div>
 
-      <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+      <Card className="overflow-hidden p-0">
         <table className="w-full text-left">
-          <thead className="bg-black/20 text-xs uppercase text-slate-400">
+          <thead className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
             <tr>
               <th className="p-4 w-12"></th>
               <th className="p-4">Component</th>
@@ -66,9 +87,9 @@ export default function Diagnostics() {
               <th className="p-4 text-right">Latency / Meta</th>
             </tr>
           </thead>
-          <tbody className="text-sm text-white">
+          <tbody className="text-sm text-white divide-y divide-slate-800">
             {report?.checks.map((check, idx) => (
-              <tr key={idx} className="border-b border-slate-800 hover:bg-white/5 transition-colors">
+              <tr key={idx} className="hover:bg-white/5 transition-colors">
                 <td className="p-4">
                   {check.status === 'ok' ? (
                     <CheckCircle className="text-green-500" size={20} />
@@ -81,7 +102,7 @@ export default function Diagnostics() {
                   {check.name}
                 </td>
                 <td className="p-4">
-                  <span className={check.status === 'ok' ? 'text-green-400' : 'text-red-400 font-mono'}>
+                  <span className={check.status === 'ok' ? 'text-green-400 font-bold text-xs uppercase' : 'text-red-400 font-bold text-xs uppercase'}>
                     {check.status === 'ok' ? 'OPERATIONAL' : 'FAILURE'}
                   </span>
                 </td>
@@ -92,8 +113,8 @@ export default function Diagnostics() {
             ))}
           </tbody>
         </table>
-        {loading && !report && <div className="p-8 text-center opacity-50">Initializing Protocols...</div>}
-      </div>
+        {!report && <div className="p-8 text-center opacity-50">Initializing Protocols...</div>}
+      </Card>
     </Layout>
   );
 }
