@@ -11,3 +11,4 @@ sanctum-core/__pycache__/
 sanctum-web/node_modules/
 sanctum-web/dist/
 sanctum-web/.env.local
+.aider*
