@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { Plus } from 'lucide-react';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -17,6 +18,7 @@ import Select from '../components/ui/Select';
 export default function Clients() {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
+  const { addToast } = useToast();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -40,8 +42,11 @@ export default function Clients() {
     try {
       await api.post('/accounts', form);
       setShowModal(false);
+      addToast("Client onboarded successfully", "success");
       window.location.reload(); 
-    } catch (e) { alert("Failed to create client"); }
+    } catch (e) { 
+      addToast("Failed to create client", "error");
+    }
   };
 
   if (loading) {

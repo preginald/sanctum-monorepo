@@ -9,9 +9,11 @@ import Card from '../components/ui/Card';
 import Loading from '../components/ui/Loading';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import { useToast } from '../context/ToastContext';
 
 export default function Catalog() {
   const { user } = useAuthStore();
+  const { addToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -38,16 +40,22 @@ export default function Catalog() {
         await api.post('/products', formData);
         setShowForm(false);
         setFormData({ name: '', description: '', type: 'service', unit_price: '' });
+        addToast("Product added to catalog", "success");
         fetchProducts();
-    } catch (e) { alert("Failed to create product"); }
+    } catch (e) { 
+        addToast("Failed to create product", "error");
+    }
   };
 
   const handleDelete = async (id) => {
       if(!confirm("Archive this product?")) return;
       try {
           await api.delete(`/products/${id}`);
+          addToast("Product archived", "info");
           fetchProducts();
-      } catch (e) { alert("Failed"); }
+      } catch (e) { 
+          addToast("Failed to archive product", "error");
+      }
   };
 
   if (loading) {

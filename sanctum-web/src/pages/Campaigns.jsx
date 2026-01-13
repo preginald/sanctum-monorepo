@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import { Plus, Megaphone, Target, Mail } from 'lucide-react';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 // UI KIT
 import Button from '../components/ui/Button';
@@ -17,6 +18,7 @@ import Select from '../components/ui/Select';
 export default function Campaigns() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
+  const { addToast } = useToast();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -37,8 +39,11 @@ export default function Campaigns() {
       e.preventDefault();
       try {
           const res = await api.post('/campaigns', form);
+          addToast("Campaign initialized", "success");
           navigate(`/campaigns/${res.data.id}`);
-      } catch (e) { alert("Failed to create campaign"); }
+      } catch (e) { 
+          addToast("Failed to create campaign", "error");
+      }
   };
 
   if (loading) {

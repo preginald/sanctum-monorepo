@@ -4,9 +4,11 @@ import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plu
 import api from '../lib/api';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
+import { useToast } from '../context/ToastContext';
 
 export default function PortalDashboard() {
   const { user, logout } = useAuthStore();
+  const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   
@@ -41,9 +43,9 @@ export default function PortalDashboard() {
           setShowModal(false);
           setTicketForm({ subject: '', description: '', priority: 'normal' });
           fetchPortal(); 
-          alert("Request sent successfully.");
+          addToast("Request sent successfully", "success");
       } catch (e) { 
-          alert("Failed to send request."); 
+          addToast("Failed to send request", "error");
       } finally {
           setSubmitting(false); // Unlock UI
       }

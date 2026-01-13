@@ -5,6 +5,7 @@ import Layout from '../components/Layout';
 import { Plus, Briefcase, Calendar, LayoutList, Kanban as KanbanIcon } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -24,6 +25,7 @@ const PROJECT_COLS = {
 export default function ProjectIndex() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
+  const { addToast } = useToast();
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,9 +63,10 @@ export default function ProjectIndex() {
               due_date: form.due_date ? form.due_date : null
           };
           const res = await api.post('/projects', payload);
+          addToast("Project initialized successfully", "success");
           navigate(`/projects/${res.data.id}`);
       } catch (e) { 
-          alert("Failed to create project."); 
+          addToast("Failed to create project", "error");
       }
   };
 
@@ -80,7 +83,10 @@ export default function ProjectIndex() {
 
     try {
         await api.put(`/projects/${projId}`, { status: newStatus });
-    } catch (e) { fetchData(); } 
+    } catch (e) { 
+        fetchData(); 
+        addToast("Failed to update project status", "error");
+    } 
   };
 
   // --- RENDERERS ---
