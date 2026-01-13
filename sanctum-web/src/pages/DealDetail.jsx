@@ -4,10 +4,12 @@ import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
 import { Loader2, ArrowLeft, Save, Edit2, DollarSign, Calendar, BarChart3, Building } from 'lucide-react';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 export default function DealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast();
   
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,8 @@ export default function DealDetail() {
       await api.put(`/deals/${id}`, formData);
       await fetchDeal(); 
       setIsEditing(false); 
-    } catch (e) { alert("Update failed"); }
+      addToast("Deal updated successfully", "success");
+    } catch (e) { addToast("Update failed", "danger"); }
   };
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);

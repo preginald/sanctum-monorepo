@@ -5,11 +5,13 @@ import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
 import { Loader2, Plus, Trash2, FileText, CheckCircle, AlertTriangle, XCircle, Download, Save, RefreshCw, Edit2, ArrowLeft, Clock } from 'lucide-react';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 export default function AuditDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { token } = useAuthStore();
+  const { addToast } = useToast();
   
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,10 @@ export default function AuditDetail() {
 
   // Save/Update Logic
   const handleSave = async (finalize = false) => {
-    if (!selectedAccount) return alert("Select a client first.");
+    if (!selectedAccount) {
+      addToast("Select a client first.", "warning");
+      return;
+    }
     
     try {
       let currentId = id;
@@ -75,9 +80,11 @@ export default function AuditDetail() {
         currentId = res.data.id;
         navigate(`/audit/${currentId}`, { replace: true });
         setIsEditing(false);
+        addToast("Audit draft created", "success");
       } else {
         await api.put(`/audits/${id}`, { items: items });
         setIsEditing(false);
+        if (!finalize) addToast("Audit saved", "success");
       }
 
       if (finalize) {
@@ -85,7 +92,7 @@ export default function AuditDetail() {
       } else {
         fetchAudit();
       }
-    } catch (err) { alert("Operation Failed"); }
+    } catch (err) { addToast("Operation Failed", "danger"); }
   };
 
   // Dedicated Finalize Action (For Read Mode)
@@ -96,8 +103,8 @@ export default function AuditDetail() {
       setStatus('finalized');
       // Force reload to get updated timestamps
       fetchAudit(); 
-      alert("Report Generated Successfully");
-    } catch (err) { alert("Finalization Failed"); }
+      addToast("Report Generated Successfully", "success");
+    } catch (err) { addToast("Finalization Failed", "danger"); }
   };
 
   const formatDate = (dateString) => {

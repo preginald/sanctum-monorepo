@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 // UI KIT IMPORTS
 import Card from '../components/ui/Card';
@@ -23,6 +24,7 @@ export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { addToast } = useToast();
   
   // === STATE ===
   const [client, setClient] = useState(null);
@@ -69,8 +71,13 @@ export default function ClientDetail() {
 
   // === HANDLERS ===
   const saveAccount = async () => {
-    try { await api.put(`/accounts/${id}`, accountForm); setIsEditingAccount(false); fetchDetail(); } 
-    catch (err) { alert("Update failed"); }
+    try { 
+      await api.put(`/accounts/${id}`, accountForm); 
+      setIsEditingAccount(false); 
+      fetchDetail(); 
+      addToast("Account updated", "success");
+    } 
+    catch (err) { addToast("Update failed", "danger"); }
   };
 
   const saveContact = async (e) => {
@@ -80,25 +87,47 @@ export default function ClientDetail() {
       if (editingContactId) await api.put(`/contacts/${editingContactId}`, p);
       else await api.post('/contacts', { ...p, account_id: id });
       setActiveModal(null); fetchDetail(); 
-    } catch (err) { alert("Failed"); }
+      addToast("Contact saved", "success");
+    } catch (err) { addToast("Failed to save contact", "danger"); }
   };
 
   const handleCreatePortalUser = async (e) => {
       e.preventDefault();
-      try { await api.post(`/accounts/${id}/users`, portalForm); setActiveModal(null); fetchDetail(); alert("Access Granted."); } 
-      catch (e) { alert("Failed."); }
+      try { 
+        await api.post(`/accounts/${id}/users`, portalForm); 
+        setActiveModal(null); 
+        fetchDetail(); 
+        addToast("Access Granted.", "success"); 
+      } 
+      catch (e) { addToast("Failed to grant access.", "danger"); }
   };
 
-  const handleRevokeAccess = async (uid) => { if(confirm("Revoke?")) try { await api.delete(`/users/${uid}`); fetchDetail(); } catch(e){ alert("Failed"); } };
+  const handleRevokeAccess = async (uid) => { 
+    if(confirm("Revoke?")) try { 
+      await api.delete(`/users/${uid}`); 
+      fetchDetail(); 
+      addToast("Access revoked", "info");
+    } catch(e){ addToast("Failed to revoke access", "danger"); } 
+  };
   
   // Generic Create Handlers
   const handleCreateGeneric = async (endpoint, data, resetForm) => {
-      try { await api.post(endpoint, { ...data, account_id: id }); setActiveModal(null); resetForm(); fetchDetail(); } 
-      catch(e) { alert("Failed"); }
+      try { 
+        await api.post(endpoint, { ...data, account_id: id }); 
+        setActiveModal(null); 
+        resetForm(); 
+        fetchDetail(); 
+        addToast("Item created", "success");
+      } 
+      catch(e) { addToast("Failed to create item", "danger"); }
   };
 
   const handleDeleteGeneric = async (endpoint, itemId) => {
-      if(confirm("Delete item?")) try { await api.delete(`${endpoint}/${itemId}`); fetchDetail(); } catch(e){ alert("Failed"); }
+      if(confirm("Delete item?")) try { 
+        await api.delete(`${endpoint}/${itemId}`); 
+        fetchDetail(); 
+        addToast("Item deleted", "info");
+      } catch(e){ addToast("Failed to delete item", "danger"); }
   };
 
   // Helpers
