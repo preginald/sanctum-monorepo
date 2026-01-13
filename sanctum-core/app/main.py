@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -1454,3 +1454,221 @@ def submit_public_lead(lead: schemas.LeadSchema, db: Session = Depends(get_db)):
         print(f"Failed to send auto-responder: {e}")
 
     return {"status": "received", "id": str(new_account.id)}
+
+# --- CAMPAIGN ENDPOINTS ---
+
+@app.get("/campaigns", response_model=List[schemas.CampaignResponse])
+def get_campaigns(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.Campaign)
+    
+    # Security Filter
+    if current_user.access_scope == 'nt_only':
+        query = query.filter(models.Campaign.brand_affinity == 'nt')
+    elif current_user.access_scope == 'ds_only':
+        query = query.filter(models.Campaign.brand_affinity == 'ds')
+        
+    return query.order_by(desc(models.Campaign.created_at)).all()
+
+@app.post("/campaigns", response_model=schemas.CampaignResponse)
+def create_campaign(
+    campaign: schemas.CampaignCreate, 
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    # Security Check
+    if current_user.access_scope == 'nt_only' and campaign.brand_affinity == 'ds':
+         raise HTTPException(status_code=403, detail="Forbidden")
+
+    new_campaign = models.Campaign(**campaign.model_dump())
+    db.add(new_campaign)
+    db.commit()
+    db.refresh(new_campaign)
+    return new_campaign
+
+@app.get("/campaigns/{campaign_id}", response_model=schemas.CampaignResponse)
+def get_campaign_detail(campaign_id: str, db: Session = Depends(get_db)):
+    # Eager load targets to get counts? No, property handles it, but we need targets loaded
+    # actually SQLAlchemy properties work best if relation is loaded or lazy.
+    # Let's simple query.
+    camp = db.query(models.Campaign).options(joinedload(models.Campaign.targets)).filter(models.Campaign.id == campaign_id).first()
+    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    return camp
+
+@app.put("/campaigns/{campaign_id}", response_model=schemas.CampaignResponse)
+def update_campaign(campaign_id: str, update: schemas.CampaignUpdate, db: Session = Depends(get_db)):
+    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    update_data = update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(camp, key, value)
+        
+    db.commit()
+    db.refresh(camp)
+    return camp
+
+# --- THE LIST BUILDER ---
+@app.post("/campaigns/{campaign_id}/targets/bulk", response_model=schemas.CampaignTargetAddResult)
+def add_campaign_targets(
+    campaign_id: str,
+    filters: schemas.CampaignTargetFilter,
+    db: Session = Depends(get_db)
+):
+    # 1. Find Campaign
+    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+
+    # 2. Query Contacts based on Account properties
+    # We join Contact -> Account
+    query = db.query(models.Contact).join(models.Account)
+    
+    if filters.account_status:
+        query = query.filter(models.Account.status == filters.account_status)
+    
+    if filters.brand_affinity:
+        query = query.filter(models.Account.brand_affinity.in_([filters.brand_affinity, 'both']))
+        
+    # Exclude those already in the campaign?
+    # Easier to just try/except integrity error or check existence
+    potential_contacts = query.all()
+    
+    count = 0
+    for contact in potential_contacts:
+        if not contact.email: continue # Skip no email
+        
+        # Check existence
+        exists = db.query(models.CampaignTarget).filter(
+            models.CampaignTarget.campaign_id == campaign_id,
+            models.CampaignTarget.contact_id == contact.id
+        ).first()
+        
+        if not exists:
+            new_target = models.CampaignTarget(
+                campaign_id=campaign_id,
+                contact_id=contact.id,
+                status='targeted'
+            )
+            db.add(new_target)
+            count += 1
+            
+    db.commit()
+    return {"added_count": count, "message": f"Successfully added {count} targets."}
+
+@app.get("/campaigns/{campaign_id}/targets", response_model=List[schemas.CampaignTargetResponse])
+def get_campaign_targets(campaign_id: str, db: Session = Depends(get_db)):
+    # Join to get contact details
+    targets = db.query(models.CampaignTarget)\
+        .options(joinedload(models.CampaignTarget.contact))\
+        .filter(models.CampaignTarget.campaign_id == campaign_id).all()
+    
+    # Hydrate flat schema
+    results = []
+    for t in targets:
+        t_dict = t.__dict__.copy()
+        if t.contact:
+            t_dict['contact_name'] = f"{t.contact.first_name} {t.contact.last_name}"
+            t_dict['contact_email'] = t.contact.email
+        else:
+            t_dict['contact_name'] = "Unknown"
+        results.append(t_dict)
+        
+    return results
+
+# --- CAMPAIGN EXECUTION ENGINE ---
+
+def execute_campaign_background(campaign_id: str, db: Session):
+    """
+    Background Task to process the queue.
+    """
+    # Re-fetch fresh session/objects since this runs in background
+    # Actually, BackgroundTasks in FastAPI run *after* response but in same context if we aren't careful.
+    # Ideally we pass IDs and get new DB session, but for this scale (MVP), passing the db session 
+    # *might* work if not closed, but safer to use the existing one before it closes? 
+    # No, FastAPI closes session after request.
+    # FOR PHASE 27 MVP: We will run synchronously if list < 50, otherwise we need a worker.
+    # Let's stick to synchronous with a high timeout limit for the "Jan 15" launch (Lists < 500).
+    # Real background workers (Celery) are Phase 28.
+    pass 
+
+@app.post("/campaigns/{campaign_id}/test")
+def send_campaign_test(
+    campaign_id: str,
+    target_email: str,
+    db: Session = Depends(get_db)
+):
+    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    # Mock Data
+    subject = camp.subject_template.replace("{{first_name}}", "TestUser").replace("{{company}}", "TestCorp")
+    body = camp.body_template.replace("{{first_name}}", "TestUser").replace("{{company}}", "TestCorp")
+    
+    # Convert newlines to BR if raw text
+    if "\n" in body and "<p>" not in body:
+        body = body.replace("\n", "<br>")
+        
+    email_service.send(target_email, f"[TEST] {subject}", body)
+    return {"status": "sent"}
+
+@app.post("/campaigns/{campaign_id}/launch")
+async def launch_campaign(
+    campaign_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    
+    if camp.status == 'completed':
+        raise HTTPException(status_code=400, detail="Campaign already completed")
+
+    # VALIDATION GUARD: Check for Content
+    if not camp.subject_template or not camp.body_template:
+        raise HTTPException(status_code=400, detail="Campaign content is missing. Please save a Subject and Body in the Composer tab.")
+
+    # Get Pending Targets
+    targets = db.query(models.CampaignTarget)\
+        .options(joinedload(models.CampaignTarget.contact).joinedload(models.Contact.account))\
+        .filter(models.CampaignTarget.campaign_id == campaign_id, models.CampaignTarget.status == 'targeted')\
+        .all()
+        
+    if not targets:
+        raise HTTPException(status_code=400, detail="No pending targets found. Build your list first.")
+
+    # EXECUTE LOOP
+    sent_count = 0
+    
+    for t in targets:
+        contact = t.contact
+        if not contact or not contact.email:
+            t.status = 'failed'
+            continue
+            
+        # Variables
+        fname = contact.first_name or "Partner"
+        cname = contact.account.name if contact.account else "Your Company"
+        
+        # Hydrate (Safe now due to validation above)
+        subject = camp.subject_template.replace("{{first_name}}", fname).replace("{{company}}", cname)
+        body = camp.body_template.replace("{{first_name}}", fname).replace("{{company}}", cname)
+        
+        if "\n" in body and "<p>" not in body: body = body.replace("\n", "<br>")
+        
+        # Send
+        success = email_service.send(contact.email, subject, body)
+        
+        if success:
+            t.status = 'sent'
+            t.sent_at = func.now() # Use DB timestamp function for safety
+            sent_count += 1
+        else:
+            t.status = 'failed'
+            
+    camp.status = 'active'
+    db.commit()
+    
+    return {"status": "launched", "sent_count": sent_count}

@@ -161,9 +161,66 @@ class DealResponse(BaseModel):
     probability: int
     account_id: UUID
     account_name: Optional[str] = None 
+    source_campaign_id: Optional[UUID] = None
+    campaign_name: Optional[str] = None      
     
     class Config:
         from_attributes = True
+
+# --- CAMPAIGN SCHEMAS ---
+
+class CampaignTargetResponse(BaseModel):
+    id: UUID
+    contact_id: UUID
+    contact_name: str # Hydrated
+    contact_email: Optional[str] = None
+    status: str
+    sent_at: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
+
+class CampaignCreate(BaseModel):
+    name: str
+    type: str = 'email'
+    brand_affinity: str = 'ds'
+    budget_cost: float = 0.0
+
+class CampaignUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
+    subject_template: Optional[str] = None
+    body_template: Optional[str] = None
+    budget_cost: Optional[float] = None
+
+class CampaignResponse(BaseModel):
+    id: UUID
+    name: str
+    type: str
+    status: str
+    brand_affinity: str
+    subject_template: Optional[str] = None
+    body_template: Optional[str] = None
+    budget_cost: float
+    created_at: datetime
+    
+    # Calculated
+    target_count: int = 0
+    sent_count: int = 0
+    deal_count: int = 0         # NEW
+    total_deal_value: float = 0.0 # NEW
+    
+    class Config:
+        from_attributes = True
+
+class CampaignTargetFilter(BaseModel):
+    account_status: Optional[str] = None # 'lead', 'client', 'prospect'
+    brand_affinity: Optional[str] = None # 'ds', 'nt'
+    # Future: Tags
+
+class CampaignTargetAddResult(BaseModel):
+    added_count: int
+    message: str
 
 # --- TICKET SUB-SCHEMAS ---
 class TimeEntryCreate(BaseModel):

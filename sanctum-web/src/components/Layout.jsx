@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, ChevronLeft, ChevronRight, Briefcase } from 'lucide-react';
+import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 
@@ -109,6 +109,8 @@ export default function Layout({ children, title }) {
           <NavItem icon={<Wifi size={20} />} label="Tickets" path="/tickets" />
           <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
           <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
+          {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" />}
+
         </nav>
 
         <div className="p-4 border-t border-slate-800/50 space-y-2">

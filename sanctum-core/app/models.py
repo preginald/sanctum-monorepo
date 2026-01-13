@@ -70,10 +70,12 @@ class Deal(Base):
     stage = Column(String, default='Infiltration')
     probability = Column(Integer, default=10)
     expected_close_date = Column(Date, nullable=True)
+    source_campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"), nullable=True)
 
     account = relationship("Account", back_populates="deals")
     comments = relationship("Comment", back_populates="deal", order_by="desc(Comment.created_at)")
     items = relationship("DealItem", back_populates="deal", cascade="all, delete-orphan")
+    campaign = relationship("Campaign", back_populates="deals")
 
 class DealItem(Base):
     __tablename__ = "deal_items"
@@ -86,6 +88,56 @@ class DealItem(Base):
 
     deal = relationship("Deal", back_populates="items")
     product = relationship("Product")
+
+class Campaign(Base):
+    __tablename__ = "campaigns"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    name = Column(String)
+    type = Column(String)
+    status = Column(String, default='draft')
+    brand_affinity = Column(String, default='ds')
+    
+    subject_template = Column(String, nullable=True)
+    body_template = Column(Text, nullable=True)
+    
+    budget_cost = Column(Float, default=0.0)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    targets = relationship("CampaignTarget", back_populates="campaign", cascade="all, delete-orphan")
+    deals = relationship("Deal", back_populates="campaign")
+    
+    @property
+    def target_count(self):
+        return len(self.targets)
+    
+    @property
+    def sent_count(self):
+        return len([t for t in self.targets if t.status == 'sent'])
+
+    # NEW: ROI Logic
+    @property
+    def deal_count(self):
+        return len(self.deals)
+
+    @property
+    def total_deal_value(self):
+        # Sum of all deals linked to this campaign
+        return sum([d.amount for d in self.deals if d.amount])
+
+class CampaignTarget(Base):
+    __tablename__ = "campaign_targets"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))
+    contact_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"))
+    
+    status = Column(String, default='targeted')
+    sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
+    campaign = relationship("Campaign", back_populates="targets")
+    contact = relationship("Contact")
+
 
 class Project(Base):
     __tablename__ = "projects"

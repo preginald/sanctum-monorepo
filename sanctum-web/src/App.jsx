@@ -30,6 +30,10 @@ import AuditDetail from './pages/AuditDetail';
 // --- FINANCE MODULE ---
 import InvoiceDetail from './pages/InvoiceDetail';
 
+// --- CAMPAIGN MODULE ---
+import Campaigns from './pages/Campaigns';
+import CampaignDetail from './pages/CampaignDetail';
+
 // 1. BASIC AUTH GUARD
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -84,6 +88,9 @@ function App() {
                             
                             <Route path="/catalog" element={<Catalog />} />
                             <Route path="/invoices/:id" element={<InvoiceDetail />} />
+
+                            <Route path="/campaigns" element={<Campaigns />} />
+                            <Route path="/campaigns/:id" element={<CampaignDetail />} />
                             
                             <Route path="/admin/health" element={<Diagnostics />} />
                         </Routes>
