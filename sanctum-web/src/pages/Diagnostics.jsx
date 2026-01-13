@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { CheckCircle, XCircle, Activity, Server, Database, HardDrive, RefreshCw, Megaphone, Ticket, Receipt, Briefcase, Users } from 'lucide-react';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -13,6 +14,7 @@ export default function Diagnostics() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [lastRun, setLastRun] = useState(null);
+  const { addToast } = useToast();
 
   const runDiagnostics = async () => {
     setLoading(true);
@@ -20,9 +22,11 @@ export default function Diagnostics() {
       const res = await api.get('/system/health');
       setReport(res.data);
       setLastRun(new Date());
+      addToast("System self-test complete", "success");
     } catch (e) {
       console.error(e);
       setReport({ status: 'critical', checks: [{ name: 'API Reachability', status: 'error', message: 'Backend Offline (500/404)' }] });
+      addToast("System self-test failed", "error");
     } finally {
       setLoading(false);
     }

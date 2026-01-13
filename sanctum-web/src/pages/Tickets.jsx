@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import api from '../lib/api';
+import { useToast } from '../context/ToastContext';
 
 // UI KIT
 import Button from '../components/ui/Button';
@@ -28,6 +29,7 @@ const COLUMNS = {
 export default function Tickets() {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
+  const { addToast } = useToast();
   
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +50,10 @@ export default function Tickets() {
     try {
       const res = await api.get('/tickets');
       setTickets(res.data);
-    } catch (e) { console.error(e); } 
+    } catch (e) { 
+      console.error(e);
+      addToast("Failed to load tickets", "error");
+    } 
     finally { setLoading(false); }
   };
 
@@ -95,7 +100,17 @@ export default function Tickets() {
     
     // Optimistic Update
     setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
-    try { await api.put(`/tickets/${ticketId}`, { status: newStatus }); } catch (e) { fetchData(); }
+    try { 
+      await api.put(`/tickets/${ticketId}`, { status: newStatus }); 
+    } catch (e) { 
+      fetchData(); 
+      addToast("Failed to update ticket status", "error");
+    }
+  };
+
+  const handleTicketCreated = () => {
+    fetchData();
+    addToast("Ticket created successfully", "success");
   };
 
   // --- LOADING STATE ---
@@ -196,7 +211,7 @@ export default function Tickets() {
           />
       )}
 
-      <TicketCreateModal isOpen={showModal} onClose={() => setShowModal(false)} onSuccess={fetchData} />
+      <TicketCreateModal isOpen={showModal} onClose={() => setShowModal(false)} onSuccess={handleTicketCreated} />
     </Layout>
   );
 }
