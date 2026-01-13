@@ -137,7 +137,7 @@ export default function AuditDetail() {
                 onClick={() => performFinalize(id)} 
                 className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-gold hover:bg-yellow-500 text-slate-900 text-sm font-bold shadow-lg animate-pulse"
               >
-                <FileText size={16} /> Finalize & Generate
+                <FileText size={16} /> Finalize {'&'} Generate
               </button>
             )}
             
