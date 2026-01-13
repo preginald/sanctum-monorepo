@@ -8,7 +8,8 @@ import api from '../lib/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import KanbanBoard from '../components/ui/KanbanBoard';
-import Loading from '../components/ui/Loading'; // <--- NEW IMPORT
+import Loading from '../components/ui/Loading';
+import Card from '../components/ui/Card';
 
 // ICONS
 import { Plus, LayoutList, Kanban as KanbanIcon, Filter } from 'lucide-react';
@@ -138,7 +139,7 @@ export default function Tickets() {
       </div>
 
       {viewMode === 'list' ? (
-        <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+        <Card className="overflow-hidden p-0">
           <table className="w-full text-left">
             <thead className="text-xs uppercase bg-black/20 text-slate-400 font-bold tracking-wider">
               <tr>
@@ -164,7 +165,7 @@ export default function Tickets() {
             </tbody>
           </table>
           {sortedTickets.length === 0 && <div className="p-8 text-center opacity-30">No tickets match filters.</div>}
-        </div>
+        </Card>
       ) : (
           <KanbanBoard 
             columns={COLUMNS} 
@@ -185,7 +186,6 @@ export default function Tickets() {
                     <h4 className="font-bold text-sm mb-1 text-white group-hover:text-blue-300 line-clamp-2">{t.subject}</h4>
                     <div className="text-xs opacity-50 mb-2">{t.account_name}</div>
                     
-                    {/* FIX: MILESTONE VISIBILITY IN KANBAN */}
                     {t.milestone_name && (
                         <div className="mt-2 pt-2 border-t border-slate-700">
                             <Badge variant="info">{t.milestone_name}</Badge>
