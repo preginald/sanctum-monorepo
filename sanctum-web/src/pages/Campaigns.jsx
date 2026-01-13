@@ -11,6 +11,8 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Card from '../components/ui/Card';
 import Loading from '../components/ui/Loading';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
 export default function Campaigns() {
   const navigate = useNavigate();
@@ -81,15 +83,27 @@ export default function Campaigns() {
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Initialize Campaign">
           <form onSubmit={handleCreate} className="space-y-4">
-              <input required placeholder="Campaign Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:border-sanctum-gold outline-none" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+              <Input 
+                required 
+                placeholder="Campaign Name" 
+                value={form.name} 
+                onChange={e => setForm({...form, name: e.target.value})} 
+              />
               <div className="grid grid-cols-2 gap-4">
-                  <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:border-sanctum-gold outline-none" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
+                  <Select 
+                    value={form.type} 
+                    onChange={e => setForm({...form, type: e.target.value})}
+                  >
                       <option value="email">Email Blast</option>
                       <option value="linkedin">LinkedIn Outreach</option>
-                  </select>
-                  <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white focus:border-sanctum-gold outline-none" value={form.brand_affinity} onChange={e => setForm({...form, brand_affinity: e.target.value})}>
-                      <option value="ds">Digital Sanctum</option><option value="nt">Naked Tech</option>
-                  </select>
+                  </Select>
+                  <Select 
+                    value={form.brand_affinity} 
+                    onChange={e => setForm({...form, brand_affinity: e.target.value})}
+                  >
+                      <option value="ds">Digital Sanctum</option>
+                      <option value="nt">Naked Tech</option>
+                  </Select>
               </div>
               <Button type="submit" className="w-full">Create</Button>
           </form>

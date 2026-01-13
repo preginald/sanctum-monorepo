@@ -7,6 +7,8 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import Loading from '../components/ui/Loading';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
 export default function Catalog() {
   const { user } = useAuthStore();
@@ -74,33 +76,30 @@ export default function Catalog() {
           <Card title="New Catalogue Item" className="mb-6">
               <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div className="md:col-span-2">
-                      <label className="text-xs text-slate-400 block mb-1">Item Name</label>
-                      <input 
+                      <Input 
+                        label="Item Name"
                         required 
-                        className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none transition-colors" 
                         value={formData.name} 
                         onChange={e => setFormData({...formData, name: e.target.value})} 
                         placeholder="e.g. Server Maintenance" 
                       />
                   </div>
                   <div>
-                      <label className="text-xs text-slate-400 block mb-1">Type</label>
-                      <select 
-                        className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none transition-colors" 
+                      <Select 
+                        label="Type"
                         value={formData.type} 
                         onChange={e => setFormData({...formData, type: e.target.value})}
                       >
                           <option value="service">Service (Labor)</option>
                           <option value="hardware">Hardware (Goods)</option>
-                      </select>
+                      </Select>
                   </div>
                   <div>
-                      <label className="text-xs text-slate-400 block mb-1">Unit Price ($)</label>
-                      <input 
+                      <Input 
+                        label="Unit Price ($)"
                         required 
                         type="number" 
                         step="0.01" 
-                        className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none transition-colors" 
                         value={formData.unit_price} 
                         onChange={e => setFormData({...formData, unit_price: e.target.value})} 
                       />
@@ -113,9 +112,9 @@ export default function Catalog() {
           </Card>
       )}
 
-      <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-          <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-500">
+      <Card className="overflow-hidden p-0">
+          <table className="w-full text-left text-sm text-white">
+              <thead className="bg-black/20 text-xs uppercase font-bold text-slate-500">
                   <tr>
                       <th className="p-4">Type</th>
                       <th className="p-4">Item Name</th>
@@ -154,7 +153,7 @@ export default function Catalog() {
               </tbody>
           </table>
           {products.length === 0 && <div className="p-8 text-center opacity-30">Catalog is empty.</div>}
-      </div>
+      </Card>
     </Layout>
   );
 }

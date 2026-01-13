@@ -11,6 +11,8 @@ import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import Loading from '../components/ui/Loading';
 import Card from '../components/ui/Card';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
 export default function Clients() {
   const navigate = useNavigate();
@@ -104,24 +106,30 @@ export default function Clients() {
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Onboard Entity">
         <form onSubmit={handleCreate} className="space-y-4">
-          <div>
-            <label className="text-xs uppercase opacity-50 block mb-1">Entity Name</label>
-            <input required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
-          </div>
+          <Input 
+            label="Entity Name"
+            required 
+            value={form.name} 
+            onChange={e => setForm({...form, name: e.target.value})} 
+          />
           <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs uppercase opacity-50 block mb-1">Type</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none" value={form.type} onChange={e => setForm({...form, type: e.target.value})}>
-                    <option value="business">Business</option>
-                    <option value="residential">Residential</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs uppercase opacity-50 block mb-1">Brand</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none" value={form.brand_affinity} onChange={e => setForm({...form, brand_affinity: e.target.value})}>
-                    <option value="ds">Digital Sanctum</option><option value="nt">Naked Tech</option><option value="both">Shared</option>
-                </select>
-              </div>
+              <Select 
+                label="Type"
+                value={form.type} 
+                onChange={e => setForm({...form, type: e.target.value})}
+              >
+                  <option value="business">Business</option>
+                  <option value="residential">Residential</option>
+              </Select>
+              <Select 
+                label="Brand"
+                value={form.brand_affinity} 
+                onChange={e => setForm({...form, brand_affinity: e.target.value})}
+              >
+                  <option value="ds">Digital Sanctum</option>
+                  <option value="nt">Naked Tech</option>
+                  <option value="both">Shared</option>
+              </Select>
           </div>
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
