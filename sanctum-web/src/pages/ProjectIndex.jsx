@@ -2,9 +2,17 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { Loader2, Plus, Briefcase, Calendar, X, LayoutList, Kanban as KanbanIcon } from 'lucide-react';
+import { Plus, Briefcase, Calendar, LayoutList, Kanban as KanbanIcon } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
+
+// UI Components
+import Button from '../components/ui/Button';
+import Modal from '../components/ui/Modal';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Loading from '../components/ui/Loading';
+import Card from '../components/ui/Card';
 
 const PROJECT_COLS = {
     'planning': { id: 'planning', label: 'Planning', color: 'border-slate-500' },
@@ -21,7 +29,7 @@ export default function ProjectIndex() {
   const [loading, setLoading] = useState(true);
   
   // View State
-  const [viewMode, setViewMode] = useState('board'); // Default to Board for Projects
+  const [viewMode, setViewMode] = useState('board'); 
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -65,17 +73,11 @@ export default function ProjectIndex() {
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStatus = destination.droppableId;
-    const projId = draggableId; // UUID
+    const projId = draggableId; 
 
     // Optimistic
     setProjects(projects.map(p => p.id === projId ? { ...p, status: newStatus } : p));
 
-    // API (Need a specific update endpoint for project status? 
-    // We didn't make a PUT /projects/{id} yet? We did in Phase 17.1 design but let's verify if main.py has it.)
-    // Wait, main.py has `get_projects` and `create_project`. Did we add `update_project`? 
-    // Checking memory... NO. We missed `PUT /projects/{id}`. 
-    // We only added Milestone updates.
-    // I will add the logic here assuming we will fix Backend in step 3.
     try {
         await api.put(`/projects/${projId}`, { status: newStatus });
     } catch (e) { fetchData(); } 
@@ -86,10 +88,10 @@ export default function ProjectIndex() {
   const renderList = () => (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {projects.map(p => (
-          <div 
+          <Card 
             key={p.id} 
             onClick={() => navigate(`/projects/${p.id}`)}
-            className="p-6 bg-slate-900 border border-slate-700 rounded-xl hover:border-sanctum-gold/50 cursor-pointer transition-all group"
+            className="hover:border-sanctum-gold/50 cursor-pointer transition-all group"
           >
             <div className="flex justify-between items-start mb-4">
               <div className="p-3 bg-black/30 rounded-lg">
@@ -105,7 +107,7 @@ export default function ProjectIndex() {
               <span className="flex items-center gap-2"><Calendar size={12} /> {p.due_date || 'No Deadline'}</span>
               <span>${p.budget.toLocaleString()}</span>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
   );
@@ -155,6 +157,14 @@ export default function ProjectIndex() {
       </div>
   );
 
+  if (loading) {
+    return (
+      <Layout title="Project Governance">
+        <Loading />
+      </Layout>
+    );
+  }
+
   return (
     <Layout title="Project Governance">
       <div className="flex justify-between items-center mb-6">
@@ -163,40 +173,51 @@ export default function ProjectIndex() {
             <button onClick={() => setViewMode('board')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'board' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><KanbanIcon size={16} /> Board</button>
         </div>
 
-        <button onClick={() => setShowModal(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold bg-sanctum-gold text-slate-900 hover:bg-yellow-500 shadow-lg">
-          <Plus size={18} /> New Project
-        </button>
+        <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">
+          New Project
+        </Button>
       </div>
 
       {viewMode === 'list' ? renderList() : renderBoard()}
 
-      {/* CREATE MODAL */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-md relative">
-                <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
-                <h2 className="text-xl font-bold mb-4">Initialize Project</h2>
-                <form onSubmit={handleCreate} className="space-y-4">
-                    <div>
-                        <label className="text-xs opacity-50 block mb-1">Client</label>
-                        <select required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" value={form.account_id} onChange={e => setForm({...form, account_id: e.target.value})}>
-                            <option value="">Select...</option>
-                            {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="text-xs opacity-50 block mb-1">Project Name</label>
-                        <input required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Server Migration" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs opacity-50 block mb-1">Budget ($)</label><input required type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" value={form.budget} onChange={e => setForm({...form, budget: e.target.value})} /></div>
-                        <div><label className="text-xs opacity-50 block mb-1">Due Date</label><input type="date" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" value={form.due_date} onChange={e => setForm({...form, due_date: e.target.value})} /></div>
-                    </div>
-                    <button type="submit" className="w-full py-2 bg-sanctum-gold text-slate-900 font-bold rounded">Create Project</button>
-                </form>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Initialize Project">
+        <form onSubmit={handleCreate} className="space-y-4">
+            <Select 
+                label="Client"
+                required 
+                value={form.account_id} 
+                onChange={e => setForm({...form, account_id: e.target.value})}
+            >
+                <option value="">Select...</option>
+                {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </Select>
+            
+            <Input 
+                label="Project Name"
+                required 
+                value={form.name} 
+                onChange={e => setForm({...form, name: e.target.value})} 
+                placeholder="e.g. Server Migration" 
+            />
+            
+            <div className="grid grid-cols-2 gap-4">
+                <Input 
+                    label="Budget ($)"
+                    required 
+                    type="number" 
+                    value={form.budget} 
+                    onChange={e => setForm({...form, budget: e.target.value})} 
+                />
+                <Input 
+                    label="Due Date"
+                    type="date" 
+                    value={form.due_date} 
+                    onChange={e => setForm({...form, due_date: e.target.value})} 
+                />
             </div>
-        </div>
-      )}
+            <Button type="submit" variant="gold" className="w-full">Create Project</Button>
+        </form>
+      </Modal>
     </Layout>
   );
 }

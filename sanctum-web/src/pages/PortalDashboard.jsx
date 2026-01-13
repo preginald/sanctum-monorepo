@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X } from 'lucide-react';
 import api from '../lib/api';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 
 export default function PortalDashboard() {
   const { user, logout } = useAuthStore();
@@ -10,7 +12,7 @@ export default function PortalDashboard() {
   
   // TICKET MODAL STATE
   const [showModal, setShowModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false); // <--- NEW STATE
+  const [submitting, setSubmitting] = useState(false); 
   const [ticketForm, setTicketForm] = useState({ subject: '', description: '', priority: 'normal' });
 
   useEffect(() => { fetchPortal(); }, []);
@@ -220,19 +222,25 @@ export default function PortalDashboard() {
                 <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4">How can we help?</h2>
                 <form onSubmit={handleCreateTicket} className="space-y-4">
-                    <div>
-                        <label className="text-xs uppercase opacity-50 block mb-1">Subject</label>
-                        <input required className="w-full p-2 rounded bg-black/10 border border-slate-500/30" value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} placeholder="e.g. Need new email account" />
-                    </div>
-                    <div>
-                        <label className="text-xs uppercase opacity-50 block mb-1">Urgency</label>
-                        <select className="w-full p-2 rounded bg-black/10 border border-slate-500/30" value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}>
-                            <option value="low">Low (General Query)</option>
-                            <option value="normal">Normal (Standard Request)</option>
-                            <option value="high">High (Urgent Issue)</option>
-                            <option value="critical">Critical (System Down)</option>
-                        </select>
-                    </div>
+                    <Input 
+                        label="Subject"
+                        required 
+                        className={`bg-black/10 border-slate-500/30 ${isNaked ? 'text-slate-900' : 'text-white'}`}
+                        value={ticketForm.subject} 
+                        onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} 
+                        placeholder="e.g. Need new email account" 
+                    />
+                    <Select 
+                        label="Urgency"
+                        className={`bg-black/10 border-slate-500/30 ${isNaked ? 'text-slate-900' : 'text-white'}`}
+                        value={ticketForm.priority} 
+                        onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}
+                    >
+                        <option value="low">Low (General Query)</option>
+                        <option value="normal">Normal (Standard Request)</option>
+                        <option value="high">High (Urgent Issue)</option>
+                        <option value="critical">Critical (System Down)</option>
+                    </Select>
                     <div>
                         <label className="text-xs uppercase opacity-50 block mb-1">Details</label>
                         <textarea required className="w-full p-2 h-24 rounded bg-black/10 border border-slate-500/30 text-sm" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} placeholder="Please describe the issue..." />
