@@ -35,6 +35,11 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 
+// --- LIBRARY MODULE ---
+import LibraryIndex from './pages/LibraryIndex';
+import ArticleDetail from './pages/ArticleDetail';
+import ArticleEditor from './pages/ArticleEditor';
+
 // 1. BASIC AUTH GUARD
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -93,6 +98,11 @@ function App() {
 
                               <Route path="/campaigns" element={<Campaigns />} />
                               <Route path="/campaigns/:id" element={<CampaignDetail />} />
+
+                              <Route path="/wiki" element={<LibraryIndex />} />
+                              <Route path="/wiki/new" element={<ArticleEditor />} />
+                              <Route path="/wiki/:slug" element={<ArticleDetail />} />
+                              <Route path="/wiki/:id/edit" element={<ArticleEditor />} />
                               
                               <Route path="/admin/health" element={<Diagnostics />} />
                           </Routes>

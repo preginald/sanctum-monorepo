@@ -1128,3 +1128,57 @@ def submit_public_lead(lead: schemas.LeadSchema, db: Session = Depends(get_db)):
         email_service.send(lead.email, "Application Received", client_html)
     except: pass
     return {"status": "received", "id": str(new_account.id)}
+
+# --- THE LIBRARY (KNOWLEDGE BASE) ---
+
+@app.get("/articles", response_model=List[schemas.ArticleResponse])
+def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
+    query = db.query(models.Article)
+    if category:
+        query = query.filter(models.Article.category == category)
+    return query.order_by(models.Article.identifier.asc()).all()
+
+@app.get("/articles/{slug}", response_model=schemas.ArticleResponse)
+def get_article_detail(slug: str, db: Session = Depends(get_db)):
+    # Can look up by ID or Slug
+    try:
+        from uuid import UUID
+        uid = UUID(slug)
+        article = db.query(models.Article).filter(models.Article.id == uid).first()
+    except ValueError:
+        article = db.query(models.Article).filter(models.Article.slug == slug).first()
+        
+    if not article: raise HTTPException(status_code=404, detail="Article not found")
+    return article
+
+@app.post("/articles", response_model=schemas.ArticleResponse)
+def create_article(article: schemas.ArticleCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
+    new_article = models.Article(**article.model_dump(), author_id=current_user.id)
+    db.add(new_article)
+    db.commit()
+    db.refresh(new_article)
+    return new_article
+
+@app.put("/articles/{article_id}", response_model=schemas.ArticleResponse)
+def update_article(article_id: str, update: schemas.ArticleUpdate, db: Session = Depends(get_db)):
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article: raise HTTPException(status_code=404, detail="Article not found")
+    
+    update_data = update.model_dump(exclude_unset=True)
+    for key, value in update_data.items(): setattr(article, key, value)
+    
+    db.commit()
+    db.refresh(article)
+    return article
+
+@app.post("/tickets/{ticket_id}/articles/{article_id}")
+def link_article_to_ticket(ticket_id: int, article_id: str, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not ticket or not article: raise HTTPException(status_code=404, detail="Not found")
+    
+    if article not in ticket.articles:
+        ticket.articles.append(article)
+        db.commit()
+    return {"status": "linked"}

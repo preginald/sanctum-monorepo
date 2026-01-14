@@ -12,6 +12,11 @@ ticket_contacts = Table('ticket_contacts', Base.metadata,
     Column('contact_id', UUID(as_uuid=True), ForeignKey('contacts.id'))
 )
 
+ticket_articles = Table('ticket_articles', Base.metadata,
+    Column('ticket_id', Integer, ForeignKey('tickets.id')),
+    Column('article_id', UUID(as_uuid=True), ForeignKey('articles.id'))
+)
+
 # 2. CORE MODELS
 
 class User(Base):
@@ -185,6 +190,7 @@ class Ticket(Base):
     time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
     milestone = relationship("Milestone", back_populates="tickets")
+    articles = relationship("Article", secondary=ticket_articles, backref="tickets")
 
     @property
     def total_hours(self):
@@ -333,3 +339,24 @@ class InvoiceDeliveryLog(Base):
 
     invoice = relationship("Invoice", back_populates="delivery_logs")
     sender = relationship("User")
+
+class Article(Base):
+    __tablename__ = "articles"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    
+    title = Column(String, nullable=False)
+    slug = Column(String, unique=True, index=True)
+    content = Column(Text)
+    
+    # Metadata for the UI (Matches the screenshot)
+    category = Column(String, default="wiki") # sop, template, wiki
+    identifier = Column(String, nullable=True) # e.g., "DS-SOP-001"
+    version = Column(String, default="v1.0")   # e.g., "v1.1"
+    
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    author = relationship("User")
+

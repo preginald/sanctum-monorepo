@@ -499,3 +499,35 @@ class AccountDetail(AccountResponse):
 
     class Config:
         from_attributes = True
+
+# --- KNOWLEDGE BASE ---
+class ArticleCreate(BaseModel):
+    title: str
+    slug: str
+    content: str
+    category: str = 'wiki'
+    identifier: Optional[str] = None
+    version: str = 'v1.0'
+
+class ArticleUpdate(BaseModel):
+    title: Optional[str] = None
+    slug: Optional[str] = None
+    content: Optional[str] = None
+    category: Optional[str] = None
+    identifier: Optional[str] = None
+    version: Optional[str] = None
+
+class ArticleResponse(BaseModel):
+    id: UUID
+    title: str
+    slug: str
+    content: str
+    category: str
+    identifier: Optional[str] = None
+    version: str
+    author_id: Optional[UUID] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

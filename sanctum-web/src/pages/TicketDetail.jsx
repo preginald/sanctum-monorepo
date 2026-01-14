@@ -6,8 +6,8 @@ import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X,
 import api from '../lib/api';
 // IMPORT REFACTOR
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
-// MARKDOWN
-import ReactMarkdown from 'react-markdown';
+// NEW: Shared Markdown Component
+import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { useToast } from '../context/ToastContext';
 
 export default function TicketDetail() {
@@ -270,21 +270,21 @@ export default function TicketDetail() {
                 </div>
                 <div className="pt-2 border-t border-slate-800"><label className="text-xs uppercase opacity-50 block mb-2">Affected Humans</label><div className="flex flex-wrap gap-2">{ticket.contacts && ticket.contacts.length > 0 ? ticket.contacts.map(c => (<span key={c.id} className="bg-white/10 px-2 py-1 rounded text-xs flex items-center gap-1">{c.first_name} {c.last_name}</span>)) : <span className="text-xs opacity-30 italic">No contacts linked.</span>}</div></div>
                 
-                {/* FIXED: Added overflow-x-auto to contain the Markdown */}
                 <div className="pt-2 border-t border-slate-800">
-                    <div className="text-sm text-gray-300 leading-relaxed prose prose-invert max-w-none overflow-x-auto">
-                        <ReactMarkdown>{ticket.description || 'No description provided.'}</ReactMarkdown>
+                    <div className="text-sm text-gray-300">
+                        {/* UPDATED: Uses SanctumMarkdown */}
+                        <SanctumMarkdown content={ticket.description || 'No description provided.'} />
                     </div>
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-xs font-mono opacity-50"><div>Opened: {formatDate(ticket.created_at)}</div><div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div></div>
                 
-                {/* FIXED: Added overflow-x-auto to contain the Markdown */}
                 {ticket.resolution && (
                     <div className="pt-4 border-t border-slate-800">
                         <label className="text-xs uppercase opacity-50 block mb-2 text-green-400">Resolution</label>
-                        <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300 prose prose-invert max-w-none overflow-x-auto">
-                            <ReactMarkdown>{ticket.resolution}</ReactMarkdown>
+                        <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300">
+                            {/* UPDATED: Uses SanctumMarkdown */}
+                            <SanctumMarkdown content={ticket.resolution} />
                         </div>
                     </div>
                 )}
