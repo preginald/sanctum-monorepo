@@ -83,12 +83,18 @@ export default function CampaignDetail() {
       
       setIsSaving(true); 
       try {
-          const res = await api.post(`/campaigns/${id}/launch`);
-          alert(`Campaign Launched! Sent ${res.data.sent_count} emails.`);
-          fetchCampaign();
+          // Now returns immediately with status "processing"
+          await api.post(`/campaigns/${id}/launch`);
+          alert("Launch Sequence Initiated. Emails are sending in the background.");
           setActiveTab('targets');
-      } catch(e) { alert("Launch failed or partial success."); }
-      finally { setIsSaving(false); }
+          
+          // Re-fetch shortly to show initial progress
+          setTimeout(fetchCampaign, 2000);
+      } catch(e) { 
+          alert("Launch failed or partial success."); 
+      } finally { 
+          setIsSaving(false); 
+      }
   };
 
   // Helpers

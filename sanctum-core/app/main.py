@@ -8,8 +8,8 @@ from sqlalchemy import text, func, desc
 from datetime import timedelta, datetime
 from pydantic import BaseModel
 
-from .database import get_db
-# CRITICAL: Ensure 'auth' is imported here
+# UPDATED: Import SessionLocal for background tasks
+from .database import get_db, SessionLocal
 from . import models, schemas, auth
 from .services.email_service import email_service
 from .services.pdf_engine import pdf_engine
@@ -1008,37 +1008,93 @@ def send_campaign_test(campaign_id: str, target_email: str, db: Session = Depend
     email_service.send(target_email, f"[TEST] {subject}", body)
     return {"status": "sent"}
 
+# --- BACKGROUND PROCESSOR ---
+def process_campaign_background(campaign_id: str):
+    """
+    Executes the campaign sending logic in a background thread.
+    Creates a fresh DB session as the request session is closed.
+    """
+    print(f"Starting Background Campaign: {campaign_id}")
+    db = SessionLocal()
+    try:
+        camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
+        if not camp:
+            print("Campaign not found in background task")
+            return
+
+        targets = db.query(models.CampaignTarget).options(
+            joinedload(models.CampaignTarget.contact).joinedload(models.Contact.account)
+        ).filter(
+            models.CampaignTarget.campaign_id == campaign_id, 
+            models.CampaignTarget.status == 'targeted'
+        ).all()
+
+        if not targets:
+            print("No targets to process")
+            return
+
+        sent_count = 0
+        for t in targets:
+            contact = t.contact
+            if not contact or not contact.email:
+                t.status = 'failed'
+                continue
+            
+            fname = contact.first_name or "Partner"
+            cname = contact.account.name if contact.account else "Your Company"
+            
+            # Simple template replacement
+            subject = camp.subject_template.replace("{{first_name}}", fname).replace("{{company}}", cname)
+            body = camp.body_template.replace("{{first_name}}", fname).replace("{{company}}", cname)
+            
+            # HTML conversion for plain text inputs
+            if "\n" in body and "<p>" not in body: 
+                body = body.replace("\n", "<br>")
+            
+            success = email_service.send(contact.email, subject, body)
+            
+            if success:
+                t.status = 'sent'
+                t.sent_at = func.now()
+                sent_count += 1
+            else:
+                t.status = 'failed'
+                
+        camp.status = 'active'
+        db.commit()
+        print(f"Finished Campaign {campaign_id}. Sent {sent_count} emails.")
+        
+    except Exception as e:
+        print(f"Background Task Error: {str(e)}")
+        db.rollback()
+    finally:
+        db.close()
+
 @app.post("/campaigns/{campaign_id}/launch")
-async def launch_campaign(campaign_id: str, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+async def launch_campaign(
+    campaign_id: str, 
+    background_tasks: BackgroundTasks, 
+    current_user: models.User = Depends(auth.get_current_active_user), 
+    db: Session = Depends(get_db)
+):
+    # Validation Phase
     camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
     if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
     if camp.status == 'completed': raise HTTPException(status_code=400, detail="Campaign already completed")
     if not camp.subject_template or not camp.body_template: raise HTTPException(status_code=400, detail="Content missing")
 
-    targets = db.query(models.CampaignTarget).options(joinedload(models.CampaignTarget.contact).joinedload(models.Contact.account)).filter(models.CampaignTarget.campaign_id == campaign_id, models.CampaignTarget.status == 'targeted').all()
-    if not targets: raise HTTPException(status_code=400, detail="No pending targets.")
+    pending_count = db.query(models.CampaignTarget).filter(
+        models.CampaignTarget.campaign_id == campaign_id, 
+        models.CampaignTarget.status == 'targeted'
+    ).count()
 
-    sent_count = 0
-    for t in targets:
-        contact = t.contact
-        if not contact or not contact.email:
-            t.status = 'failed'
-            continue
-        fname = contact.first_name or "Partner"
-        cname = contact.account.name if contact.account else "Your Company"
-        subject = camp.subject_template.replace("{{first_name}}", fname).replace("{{company}}", cname)
-        body = camp.body_template.replace("{{first_name}}", fname).replace("{{company}}", cname)
-        if "\n" in body and "<p>" not in body: body = body.replace("\n", "<br>")
-        success = email_service.send(contact.email, subject, body)
-        if success:
-            t.status = 'sent'
-            t.sent_at = func.now()
-            sent_count += 1
-        else: t.status = 'failed'
-            
-    camp.status = 'active'
-    db.commit()
-    return {"status": "launched", "sent_count": sent_count}
+    if pending_count == 0:
+        raise HTTPException(status_code=400, detail="No pending targets.")
+
+    # Execution Phase (Async)
+    background_tasks.add_task(process_campaign_background, campaign_id)
+    
+    return {"status": "processing", "message": "Campaign launch initiated in background."}
 
 # --- THE MIRROR (CLIENT PORTAL) ---
 @app.get("/portal/dashboard", response_model=schemas.PortalDashboard)
