@@ -4,6 +4,8 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import OrgChart from '../components/OrgChart';
 import api from '../lib/api';
+
+// CONTEXT
 import { useToast } from '../context/ToastContext';
 
 // UI KIT IMPORTS
@@ -12,12 +14,14 @@ import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 
+// SUB-COMPONENTS
+import ClientInfoCard from '../components/clients/ClientInfoCard';
+import ClientTicketList from '../components/clients/ClientTicketList';
+
 // ICONS
 import { 
-  ArrowLeft, Mail, Users, Shield, AlertCircle, Edit2, Save, 
-  Network, Phone, DollarSign, FileText, Download, Clock, 
-  CheckCircle, Receipt, Trash2, Briefcase, Bug, Zap, Clipboard, 
-  LifeBuoy, Key, Plus, Loader2
+  Loader2, ArrowLeft, Mail, Users, Edit2, Save, Plus, 
+  Network, Phone, FileText, Download, Trash2
 } from 'lucide-react';
 
 export default function ClientDetail() {
@@ -31,28 +35,25 @@ export default function ClientDetail() {
   const [audits, setAudits] = useState([]);
   const [portalUsers, setPortalUsers] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  // === STATE: UI MODES ===
-  const [isEditingAccount, setIsEditingAccount] = useState(false);
-  const [showClosedTickets, setShowClosedTickets] = useState(false); // <--- RESTORED STATE
   
-  // MODALS
-  const [activeModal, setActiveModal] = useState(null); // 'contact', 'deal', 'project', 'ticket', 'portal'
-
-  // FORMS
+  // === MODALS & EDITING ===
+  const [isEditingAccount, setIsEditingAccount] = useState(false);
+  const [activeModal, setActiveModal] = useState(null); 
+  
+  // === FORMS ===
   const [accountForm, setAccountForm] = useState({});
   const [contactForm, setContactForm] = useState({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
   const [dealForm, setDealForm] = useState({ title: '', amount: 0, stage: 'Infiltration', probability: 10 });
   const [projectForm, setProjectForm] = useState({ name: '', budget: '', due_date: '' });
   const [ticketForm, setTicketForm] = useState({ subject: '', priority: 'normal', description: '' });
   const [portalForm, setPortalForm] = useState({ email: '', password: '', full_name: '' });
+  
   const [editingContactId, setEditingContactId] = useState(null);
 
-  // CONFIG
   const isNaked = user?.scope === 'nt_only';
   const isGlobal = user?.scope === 'global';
 
-  // === INITIALIZATION ===
+  // === FETCH ===
   useEffect(() => { fetchDetail(); }, [id]);
 
   const fetchDetail = async () => {
@@ -65,19 +66,23 @@ export default function ClientDetail() {
       });
       api.get(`/audits?account_id=${id}`).then(res => setAudits(res.data));
       api.get(`/accounts/${id}/users`).then(res => setPortalUsers(res.data));
-    } catch (err) { console.error(err); } 
-    finally { setLoading(false); }
+    } catch (err) { 
+        console.error(err); 
+        addToast("Failed to load client data", "error");
+    } finally { setLoading(false); }
   };
 
   // === HANDLERS ===
+
   const saveAccount = async () => {
     try { 
-      await api.put(`/accounts/${id}`, accountForm); 
-      setIsEditingAccount(false); 
-      fetchDetail(); 
-      addToast("Account updated", "success");
-    } 
-    catch (err) { addToast("Update failed", "danger"); }
+        await api.put(`/accounts/${id}`, accountForm); 
+        setIsEditingAccount(false); 
+        fetchDetail();
+        addToast("Account updated successfully", "success");
+    } catch (err) { 
+        addToast("Update failed: " + (err.response?.data?.detail || "Unknown error"), "error"); 
+    }
   };
 
   const saveContact = async (e) => {
@@ -86,74 +91,65 @@ export default function ClientDetail() {
       const p = { ...contactForm, reports_to_id: contactForm.reports_to_id || null };
       if (editingContactId) await api.put(`/contacts/${editingContactId}`, p);
       else await api.post('/contacts', { ...p, account_id: id });
-      setActiveModal(null); fetchDetail(); 
-      addToast("Contact saved", "success");
-    } catch (err) { addToast("Failed to save contact", "danger"); }
+      
+      setActiveModal(null); 
+      fetchDetail(); 
+      addToast(editingContactId ? "Contact updated" : "Contact added", "success");
+    } catch (err) { addToast("Failed to save contact", "error"); }
   };
 
   const handleCreatePortalUser = async (e) => {
       e.preventDefault();
       try { 
-        await api.post(`/accounts/${id}/users`, portalForm); 
-        setActiveModal(null); 
-        fetchDetail(); 
-        addToast("Access Granted.", "success"); 
-      } 
-      catch (e) { addToast("Failed to grant access.", "danger"); }
+          await api.post(`/accounts/${id}/users`, portalForm); 
+          setActiveModal(null); 
+          fetchDetail(); 
+          addToast("Portal access granted", "success"); 
+      } catch (e) { addToast("Failed to create user. Email may be duplicate.", "error"); }
   };
 
   const handleRevokeAccess = async (uid) => { 
-    if(confirm("Revoke?")) try { 
-      await api.delete(`/users/${uid}`); 
-      fetchDetail(); 
-      addToast("Access revoked", "info");
-    } catch(e){ addToast("Failed to revoke access", "danger"); } 
+      if(!confirm("Revoke access?")) return;
+      try { 
+          await api.delete(`/users/${uid}`); 
+          fetchDetail(); 
+          addToast("Access revoked", "info");
+      } catch(e) { addToast("Revoke failed", "error"); } 
   };
   
-  // Generic Create Handlers
+  // Generic Create Handler
   const handleCreateGeneric = async (endpoint, data, resetForm) => {
       try { 
-        await api.post(endpoint, { ...data, account_id: id }); 
-        setActiveModal(null); 
-        resetForm(); 
-        fetchDetail(); 
-        addToast("Item created", "success");
-      } 
-      catch(e) { addToast("Failed to create item", "danger"); }
+          await api.post(endpoint, { ...data, account_id: id }); 
+          setActiveModal(null); 
+          if(resetForm) resetForm(); 
+          fetchDetail(); 
+          addToast("Item created successfully", "success");
+      } catch(e) { addToast("Failed to create item", "error"); }
   };
 
   const handleDeleteGeneric = async (endpoint, itemId) => {
-      if(confirm("Delete item?")) try { 
-        await api.delete(`${endpoint}/${itemId}`); 
-        fetchDetail(); 
-        addToast("Item deleted", "info");
-      } catch(e){ addToast("Failed to delete item", "danger"); }
+      if(!confirm("Delete item?")) return;
+      try { 
+          await api.delete(`${endpoint}/${itemId}`); 
+          fetchDetail(); 
+          addToast("Item archived", "info");
+      } catch(e){ addToast("Failed to delete", "error"); }
   };
 
-  // Helpers
-  const openEditContact = (c) => { setEditingContactId(c.id); setContactForm(c); setActiveModal('contact'); };
-  const openNewContact = () => { setEditingContactId(null); setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' }); setActiveModal('contact'); };
-  
-  const getTypeIcon = (type) => {
-      if(type === 'bug') return <Bug size={14} className="text-red-400" />;
-      if(type === 'feature') return <Zap size={14} className="text-yellow-400" />;
-      if(type === 'task') return <Clipboard size={14} className="text-blue-400" />;
-      return <AlertCircle size={14} className="text-slate-400" />;
-  };
-
+  // === HELPERS ===
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
   const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
+  
+  const openEditContact = (c) => { setEditingContactId(c.id); setContactForm(c); setActiveModal('contact'); };
+  const openNewContact = () => { setEditingContactId(null); setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' }); setActiveModal('contact'); };
 
-  if (loading) return <Layout title="Loading..."><div className="flex justify-center p-8"><Loader2 className="animate-spin text-white"/></div></Layout>;
-  if (!client) return null;
-
-  // Ticket Filter Logic
-  const visibleTickets = client.tickets.filter(t => showClosedTickets ? true : t.status !== 'resolved');
+  if (loading || !client) return <Layout title="Loading..."><div className="flex justify-center p-8"><Loader2 className="animate-spin text-white"/></div></Layout>;
 
   return (
     <Layout title="Client Profile">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
         <div className="flex items-center gap-4">
           <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate('/clients')} />
@@ -183,131 +179,113 @@ export default function ClientDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* --- LEFT COLUMN --- */}
+        {/* LEFT COLUMN */}
         <div className="space-y-8">
-          
-          <Card title="Details">
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs uppercase text-slate-500">Status</p>
-                {isEditingAccount ? (
-                   <select value={accountForm.status} onChange={(e) => setAccountForm({...accountForm, status: e.target.value})} className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white mt-1">
-                     <option value="lead">Lead</option><option value="prospect">Prospect</option><option value="client">Active Client</option><option value="churned">Churned</option>
-                   </select>
-                ) : <p className="text-white">{client.status}</p>}
-              </div>
-              <div>
-                <p className="text-xs uppercase text-slate-500">Type</p>
-                {isEditingAccount ? (
-                   <select value={accountForm.type} onChange={(e) => setAccountForm({...accountForm, type: e.target.value})} className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white mt-1">
-                     <option value="business">Business</option><option value="residential">Residential</option>
-                   </select>
-                ) : <p className="text-white capitalize">{client.type}</p>}
-              </div>
-              <div>
-                <p className="text-xs uppercase text-slate-500">Billing Email</p>
-                {isEditingAccount ? (
-                  <input className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-white mt-1" value={accountForm.billing_email} onChange={e => setAccountForm({...accountForm, billing_email: e.target.value})} />
-                ) : <p className="text-white">{client.billing_email || '-'}</p>}
-              </div>
-            </div>
-          </Card>
+            <ClientInfoCard 
+                client={client} 
+                isEditing={isEditingAccount} 
+                form={accountForm} 
+                setForm={setAccountForm}
+                isNaked={isNaked}
+                onEdit={() => setIsEditingAccount(true)}
+                onCancel={() => setIsEditingAccount(false)}
+                onSave={saveAccount}
+            />
 
-          <Card title="Portal Access" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('portal')} />}>
-            <div className="space-y-3">
-              {portalUsers.length === 0 && <p className="opacity-50 text-sm italic">No users.</p>}
-              {portalUsers.map(u => (
-                  <div key={u.id} className="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0">
-                      <div>
-                          <div className="font-bold text-sm text-white">{u.full_name}</div>
-                          <div className="text-xs opacity-50">{u.email}</div>
-                      </div>
-                      <button onClick={() => handleRevokeAccess(u.id)} className="text-red-500 hover:text-red-400 text-xs font-bold uppercase">Revoke</button>
-                  </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card title="Humans" action={<Button variant="ghost" size="sm" icon={Plus} onClick={openNewContact} />}>
-            <div className="space-y-4">
-              {client.contacts.map(c => (
-                <div key={c.id} className="pb-4 border-b border-gray-700/50 last:border-0 last:pb-0 group relative">
-                  <button onClick={() => openEditContact(c)} className="absolute right-0 top-0 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></button>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-bold text-white">{c.first_name} {c.last_name}</p>
-                      <p className={`text-xs font-bold uppercase mt-0.5 ${c.persona === 'Decision Maker' ? 'text-sanctum-gold' : 'text-slate-500'}`}>{c.persona}</p>
+            {/* PORTAL ACCESS */}
+            <Card title="Portal Access" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('portal')} />}>
+                <div className="space-y-3">{portalUsers.map(u => (
+                    <div key={u.id} className="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0">
+                        <div><div className="font-bold text-sm text-white">{u.full_name}</div><div className="text-xs opacity-50">{u.email}</div></div>
+                        <button onClick={() => handleRevokeAccess(u.id)} className="text-red-500 hover:text-red-400 text-xs font-bold uppercase">Revoke</button>
                     </div>
-                    {c.is_primary_contact && <span className="text-yellow-500 text-xs">⭐</span>}
-                  </div>
-                  <div className="flex flex-col gap-1 mt-2 text-xs opacity-70 text-slate-400">
-                    {c.email && <div className="flex items-center gap-2"><Mail size={12} /> {c.email}</div>}
-                    {c.phone && <div className="flex items-center gap-2"><Phone size={12} /> {c.phone}</div>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}</div>
+            </Card>
 
-          <Card title="Risk Assessments" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => navigate('/audit')} />}>
-            <div className="space-y-3">
-              {audits.map(audit => (
-                <div key={audit.id} onClick={() => navigate(`/audit/${audit.id}`)} className="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={audit.security_score < 50 ? 'danger' : audit.security_score < 80 ? 'warning' : 'success'}>{audit.security_score}/100</Badge>
-                    <span className="text-xs uppercase text-slate-400">{audit.status}</span>
+            {/* HUMANS */}
+            <Card title="Humans" action={<Button variant="ghost" size="sm" icon={Plus} onClick={openNewContact} />}>
+                <div className="space-y-4">{client.contacts.map(c => (
+                    <div key={c.id} className="pb-4 border-b border-gray-700/50 last:border-0 last:pb-0 group relative">
+                        <button onClick={() => openEditContact(c)} className="absolute right-0 top-0 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></button>
+                        <div className="flex justify-between items-start">
+                            <div><p className="font-bold text-white">{c.first_name} {c.last_name}</p><p className="text-xs font-bold uppercase mt-0.5 text-slate-500">{c.persona}</p></div>
+                            {c.is_primary_contact && <span className="text-yellow-500 text-xs">⭐</span>}
+                        </div>
+                        <div className="flex flex-col gap-1 mt-2 text-xs opacity-70 text-slate-400">
+                            {c.email && <div className="flex items-center gap-2"><Mail size={12} /> {c.email}</div>}
+                            {c.phone && <div className="flex items-center gap-2"><Phone size={12} /> {c.phone}</div>}
+                        </div>
+                    </div>
+                ))}</div>
+            </Card>
+
+            {/* RISK ASSESSMENTS */}
+            <Card title="Risk Assessments" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => navigate('/audit')} />}>
+              <div className="space-y-3">
+                {audits.map(audit => (
+                  <div key={audit.id} onClick={() => navigate(`/audit/${audit.id}`)} className="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Badge variant={audit.security_score < 50 ? 'danger' : audit.security_score < 80 ? 'warning' : 'success'}>{audit.security_score}/100</Badge>
+                      <span className="text-xs uppercase text-slate-400">{audit.status}</span>
+                    </div>
+                    <Download size={14} className="text-slate-500" />
                   </div>
-                  <Download size={14} className="text-slate-500" />
-                </div>
-              ))}
-              {audits.length === 0 && <p className="opacity-50 text-sm italic">No audits.</p>}
-            </div>
-          </Card>
+                ))}
+                {audits.length === 0 && <p className="opacity-50 text-sm italic">No audits.</p>}
+              </div>
+            </Card>
         </div>
 
-        {/* --- RIGHT COLUMN --- */}
+        {/* RIGHT COLUMN */}
         <div className="lg:col-span-2 space-y-8">
-          
-          {!isNaked && (
-            <Card title="Projects" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('project')} />}>
-               <div className="space-y-2">
-                  {client.projects?.map(p => (
-                      <div key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors group">
-                          <div>
-                              <div className="font-bold text-white flex items-center gap-2">
-                                  {p.name}
-                                  <Badge variant={p.status === 'active' ? 'success' : 'default'}>{p.status}</Badge>
-                              </div>
-                              <div className="text-xs opacity-50">Deadline: {p.due_date || 'TBD'}</div>
-                          </div>
-                          <div className="flex items-center gap-4">
-                              <span className="font-mono text-sanctum-gold">${p.budget.toLocaleString()}</span>
-                              <button onClick={(e) => handleDeleteGeneric('/projects', p.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-                          </div>
-                      </div>
-                  ))}
-               </div>
-            </Card>
-          )}
+            
+            {/* PROJECTS */}
+            {!isNaked && (
+              <Card title="Projects" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('project')} />}>
+                 <div className="space-y-2">
+                    {client.projects?.map(p => (
+                        <div key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors group">
+                            <div>
+                                <div className="font-bold text-white flex items-center gap-2">
+                                    {p.name}
+                                    <Badge variant={p.status === 'active' ? 'success' : 'default'}>{p.status}</Badge>
+                                </div>
+                                <div className="text-xs opacity-50">Deadline: {p.due_date || 'TBD'}</div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span className="font-mono text-sanctum-gold">${p.budget.toLocaleString()}</span>
+                                <button onClick={(e) => handleDeleteGeneric('/projects', p.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                            </div>
+                        </div>
+                    ))}
+                 </div>
+              </Card>
+            )}
 
-          {!isNaked && (
-            <Card title="Deals" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('deal')} />}>
-              <div className="space-y-2">
-                  {client.deals.map(d => (
-                    <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-blue-400/50 transition-colors">
-                      <span className="font-medium text-white">{d.title}</span>
-                      <div className="text-right">
-                        <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
-                        <Badge variant="info">{d.stage}</Badge>
+            {/* DEALS */}
+            {!isNaked && (
+              <Card title="Deals" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('deal')} />}>
+                <div className="space-y-2">
+                    {client.deals.map(d => (
+                      <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-blue-400/50 transition-colors">
+                        <span className="font-medium text-white">{d.title}</span>
+                        <div className="text-right">
+                          <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
+                          <Badge variant="info">{d.stage}</Badge>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-              </div>
-            </Card>
-          )}
+                    ))}
+                </div>
+              </Card>
+            )}
 
-          <Card title="Financial Ledger">
+            {/* FINANCIAL LEDGER */}
+            <Card title="Financial Ledger">
              <div className="space-y-2">
+                {(!client.invoices || client.invoices.length === 0) && (
+                    <p className="opacity-50 text-sm italic">No invoices generated.</p>
+                )}
+                
                 {client.invoices?.map(inv => (
                   <div key={inv.id} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center group">
                     <div>
@@ -329,55 +307,17 @@ export default function ClientDetail() {
              </div>
           </Card>
 
-          {/* TICKETS CARD - RESTORED TOGGLE */}
-          <Card 
-            title="Tickets" 
-            action={
-                <div className="flex items-center gap-4">
-                    <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
-                        <input type="checkbox" checked={showClosedTickets} onChange={e => setShowClosedTickets(e.target.checked)} className="accent-pink-500 rounded"/>
-                        <span className="opacity-50">Show History</span>
-                    </label>
-                    <Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('ticket')} />
-                </div>
-            }
-          >
-             <div className="space-y-2">
-                {visibleTickets.length === 0 && <p className="opacity-50 text-sm italic">No active tickets.</p>}
-                {visibleTickets.map(t => (
-                  <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-pink-500/50 transition-colors group">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(t.ticket_type)}
-                        <Badge variant={t.priority === 'critical' ? 'danger' : 'default'}>{t.priority}</Badge>
-                        <span className="font-medium text-sm text-white">{t.subject}</span>
-                      </div>
-                      <span className="text-[10px] opacity-40 font-mono">#{t.id} • {t.status}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {t.status === 'resolved' ? <CheckCircle size={16} className="text-green-500" /> : <Clock size={16} className="text-yellow-500" />}
-                        <button onClick={(e) => {e.stopPropagation(); handleDeleteGeneric('/tickets', t.id);}} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-                    </div>
-                  </div>
-                ))}
-             </div>
-          </Card>
+            {/* TICKETS (Refactored) */}
+            <ClientTicketList 
+                tickets={client.tickets} 
+                onAdd={() => setActiveModal('ticket')} 
+                onDelete={(tid) => handleDeleteGeneric('/tickets', tid)} 
+            />
         </div>
-      </div>
-
-
-      {/* --- BOTTOM ROW --- */}
-      <div className="mt-8">
-          <Card title="Command Chain">
-            <div className="w-full h-[400px] bg-black/20 rounded border border-white/5 relative overflow-hidden">
-                {client.contacts.length > 0 ? <OrgChart contacts={client.contacts} /> : <div className="absolute inset-0 flex items-center justify-center opacity-30">Map humans to activate visualization.</div>}
-            </div>
-          </Card>
       </div>
 
       {/* --- MODALS --- */}
       
-      {/* Contact Modal */}
       <Modal isOpen={activeModal === 'contact'} onClose={() => setActiveModal(null)} title={editingContactId ? 'Edit Human' : 'Add Human'}>
         <form onSubmit={saveContact} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -399,7 +339,6 @@ export default function ClientDetail() {
         </form>
       </Modal>
 
-      {/* Deal Modal */}
       <Modal isOpen={activeModal === 'deal'} onClose={() => setActiveModal(null)} title="New Deal">
         <form onSubmit={(e) => {e.preventDefault(); handleCreateGeneric('/deals', dealForm, () => setDealForm({title:'', amount:0, stage:'Infiltration', probability:10}))}} className="space-y-4">
           <input required placeholder="Deal Title" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={dealForm.title} onChange={e => setDealForm({...dealForm, title: e.target.value})} />
@@ -408,7 +347,6 @@ export default function ClientDetail() {
         </form>
       </Modal>
 
-      {/* Project Modal */}
       <Modal isOpen={activeModal === 'project'} onClose={() => setActiveModal(null)} title="New Project">
          <form onSubmit={(e) => {e.preventDefault(); handleCreateGeneric('/projects', {...projectForm, budget: parseFloat(projectForm.budget), due_date: projectForm.due_date || null}, () => setProjectForm({name:'', budget:'', due_date:''}))}} className="space-y-4">
            <input required placeholder="Project Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} />
@@ -420,7 +358,6 @@ export default function ClientDetail() {
          </form>
       </Modal>
 
-      {/* Ticket Modal */}
       <Modal isOpen={activeModal === 'ticket'} onClose={() => setActiveModal(null)} title="New Ticket">
          <form onSubmit={(e) => {e.preventDefault(); handleCreateGeneric('/tickets', ticketForm, () => setTicketForm({subject:'', description:'', priority:'normal'}))}} className="space-y-4">
            <div className="grid grid-cols-2 gap-4">
@@ -434,7 +371,6 @@ export default function ClientDetail() {
          </form>
       </Modal>
 
-      {/* Portal User Modal */}
       <Modal isOpen={activeModal === 'portal'} onClose={() => setActiveModal(null)} title="Grant Access">
          <form onSubmit={handleCreatePortalUser} className="space-y-4">
             <input required placeholder="Full Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={portalForm.full_name} onChange={e => setPortalForm({...portalForm, full_name: e.target.value})} />
@@ -443,6 +379,15 @@ export default function ClientDetail() {
             <Button type="submit" className="w-full">Create Credentials</Button>
          </form>
       </Modal>
+
+      {/* --- BOTTOM ROW --- */}
+      <div className="mt-8">
+          <Card title="Command Chain">
+            <div className="w-full h-[400px] bg-black/20 rounded border border-white/5 relative overflow-hidden">
+                {client.contacts.length > 0 ? <OrgChart contacts={client.contacts} /> : <div className="absolute inset-0 flex items-center justify-center opacity-30">Map humans to activate visualization.</div>}
+            </div>
+          </Card>
+      </div>
 
     </Layout>
   );
