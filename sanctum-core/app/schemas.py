@@ -3,7 +3,8 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import datetime, date
 
-# 1. Login Request
+# --- AUTH & USERS ---
+
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -18,18 +19,18 @@ class UserResponse(BaseModel):
     role: str
     access_scope: str
     is_active: bool
-    account_id: Optional[UUID] = None # NEW
+    account_id: Optional[UUID] = None
 
     class Config:
         from_attributes = True
 
-# NEW: Client User Creation
 class ClientUserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
 
 # --- ANALYTICS ---
+
 class DashboardStats(BaseModel):
     revenue_realized: float    
     pipeline_value: float      
@@ -37,7 +38,8 @@ class DashboardStats(BaseModel):
     open_tickets: int
     critical_tickets: int      
 
-# --- PRODUCT SCHEMAS ---
+# --- PRODUCT CATALOG ---
+
 class ProductCreate(BaseModel):
     name: str
     description: Optional[str] = None
@@ -55,7 +57,8 @@ class ProductResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- ACCOUNT SCHEMAS ---
+# --- CRM (ACCOUNTS & CONTACTS) ---
+
 class AccountCreate(BaseModel):
     name: str
     type: str 
@@ -81,32 +84,6 @@ class AccountResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- INVOICE DELIVERY ---
-class InvoiceDeliveryLogResponse(BaseModel):
-    id: UUID
-    sent_at: datetime
-    sent_to: str
-    sent_cc: Optional[str]
-    status: str
-    sender_name: Optional[str] = None # Hydrated from User
-
-    class Config:
-        from_attributes = True
-
-class InvoiceSendRequest(BaseModel):
-    to_email: EmailStr
-    cc_emails: List[EmailStr] = []
-    subject: Optional[str] = None
-    message: Optional[str] = None
-
-class InvoiceLite(BaseModel):
-    id: UUID
-    status: str
-    total_amount: float
-    class Config:
-        from_attributes = True
-
-# --- NESTED DETAIL SCHEMAS ---
 class ContactCreate(BaseModel):
     account_id: UUID
     first_name: str
@@ -137,7 +114,59 @@ class ContactResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- DEAL SCHEMAS ---
+# --- CAMPAIGNS (MARKETING) ---
+
+class CampaignTargetFilter(BaseModel):
+    account_status: Optional[str] = None
+    brand_affinity: Optional[str] = None
+
+class CampaignTargetAddResult(BaseModel):
+    added_count: int
+    message: str
+
+class CampaignTargetResponse(BaseModel):
+    id: UUID
+    contact_id: UUID
+    contact_name: str
+    contact_email: Optional[str] = None
+    status: str
+    sent_at: Optional[datetime] = None
+    class Config: from_attributes = True
+
+class CampaignCreate(BaseModel):
+    name: str
+    type: str = 'email'
+    brand_affinity: str = 'ds'
+    budget_cost: float = 0.0
+
+class CampaignUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
+    subject_template: Optional[str] = None
+    body_template: Optional[str] = None
+    budget_cost: Optional[float] = None
+
+class CampaignResponse(BaseModel):
+    id: UUID
+    name: str
+    type: str
+    status: str
+    brand_affinity: str
+    subject_template: Optional[str] = None
+    body_template: Optional[str] = None
+    budget_cost: float
+    created_at: datetime
+    
+    target_count: int = 0
+    sent_count: int = 0
+    deal_count: int = 0
+    total_deal_value: float = 0.0
+    
+    class Config:
+        from_attributes = True
+
+# --- DEALS ---
+
 class DealCreate(BaseModel):
     account_id: UUID
     title: str
@@ -167,65 +196,149 @@ class DealResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# --- CAMPAIGN SCHEMAS ---
+# --- INVOICING ---
 
-class CampaignTargetResponse(BaseModel):
+class InvoiceLite(BaseModel):
     id: UUID
-    contact_id: UUID
-    contact_name: str # Hydrated
-    contact_email: Optional[str] = None
     status: str
-    sent_at: Optional[datetime] = None
-    
+    total_amount: float
     class Config:
         from_attributes = True
 
-class CampaignCreate(BaseModel):
-    name: str
-    type: str = 'email'
-    brand_affinity: str = 'ds'
-    budget_cost: float = 0.0
+class InvoiceItemCreate(BaseModel):
+    description: str
+    quantity: float = 1.0
+    unit_price: float = 0.0
 
-class CampaignUpdate(BaseModel):
+class InvoiceItemUpdate(BaseModel):
+    description: Optional[str] = None
+    quantity: Optional[float] = None
+    unit_price: Optional[float] = None
+
+class InvoiceItemSchema(BaseModel):
+    id: UUID
+    description: str
+    quantity: float
+    unit_price: float
+    total: float
+    ticket_id: Optional[int] = None
+    source_type: Optional[str] = None
+    class Config: from_attributes = True
+
+class InvoiceDeliveryLogResponse(BaseModel):
+    id: UUID
+    sent_at: datetime
+    sent_to: str
+    sent_cc: Optional[str]
+    status: str
+    sender_name: Optional[str] = None
+    class Config: from_attributes = True
+
+class InvoiceSendRequest(BaseModel):
+    to_email: EmailStr
+    cc_emails: List[EmailStr] = []
+    subject: Optional[str] = None
+    message: Optional[str] = None
+
+class InvoiceUpdate(BaseModel):
+    status: Optional[str] = None
+    due_date: Optional[date] = None
+    generated_at: Optional[datetime] = None
+    payment_terms: Optional[str] = None
+
+class InvoiceResponse(BaseModel):
+    id: UUID
+    account_id: UUID
+    account_name: Optional[str] = None
+    status: str
+    subtotal_amount: float
+    gst_amount: float
+    total_amount: float
+    payment_terms: str
+    due_date: Optional[date] = None
+    generated_at: datetime
+    pdf_path: Optional[str] = None
+    items: List[InvoiceItemSchema] = []
+    delivery_logs: List[InvoiceDeliveryLogResponse] = []
+    suggested_cc: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+# --- PROJECTS & MILESTONES ---
+
+class MilestoneReorderItem(BaseModel):
+    id: UUID
+    sequence: int
+
+class MilestoneReorderRequest(BaseModel):
+    items: List[MilestoneReorderItem]
+
+class MilestoneCreate(BaseModel):
+    name: str
+    due_date: Optional[date] = None
+    status: str = 'pending'
+    billable_amount: float = 0.0
+    sequence: int = 1
+
+class MilestoneUpdate(BaseModel):
     name: Optional[str] = None
     status: Optional[str] = None
-    subject_template: Optional[str] = None
-    body_template: Optional[str] = None
-    budget_cost: Optional[float] = None
+    billable_amount: Optional[float] = None
+    due_date: Optional[date] = None
+    sequence: Optional[int] = None
+    invoice_id: Optional[UUID] = None
 
-class CampaignResponse(BaseModel):
+class MilestoneResponse(BaseModel):
     id: UUID
+    project_id: UUID
     name: str
-    type: str
+    due_date: Optional[date] = None
     status: str
-    brand_affinity: str
-    subject_template: Optional[str] = None
-    body_template: Optional[str] = None
-    budget_cost: float
-    created_at: datetime
-    
-    # Calculated
-    target_count: int = 0
-    sent_count: int = 0
-    deal_count: int = 0         # NEW
-    total_deal_value: float = 0.0 # NEW
-    
-    class Config:
-        from_attributes = True
+    billable_amount: float
+    invoice_id: Optional[UUID] = None
+    sequence: int = 1
+    class Config: from_attributes = True
 
-class CampaignTargetFilter(BaseModel):
-    account_status: Optional[str] = None # 'lead', 'client', 'prospect'
-    brand_affinity: Optional[str] = None # 'ds', 'nt'
-    # Future: Tags
+class ProjectCreate(BaseModel):
+    account_id: UUID
+    deal_id: Optional[UUID] = None
+    name: str
+    description: Optional[str] = None
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    budget: float = 0.0
 
-class CampaignTargetAddResult(BaseModel):
-    added_count: int
-    message: str
+class ProjectUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = None
+    budget: Optional[float] = None
+    due_date: Optional[date] = None
 
-# --- TICKET SUB-SCHEMAS ---
+class ProjectResponse(BaseModel):
+    id: UUID
+    account_id: UUID
+    account_name: Optional[str] = None
+    name: str
+    status: str
+    start_date: Optional[date] = None
+    due_date: Optional[date] = None
+    budget: float
+    milestones: List[MilestoneResponse] = []
+    class Config: from_attributes = True
+
+# --- TICKETS & OPS ---
+
 class TimeEntryCreate(BaseModel):
     start_time: datetime
     end_time: datetime
+    description: Optional[str] = None
+    product_id: Optional[UUID] = None
+
+class TimeEntryUpdate(BaseModel):
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
     description: Optional[str] = None
     product_id: Optional[UUID] = None
 
@@ -240,15 +353,17 @@ class TimeEntryResponse(BaseModel):
     description: Optional[str] = None
     product_id: Optional[UUID] = None
     service_name: Optional[str] = None
-    calculated_value: float = 0.0 # NEW
+    calculated_value: float = 0.0
     created_at: datetime
-
-    class Config:
-        from_attributes = True
+    class Config: from_attributes = True
 
 class TicketMaterialCreate(BaseModel):
     product_id: UUID
     quantity: int = 1
+
+class TicketMaterialUpdate(BaseModel):
+    product_id: Optional[UUID] = None
+    quantity: Optional[int] = None
 
 class TicketMaterialResponse(BaseModel):
     id: UUID
@@ -256,112 +371,8 @@ class TicketMaterialResponse(BaseModel):
     product_name: Optional[str] = None
     quantity: int
     unit_price: float = 0.0
+    class Config: from_attributes = True
 
-    class Config:
-        from_attributes = True
-
-class TimeEntryUpdate(BaseModel):
-    start_time: Optional[datetime] = None
-    end_time: Optional[datetime] = None
-    description: Optional[str] = None
-    product_id: Optional[UUID] = None
-
-class TicketMaterialUpdate(BaseModel):
-    product_id: Optional[UUID] = None
-    quantity: Optional[int] = None
-
-# --- MILESTONE SCHEMAS ---
-class MilestoneCreate(BaseModel):
-    name: str
-    due_date: Optional[date] = None
-    status: str = 'pending'
-    billable_amount: float = 0.0
-
-class MilestoneUpdate(BaseModel):
-    name: Optional[str] = None
-    status: Optional[str] = None
-    invoice_id: Optional[UUID] = None
-
-class MilestoneResponse(BaseModel):
-    id: UUID
-    project_id: UUID
-    name: str
-    due_date: Optional[date] = None
-    status: str
-    billable_amount: float
-    invoice_id: Optional[UUID] = None
-    
-    class Config:
-        from_attributes = True
-
-class MilestoneCreate(BaseModel):
-    name: str
-    due_date: Optional[date] = None
-    status: str = 'pending'
-    billable_amount: float = 0.0
-    sequence: int = 1 # NEW
-
-class MilestoneUpdate(BaseModel):
-    name: Optional[str] = None
-    status: Optional[str] = None
-    billable_amount: Optional[float] = None # NEW
-    due_date: Optional[date] = None # NEW
-    sequence: Optional[int] = None # NEW
-    invoice_id: Optional[UUID] = None
-
-class MilestoneResponse(BaseModel):
-    id: UUID
-    project_id: UUID
-    name: str
-    due_date: Optional[date] = None
-    status: str
-    billable_amount: float
-    invoice_id: Optional[UUID] = None
-    sequence: int = 1 # NEW
-    
-    class Config:
-        from_attributes = True
-
-# --- PROJECT SCHEMAS ---
-class ProjectCreate(BaseModel):
-    account_id: UUID
-    deal_id: Optional[UUID] = None
-    name: str
-    description: Optional[str] = None
-    start_date: Optional[date] = None
-    due_date: Optional[date] = None
-    budget: float = 0.0
-
-class ProjectResponse(BaseModel):
-    id: UUID
-    account_id: UUID
-    account_name: Optional[str] = None
-    name: str
-    status: str
-    start_date: Optional[date] = None
-    due_date: Optional[date] = None
-    budget: float
-    milestones: List[MilestoneResponse] = []
-    
-    class Config:
-        from_attributes = True
-
-class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = None
-    budget: Optional[float] = None
-    due_date: Optional[date] = None
-
-# --- PROJECT/MILESTONE ---
-class MilestoneReorderItem(BaseModel):
-    id: UUID
-    sequence: int
-
-class MilestoneReorderRequest(BaseModel):
-    items: List[MilestoneReorderItem]
-
-# --- TICKET SCHEMAS ---
 class TicketCreate(BaseModel):
     account_id: UUID
     contact_ids: List[UUID] = [] 
@@ -369,7 +380,6 @@ class TicketCreate(BaseModel):
     description: Optional[str] = None 
     priority: str = 'normal'
     assigned_tech_id: Optional[UUID] = None
-    # NEW FIELDS
     ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
 
@@ -383,12 +393,11 @@ class TicketUpdate(BaseModel):
     contact_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
-    # NEW FIELDS
     ticket_type: Optional[str] = None
     milestone_id: Optional[UUID] = None
+    contact_id: Optional[UUID] = None # Unified Contact Field? No, using M2M list usually.
 
 class TicketResponse(BaseModel):
-    # ... [Keep existing fields] ...
     id: int
     subject: str
     description: Optional[str] = None
@@ -409,7 +418,6 @@ class TicketResponse(BaseModel):
     project_id: Optional[UUID] = None
     project_name: Optional[str] = None
     
-    # NEW: Financial Guard
     related_invoices: List[InvoiceLite] = [] 
 
     contacts: List[ContactResponse] = [] 
@@ -428,7 +436,7 @@ class LeadSchema(BaseModel):
     challenge: str
     message: str
 
-# --- AUDIT SCHEMAS ---
+# --- AUDITS ---
 class AuditItem(BaseModel):
     category: str 
     item: str     
@@ -454,82 +462,9 @@ class AuditResponse(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     finalized_at: Optional[datetime] = None
+    class Config: from_attributes = True
 
-    class Config:
-        from_attributes = True
-
-# --- INVOICE SCHEMAS ---
-class InvoiceItemCreate(BaseModel):
-    description: str
-    quantity: float = 1.0
-    unit_price: float = 0.0
-
-class InvoiceItemUpdate(BaseModel):
-    description: Optional[str] = None
-    quantity: Optional[float] = None
-    unit_price: Optional[float] = None
-
-class InvoiceItemSchema(BaseModel):
-    id: UUID
-    description: str
-    quantity: float
-    unit_price: float
-    total: float
-    
-    # NEW
-    ticket_id: Optional[int] = None
-    source_type: Optional[str] = None
-    
-    class Config:
-        from_attributes = True
-
-class InvoiceUpdate(BaseModel):
-    status: Optional[str] = None
-    due_date: Optional[date] = None
-    generated_at: Optional[datetime] = None # NEW: Issue Date
-    payment_terms: Optional[str] = None
-
-class InvoiceResponse(BaseModel):
-    id: UUID
-    account_id: UUID
-    account_name: Optional[str] = None # Added for UI
-    status: str
-    subtotal_amount: float
-    gst_amount: float
-    total_amount: float
-    payment_terms: str
-    due_date: Optional[date] = None
-    generated_at: datetime
-    pdf_path: Optional[str] = None
-    items: List[InvoiceItemSchema] = []
-
-    delivery_logs: List[InvoiceDeliveryLogResponse] = []
-    suggested_cc: List[str] = [] # Helper for UI
-
-    class Config:
-        from_attributes = True
-
-# NEW: The Read-Only Portal Payload
-class PortalDashboard(BaseModel):
-    account: AccountResponse
-    security_score: int
-    open_tickets: List[TicketResponse]
-    invoices: List[InvoiceResponse]
-    projects: List[ProjectResponse]
-
-# --- MASTER VIEW ---
-class AccountDetail(AccountResponse):
-    contacts: list[ContactResponse] = []
-    deals: list[DealResponse] = []
-    tickets: list[TicketResponse] = []
-    projects: list[ProjectResponse] = []
-    audit_data: dict | None = None 
-    invoices: list[InvoiceResponse] = [] 
-
-    class Config:
-        from_attributes = True
-
-# --- COMMENT SCHEMAS ---
+# --- COMMENTS ---
 class CommentCreate(BaseModel):
     body: str
     visibility: str = 'internal'
@@ -543,6 +478,24 @@ class CommentResponse(BaseModel):
     body: str
     visibility: str
     created_at: datetime
-    
+    class Config: from_attributes = True
+
+# --- PORTAL ---
+class PortalDashboard(BaseModel):
+    account: AccountResponse
+    security_score: int
+    open_tickets: List[TicketResponse]
+    invoices: List[InvoiceResponse]
+    projects: List[ProjectResponse]
+
+# --- MASTER ACCOUNT VIEW ---
+class AccountDetail(AccountResponse):
+    contacts: list[ContactResponse] = []
+    deals: list[DealResponse] = []
+    tickets: list[TicketResponse] = []
+    projects: list[ProjectResponse] = []
+    audit_data: dict | None = None 
+    invoices: list[InvoiceResponse] = [] 
+
     class Config:
         from_attributes = True
