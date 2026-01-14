@@ -29,6 +29,10 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt
             
+            # 3.5 RUN DATABASE MIGRATIONS (NEW)
+            echo "🏗️ Running Database Migrations..."
+            alembic upgrade head
+            
             # Restart Service (No Sudo Password needed due to sudoers config)
             echo "🔄 Restarting API Service..."
             sudo systemctl restart sanctum-api
