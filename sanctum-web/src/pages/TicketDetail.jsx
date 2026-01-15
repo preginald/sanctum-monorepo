@@ -113,6 +113,18 @@ export default function TicketDetail() {
       }
   };
 
+  const handleUnlinkArticle = async (e, articleId) => {
+      e.stopPropagation(); // Prevent navigating to the article
+      if(!confirm("Unlink this article?")) return;
+      try {
+          await api.delete(`/tickets/${id}/articles/${articleId}`);
+          addToast("Article unlinked", "info");
+          fetchTicket();
+      } catch(e) {
+          addToast("Failed to unlink", "danger");
+      }
+  };
+
   // --- SUB HANDLERS (Time/Material) ---
   const handleAddTime = async (e) => { 
     e.preventDefault(); 
@@ -356,19 +368,26 @@ export default function TicketDetail() {
                   </div>
               )}
 
-              <div className="space-y-2">
-                  {ticket.articles?.length > 0 ? ticket.articles.map(article => (
-                      <div key={article.id} onClick={() => navigate(`/wiki/${article.slug}`)} className="flex items-center justify-between p-3 bg-purple-900/10 border border-purple-500/20 hover:bg-purple-900/20 rounded cursor-pointer transition-colors group">
-                          <div className="flex items-center gap-3">
-                              <span className="text-xs font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">{article.identifier || 'WIKI'}</span>
-                              <span className="text-sm font-bold text-white group-hover:text-purple-200">{article.title}</span>
-                          </div>
-                          <ArrowLeft size={14} className="rotate-180 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                  )) : (
-                      <p className="text-xs opacity-30 italic">No SOPs linked to this ticket.</p>
-                  )}
-              </div>
+<div className="space-y-2">
+    {ticket.articles?.length > 0 ? ticket.articles.map(article => (
+        <div key={article.id} onClick={() => navigate(`/wiki/${article.slug}`)} className="flex items-center justify-between p-3 bg-purple-900/10 border border-purple-500/20 hover:bg-purple-900/20 rounded cursor-pointer transition-colors group relative pr-8">
+            <div className="flex items-center gap-3">
+                <span className="text-xs font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">{article.identifier || 'WIKI'}</span>
+                <span className="text-sm font-bold text-white group-hover:text-purple-200">{article.title}</span>
+            </div>
+            {/* Unlink Button (Visible on Hover) */}
+            <button 
+                onClick={(e) => handleUnlinkArticle(e, article.id)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                title="Unlink"
+            >
+                <X size={14} />
+            </button>
+        </div>
+    )) : (
+        <p className="text-xs opacity-30 italic">No SOPs linked to this ticket.</p>
+    )}
+</div>
           </div>
           
           {/* BILLABLE TIME LOGS */}
