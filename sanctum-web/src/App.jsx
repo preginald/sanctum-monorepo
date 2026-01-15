@@ -40,6 +40,9 @@ import LibraryIndex from './pages/LibraryIndex';
 import ArticleDetail from './pages/ArticleDetail';
 import ArticleEditor from './pages/ArticleEditor';
 
+import SystemHealth from './pages/SystemHealth';
+
+
 // 1. BASIC AUTH GUARD
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -105,6 +108,7 @@ function App() {
                               <Route path="/wiki/:id/edit" element={<ArticleEditor />} />
                               
                               <Route path="/admin/health" element={<Diagnostics />} />
+                              <Route path="/system/health" element={<SystemHealth />} />
                           </Routes>
                       </AdminRoute>
                   } />

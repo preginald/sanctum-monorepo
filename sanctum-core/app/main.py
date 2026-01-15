@@ -8,6 +8,10 @@ from sqlalchemy import text, func, desc
 from datetime import timedelta, datetime
 from pydantic import BaseModel
 
+import time
+
+import psutil
+
 # UPDATED: Import SessionLocal for background tasks
 from .database import get_db, SessionLocal
 from . import models, schemas, auth
@@ -41,52 +45,92 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 # --- SYSTEM DIAGNOSTICS ---
 @app.get("/system/health")
 def run_system_diagnostics(db: Session = Depends(get_db)):
+    start_time = time.time()
+    
+    # 1. GIT VERSION (Robust)
+    try:
+        # Resolve the directory of main.py, go up one level to sanctum-core
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        parent = os.path.dirname(cwd) # /Dev/DigitalSanctum usually
+        
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', '--short', 'HEAD'], 
+            cwd=parent, 
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+    except Exception as e:
+        commit = "UNKNOWN"
+
     report = {
         "timestamp": datetime.now(),
+        "version": commit,
         "status": "nominal",
+        "system": {},
+        "database": {"latency_ms": 0}, # Default Init
         "checks": []
     }
     
-    def add_check(name, status, message=""):
-        report["checks"].append({"name": name, "status": status, "message": message})
-        if status == "error": report["status"] = "degraded"
+    def add_check(name, status, message="", latency_ms=0):
+        report["checks"].append({
+            "name": name, 
+            "status": status, 
+            "message": message,
+            "latency": f"{latency_ms:.2f}ms" if latency_ms > 0 else None
+        })
+        if status == "error": report["status"] = "critical"
+        elif status == "warning" and report["status"] != "critical": report["status"] = "degraded"
 
-    # 1. DATABASE CONNECTION
+    # 2. SYSTEM VITALS
     try:
-        db.execute(text("SELECT 1"))
-        add_check("PostgreSQL Connection", "ok", "Connected")
+        du = psutil.disk_usage('/')
+        mem = psutil.virtual_memory()
+        report["system"] = {
+            "cpu_percent": psutil.cpu_percent(),
+            "memory_percent": mem.percent,
+            "disk_percent": du.percent,
+            "disk_free_gb": round(du.free / (1024**3), 2)
+        }
+        if du.percent > 90: add_check("Storage", "warning", "Disk Space Low")
+        else: add_check("Storage", "ok", f"{report['system']['disk_free_gb']}GB Free")
     except Exception as e:
-        add_check("PostgreSQL Connection", "error", str(e))
-        return report
+        report["system"] = {"cpu_percent": 0, "memory_percent": 0, "disk_percent": 0, "disk_free_gb": 0}
+        add_check("System Metrics", "error", str(e))
 
-    # 2. SCHEMA INTEGRITY
+    # 3. DATABASE LATENCY
+    try:
+        t0 = time.time()
+        # Simple scalar query is faster/safer
+        db.execute(text("SELECT 1")) 
+        t1 = time.time()
+        latency = (t1 - t0) * 1000
+        report["database"]["latency_ms"] = round(latency, 2)
+        
+        status = "ok"
+        if latency > 100: status = "warning"
+        if latency > 500: status = "error"
+        
+        add_check("Database Ping", status, "Connected", latency)
+    except Exception as e:
+        report["database"]["latency_ms"] = -1
+        add_check("Database Ping", "error", str(e))
+        # Do not return early, allow other checks to render
+
+    # 4. SCHEMA INTEGRITY
     required_tables = [
-        (models.User, "users"),
-        (models.Account, "accounts"),
-        (models.Contact, "contacts"),
-        (models.Deal, "deals"),
-        (models.Ticket, "tickets"),
-        (models.TicketTimeEntry, "ticket_time_entries"),
-        (models.TicketMaterial, "ticket_materials"),
-        (models.Project, "projects"),
-        (models.Milestone, "milestones"),
-        (models.DealItem, "deal_items"),
-        (models.Invoice, "invoices"),
-        (models.InvoiceItem, "invoice_items"),
-        (models.Campaign, "campaigns"),
-        (models.CampaignTarget, "campaign_targets"),
-        (models.AuditReport, "audit_reports"),
-        (models.Product, "products"),
-        (models.Comment, "comments")
+        (models.User, "Users"),
+        (models.Ticket, "Tickets"),
+        (models.Invoice, "Invoices"),
+        (models.Article, "Wiki")
     ]
 
     for model, name in required_tables:
         try:
             count = db.query(model).count()
-            add_check(f"Schema: {name}", "ok", f"{count} records")
+            add_check(f"Table: {name}", "ok", f"{count} records")
         except Exception as e:
-            add_check(f"Schema: {name}", "error", f"Table missing or corrupt: {str(e)}")
+            add_check(f"Table: {name}", "error", "Missing/Corrupt")
 
+    report["execution_time_ms"] = round((time.time() - start_time) * 1000, 2)
     return report
 
 # --- AUTHENTICATION ---
@@ -1183,3 +1227,17 @@ def link_article_to_ticket(ticket_id: int, article_id: str, db: Session = Depend
         ticket.articles.append(article)
         db.commit()
     return {"status": "linked"}
+
+@app.delete("/tickets/{ticket_id}/articles/{article_id}")
+def unlink_article_from_ticket(ticket_id: int, article_id: str, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    
+    if not ticket or not article: 
+        raise HTTPException(status_code=404, detail="Not found")
+    
+    if article in ticket.articles:
+        ticket.articles.remove(article)
+        db.commit()
+        
+    return {"status": "unlinked"}
