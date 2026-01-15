@@ -17,20 +17,32 @@ export const MarkdownComponents = {
     ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-300" {...props} />,
     li: ({node, ...props}) => <li className="pl-1" {...props} />,
     
-    // Code & Terminal
+    // Code & Terminal (FIXED)
     code: ({node, inline, className, children, ...props}) => {
-        return inline ? (
-            <code className="bg-black/50 text-green-400 font-mono text-sm px-1.5 py-0.5 rounded border border-white/5" {...props}>{children}</code>
-        ) : (
+        // Heuristic: If explicitly inline OR (no language class AND no newlines), treat as inline
+        const hasLang = /language-(\w+)/.exec(className || '');
+        const hasNewline = String(children).includes('\n');
+        const isInline = inline || (!hasLang && !hasNewline);
+
+        if (isInline) {
+            return (
+                <code className="bg-slate-800 text-orange-300 font-mono text-sm px-1.5 py-0.5 rounded border border-white/10" {...props}>
+                    {children}
+                </code>
+            );
+        }
+
+        return (
             <div className="my-6 rounded-lg overflow-hidden border border-slate-700 bg-[#0d1117]">
                 <div className="bg-slate-800/50 px-4 py-1 border-b border-slate-700 flex justify-between items-center">
                     <span className="text-xs font-mono text-slate-500">TERMINAL / CODE</span>
+                    {hasLang && <span className="text-xs font-mono text-slate-500 uppercase">{hasLang[1]}</span>}
                 </div>
                 <pre className="p-4 overflow-x-auto text-sm font-mono text-slate-300 leading-relaxed custom-scrollbar">
-                    <code {...props}>{children}</code>
+                    <code className={className} {...props}>{children}</code>
                 </pre>
             </div>
-        )
+        );
     },
     
     // Callouts / Blockquotes
