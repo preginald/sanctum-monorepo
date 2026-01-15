@@ -211,22 +211,23 @@ export default function TicketDetail() {
   };
   
   const handleGenerateInvoice = async () => { 
-      if (ticket.related_invoices && ticket.related_invoices.length > 0) {
-          const invIds = ticket.related_invoices.map(i => `#${i.id.slice(0,8)}`).join(', ');
-          if (!confirm(`WARNING: This ticket is already linked to Invoice(s) ${invIds}. \n\nGenerate another invoice anyway?`)) {
-              return;
-          }
-      } else {
-          if(!confirm("Generate Draft Invoice from billable items?")) return; 
-      }
-      
-      try { 
-          const res = await api.post(`/tickets/${id}/invoice`); 
-          addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success"); 
-          navigate(`/clients/${ticket.account_id}`); 
-      } catch(e) { 
-          addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
-      } 
+    if (ticket.related_invoices && ticket.related_invoices.length > 0) {
+        const invIds = ticket.related_invoices.map(i => `#${i.id.slice(0,8)}`).join(', ');
+        if (!confirm(`WARNING: This ticket is already linked to Invoice(s) ${invIds}. \n\nGenerate another invoice anyway?`)) {
+            return;
+        }
+    } else {
+        if(!confirm("Generate Draft Invoice from billable items?")) return; 
+    }
+    
+    try { 
+        // UPDATED PATH: Calls the Invoices Router
+        const res = await api.post(`/invoices/from_ticket/${id}`); 
+        addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success"); 
+        navigate(`/clients/${ticket.account_id}`); 
+    } catch(e) { 
+        addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
+    } 
   };
 
   // --- HELPERS ---

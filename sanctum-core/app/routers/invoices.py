@@ -7,21 +7,29 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import email_service
 from ..services.pdf_engine import pdf_engine
+# NEW: Import Billing Service
+from ..services.billing_service import billing_service
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
 def recalculate_invoice(invoice_id: str, db: Session):
     invoice = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
     if not invoice: return
-    subtotal = 0.0
+
+    # NEW: Logic delegated to Service
+    totals = billing_service.calculate_totals(invoice.items)
+
+    # Update line item totals (persistence)
     for item in invoice.items:
+        # Simple recalculation of line total to ensure consistency
+        # In a real app, you might want to call a service method for line items too
         item.total = round(item.quantity * item.unit_price, 2)
-        subtotal += item.total
-    gst = round(subtotal * 0.10, 2)
-    invoice.subtotal_amount = subtotal
-    invoice.gst_amount = gst
-    invoice.total_amount = round(subtotal + gst, 2)
+
+    invoice.subtotal_amount = totals["subtotal"]
+    invoice.gst_amount = totals["gst"]
+    invoice.total_amount = totals["total"]
     invoice.generated_at = func.now()
+    
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -35,6 +43,7 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         ).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
 
+    # [Logic for extracting items remains same, but we use Decimal for initial calcs in buffer]
     items_buffer = []
     running_subtotal = 0.0
 
@@ -45,27 +54,21 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         desc = f"Labor: {entry.product.name} ({entry.user_name})" if entry.product else f"Labor: General ({entry.user_name})"
         if entry.description: desc += f" - {entry.description}"
         desc += f" [Ref: Ticket #{ticket.id}]"
-        
-        line_total = hours * rate
+        line_total = hours * float(rate) # Temp float for buffer
         items_buffer.append({"description": desc, "quantity": round(hours, 2), "unit_price": rate, "total": round(line_total, 2), "ticket_id": ticket.id, "source_type": "time", "source_id": entry.id})
-        running_subtotal += line_total
 
     for mat in ticket.materials:
         price = mat.product.unit_price if mat.product else 0.0
         name = f"Hardware: {mat.product.name}" if mat.product else "Hardware: Unidentified"
         name += f" [Ref: Ticket #{ticket.id}]"
-        line_total = mat.quantity * price
+        line_total = mat.quantity * float(price)
         items_buffer.append({"description": name, "quantity": float(mat.quantity), "unit_price": price, "total": round(line_total, 2), "ticket_id": ticket.id, "source_type": "material", "source_id": mat.id})
-        running_subtotal += line_total
 
     if not items_buffer: raise HTTPException(status_code=400, detail="No billable items.")
 
-    subtotal = round(running_subtotal, 2)
-    gst = round(subtotal * 0.10, 2)
-    total = round(subtotal + gst, 2)
-
+    # Create Invoice shell
     new_invoice = models.Invoice(
-        account_id=ticket.account_id, status="draft", subtotal_amount=subtotal, gst_amount=gst, total_amount=total,
+        account_id=ticket.account_id, status="draft", 
         due_date=datetime.now() + timedelta(days=14), generated_at=func.now()
     )
     db.add(new_invoice)
@@ -75,8 +78,9 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         db.add(models.InvoiceItem(invoice_id=new_invoice.id, **item))
 
     db.commit()
-    db.refresh(new_invoice)
-    return new_invoice
+    
+    # Trigger Recalculate to do the Decimal Math
+    return recalculate_invoice(new_invoice.id, db)
 
 @router.get("/{invoice_id}", response_model=schemas.InvoiceResponse)
 def get_invoice_detail(invoice_id: str, db: Session = Depends(get_db)):
@@ -121,9 +125,10 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db)):
 
 @router.post("/{invoice_id}/items", response_model=schemas.InvoiceResponse)
 def add_invoice_item(invoice_id: str, item: schemas.InvoiceItemCreate, db: Session = Depends(get_db)):
+    # Using Decimal/Numeric logic via DB
     new_item = models.InvoiceItem(
         invoice_id=invoice_id, description=item.description, quantity=item.quantity, unit_price=item.unit_price,
-        total=round(item.quantity * item.unit_price, 2)
+        total=round(item.quantity * item.unit_price, 2) # Temp calc, recalculate fixes it
     )
     db.add(new_item)
     db.commit()

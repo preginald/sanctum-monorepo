@@ -1,10 +1,11 @@
-from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Float, Date, Text, Table
+from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Date, Text, Table, Numeric
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text, func
 from sqlalchemy.types import TIMESTAMP
 from .database import Base
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 # 1. ASSOCIATION TABLES
 ticket_contacts = Table('ticket_contacts', Base.metadata,
@@ -68,7 +69,7 @@ class Deal(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     title = Column(String)
-    amount = Column(Float)
+    amount = Column(Numeric(12,2))
     stage = Column(String, default='Infiltration')
     probability = Column(Integer, default=10)
     expected_close_date = Column(Date, nullable=True)
@@ -85,7 +86,7 @@ class DealItem(Base):
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"))
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"))
     quantity = Column(Integer, default=1)
-    override_price = Column(Float, nullable=True)
+    override_price = Column(Numeric(12, 2), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     deal = relationship("Deal", back_populates="items")
@@ -100,7 +101,7 @@ class Campaign(Base):
     brand_affinity = Column(String, default='ds')
     subject_template = Column(String, nullable=True)
     body_template = Column(Text, nullable=True)
-    budget_cost = Column(Float, default=0.0)
+    budget_cost = Column(Numeric(12, 2), default=0.0)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
@@ -137,7 +138,7 @@ class Project(Base):
     status = Column(String, default='planning')
     start_date = Column(Date, nullable=True)
     due_date = Column(Date, nullable=True)
-    budget = Column(Float, default=0.0)
+    budget = Column(Numeric(12, 2), default=0.0)
     is_deleted = Column(Boolean, default=False) 
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -152,7 +153,7 @@ class Milestone(Base):
     name = Column(String)
     due_date = Column(Date, nullable=True)
     status = Column(String, default='pending')
-    billable_amount = Column(Float, default=0.0)
+    billable_amount = Column(Numeric(12, 2), default=0.0)
     sequence = Column(Integer, default=1)
     invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
@@ -228,8 +229,18 @@ class TicketTimeEntry(Base):
     def service_name(self): return self.product.name if self.product else "General Labor"
     @property
     def calculated_value(self):
-        if not self.product: return 0.0
-        return round((self.duration_minutes / 60) * self.product.unit_price, 2)
+        if not self.product: return Decimal("0.00")
+        
+        # Convert duration to Decimal explicitly
+        hours = Decimal(self.duration_minutes) / Decimal("60")
+        
+        # Ensure unit_price is Decimal (SQLAlchemy Numeric returns Decimal, but just in case)
+        rate = self.product.unit_price
+        if not isinstance(rate, Decimal):
+            rate = Decimal(str(rate))
+            
+        total = hours * rate
+        return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 class TicketMaterial(Base):
     __tablename__ = "ticket_materials"
@@ -248,8 +259,15 @@ class TicketMaterial(Base):
     def unit_price(self): return self.product.unit_price if self.product else 0.0
     @property
     def calculated_value(self):
-        if not self.product: return 0.0
-        return round(self.quantity * self.product.unit_price, 2)
+        if not self.product: return Decimal("0.00")
+        
+        qty = Decimal(self.quantity)
+        rate = self.product.unit_price
+        if not isinstance(rate, Decimal):
+            rate = Decimal(str(rate))
+            
+        total = qty * rate
+        return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 class Product(Base):
     __tablename__ = "products"
@@ -257,7 +275,7 @@ class Product(Base):
     name = Column(String)
     description = Column(Text)
     type = Column(String) 
-    unit_price = Column(Float)
+    unit_price = Column(Numeric(12, 2))
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -284,9 +302,9 @@ class Invoice(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     status = Column(String, default='draft')
-    subtotal_amount = Column(Float, default=0.0)
-    gst_amount = Column(Float, default=0.0)
-    total_amount = Column(Float, default=0.0)
+    subtotal_amount = Column(Numeric(12, 2), default=0.0)
+    gst_amount = Column(Numeric(12, 2), default=0.0)
+    total_amount = Column(Numeric(12, 2), default=0.0)
     payment_terms = Column(String, default='Net 14 Days')
     due_date = Column(Date, nullable=True)
     generated_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
@@ -301,9 +319,9 @@ class InvoiceItem(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"))
     description = Column(String)
-    quantity = Column(Float)
-    unit_price = Column(Float)
-    total = Column(Float)
+    quantity = Column(Numeric(12, 2))
+    unit_price = Column(Numeric(12, 2))
+    total = Column(Numeric(12, 2))
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=True)
     source_type = Column(String, nullable=True)
     source_id = Column(UUID(as_uuid=True), nullable=True)
