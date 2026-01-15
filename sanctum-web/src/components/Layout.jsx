@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone } from 'lucide-react';
+// UPDATED: Added BookOpen to imports
+import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, BookOpen } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 
 export default function Layout({ children, title }) {
   const { user, token, setToken, logout } = useAuthStore();
 
-  // FIX: PERSIST STATE
   const [collapsed, setCollapsed] = useState(() => {
       return localStorage.getItem('sanctum_sidebar') === 'true';
   });
@@ -55,7 +55,6 @@ export default function Layout({ children, title }) {
     return () => clearInterval(interval);
   }, [token, setToken]);
 
-  // FIX: SAVE ON TOGGLE
   const toggleSidebar = () => {
       const newState = !collapsed;
       setCollapsed(newState);
@@ -63,8 +62,7 @@ export default function Layout({ children, title }) {
   };
 
   const NavItem = ({ icon, label, path }) => {
-    const active = location.pathname === path;
-    // Dynamic Class Construction
+    const active = location.pathname === path || location.pathname.startsWith(path + '/');
     const baseClass = "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all";
     const activeClass = active ? `${buttonClass} text-white shadow-lg` : "hover:bg-white/5 opacity-70 hover:opacity-100";
     const collapseClass = collapsed ? "justify-center" : "";
@@ -95,7 +93,6 @@ export default function Layout({ children, title }) {
                 </p>
               </div>
           )}
-          {/* UPDATE TOGGLE HANDLER */}
           <button onClick={toggleSidebar} className="opacity-50 hover:opacity-100 mt-1">
               {collapsed ? <ChevronRight size={20}/> : <ChevronLeft size={20}/>}
           </button>
@@ -107,14 +104,20 @@ export default function Layout({ children, title }) {
           {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
           {!isNaked && <NavItem icon={<Briefcase size={20} />} label="Projects" path="/projects" />}
           <NavItem icon={<Wifi size={20} />} label="Tickets" path="/tickets" />
+          
+          <div className="my-4 border-t border-white/10 mx-2"></div>
+          
           <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
           <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
           {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" />}
+          
+          {/* THE LIBRARY */}
+          <NavItem icon={<BookOpen size={20} />} label="The Library" path="/wiki" />
 
         </nav>
 
         <div className="p-4 border-t border-slate-800/50 space-y-2">
-          <button onClick={() => navigate('/admin/health')} className={`flex items-center gap-3 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold w-full px-2 ${collapsed ? "justify-center" : "text-left"}`}>
+          <button onClick={() => navigate('/system/health')} className={`flex items-center gap-3 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold w-full px-2 ${collapsed ? "justify-center" : "text-left"}`}>
             <Activity size={18} /> {!collapsed && <span>System Health</span>}
           </button>
           <button onClick={logout} className={`flex items-center gap-3 text-sm opacity-70 hover:opacity-100 w-full px-2 ${collapsed ? "justify-center" : "text-left"}`}>
