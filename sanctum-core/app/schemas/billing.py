@@ -1,0 +1,72 @@
+from typing import List, Optional
+from uuid import UUID
+from datetime import datetime, date
+from decimal import Decimal
+from .shared import SanctumBase
+
+# --- PRODUCTS ---
+class ProductCreate(SanctumBase):
+    name: str
+    description: Optional[str] = None
+    type: str 
+    unit_price: Decimal # FIXED: Decimal
+
+class ProductResponse(ProductCreate):
+    id: UUID
+    is_active: bool
+
+# --- INVOICES ---
+class InvoiceItemCreate(SanctumBase):
+    description: str
+    quantity: Decimal = Decimal("1.0")
+    unit_price: Decimal = Decimal("0.00")
+
+class InvoiceItemUpdate(SanctumBase):
+    description: Optional[str] = None
+    quantity: Optional[Decimal] = None
+    unit_price: Optional[Decimal] = None
+
+class InvoiceItemSchema(SanctumBase):
+    id: UUID
+    description: str
+    quantity: Decimal
+    unit_price: Decimal
+    total: Decimal
+    ticket_id: Optional[int] = None
+    source_type: Optional[str] = None
+
+class InvoiceDeliveryLogResponse(SanctumBase):
+    id: UUID
+    sent_at: datetime
+    sent_to: str
+    sent_cc: Optional[str]
+    status: str
+    sender_name: Optional[str] = None
+
+class InvoiceSendRequest(SanctumBase):
+    to_email: str # EmailStr
+    cc_emails: List[str] = []
+    subject: Optional[str] = None
+    message: Optional[str] = None
+
+class InvoiceUpdate(SanctumBase):
+    status: Optional[str] = None
+    due_date: Optional[date] = None
+    generated_at: Optional[datetime] = None
+    payment_terms: Optional[str] = None
+
+class InvoiceResponse(SanctumBase):
+    id: UUID
+    account_id: UUID
+    account_name: Optional[str] = None
+    status: str
+    subtotal_amount: Decimal
+    gst_amount: Decimal
+    total_amount: Decimal
+    payment_terms: str
+    due_date: Optional[date] = None
+    generated_at: datetime
+    pdf_path: Optional[str] = None
+    items: List[InvoiceItemSchema] = []
+    delivery_logs: List[InvoiceDeliveryLogResponse] = []
+    suggested_cc: List[str] = []
