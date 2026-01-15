@@ -289,7 +289,8 @@ def get_tickets(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
             joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
-            joinedload(models.Ticket.contacts)
+            joinedload(models.Ticket.contacts),
+            joinedload(models.Ticket.articles)
         )\
         .filter(models.Ticket.is_deleted == False)
 

@@ -397,6 +397,13 @@ class TicketUpdate(BaseModel):
     milestone_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None # Unified Contact Field? No, using M2M list usually.
 
+class ArticleLite(BaseModel):
+    id: UUID
+    title: str
+    slug: str
+    identifier: Optional[str] = None
+    class Config: from_attributes = True
+
 class TicketResponse(BaseModel):
     id: int
     subject: str
@@ -417,7 +424,8 @@ class TicketResponse(BaseModel):
     milestone_name: Optional[str] = None
     project_id: Optional[UUID] = None
     project_name: Optional[str] = None
-    
+
+    articles: List[ArticleLite] = []
     related_invoices: List[InvoiceLite] = [] 
 
     contacts: List[ContactResponse] = [] 

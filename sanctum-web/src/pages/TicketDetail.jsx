@@ -2,11 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, Copy, Briefcase } from 'lucide-react';
+// ADDED: BookOpen, LinkIcon
+import { Loader2, ArrowLeft, Save, Edit2, CheckCircle, Clock, FileText, User, X, Plus, Trash2, Package, Receipt, Copy, Briefcase, BookOpen, Link as LinkIcon } from 'lucide-react';
 import api from '../lib/api';
-// IMPORT REFACTOR
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
-// NEW: Shared Markdown Component
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { useToast } from '../context/ToastContext';
 
@@ -19,16 +18,20 @@ export default function TicketDetail() {
   const [contacts, setContacts] = useState([]); 
   const [products, setProducts] = useState([]); 
   const [accountProjects, setAccountProjects] = useState([]); 
+  
+  // NEW: Knowledge Base State
+  const [allArticles, setAllArticles] = useState([]);
+  const [showLinkArticle, setShowLinkArticle] = useState(false);
+  const [selectedArticleId, setSelectedArticleId] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   
-  // EDIT STATE FOR ITEMS
   const [editingTimeId, setEditingTimeId] = useState(null);
   const [timeEditForm, setTimeEditForm] = useState({});
   const [editingMatId, setEditingMatId] = useState(null);
   const [matEditForm, setMatEditForm] = useState({});
 
-  // Sub-Forms
   const [newEntry, setNewEntry] = useState({ start_time: '', end_time: '', description: '', product_id: '' });
   const [newMaterial, setNewMaterial] = useState({ product_id: '', quantity: 1 });
   const [showTimeForm, setShowTimeForm] = useState(false);
@@ -42,6 +45,7 @@ export default function TicketDetail() {
   useEffect(() => { 
       fetchTicket(); 
       fetchCatalog();
+      fetchArticles(); // Load articles for the linker
   }, [id]);
 
   useEffect(() => {
@@ -76,6 +80,10 @@ export default function TicketDetail() {
     try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { }
   };
 
+  const fetchArticles = async () => {
+      try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {}
+  };
+
   const handleSave = async () => {
     const payload = { ...formData };
     if (!payload.closed_at) delete payload.closed_at;
@@ -89,6 +97,20 @@ export default function TicketDetail() {
     } catch (e) { 
       addToast("Update failed", "danger"); 
     }
+  };
+
+  // --- KNOWLEDGE BASE HANDLER ---
+  const handleLinkArticle = async () => {
+      if(!selectedArticleId) return;
+      try {
+          await api.post(`/tickets/${id}/articles/${selectedArticleId}`);
+          addToast("Article linked", "success");
+          setShowLinkArticle(false);
+          setSelectedArticleId('');
+          fetchTicket();
+      } catch(e) {
+          addToast("Failed to link article", "danger");
+      }
   };
 
   // --- SUB HANDLERS (Time/Material) ---
@@ -201,7 +223,6 @@ export default function TicketDetail() {
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val || 0);
   const getEntryValue = (e) => e.calculated_value ?? ((e.duration_minutes / 60) * (e.product_id ? (products.find(p=>p.id===e.product_id)?.unit_price || 0) : 0));
   const getMatValue = (m) => m.calculated_value ?? (m.quantity * m.unit_price);
-  const toggleContact = (cid) => { const current = formData.contact_ids; setFormData({ ...formData, contact_ids: current.includes(cid) ? current.filter(x => x !== cid) : [...current, cid] }); };
 
   if (loading || !ticket) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
   const totalLaborValue = ticket.time_entries?.reduce((sum, e) => sum + getEntryValue(e), 0) || 0;
@@ -238,7 +259,7 @@ export default function TicketDetail() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        {/* ADD min-w-0 TO PREVENT GRID BLOWOUT */}
+        {/* LEFT COLUMN: DETAILS, LINKED KNOWLEDGE, ITEMS */}
         <div className="lg:col-span-2 space-y-6 min-w-0">
           
           {/* FINANCIAL GUARD */}
@@ -272,7 +293,6 @@ export default function TicketDetail() {
                 
                 <div className="pt-2 border-t border-slate-800">
                     <div className="text-sm text-gray-300">
-                        {/* UPDATED: Uses SanctumMarkdown */}
                         <SanctumMarkdown content={ticket.description || 'No description provided.'} />
                     </div>
                 </div>
@@ -283,7 +303,6 @@ export default function TicketDetail() {
                     <div className="pt-4 border-t border-slate-800">
                         <label className="text-xs uppercase opacity-50 block mb-2 text-green-400">Resolution</label>
                         <div className="p-3 bg-green-900/10 border border-green-900/30 rounded text-sm text-gray-300">
-                            {/* UPDATED: Uses SanctumMarkdown */}
                             <SanctumMarkdown content={ticket.resolution} />
                         </div>
                     </div>
@@ -311,6 +330,45 @@ export default function TicketDetail() {
                 <div className={formData.status === 'resolved' ? 'opacity-100' : 'opacity-50 grayscale'}><label className="block text-xs uppercase opacity-50 mb-1">Resolution</label><textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" value={formData.resolution} onChange={e => setFormData({...formData, resolution: e.target.value})} disabled={formData.status !== 'resolved'} /></div>
               </div>
             )}
+          </div>
+
+          {/* NEW: KNOWLEDGE BASE CARD */}
+          <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+              <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><BookOpen className="w-4 h-4 text-purple-400" /> Linked Knowledge</h3>
+                  {!showLinkArticle && <button onClick={() => setShowLinkArticle(true)} className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded flex items-center gap-1"><LinkIcon size={12}/> Link Article</button>}
+              </div>
+              
+              {showLinkArticle && (
+                  <div className="mb-4 p-3 bg-black/30 rounded border border-purple-500/30 flex gap-2">
+                      <select 
+                        className="flex-1 bg-slate-800 text-xs p-2 rounded border border-slate-600"
+                        value={selectedArticleId}
+                        onChange={e => setSelectedArticleId(e.target.value)}
+                      >
+                          <option value="">Select an Article...</option>
+                          {allArticles.map(a => (
+                              <option key={a.id} value={a.id}>{a.identifier ? `${a.identifier} - ` : ''}{a.title}</option>
+                          ))}
+                      </select>
+                      <button onClick={handleLinkArticle} disabled={!selectedArticleId} className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded text-xs font-bold">Link</button>
+                      <button onClick={() => setShowLinkArticle(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                  </div>
+              )}
+
+              <div className="space-y-2">
+                  {ticket.articles?.length > 0 ? ticket.articles.map(article => (
+                      <div key={article.id} onClick={() => navigate(`/wiki/${article.slug}`)} className="flex items-center justify-between p-3 bg-purple-900/10 border border-purple-500/20 hover:bg-purple-900/20 rounded cursor-pointer transition-colors group">
+                          <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">{article.identifier || 'WIKI'}</span>
+                              <span className="text-sm font-bold text-white group-hover:text-purple-200">{article.title}</span>
+                          </div>
+                          <ArrowLeft size={14} className="rotate-180 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                  )) : (
+                      <p className="text-xs opacity-30 italic">No SOPs linked to this ticket.</p>
+                  )}
+              </div>
           </div>
           
           {/* BILLABLE TIME LOGS */}
