@@ -1,13 +1,19 @@
 import React from 'react';
 import { StatusBadge, PriorityBadge } from './TicketBadges';
 import SanctumMarkdown from '../ui/SanctumMarkdown';
+// NEW IMPORT
+import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
 
 export default function TicketOverview({ ticket, isEditing, formData, setFormData, contacts, accountProjects }) {
   
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
-  const formatInputDate = (d) => d ? d.slice(0, 16) : ''; // Quick fix for datetime-local input
+  const formatInputDate = (d) => d ? d.slice(0, 16) : ''; 
+
+  // Helper for capitalization
+  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   if (!isEditing) {
+    // ... (Existing Read-Only View - No Changes needed) ...
     return (
       <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative space-y-6">
         <div className="grid grid-cols-2 gap-4">
@@ -50,26 +56,46 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
   return (
     <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl space-y-6 animate-in fade-in duration-200">
         <div className="grid grid-cols-3 gap-6">
+            
+            {/* STATUS */}
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1">Status</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>
-                    <option value="new">New</option><option value="open">Open</option><option value="pending">Pending</option><option value="resolved">Resolved</option>
+                <select 
+                    className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" 
+                    value={formData.status} 
+                    onChange={e => setFormData({...formData, status: e.target.value})}
+                >
+                    {TICKET_STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
                 </select>
             </div>
+
+            {/* PRIORITY */}
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1">Priority</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}>
-                    <option value="low">Low</option><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option>
+                <select 
+                    className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" 
+                    value={formData.priority} 
+                    onChange={e => setFormData({...formData, priority: e.target.value})}
+                >
+                    {TICKET_PRIORITIES.map(p => <option key={p} value={p}>{capitalize(p)}</option>)}
                 </select>
             </div>
+
+            {/* TYPE */}
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1">Type</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.ticket_type} onChange={e => setFormData({...formData, ticket_type: e.target.value})}>
-                    <option value="support">Support</option><option value="bug">Bug</option><option value="feature">Feature</option><option value="task">Task</option>
+                <select 
+                    className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" 
+                    value={formData.ticket_type} 
+                    onChange={e => setFormData({...formData, ticket_type: e.target.value})}
+                >
+                    {TICKET_TYPES.map(t => <option key={t} value={t}>{capitalize(t)}</option>)}
                 </select>
             </div>
         </div>
 
+        {/* ... Rest of the form remains same (Project, Contact, Dates, Markdown) ... */}
+        
         <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Project / Milestone</label>
