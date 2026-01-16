@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -11,6 +11,7 @@ import { useToast } from '../context/ToastContext';
 import TicketOverview from '../components/tickets/TicketOverview';
 import TicketBilling from '../components/tickets/TicketBilling';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
+import ResolveModal from '../components/tickets/ResolveModal';
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -22,6 +23,8 @@ export default function TicketDetail() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Global Save Lock
+  const [showResolveModal, setShowResolveModal] = useState(false);
+
   
   // DATA POOLS
   const [contacts, setContacts] = useState([]); 
@@ -119,6 +122,27 @@ export default function TicketDetail() {
       }
   };
 
+  const handleResolve = async (resolutionText) => {
+      setIsSaving(true);
+      try {
+          const payload = {
+              status: 'resolved',
+              resolution: resolutionText,
+              closed_at: new Date().toISOString() // Explicit close time
+          };
+          
+          await api.put(`/tickets/${id}`, payload);
+          await fetchTicket();
+          setShowResolveModal(false);
+          addToast("Ticket Resolved Successfully", "success");
+      } catch(e) {
+          addToast("Failed to resolve ticket", "danger");
+      } finally {
+          setIsSaving(false);
+      }
+  };
+
+
   // KNOWLEDGE HANDLERS
   const handleLinkArticle = async () => {
       if(!selectedArticleId) return;
@@ -155,6 +179,13 @@ export default function TicketDetail() {
         isDangerous={modal.isDangerous}
       />
 
+      <ResolveModal 
+        isOpen={showResolveModal} 
+        onClose={() => setShowResolveModal(false)} 
+        onResolve={handleResolve} 
+        loading={isSaving} 
+      />
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
         <div className="flex items-start gap-4 flex-1">
@@ -176,8 +207,33 @@ export default function TicketDetail() {
         </div>
 
         <div className="flex gap-2">
-            {!isEditing && <button disabled={isSaving} onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Receipt size={16} /> Generate Invoice</>}</button>}
-            {!isEditing ? <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit</button> : <div className="flex gap-2"><button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded bg-slate-700 text-sm">Cancel</button><button disabled={isSaving} onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-blue text-white text-sm font-bold disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Save size={16} /> Save</>}</button></div>}
+            {!isEditing && (
+                <>
+                    {/* RESOLVE BUTTON (Only if not resolved) */}
+                    {ticket.status !== 'resolved' && (
+                        <button 
+                            onClick={() => setShowResolveModal(true)} 
+                            className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5"
+                        >
+                            <CheckCircle size={16} /> Resolve
+                        </button>
+                    )}
+                    
+                    <button disabled={isSaving} onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                        {isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Receipt size={16} /> Generate Invoice</>}
+                    </button>
+                </>
+            )}
+            
+            {/* EDIT / SAVE (Existing) */}
+            {!isEditing ? (
+                <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit</button>
+            ) : (
+                <div className="flex gap-2">
+                    <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded bg-slate-700 text-sm">Cancel</button>
+                    <button disabled={isSaving} onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-blue text-white text-sm font-bold disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Save size={16} /> Save</>}</button>
+                </div>
+            )}
         </div>
       </div>
 
