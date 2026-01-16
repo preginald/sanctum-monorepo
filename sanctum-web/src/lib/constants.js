@@ -36,6 +36,7 @@ export const TICKET_TYPES = [
     "support",
     "bug",
     "feature",
+    "refactor",     // NEW
     "task",
     "access",       // New: Access Requests
     "maintenance",  // New: Scheduled Work

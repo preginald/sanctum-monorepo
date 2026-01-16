@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
     Bug, Zap, Clipboard, Lock, PenTool, Siren, 
-    LifeBuoy, Flame, HelpCircle 
+    LifeBuoy, Flame, HelpCircle, Hammer
 } from 'lucide-react';
 
 export const StatusBadge = ({ status }) => {
@@ -40,6 +40,7 @@ export const TicketTypeIcon = ({ type }) => {
         case 'bug': return <Bug size={16} className="text-red-400" />;
         case 'hotfix': return <Flame size={16} className="text-orange-500 fill-orange-500/20" />;
         case 'feature': return <Zap size={16} className="text-yellow-400" />;
+        case 'refactor': return <Hammer size={16} className="text-pink-400" />; // NEW
         case 'task': return <Clipboard size={16} className="text-blue-400" />;
         case 'access': return <Lock size={16} className="text-purple-400" />;
         case 'maintenance': return <PenTool size={16} className="text-slate-400" />;
