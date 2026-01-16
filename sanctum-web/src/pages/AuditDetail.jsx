@@ -1,303 +1,276 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import useAuthStore from '../store/authStore';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import CommentStream from '../components/CommentStream';
-import { Loader2, Plus, Trash2, FileText, CheckCircle, AlertTriangle, XCircle, Download, Save, RefreshCw, Edit2, ArrowLeft, Clock } from 'lucide-react';
 import api from '../lib/api';
+import { Loader2, ArrowLeft, Save, Shield, Download, Play, Plus, Trash2, Globe } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export default function AuditDetail() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const accountId = searchParams.get('account');
   const navigate = useNavigate();
-  const { token } = useAuthStore();
   const { addToast } = useToast();
-  
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isEditing, setIsEditing] = useState(!id);
-  
-  // Data State
+
   const [audit, setAudit] = useState(null);
-  const [selectedAccount, setSelectedAccount] = useState('');
-  const [items, setItems] = useState([
-    { category: 'Security', item: 'Firewall', status: 'green', comment: 'Standard ruleset active.' }
-  ]);
-  const [pdfUrl, setPdfUrl] = useState(null);
-  const [status, setStatus] = useState('draft');
+  const [items, setItems] = useState([]);
+  const [domain, setDomain] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const init = async () => {
-      try {
-        const cRes = await api.get('/accounts');
-        setClients(cRes.data);
-
-        if (id) {
+      // If ID is a UUID (length > 10 is a safe heuristic), fetch it.
+      // If ID is 'new' or undefined, initialize a fresh form.
+      if (id && id !== 'new') {
           fetchAudit();
-        } else {
-          setLoading(false);
-        }
-      } catch (err) { console.error(err); setLoading(false); }
-    };
-    if (token) init();
-  }, [token, id]);
+      } else {
+          initNewAudit();
+      }
+  }, [id, accountId]);
+
+  const initNewAudit = async () => {
+      setAudit({ account_id: accountId, status: 'draft', security_score: 0, infrastructure_score: 0 });
+      setLoading(false);
+  };
 
   const fetchAudit = async () => {
-    try {
-      const res = await api.get(`/audits/${id}`);
-      setAudit(res.data);
-      setSelectedAccount(res.data.account_id);
-      if (res.data.content?.items) setItems(res.data.content.items);
-      setPdfUrl(res.data.report_pdf_path);
-      setStatus(res.data.status);
-    } catch (e) { console.error(e); } 
-    finally { setLoading(false); }
+      try {
+          const res = await api.get(`/audits/${id}`);
+          setAudit(res.data);
+          setItems(res.data.content?.items || []);
+          
+          // Try to fetch domain from client if not set
+          if (res.data.account_id) {
+              const acc = await api.get(`/accounts/${res.data.account_id}`);
+              // Heuristic: guess domain from email or name
+              if (acc.data.billing_email) {
+                  setDomain(acc.data.billing_email.split('@')[1]);
+              }
+          }
+      } catch (e) { console.error(e); }
+      finally { setLoading(false); }
   };
 
-  const addItem = () => setItems([...items, { category: '', item: '', status: 'green', comment: '' }]);
-  const removeItem = (idx) => setItems(items.filter((_, i) => i !== idx));
-  const updateItem = (idx, field, val) => {
-    const newItems = [...items];
-    newItems[idx][field] = val;
-    setItems(newItems);
+  // --- ACTIONS ---
+
+  const runScan = async (e) => {
+      e.preventDefault();
+      if (!domain) return addToast("Enter a domain first", "warning");
+      
+      setScanning(true);
+      try {
+          const res = await api.post('/sentinel/scan', { domain });
+          // Append new results to existing items
+          setItems(prev => [...prev, ...res.data]);
+          addToast(`Sentinel found ${res.data.length} data points`, "success");
+      } catch(e) {
+          addToast("Scan failed. Domain might be unreachable.", "danger");
+      } finally { setScanning(false); }
   };
 
-  // Save/Update Logic
-  const handleSave = async (finalize = false) => {
-    if (!selectedAccount) {
-      addToast("Select a client first.", "warning");
-      return;
-    }
-    
-    try {
-      let currentId = id;
+  const saveAudit = async () => {
+      setSaving(true);
+      try {
+          const payload = { items }; // Simplified for update
+          if (id) {
+              await api.put(`/audits/${id}`, payload);
+              addToast("Audit saved", "success");
+          } else {
+              const res = await api.post('/audits', { account_id: accountId, items });
+              addToast("Audit created", "success");
+              navigate(`/audit/${res.data.id}`);
+          }
+      } catch(e) { addToast("Save failed", "danger"); }
+      finally { setSaving(false); }
+  };
 
-      if (!id) {
-        const res = await api.post('/audits', {
-          account_id: selectedAccount,
-          items: items
-        });
-        currentId = res.data.id;
-        navigate(`/audit/${currentId}`, { replace: true });
-        setIsEditing(false);
-        addToast("Audit draft created", "success");
-      } else {
-        await api.put(`/audits/${id}`, { items: items });
-        setIsEditing(false);
-        if (!finalize) addToast("Audit saved", "success");
+  const finalizeAudit = async () => {
+      if(!confirm("Finalize and Lock? This will generate the PDF report.")) return;
+      setSaving(true);
+      try {
+          await api.post(`/audits/${id}/finalize`);
+          addToast("Report Generated", "success");
+          fetchAudit();
+      } catch(e) { addToast("Finalization failed", "danger"); }
+      finally { setSaving(false); }
+  };
+
+  const addItem = () => {
+      setItems([...items, { category: 'General', item: 'New Observation', status: 'Amber', comment: '' }]);
+  };
+
+  const updateItem = (index, field, value) => {
+      const newItems = [...items];
+      newItems[index][field] = value;
+      setItems(newItems);
+  };
+
+  const removeItem = (index) => {
+      const newItems = [...items];
+      newItems.splice(index, 1);
+      setItems(newItems);
+  };
+
+  const getPdfUrl = (path) => {
+      if (!path) return '#';
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+          return `http://${window.location.hostname}:8000${path}`;
       }
-
-      if (finalize) {
-        await performFinalize(currentId);
-      } else {
-        fetchAudit();
-      }
-    } catch (err) { addToast("Operation Failed", "danger"); }
+      return path;
   };
 
-  // Dedicated Finalize Action (For Read Mode)
-  const performFinalize = async (targetId) => {
-    try {
-      const finalRes = await api.post(`/audits/${targetId}/finalize`, {});
-      setPdfUrl(finalRes.data.report_pdf_path);
-      setStatus('finalized');
-      // Force reload to get updated timestamps
-      fetchAudit(); 
-      addToast("Report Generated Successfully", "success");
-    } catch (err) { addToast("Finalization Failed", "danger"); }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
-  };
-
-  if (loading) return <Layout title="Loading..."><div className="p-8 opacity-50"><Loader2 className="animate-spin"/></div></Layout>;
-
-  const clientName = clients.find(c => c.id === selectedAccount)?.name || 'Unknown Client';
+  if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title={id ? `Audit Reference: ${id.slice(0,8)}` : "New Audit"}>
+    <Layout title={id ? "Security Audit" : "New Assessment"}>
       
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/audit')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
-          <div>
-            <h1 className="text-2xl font-bold">{clientName}</h1>
-            <p className="opacity-50 text-sm">Technical Risk Assessment</p>
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-8">
+          <div className="flex items-center gap-4">
+              <button onClick={() => navigate(-1)} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20}/></button>
+              <div>
+                  <h1 className="text-2xl font-bold flex items-center gap-2">
+                      <Shield className={audit?.status === 'finalized' ? "text-green-500" : "text-slate-500"} />
+                      {audit?.status === 'finalized' ? 'Audit Report (Locked)' : 'Draft Assessment'}
+                  </h1>
+                  {audit?.status === 'finalized' && (
+                      <div className="flex gap-4 mt-2 text-sm font-mono opacity-70">
+                          <span>Sec Score: {audit.security_score}</span>
+                          <span>Infra Score: {audit.infrastructure_score}</span>
+                      </div>
+                  )}
+              </div>
           </div>
-        </div>
-
-        {/* CONTROLS */}
-        {!isEditing ? (
           <div className="flex gap-2">
-            {/* Direct Finalize Button (If Draft) */}
-            {status === 'draft' && (
-              <button 
-                onClick={() => performFinalize(id)} 
-                className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-gold hover:bg-yellow-500 text-slate-900 text-sm font-bold shadow-lg animate-pulse"
-              >
-                <FileText size={16} /> Finalize {'&'} Generate
-              </button>
-            )}
-            
-            {/* PDF Download (If Finalized) */}
-            {pdfUrl && (
-              <a href={pdfUrl} target="_blank" className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sanctum-gold text-sm font-bold">
-                <Download size={16} /> PDF
-              </a>
-            )}
-            
-            <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-blue hover:bg-blue-600 text-white text-sm font-bold">
-              <Edit2 size={16} /> Edit Data
-            </button>
+              {audit?.report_pdf_path && (
+                  <a href={getPdfUrl(audit.report_pdf_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded font-bold text-sm">
+                      <Download size={16}/> Report
+                  </a>
+              )}
+              {audit?.status !== 'finalized' && (
+                  <>
+                      <button onClick={saveAudit} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-bold text-sm">
+                          <Save size={16}/> Save Draft
+                      </button>
+                      <button onClick={finalizeAudit} disabled={saving || !id} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm">
+                          {saving ? <Loader2 className="animate-spin" size={16}/> : <><Shield size={16}/> Finalize & Generate PDF</>}
+                      </button>
+                  </>
+              )}
           </div>
-        ) : (
-          <div className="flex gap-2">
-            <button onClick={() => id ? setIsEditing(false) : navigate('/audit')} className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-white text-sm">Cancel</button>
-            <button onClick={() => handleSave(false)} className="flex items-center gap-2 px-4 py-2 rounded bg-slate-600 hover:bg-slate-500 text-white text-sm">
-              <Save size={16} /> Save Draft
-            </button>
-            <button onClick={() => handleSave(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-gold text-slate-900 hover:bg-yellow-500 text-sm font-bold shadow-lg">
-              {pdfUrl ? <RefreshCw size={16} /> : <FileText size={16} />} 
-              {pdfUrl ? 'Regenerate PDF' : 'Finalize & Generate'}
-            </button>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* LEFT: CONTENT */}
-        <div className="lg:col-span-2 space-y-6">
           
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
-            
-            {/* TIMESTAMPS */}
-            {audit && (
-              <div className="grid grid-cols-3 gap-4 mb-6 pb-6 border-b border-slate-700">
-                <div>
-                  <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1"><Clock size={12}/> Created</label>
-                  <span className="text-sm font-mono opacity-80">{formatDate(audit.created_at)}</span>
-                </div>
-                {/* Show Finalized Date if exists, otherwise Modified */}
-                {audit.finalized_at ? (
-                   <div>
-                    <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-green-500"><CheckCircle size={12}/> Finalized</label>
-                    <span className="text-sm font-mono opacity-80">{formatDate(audit.finalized_at)}</span>
+          {/* LEFT: CONTROLS */}
+          <div className="space-y-6">
+              
+              {/* SENTINEL SCANNER */}
+              {audit?.status !== 'finalized' && (
+                  <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative overflow-hidden">
+                      {/* Background Watermark */}
+                      <div className="absolute -right-6 -top-6 text-slate-800 opacity-50 pointer-events-none">
+                          <Globe size={100} />
+                      </div>
+                      
+                      <div className="relative z-10">
+                          <h3 className="font-bold text-sm uppercase tracking-widest text-blue-400 mb-2">The Sentinel</h3>
+                          <p className="text-xs text-slate-400 mb-4">Automated Reconnaissance Engine</p>
+                          
+                          <form onSubmit={runScan} className="flex gap-2 items-center">
+                              <div className="relative flex-1">
+                                  <div className="absolute left-3 top-2.5 text-slate-500 pointer-events-none">
+                                      <Globe size={16} />
+                                  </div>
+                                  <input 
+                                    placeholder="digitalsanctum.com.au" 
+                                    className="w-full bg-black/40 border border-slate-600 rounded-lg pl-10 pr-4 h-10 text-sm font-mono text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none transition-all placeholder:text-slate-600"
+                                    value={domain}
+                                    onChange={e => setDomain(e.target.value)}
+                                  />
+                              </div>
+                              <button 
+                                type="submit"
+                                disabled={scanning || !domain} 
+                                className="h-10 px-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap active:scale-95"
+                              >
+                                  {scanning ? <Loader2 className="animate-spin" size={14}/> : <Play size={14} className="fill-current"/>}
+                                  {scanning ? "Scanning" : "Scan Target"}
+                              </button>
+                          </form>
+                      </div>
                   </div>
-                ) : (
-                  <div>
-                    <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-yellow-500"><Clock size={12}/> Modified</label>
-                    <span className="text-sm font-mono opacity-80">{formatDate(audit.updated_at)}</span>
+              )}
+
+              {/* STATS (If Saved) */}
+              <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+                  <h3 className="font-bold text-sm uppercase text-slate-500 mb-4">Item Breakdown</h3>
+                  <div className="space-y-2 text-sm">
+                      <div className="flex justify-between"><span className="text-green-500">Pass (Green)</span><span>{items.filter(i => i.status === 'Green').length}</span></div>
+                      <div className="flex justify-between"><span className="text-yellow-500">Warn (Amber)</span><span>{items.filter(i => i.status === 'Amber').length}</span></div>
+                      <div className="flex justify-between"><span className="text-red-500">Fail (Red)</span><span>{items.filter(i => i.status === 'Red').length}</span></div>
                   </div>
-                )}
-                <div>
-                  <label className="text-xs uppercase opacity-50 block mb-1 flex items-center gap-1 text-blue-400"><CheckCircle size={12}/> Status</label>
-                  <span className="text-sm font-bold uppercase">{status}</span>
-                </div>
               </div>
-            )}
-
-            {/* CLIENT SELECTOR (New Only) */}
-            {!id && isEditing && (
-              <div className="mb-6">
-                <label className="text-xs uppercase opacity-70 block mb-1">Target Client</label>
-                <select 
-                  className="w-full p-3 rounded bg-black/40 border border-slate-600 text-white outline-none"
-                  value={selectedAccount}
-                  onChange={e => setSelectedAccount(e.target.value)}
-                >
-                  <option value="">-- Select --</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            )}
-
-            {/* --- READ MODE --- */}
-            {!isEditing && (
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div className="p-4 bg-black/20 rounded border border-slate-700 text-center">
-                    <span className="text-xs uppercase opacity-50">Security Score</span>
-                    <div className={`text-4xl font-bold ${audit.security_score < 50 ? 'text-red-500' : audit.security_score < 80 ? 'text-orange-500' : 'text-green-500'}`}>
-                      {audit.security_score}/100
-                    </div>
-                  </div>
-                  <div className="p-4 bg-black/20 rounded border border-slate-700 text-center">
-                    <span className="text-xs uppercase opacity-50">Infrastructure</span>
-                    <div className="text-4xl font-bold text-white">
-                      {audit.infrastructure_score}/100
-                    </div>
-                  </div>
-                </div>
-
-                {items.map((row, idx) => (
-                  <div key={idx} className="flex items-start gap-4 p-3 border-b border-slate-800 last:border-0">
-                    <div className="w-8 pt-1">
-                      {row.status === 'red' && <XCircle className="text-red-500" size={20} />}
-                      {row.status === 'amber' && <AlertTriangle className="text-orange-500" size={20} />}
-                      {row.status === 'green' && <CheckCircle className="text-green-500" size={20} />}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <span className="font-bold text-white">{row.item}</span>
-                        <span className="text-xs opacity-50 uppercase">{row.category}</span>
-                      </div>
-                      <p className="text-sm text-gray-400 mt-1">{row.comment}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* --- EDIT MODE --- */}
-            {isEditing && (
-              <>
-                <div className="space-y-4">
-                  {items.map((row, idx) => (
-                    <div key={idx} className={`grid grid-cols-12 gap-2 items-start p-3 rounded bg-black/20 border border-slate-700/50`}>
-                      <div className="col-span-12 md:col-span-3">
-                        <input placeholder="Category" className="w-full p-2 rounded bg-transparent border border-slate-700 text-white text-sm" value={row.category} onChange={e => updateItem(idx, 'category', e.target.value)} />
-                      </div>
-                      <div className="col-span-12 md:col-span-4">
-                        <input placeholder="Item" className="w-full p-2 rounded bg-transparent border border-slate-700 text-white text-sm" value={row.item} onChange={e => updateItem(idx, 'item', e.target.value)} />
-                      </div>
-                      <div className="col-span-12 md:col-span-4 flex gap-1">
-                        {['red', 'amber', 'green'].map(color => (
-                          <button key={color} onClick={() => updateItem(idx, 'status', color)} className={`flex-1 py-1 rounded flex justify-center items-center transition-all ${row.status === color ? (color === 'red' ? 'bg-red-600' : color === 'amber' ? 'bg-orange-600' : 'bg-green-600') : 'bg-slate-800 opacity-50'}`}>
-                            {color === 'red' && <XCircle size={14} />}
-                            {color === 'amber' && <AlertTriangle size={14} />}
-                            {color === 'green' && <CheckCircle size={14} />}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="col-span-12 flex gap-2">
-                        <input placeholder="Analysis..." className="flex-1 p-2 rounded bg-transparent border border-slate-700 text-white text-xs" value={row.comment} onChange={e => updateItem(idx, 'comment', e.target.value)} />
-                        <button onClick={() => removeItem(idx)} className="text-slate-600 hover:text-red-500"><Trash2 size={16} /></button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <button onClick={addItem} className="mt-4 w-full py-2 border border-dashed border-slate-600 text-slate-400 hover:text-white hover:border-white rounded text-sm flex justify-center items-center gap-2">
-                  <Plus size={14} /> Add Checklist Item
-                </button>
-              </>
-            )}
-
           </div>
-        </div>
 
-        {/* RIGHT: COMMENT STREAM */}
-        <div className="h-[600px]">
-          {id ? (
-            <CommentStream resourceType="audit" resourceId={id} />
-          ) : (
-            <div className="h-full bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-center opacity-30 text-sm">
-              Save draft to enable comments.
-            </div>
-          )}
-        </div>
+          {/* RIGHT: AUDIT ITEMS */}
+          <div className="lg:col-span-2">
+              <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-sm">
+                      <thead className="bg-black/20 text-slate-500 uppercase text-xs font-bold">
+                          <tr>
+                              <th className="p-4 w-32">Category</th>
+                              <th className="p-4 w-48">Observation</th>
+                              <th className="p-4 w-32">Status</th>
+                              <th className="p-4">Comment</th>
+                              <th className="p-4 w-10"></th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800">
+                          {items.map((item, idx) => (
+                              <tr key={idx} className="hover:bg-white/5 transition-colors group">
+                                  <td className="p-2">
+                                      <input className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none" value={item.category} onChange={e => updateItem(idx, 'category', e.target.value)} disabled={audit?.status === 'finalized'}/>
+                                  </td>
+                                  <td className="p-2">
+                                      <input className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none" value={item.item} onChange={e => updateItem(idx, 'item', e.target.value)} disabled={audit?.status === 'finalized'}/>
+                                  </td>
+                                  <td className="p-2">
+                                      <select 
+                                        className={`w-full bg-transparent border-none outline-none font-bold ${item.status === 'Red' ? 'text-red-500' : (item.status === 'Amber' ? 'text-yellow-500' : 'text-green-500')}`} 
+                                        value={item.status} 
+                                        onChange={e => updateItem(idx, 'status', e.target.value)}
+                                        disabled={audit?.status === 'finalized'}
+                                      >
+                                          <option value="Green">Green</option>
+                                          <option value="Amber">Amber</option>
+                                          <option value="Red">Red</option>
+                                      </select>
+                                  </td>
+                                  <td className="p-2">
+                                      <input className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none text-slate-400" value={item.comment} onChange={e => updateItem(idx, 'comment', e.target.value)} disabled={audit?.status === 'finalized'}/>
+                                  </td>
+                                  <td className="p-2 text-center">
+                                      {audit?.status !== 'finalized' && (
+                                          <button onClick={() => removeItem(idx)} className="text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                              <Trash2 size={16}/>
+                                          </button>
+                                      )}
+                                  </td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+                  {audit?.status !== 'finalized' && (
+                      <div className="p-4 border-t border-slate-800">
+                          <button onClick={addItem} className="flex items-center gap-2 text-xs font-bold text-blue-500 hover:text-white uppercase tracking-widest">
+                              <Plus size={14}/> Add Observation
+                          </button>
+                      </div>
+                  )}
+              </div>
+          </div>
 
       </div>
     </Layout>

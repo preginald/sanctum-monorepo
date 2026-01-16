@@ -269,7 +269,7 @@ export default function ClientDetail() {
                       <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-slate-400">
                           <Activity size={16} /> Audit History
                       </h3>
-                      <button onClick={() => navigate(`/audit?account=${id}`)} className="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20">New Audit</button>
+                      <button onClick={() => navigate(`/audit/new?account=${id}`)} className="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20">New Audit</button>
                   </div>
                   <div className="space-y-2">
                       {audits.map(a => (
