@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm'; // NEW IMPORT
 
 // The "Sanctum Standard" Typography Definition
 export const MarkdownComponents = {
@@ -17,9 +18,20 @@ export const MarkdownComponents = {
     ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-300" {...props} />,
     li: ({node, ...props}) => <li className="pl-1" {...props} />,
     
-    // Code & Terminal (FIXED)
+    // Tables (NEW)
+    table: ({node, ...props}) => (
+        <div className="overflow-x-auto my-6 rounded-lg border border-slate-700">
+            <table className="w-full text-left text-sm text-slate-400" {...props} />
+        </div>
+    ),
+    thead: ({node, ...props}) => <thead className="bg-slate-800 text-xs uppercase font-bold text-slate-300" {...props} />,
+    tbody: ({node, ...props}) => <tbody className="divide-y divide-slate-800" {...props} />,
+    tr: ({node, ...props}) => <tr className="hover:bg-white/5 transition-colors" {...props} />,
+    th: ({node, ...props}) => <th className="px-4 py-3 whitespace-nowrap" {...props} />,
+    td: ({node, ...props}) => <td className="px-4 py-3" {...props} />,
+
+    // Code & Terminal
     code: ({node, inline, className, children, ...props}) => {
-        // Heuristic: If explicitly inline OR (no language class AND no newlines), treat as inline
         const hasLang = /language-(\w+)/.exec(className || '');
         const hasNewline = String(children).includes('\n');
         const isInline = inline || (!hasLang && !hasNewline);
@@ -58,7 +70,12 @@ export default function SanctumMarkdown({ content, className="" }) {
     if (!content) return null;
     return (
         <div className={`max-w-none ${className}`}>
-            <ReactMarkdown components={MarkdownComponents}>{content}</ReactMarkdown>
+            <ReactMarkdown 
+                components={MarkdownComponents}
+                remarkPlugins={[remarkGfm]} // Enable GFM (Tables, Strikethrough)
+            >
+                {content}
+            </ReactMarkdown>
         </div>
     );
 }
