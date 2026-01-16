@@ -134,3 +134,30 @@ def archive_product(product_id: str, current_user: models.User = Depends(auth.ge
     product.is_active = False
     db.commit()
     return {"status": "archived"}
+
+# --- CONTACTS ---
+@router.post("/contacts", response_model=schemas.ContactResponse)
+def create_contact(contact: schemas.ContactCreate, db: Session = Depends(get_db)):
+    new_contact = models.Contact(**contact.model_dump())
+    db.add(new_contact)
+    db.commit()
+    db.refresh(new_contact)
+    return new_contact
+
+@router.put("/contacts/{contact_id}", response_model=schemas.ContactResponse)
+def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, db: Session = Depends(get_db)):
+    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    if not contact: raise HTTPException(status_code=404, detail="Contact not found")
+    update_data = contact_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items(): setattr(contact, key, value)
+    db.commit()
+    db.refresh(contact)
+    return contact
+
+@router.delete("/contacts/{contact_id}")
+def delete_contact(contact_id: str, db: Session = Depends(get_db)):
+    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
+    if not contact: raise HTTPException(status_code=404, detail="Contact not found")
+    db.delete(contact)
+    db.commit()
+    return {"status": "deleted"}

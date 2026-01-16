@@ -1,394 +1,303 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import OrgChart from '../components/OrgChart';
 import api from '../lib/api';
-
-// CONTEXT
+import useAuthStore from '../store/authStore';
+import { Loader2, Save, Edit2, ArrowLeft, Activity, Ticket, Mail, Globe, Hash, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
-// UI KIT IMPORTS
-import Card from '../components/ui/Card';
-import Badge from '../components/ui/Badge';
-import Button from '../components/ui/Button';
-import Modal from '../components/ui/Modal';
+// COMPONENTS
+import HumanSection from '../components/clients/HumanSection';
+import FinancialSection from '../components/clients/FinancialSection';
+import ClientModals from '../components/clients/ClientModals';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
 
-// SUB-COMPONENTS
-import ClientInfoCard from '../components/clients/ClientInfoCard';
-import ClientTicketList from '../components/clients/ClientTicketList';
-
-// ICONS
-import { 
-  Loader2, ArrowLeft, Mail, Users, Edit2, Save, Plus, 
-  Network, Phone, FileText, Download, Trash2
-} from 'lucide-react';
+// BADGES (Inline for now, can be extracted)
+const Badge = ({ children, color }) => (
+    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${color}`}>
+        {children}
+    </span>
+);
 
 export default function ClientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { addToast } = useToast();
-  
-  // === STATE ===
-  const [client, setClient] = useState(null);
+
+  const [account, setAccount] = useState(null);
+  const [users, setUsers] = useState([]);
   const [audits, setAudits] = useState([]);
-  const [portalUsers, setPortalUsers] = useState([]);
+  const [tickets, setTickets] = useState([]); // Restore Tickets
   const [loading, setLoading] = useState(true);
-  
-  // === MODALS & EDITING ===
   const [isEditingAccount, setIsEditingAccount] = useState(false);
-  const [activeModal, setActiveModal] = useState(null); 
-  
-  // === FORMS ===
-  const [accountForm, setAccountForm] = useState({});
-  const [contactForm, setContactForm] = useState({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' });
-  const [dealForm, setDealForm] = useState({ title: '', amount: 0, stage: 'Infiltration', probability: 10 });
-  const [projectForm, setProjectForm] = useState({ name: '', budget: '', due_date: '' });
-  const [ticketForm, setTicketForm] = useState({ subject: '', priority: 'normal', description: '' });
-  const [portalForm, setPortalForm] = useState({ email: '', password: '', full_name: '' });
-  
-  const [editingContactId, setEditingContactId] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const isNaked = user?.scope === 'nt_only';
-  const isGlobal = user?.scope === 'global';
+  // FORM & MODAL STATE
+  const [activeModal, setActiveModal] = useState(null);
+  const [forms, setForms] = useState({
+      contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' }, // Added phone/reports_to
+      project: { name: '', budget: 0, due_date: '' },
+      deal: { title: '', amount: 0, stage: 'Infiltration', probability: 10 },
+      user: { email: '', password: '', full_name: '' }
+  });
 
-  // === FETCH ===
-  useEffect(() => { fetchDetail(); }, [id]);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', action: null });
 
-  const fetchDetail = async () => {
-    try {
-      const response = await api.get(`/accounts/${id}`);
-      setClient(response.data);
-      setAccountForm({ 
-        name: response.data.name, status: response.data.status, type: response.data.type, 
-        brand_affinity: response.data.brand_affinity, billing_email: response.data.billing_email || '' 
-      });
-      api.get(`/audits?account_id=${id}`).then(res => setAudits(res.data));
-      api.get(`/accounts/${id}/users`).then(res => setPortalUsers(res.data));
-    } catch (err) { 
-        console.error(err); 
-        addToast("Failed to load client data", "error");
-    } finally { setLoading(false); }
+  useEffect(() => { fetchAll(); }, [id]);
+
+  const fetchAll = async () => {
+      try {
+          // RESTORED: Ticket fetching
+          const [accRes, auditRes, userRes] = await Promise.all([
+              api.get(`/accounts/${id}`),
+              api.get(`/audits?account_id=${id}`),
+              api.get(`/accounts/${id}/users`)
+          ]);
+          setAccount(accRes.data);
+          setAudits(auditRes.data);
+          setUsers(userRes.data);
+          
+          // Tickets are nested in AccountDetail from the backend now?
+          // If using the new schema logic, tickets might be in accRes.data.tickets
+          if (accRes.data.tickets) setTickets(accRes.data.tickets);
+
+      } catch(e) { console.error(e); }
+      finally { setLoading(false); }
   };
-
-  // === HANDLERS ===
 
   const saveAccount = async () => {
-    try { 
-        await api.put(`/accounts/${id}`, accountForm); 
-        setIsEditingAccount(false); 
-        fetchDetail();
-        addToast("Account updated successfully", "success");
-    } catch (err) { 
-        addToast("Update failed: " + (err.response?.data?.detail || "Unknown error"), "error"); 
-    }
+      setIsSaving(true);
+      try {
+          await api.put(`/accounts/${id}`, { 
+              name: account.name, 
+              type: account.type, 
+              brand_affinity: account.brand_affinity,
+              status: account.status,
+              billing_email: account.billing_email
+          });
+          setIsEditingAccount(false);
+          addToast("Account updated", "success");
+      } catch(e) { addToast("Update failed", "danger"); }
+      finally { setIsSaving(false); }
   };
 
-  const saveContact = async (e) => {
-    e.preventDefault();
-    try {
-      const p = { ...contactForm, reports_to_id: contactForm.reports_to_id || null };
-      if (editingContactId) await api.put(`/contacts/${editingContactId}`, p);
-      else await api.post('/contacts', { ...p, account_id: id });
-      
-      setActiveModal(null); 
-      fetchDetail(); 
-      addToast(editingContactId ? "Contact updated" : "Contact added", "success");
-    } catch (err) { addToast("Failed to save contact", "error"); }
-  };
-
-  const handleCreatePortalUser = async (e) => {
+  const handleModalSubmit = async (e) => {
       e.preventDefault();
-      try { 
-          await api.post(`/accounts/${id}/users`, portalForm); 
-          setActiveModal(null); 
-          fetchDetail(); 
-          addToast("Portal access granted", "success"); 
-      } catch (e) { addToast("Failed to create user. Email may be duplicate.", "error"); }
+      setIsSaving(true);
+      try {
+          if (activeModal === 'contact') {
+              // Sanitize Payload
+              const payload = { ...forms.contact, account_id: id };
+              if (payload.reports_to_id === '') payload.reports_to_id = null; // FIX UUID ERROR
+
+              if (forms.contact.id) await api.put(`/contacts/${forms.contact.id}`, payload);
+              else await api.post('/contacts', payload);
+              addToast(forms.contact.id ? "Contact updated" : "Contact added", "success");
+          } else if (activeModal === 'project') {
+              await api.post('/projects', { ...forms.project, account_id: id });
+              addToast("Project initialized", "success");
+          } else if (activeModal === 'deal') {
+              await api.post('/deals', { ...forms.deal, account_id: id });
+              addToast("Deal created", "success");
+          } else if (activeModal === 'user') {
+              await api.post(`/accounts/${id}/users`, forms.user);
+              addToast("User provisioned", "success");
+          }
+          setActiveModal(null);
+          fetchAll(); 
+      } catch(e) { 
+          console.error("Modal Submit Error:", e);
+          let errorMsg = "Action failed";
+          // Handle FastAPI Validation Errors (Array of objects)
+          if (e.response?.data?.detail) {
+              const detail = e.response.data.detail;
+              if (Array.isArray(detail)) {
+                  errorMsg = detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
+              } else if (typeof detail === 'object') {
+                  errorMsg = JSON.stringify(detail);
+              } else {
+                  errorMsg = detail;
+              }
+          }
+          addToast(errorMsg, "danger"); 
+      } finally { setIsSaving(false); }
   };
 
-  const handleRevokeAccess = async (uid) => { 
-      if(!confirm("Revoke access?")) return;
-      try { 
-          await api.delete(`/users/${uid}`); 
-          fetchDetail(); 
-          addToast("Access revoked", "info");
-      } catch(e) { addToast("Revoke failed", "error"); } 
-  };
-  
-  // Generic Create Handler
-  const handleCreateGeneric = async (endpoint, data, resetForm) => {
-      try { 
-          await api.post(endpoint, { ...data, account_id: id }); 
-          setActiveModal(null); 
-          if(resetForm) resetForm(); 
-          fetchDetail(); 
-          addToast("Item created successfully", "success");
-      } catch(e) { addToast("Failed to create item", "error"); }
+  const confirmAction = (title, message, action) => {
+      setConfirmModal({ isOpen: true, title, message, action, isDangerous: true });
   };
 
-  const handleDeleteGeneric = async (endpoint, itemId) => {
-      if(!confirm("Delete item?")) return;
-      try { 
-          await api.delete(`${endpoint}/${itemId}`); 
-          fetchDetail(); 
-          addToast("Item archived", "info");
-      } catch(e){ addToast("Failed to delete", "error"); }
+  const deleteContact = async (cid) => {
+      try { await api.delete(`/contacts/${cid}`); addToast("Contact removed", "info"); fetchAll(); } 
+      catch(e) { addToast("Failed to remove", "danger"); }
   };
 
-  // === HELPERS ===
-  const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
-  const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
-  
-  const openEditContact = (c) => { setEditingContactId(c.id); setContactForm(c); setActiveModal('contact'); };
-  const openNewContact = () => { setEditingContactId(null); setContactForm({ first_name: '', last_name: '', email: '', phone: '', persona: 'Influencer', reports_to_id: '' }); setActiveModal('contact'); };
+  const deleteTicket = async (e, tid) => {
+      e.stopPropagation();
+      try { await api.delete(`/tickets/${tid}`); addToast("Ticket archived", "info"); fetchAll(); }
+      catch(err) { addToast("Failed to delete", "danger"); }
+  };
 
-  if (loading || !client) return <Layout title="Loading..."><div className="flex justify-center p-8"><Loader2 className="animate-spin text-white"/></div></Layout>;
+  const revokeUser = async (uid) => {
+      try { await api.delete(`/users/${uid}`); addToast("Access revoked", "info"); fetchAll(); }
+      catch(e) { addToast("Failed to revoke", "danger"); }
+  };
+
+  if (loading || !account) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
     <Layout title="Client Profile">
       
+      <ConfirmationModal 
+        isOpen={confirmModal.isOpen} 
+        onClose={() => setConfirmModal({...confirmModal, isOpen: false})} 
+        onConfirm={confirmModal.action} 
+        title={confirmModal.title} 
+        message={confirmModal.message} 
+        isDangerous={confirmModal.isDangerous}
+      />
+
+      <ClientModals 
+        activeModal={activeModal} 
+        onClose={() => setActiveModal(null)} 
+        onSubmit={handleModalSubmit} 
+        loading={isSaving} 
+        forms={forms} 
+        setForms={setForms} 
+      />
+
       {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate('/clients')} />
-          {isEditingAccount ? (
-            <input className="text-2xl font-bold bg-transparent border-b border-white outline-none text-white px-2 w-64" value={accountForm.name} onChange={(e) => setAccountForm({...accountForm, name: e.target.value})} />
-          ) : (
-            <div>
-              <h1 className="text-3xl font-bold text-white">{client.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge variant={client.status === 'client' ? 'success' : 'default'}>{client.status}</Badge>
-                {isGlobal && <Badge variant="outline">{client.brand_affinity}</Badge>}
+      <div className="flex justify-between items-start mb-8">
+          <div className="flex items-center gap-4">
+              <button onClick={() => navigate('/clients')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20}/></button>
+              <div>
+                  {isEditingAccount ? (
+                      <div className="space-y-2">
+                          <input className="text-3xl font-bold bg-black/40 border border-slate-600 rounded p-1 text-white w-full" value={account.name} onChange={e => setAccount({...account, name: e.target.value})} />
+                          <div className="flex gap-2">
+                              <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.status} onChange={e => setAccount({...account, status: e.target.value})}><option value="lead">Lead</option><option value="prospect">Prospect</option><option value="active">Active</option><option value="churned">Churned</option></select>
+                              <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.type} onChange={e => setAccount({...account, type: e.target.value})}><option value="business">Business</option><option value="residential">Residential</option></select>
+                          </div>
+                          {/* ADDED: Billing Email Input */}
+                          <input 
+                            placeholder="Billing Email"
+                            className="text-sm bg-black/40 border border-slate-600 rounded p-1 text-white w-full font-mono" 
+                            value={account.billing_email || ''} 
+                            onChange={e => setAccount({...account, billing_email: e.target.value})} 
+                          />
+                      </div>
+                  ) : (
+                      <>
+                        <h1 className="text-3xl font-bold">{account.name}</h1>
+                        <div className="flex gap-2 mt-2">
+                            <Badge color="bg-blue-600 text-white">{account.status}</Badge>
+                            <Badge color="bg-slate-700 text-slate-300">{account.type}</Badge>
+                            <Badge color={account.brand_affinity === 'ds' ? 'bg-sanctum-gold text-slate-900' : 'bg-naked-pink text-slate-900'}>{account.brand_affinity}</Badge>
+                        </div>
+                      </>
+                  )}
               </div>
-            </div>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {isEditingAccount ? (
-            <>
-              <Button variant="secondary" onClick={() => setIsEditingAccount(false)}>Cancel</Button>
-              <Button variant="success" icon={Save} onClick={saveAccount}>Save</Button>
-            </>
-          ) : (
-            <Button variant="secondary" icon={Edit2} onClick={() => setIsEditingAccount(true)}>Edit</Button>
-          )}
-        </div>
+          </div>
+          <div className="flex gap-2">
+              {isEditingAccount ? (
+                  <>
+                      <button onClick={() => setIsEditingAccount(false)} className="px-4 py-2 rounded bg-slate-700 text-sm">Cancel</button>
+                      <button onClick={saveAccount} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 text-white font-bold">{isSaving && <Loader2 className="animate-spin" size={16}/>} Save</button>
+                  </>
+              ) : (
+                  <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>
+              )}
+          </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* LEFT COLUMN */}
-        <div className="space-y-8">
-            <ClientInfoCard 
-                client={client} 
-                isEditing={isEditingAccount} 
-                form={accountForm} 
-                setForm={setAccountForm}
-                isNaked={isNaked}
-                onEdit={() => setIsEditingAccount(true)}
-                onCancel={() => setIsEditingAccount(false)}
-                onSave={saveAccount}
-            />
-
-            {/* PORTAL ACCESS */}
-            <Card title="Portal Access" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('portal')} />}>
-                <div className="space-y-3">{portalUsers.map(u => (
-                    <div key={u.id} className="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0">
-                        <div><div className="font-bold text-sm text-white">{u.full_name}</div><div className="text-xs opacity-50">{u.email}</div></div>
-                        <button onClick={() => handleRevokeAccess(u.id)} className="text-red-500 hover:text-red-400 text-xs font-bold uppercase">Revoke</button>
-                    </div>
-                ))}</div>
-            </Card>
-
-            {/* HUMANS */}
-            <Card title="Humans" action={<Button variant="ghost" size="sm" icon={Plus} onClick={openNewContact} />}>
-                <div className="space-y-4">{client.contacts.map(c => (
-                    <div key={c.id} className="pb-4 border-b border-gray-700/50 last:border-0 last:pb-0 group relative">
-                        <button onClick={() => openEditContact(c)} className="absolute right-0 top-0 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity"><Edit2 size={12} /></button>
-                        <div className="flex justify-between items-start">
-                            <div><p className="font-bold text-white">{c.first_name} {c.last_name}</p><p className="text-xs font-bold uppercase mt-0.5 text-slate-500">{c.persona}</p></div>
-                            {c.is_primary_contact && <span className="text-yellow-500 text-xs">⭐</span>}
-                        </div>
-                        <div className="flex flex-col gap-1 mt-2 text-xs opacity-70 text-slate-400">
-                            {c.email && <div className="flex items-center gap-2"><Mail size={12} /> {c.email}</div>}
-                            {c.phone && <div className="flex items-center gap-2"><Phone size={12} /> {c.phone}</div>}
-                        </div>
-                    </div>
-                ))}</div>
-            </Card>
-
-            {/* RISK ASSESSMENTS */}
-            <Card title="Risk Assessments" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => navigate('/audit')} />}>
-              <div className="space-y-3">
-                {audits.map(audit => (
-                  <div key={audit.id} onClick={() => navigate(`/audit/${audit.id}`)} className="flex justify-between items-center p-3 border-b border-gray-700/50 last:border-0 cursor-pointer hover:bg-white/5 rounded transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={audit.security_score < 50 ? 'danger' : audit.security_score < 80 ? 'warning' : 'success'}>{audit.security_score}/100</Badge>
-                      <span className="text-xs uppercase text-slate-400">{audit.status}</span>
-                    </div>
-                    <Download size={14} className="text-slate-500" />
+          
+          {/* LEFT: FINANCIALS & PROJECTS */}
+          <div className="lg:col-span-2 space-y-6">
+              
+              {/* RESTORED: METADATA CARD */}
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
+                      <h4 className="text-xs text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Mail size={12}/> Billing Email</h4>
+                      <p className="font-mono text-white text-sm">{account.billing_email || "N/A"}</p>
                   </div>
-                ))}
-                {audits.length === 0 && <p className="opacity-50 text-sm italic">No audits.</p>}
+                  <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
+                      <h4 className="text-xs text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Hash size={12}/> System ID</h4>
+                      <p className="font-mono text-white text-xs">{account.id}</p>
+                  </div>
               </div>
-            </Card>
-        </div>
 
-        {/* RIGHT COLUMN */}
-        <div className="lg:col-span-2 space-y-8">
-            
-            {/* PROJECTS */}
-            {!isNaked && (
-              <Card title="Projects" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('project')} />}>
-                 <div className="space-y-2">
-                    {client.projects?.map(p => (
-                        <div key={p.id} onClick={() => navigate(`/projects/${p.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-sanctum-gold/50 transition-colors group">
-                            <div>
-                                <div className="font-bold text-white flex items-center gap-2">
-                                    {p.name}
-                                    <Badge variant={p.status === 'active' ? 'success' : 'default'}>{p.status}</Badge>
-                                </div>
-                                <div className="text-xs opacity-50">Deadline: {p.due_date || 'TBD'}</div>
-                            </div>
-                            <div className="flex items-center gap-4">
-                                <span className="font-mono text-sanctum-gold">${p.budget.toLocaleString()}</span>
-                                <button onClick={(e) => handleDeleteGeneric('/projects', p.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-                            </div>
-                        </div>
-                    ))}
-                 </div>
-              </Card>
-            )}
-
-            {/* DEALS */}
-            {!isNaked && (
-              <Card title="Deals" action={<Button variant="ghost" size="sm" icon={Plus} onClick={() => setActiveModal('deal')} />}>
-                <div className="space-y-2">
-                    {client.deals.map(d => (
-                      <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center cursor-pointer hover:border-blue-400/50 transition-colors">
-                        <span className="font-medium text-white">{d.title}</span>
-                        <div className="text-right">
-                          <span className="block text-sanctum-gold font-mono">${d.amount.toLocaleString()}</span>
-                          <Badge variant="info">{d.stage}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </Card>
-            )}
-
-            {/* FINANCIAL LEDGER */}
-            <Card title="Financial Ledger">
-             <div className="space-y-2">
-                {(!client.invoices || client.invoices.length === 0) && (
-                    <p className="opacity-50 text-sm italic">No invoices generated.</p>
-                )}
-                
-                {client.invoices?.map(inv => (
-                  <div key={inv.id} className="p-3 bg-black/20 rounded border border-white/5 flex justify-between items-center group">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs opacity-50">#{inv.id.slice(0,8)}</span>
-                            <Badge variant={inv.status === 'paid' ? 'success' : 'warning'}>{inv.status}</Badge>
-                        </div>
-                        <div className="text-xs opacity-50 mt-1">Due: {formatDate(inv.due_date)}</div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <span className="font-bold font-mono text-white">{formatCurrency(inv.total_amount)}</span>
-                        <div className="flex gap-2">
-                            <button onClick={() => navigate(`/invoices/${inv.id}`)} className="text-[10px] text-blue-400 hover:underline">Open</button>
-                            <button onClick={() => handleDeleteGeneric('/invoices', inv.id)} className="text-slate-500 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-                        </div>
-                    </div>
+              <FinancialSection 
+                  deals={account.deals || []} 
+                  invoices={account.invoices || []} 
+                  projects={account.projects || []}
+                  isNaked={user?.scope === 'nt_only'}
+                  onAddDeal={() => { setForms({...forms, deal: { title: '', amount: 0, stage: 'Infiltration', probability: 10 }}); setActiveModal('deal'); }}
+                  onAddProject={() => { setForms({...forms, project: { name: '', budget: 0, due_date: '' }}); setActiveModal('project'); }}
+              />
+              
+              {/* RESTORED: TICKETS */}
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+                  <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-slate-400 mb-4">
+                      <Ticket size={16} /> Recent Tickets
+                  </h3>
+                  <div className="space-y-2">
+                      {tickets.length > 0 ? tickets.slice(0, 5).map(t => (
+                          <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer group relative pr-10 transition-colors">
+                              <div>
+                                  <span className="font-bold text-white block">{t.subject}</span>
+                                  <span className="text-xs opacity-50">{new Date(t.created_at).toLocaleDateString()}</span>
+                              </div>
+                              <div className={`px-2 py-1 rounded text-[10px] uppercase font-bold h-fit ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>{t.status}</div>
+                              
+                              {/* DELETE BUTTON */}
+                              <button 
+                                onClick={(e) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(e, t.id))}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                          </div>
+                      )) : <p className="text-sm opacity-30 italic">No tickets found.</p>}
                   </div>
-                ))}
-             </div>
-          </Card>
+              </div>
 
-            {/* TICKETS (Refactored) */}
-            <ClientTicketList 
-                tickets={client.tickets} 
-                onAdd={() => setActiveModal('ticket')} 
-                onDelete={(tid) => handleDeleteGeneric('/tickets', tid)} 
-            />
-        </div>
-      </div>
-
-      {/* --- MODALS --- */}
-      
-      <Modal isOpen={activeModal === 'contact'} onClose={() => setActiveModal(null)} title={editingContactId ? 'Edit Human' : 'Add Human'}>
-        <form onSubmit={saveContact} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <input required placeholder="First Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={contactForm.first_name} onChange={e => setContactForm({...contactForm, first_name: e.target.value})} />
-            <input required placeholder="Last Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={contactForm.last_name} onChange={e => setContactForm({...contactForm, last_name: e.target.value})} />
+              {/* AUDITS */}
+              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+                  <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-slate-400">
+                          <Activity size={16} /> Audit History
+                      </h3>
+                      <button onClick={() => navigate(`/audit?account=${id}`)} className="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20">New Audit</button>
+                  </div>
+                  <div className="space-y-2">
+                      {audits.map(a => (
+                          <div key={a.id} onClick={() => navigate(`/audit/${a.id}`)} className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer">
+                              <span className="font-bold text-white">Security Audit</span>
+                              <span className="text-xs opacity-50">{new Date(a.created_at).toLocaleDateString()} • Score: {a.security_score}</span>
+                          </div>
+                      ))}
+                      {audits.length === 0 && <p className="text-sm opacity-30 italic">No audits performed.</p>}
+                  </div>
+              </div>
           </div>
-          <input placeholder="Email" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={contactForm.email} onChange={e => setContactForm({...contactForm, email: e.target.value})} />
-          <input placeholder="Phone" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={contactForm.phone} onChange={e => setContactForm({...contactForm, phone: e.target.value})} />
-          <div className="grid grid-cols-2 gap-4">
-            <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={contactForm.persona} onChange={e => setContactForm({...contactForm, persona: e.target.value})}>
-              <option>Decision Maker</option><option>Champion</option><option>Influencer</option><option>Blocker</option><option>End User</option>
-            </select>
-            <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={contactForm.reports_to_id} onChange={e => setContactForm({...contactForm, reports_to_id: e.target.value})}>
-              <option value="">(No Manager)</option>
-              {client.contacts.filter(c => c.id !== editingContactId).map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-            </select>
+
+          {/* RIGHT: HUMANS */}
+          <div>
+              <HumanSection 
+                  contacts={account.contacts || []} 
+                  users={users}
+                  isEditing={isEditingAccount}
+                  onAddContact={() => { setForms({...forms, contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' }}); setActiveModal('contact'); }}
+                  onEditContact={(c) => { setForms({...forms, contact: c}); setActiveModal('contact'); }}
+                  onDeleteContact={(cid) => confirmAction("Remove Contact?", "This action is permanent.", () => deleteContact(cid))}
+                  onAddUser={() => { setForms({...forms, user: { email: '', full_name: '', password: '' }}); setActiveModal('user'); }}
+                  onRevokeUser={(uid) => confirmAction("Revoke Access?", "User will no longer be able to login.", () => revokeUser(uid))}
+              />
           </div>
-          <Button type="submit" className="w-full">Save</Button>
-        </form>
-      </Modal>
 
-      <Modal isOpen={activeModal === 'deal'} onClose={() => setActiveModal(null)} title="New Deal">
-        <form onSubmit={(e) => {e.preventDefault(); handleCreateGeneric('/deals', dealForm, () => setDealForm({title:'', amount:0, stage:'Infiltration', probability:10}))}} className="space-y-4">
-          <input required placeholder="Deal Title" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={dealForm.title} onChange={e => setDealForm({...dealForm, title: e.target.value})} />
-          <input type="number" placeholder="Value ($)" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={dealForm.amount} onChange={e => setDealForm({...dealForm, amount: e.target.value})} />
-          <Button type="submit" className="w-full">Create Deal</Button>
-        </form>
-      </Modal>
-
-      <Modal isOpen={activeModal === 'project'} onClose={() => setActiveModal(null)} title="New Project">
-         <form onSubmit={(e) => {e.preventDefault(); handleCreateGeneric('/projects', {...projectForm, budget: parseFloat(projectForm.budget), due_date: projectForm.due_date || null}, () => setProjectForm({name:'', budget:'', due_date:''}))}} className="space-y-4">
-           <input required placeholder="Project Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={projectForm.name} onChange={e => setProjectForm({...projectForm, name: e.target.value})} />
-           <div className="grid grid-cols-2 gap-4">
-             <input type="number" placeholder="Budget" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={projectForm.budget} onChange={e => setProjectForm({...projectForm, budget: e.target.value})} />
-             <input type="date" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={projectForm.due_date} onChange={e => setProjectForm({...projectForm, due_date: e.target.value})} />
-           </div>
-           <Button type="submit" className="w-full">Initialize Project</Button>
-         </form>
-      </Modal>
-
-      <Modal isOpen={activeModal === 'ticket'} onClose={() => setActiveModal(null)} title="New Ticket">
-         <form onSubmit={(e) => {e.preventDefault(); handleCreateGeneric('/tickets', ticketForm, () => setTicketForm({subject:'', description:'', priority:'normal'}))}} className="space-y-4">
-           <div className="grid grid-cols-2 gap-4">
-              <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}>
-                <option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option>
-              </select>
-           </div>
-           <input required placeholder="Subject" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} />
-           <textarea placeholder="Description" className="w-full p-2 h-24 bg-slate-800 border border-slate-600 rounded text-white" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} />
-           <Button type="submit" className="w-full">Create Ticket</Button>
-         </form>
-      </Modal>
-
-      <Modal isOpen={activeModal === 'portal'} onClose={() => setActiveModal(null)} title="Grant Access">
-         <form onSubmit={handleCreatePortalUser} className="space-y-4">
-            <input required placeholder="Full Name" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={portalForm.full_name} onChange={e => setPortalForm({...portalForm, full_name: e.target.value})} />
-            <input required type="email" placeholder="Email" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={portalForm.email} onChange={e => setPortalForm({...portalForm, email: e.target.value})} />
-            <input required type="password" placeholder="Password" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={portalForm.password} onChange={e => setPortalForm({...portalForm, password: e.target.value})} />
-            <Button type="submit" className="w-full">Create Credentials</Button>
-         </form>
-      </Modal>
-
-      {/* --- BOTTOM ROW --- */}
-      <div className="mt-8">
-          <Card title="Command Chain">
-            <div className="w-full h-[400px] bg-black/20 rounded border border-white/5 relative overflow-hidden">
-                {client.contacts.length > 0 ? <OrgChart contacts={client.contacts} /> : <div className="absolute inset-0 flex items-center justify-center opacity-30">Map humans to activate visualization.</div>}
-            </div>
-          </Card>
       </div>
-
     </Layout>
   );
 }
