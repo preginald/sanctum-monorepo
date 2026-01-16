@@ -41,6 +41,8 @@ import ArticleDetail from './pages/ArticleDetail';
 import ArticleEditor from './pages/ArticleEditor';
 
 import SystemHealth from './pages/SystemHealth';
+import AdminUserList from './pages/AdminUserList';
+
 
 
 // 1. BASIC AUTH GUARD
@@ -109,6 +111,7 @@ function App() {
                               
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/system/health" element={<SystemHealth />} />
+                              <Route path="/admin/users" element={<AdminUserList />} />
                           </Routes>
                       </AdminRoute>
                   } />

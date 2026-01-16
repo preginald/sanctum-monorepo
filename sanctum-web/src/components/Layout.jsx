@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-// UPDATED: Added BookOpen to imports
-import { LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, BookOpen } from 'lucide-react';
+import { 
+    LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
+    Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, 
+    BookOpen 
+} from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 
@@ -20,7 +23,7 @@ export default function Layout({ children, title }) {
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
 
-  // HELPER: Dynamic Classes without 'clsx'
+  // HELPER: Dynamic Classes
   const sidebarWidth = collapsed ? "w-20" : "w-64";
   const sidebarColors = isNaked ? 'bg-white border-r border-slate-200' : 'bg-slate-900 border-r border-slate-800';
   const textColors = isNaked ? 'text-slate-900' : 'text-white';
@@ -28,7 +31,7 @@ export default function Layout({ children, title }) {
   const buttonClass = isNaked ? 'bg-naked-pink hover:bg-pink-600' : 'bg-sanctum-blue hover:bg-blue-600';
   const accentText = isNaked ? 'text-naked-pink' : 'text-sanctum-gold';
 
-  // SESSION KEEPER LOGIC
+  // SESSION KEEPER
   useEffect(() => {
     if (!token) return;
     const checkSession = async () => {
@@ -61,9 +64,14 @@ export default function Layout({ children, title }) {
       localStorage.setItem('sanctum_sidebar', newState);
   };
 
+  // NAV ITEM COMPONENT
   const NavItem = ({ icon, label, path }) => {
-    const active = location.pathname === path || location.pathname.startsWith(path + '/');
-    const baseClass = "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all";
+    // Check for exact match or sub-route match (except for root "/")
+    const active = path === '/' 
+        ? location.pathname === '/' 
+        : location.pathname === path || location.pathname.startsWith(path + '/');
+
+    const baseClass = "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all min-h-[48px]";
     const activeClass = active ? `${buttonClass} text-white shadow-lg` : "hover:bg-white/5 opacity-70 hover:opacity-100";
     const collapseClass = collapsed ? "justify-center" : "";
     
@@ -73,18 +81,22 @@ export default function Layout({ children, title }) {
         className={`${baseClass} ${activeClass} ${collapseClass}`}
         title={collapsed ? label : ""}
       >
-        {icon} 
-        {!collapsed && <span className="font-medium whitespace-nowrap">{label}</span>}
+        {/* ICON ALWAYS RENDERS */}
+        <span className="flex-shrink-0">{icon}</span>
+        
+        {/* TEXT ONLY RENDERS IF NOT COLLAPSED */}
+        {!collapsed && <span className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
       </div>
     );
   };
 
   return (
     <div className={`flex h-screen w-screen ${bgColors} ${textColors}`}>
-      <aside className={`${sidebarColors} flex flex-col transition-all duration-300 ${sidebarWidth}`}>
-        <div className="p-6 flex justify-between items-start">
+      {/* SIDEBAR */}
+      <aside className={`${sidebarColors} flex flex-col transition-all duration-300 ${sidebarWidth} overflow-hidden`}>
+        <div className="p-6 flex justify-between items-start h-20">
           {!collapsed && (
-              <div>
+              <div className="animate-in fade-in duration-300">
                 <h1 className={`text-2xl font-bold ${accentText}`}>
                     {isNaked ? 'Naked' : 'SANCTUM'}
                 </h1>
@@ -93,12 +105,12 @@ export default function Layout({ children, title }) {
                 </p>
               </div>
           )}
-          <button onClick={toggleSidebar} className="opacity-50 hover:opacity-100 mt-1">
+          <button onClick={toggleSidebar} className={`opacity-50 hover:opacity-100 mt-1 transition-transform ${collapsed ? 'mx-auto' : ''}`}>
               {collapsed ? <ChevronRight size={20}/> : <ChevronLeft size={20}/>}
           </button>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 px-4 space-y-2 overflow-y-auto overflow-x-hidden custom-scrollbar">
           <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
           <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
           {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
@@ -111,21 +123,28 @@ export default function Layout({ children, title }) {
           <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
           {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" />}
           
-          {/* THE LIBRARY */}
           <NavItem icon={<BookOpen size={20} />} label="The Library" path="/wiki" />
 
+          {/* ADMIN ONLY SECTION */}
+          {user?.role === 'admin' && (
+            <>
+                <div className="my-4 border-t border-white/10 mx-2"></div>
+                <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-800/50 space-y-2">
-          <button onClick={() => navigate('/system/health')} className={`flex items-center gap-3 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold w-full px-2 ${collapsed ? "justify-center" : "text-left"}`}>
+          <button onClick={() => navigate('/system/health')} className={`flex items-center gap-3 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold w-full px-2 py-2 rounded hover:bg-white/5 ${collapsed ? "justify-center" : "text-left"}`} title="System Health">
             <Activity size={18} /> {!collapsed && <span>System Health</span>}
           </button>
-          <button onClick={logout} className={`flex items-center gap-3 text-sm opacity-70 hover:opacity-100 w-full px-2 ${collapsed ? "justify-center" : "text-left"}`}>
+          <button onClick={logout} className={`flex items-center gap-3 text-sm opacity-70 hover:opacity-100 w-full px-2 py-2 rounded hover:bg-white/5 ${collapsed ? "justify-center" : "text-left"}`} title="Disconnect">
             <LogOut size={18} /> {!collapsed && <span>Disconnect</span>}
           </button>
         </div>
       </aside>
 
+      {/* MAIN CONTENT */}
       <main className="flex-1 p-8 overflow-auto relative">
         {showExpiryWarning && (
           <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center text-xs font-bold py-2 z-50 animate-pulse shadow-lg">
