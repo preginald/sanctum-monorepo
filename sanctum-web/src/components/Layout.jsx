@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
+import GlobalSearch from './ui/GlobalSearch';
 
 export default function Layout({ children, title }) {
   const { user, token, setToken, logout } = useAuthStore();
@@ -152,12 +153,19 @@ export default function Layout({ children, title }) {
           </div>
         )}
 
+        {/* UPDATED HEADER */}
         <header className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-3xl font-bold">{title}</h2>
             <p className="opacity-60">Sovereign Architecture</p>
           </div>
-          <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${buttonClass} text-white`}>
+          
+          {/* SEARCH BAR (Center-Right) */}
+          <div className="flex-1 px-12 flex justify-end">
+              <GlobalSearch />
+          </div>
+
+          <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${buttonClass} text-white ml-4`}>
             {scope.toUpperCase()} ACCESS
           </div>
         </header>

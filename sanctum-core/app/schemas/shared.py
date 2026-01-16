@@ -22,3 +22,10 @@ class ArticleLite(SanctumBase):
     title: str
     slug: str
     identifier: Optional[str] = None
+
+class SearchResult(SanctumBase):
+    id: UUID | int
+    type: str # 'ticket', 'client', 'contact', 'wiki'
+    title: str
+    subtitle: Optional[str] = None
+    link: str

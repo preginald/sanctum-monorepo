@@ -1,4 +1,4 @@
-from .shared import InvoiceLite, ArticleLite
+from .shared import InvoiceLite, ArticleLite, SearchResult
 from .auth import Token, TokenData, UserResponse, ClientUserCreate
 from .billing import (
     ProductCreate, ProductResponse, 
