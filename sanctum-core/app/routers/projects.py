@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
+from decimal import Decimal, ROUND_HALF_UP
 import os
 
 router = APIRouter(tags=["Projects & Audits"])
@@ -95,9 +96,10 @@ def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db))
     if ms.billable_amount <= 0: raise HTTPException(status_code=400, detail="Nothing to bill")
     if ms.invoice_id: raise HTTPException(status_code=400, detail="Already invoiced")
 
+    # FIX: Use Decimal Math
     subtotal = ms.billable_amount
-    gst = round(subtotal * 0.10, 2)
-    total = round(subtotal + gst, 2)
+    gst = (subtotal * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    total = subtotal + gst
 
     new_invoice = models.Invoice(
         account_id=ms.project.account_id, status="draft", subtotal_amount=subtotal, gst_amount=gst, total_amount=total,
@@ -108,7 +110,7 @@ def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db))
 
     line_item = models.InvoiceItem(
         invoice_id=new_invoice.id, description=f"Project Milestone: {ms.project.name} - {ms.name}",
-        quantity=1, unit_price=subtotal, total=subtotal
+        quantity=Decimal("1.00"), unit_price=subtotal, total=subtotal
     )
     db.add(line_item)
     ms.invoice_id = new_invoice.id
