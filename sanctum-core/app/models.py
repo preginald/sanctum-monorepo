@@ -1,5 +1,6 @@
 from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Date, Text, Table, Numeric
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.types import JSON
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text, func
 from sqlalchemy.types import TIMESTAMP
@@ -41,7 +42,7 @@ class Account(Base):
     brand_affinity = Column(String)
     status = Column(String)
     billing_email = Column(String, nullable=True) 
-    audit_data = Column(JSONB)
+    audit_data = Column(JSON, default={}) 
 
     deals = relationship("Deal", back_populates="account")
     tickets = relationship("Ticket", back_populates="account")
@@ -288,7 +289,7 @@ class AuditReport(Base):
     infrastructure_score = Column(Integer, default=0)
     report_pdf_path = Column(String, nullable=True)
     status = Column(String, default="draft")
-    content = Column(JSONB, default={})
+    content = Column(JSON, default={})    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     finalized_at = Column(TIMESTAMP(timezone=True))
