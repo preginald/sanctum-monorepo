@@ -9,6 +9,8 @@ import api from '../lib/api';
 import ProjectHeader from '../components/projects/ProjectHeader';
 import ProjectStats from '../components/projects/ProjectStats';
 
+import { TICKET_TYPES, TICKET_PRIORITIES } from '../lib/constants';
+
 export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -133,9 +135,31 @@ export default function ProjectDetail() {
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Clipboard size={20} className="text-sanctum-gold"/> Add Task</h2>
                 <form onSubmit={handleCreateTicket} className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="text-xs opacity-50 block mb-1">Type</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.ticket_type} onChange={e => setTicketForm({...ticketForm, ticket_type: e.target.value})}><option value="task">Task</option><option value="bug">Bug</option><option value="feature">Feature</option><option value="refactor">Refactor</option></select></div>
-                        <div><label className="text-xs opacity-50 block mb-1">Priority</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.priority} onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}><option value="normal">Normal</option><option value="high">High</option><option value="critical">Critical</option></select></div>
-                    </div>
+    <div>
+        <label className="text-xs opacity-50 block mb-1">Type</label>
+        <select 
+            className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm capitalize" 
+            value={ticketForm.ticket_type} 
+            onChange={e => setTicketForm({...ticketForm, ticket_type: e.target.value})}
+        >
+            {TICKET_TYPES.map(type => (
+                <option key={type} value={type}>{type}</option>
+            ))}
+        </select>
+    </div>
+    <div>
+        <label className="text-xs opacity-50 block mb-1">Priority</label>
+        <select 
+            className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm capitalize" 
+            value={ticketForm.priority} 
+            onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}
+        >
+            {TICKET_PRIORITIES.map(priority => (
+                <option key={priority} value={priority}>{priority}</option>
+            ))}
+        </select>
+    </div>
+</div>
                     <div><label className="text-xs opacity-50 block mb-1">Subject</label><input autoFocus required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} /></div>
                     <div><label className="text-xs opacity-50 block mb-1">Description</label><textarea className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} /></div>
                     <button type="submit" className="w-full py-2 bg-sanctum-gold text-slate-900 font-bold rounded">Create Task</button>
