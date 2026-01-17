@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
     Bug, Zap, Clipboard, Lock, PenTool, Siren, 
-    LifeBuoy, Flame, HelpCircle, Hammer
+    LifeBuoy, Flame, HelpCircle, Hammer, Beaker
 } from 'lucide-react';
 
 export const StatusBadge = ({ status }) => {
@@ -9,6 +9,7 @@ export const StatusBadge = ({ status }) => {
         new: "bg-blue-500 text-white",
         open: "bg-green-500 text-white",
         pending: "bg-yellow-500 text-slate-900",
+        qa: "bg-purple-500 text-white", // Added styling for QA
         resolved: "bg-slate-700 text-slate-400"
     };
     return (
@@ -46,6 +47,7 @@ export const TicketTypeIcon = ({ type }) => {
         case 'maintenance': return <PenTool size={16} className="text-slate-400" />;
         case 'alert': return <Siren size={16} className="text-red-500" />;
         case 'support': return <LifeBuoy size={16} className="text-cyan-400" />;
+        case 'test': return <Beaker size={16} className="text-emerald-400" />; // New Icon [cite: 13]
         default: return <HelpCircle size={16} className="text-slate-500" />;
     }
 };

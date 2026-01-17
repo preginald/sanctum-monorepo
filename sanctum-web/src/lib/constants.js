@@ -29,6 +29,7 @@ export const TICKET_STATUSES = [
     "new",
     "open",
     "pending",
+    "qa",       // Added QA status
     "resolved"
 ];
 
@@ -41,5 +42,6 @@ export const TICKET_TYPES = [
     "access",       // New: Access Requests
     "maintenance",  // New: Scheduled Work
     "alert",         // New: Automated Alerts
-    "hotfix"
+    "hotfix",
+    "test" // [cite: 11] Added new type
 ];
