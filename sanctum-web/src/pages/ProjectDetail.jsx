@@ -10,6 +10,7 @@ import ProjectHeader from '../components/projects/ProjectHeader';
 import ProjectStats from '../components/projects/ProjectStats';
 
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../lib/constants';
+import { TicketTypeIcon, StatusBadge } from '../components/tickets/TicketBadges';
 
 export default function ProjectDetail() {
   const { id } = useParams();
@@ -58,7 +59,6 @@ export default function ProjectDetail() {
 
   // --- HELPERS ---
   const getTicketsForMilestone = (msId) => tickets.filter(t => t.milestone_id === msId);
-  const getIconForType = (type) => { if(type==='bug') return <Bug size={14} className="text-red-400"/>; if(type==='feature') return <Zap size={14} className="text-yellow-400"/>; return <Activity size={14} className="text-blue-400"/>; };
 
   if (loading || !project) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
@@ -99,11 +99,28 @@ export default function ProjectDetail() {
                                       {!ms.invoice_id ? <button onClick={() => generateInvoice(ms.id)} className="flex items-center gap-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded"><Receipt size={14} /> Bill Now</button> : <span className="flex items-center gap-2 text-xs font-bold text-green-500 border border-green-500/30 px-3 py-1 rounded bg-green-500/10"><Receipt size={14} /> BILLED</span>}
                                   </div>
                               </div>
-                              <div className="mt-4 pl-10 border-l-2 border-slate-800 space-y-2">
-                                  {getTicketsForMilestone(ms.id).map(t => (
-                                      <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="flex justify-between items-center p-2 bg-slate-800/50 rounded cursor-pointer hover:bg-slate-800 transition-colors group"><div className="flex items-center gap-2">{getIconForType(t.ticket_type)}<span className={`text-sm ${t.status === 'resolved' ? 'line-through opacity-50' : ''}`}>{t.subject}</span></div><span className={`text-[10px] uppercase px-1.5 py-0.5 rounded font-bold ${t.priority === 'critical' ? 'bg-red-900 text-red-400' : 'bg-slate-700 text-slate-400'}`}>{t.status}</span></div>
-                                  ))}
-                              </div>
+                              {/* Inside ProjectDetail.jsx - Milestone Ticket List */}
+<div className="mt-4 pl-10 border-l-2 border-slate-800 space-y-2">
+    {getTicketsForMilestone(ms.id).map(t => (
+        <div 
+            key={t.id} 
+            onClick={() => navigate(`/tickets/${t.id}`)} 
+            className="flex justify-between items-center p-2 bg-slate-800/50 rounded cursor-pointer hover:bg-slate-800 transition-colors group"
+        >
+            <div className="flex items-center gap-2">
+                {/* Centralized Icon (Now supports "test") */}
+                <TicketTypeIcon type={t.ticket_type} /> 
+                
+                <span className={`text-sm ${t.status === 'resolved' ? 'line-through opacity-50' : ''}`}>
+                    {t.subject}
+                </span>
+            </div>
+            
+            {/* Centralized Status (Now supports purple "qa" badge) */}
+            <StatusBadge status={t.status} /> 
+        </div>
+    ))}
+</div>
                           </div>
                       ))}
                   </div>
