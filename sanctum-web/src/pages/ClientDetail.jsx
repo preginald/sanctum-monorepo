@@ -12,7 +12,7 @@ import FinancialSection from '../components/clients/FinancialSection';
 import ClientModals from '../components/clients/ClientModals';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import TicketCreateModal from '../components/tickets/TicketCreateModal';
-import ClientTicketList from '../components/clients/ClientTicketList';
+import TicketList from '../components/tickets/TicketList';
 
 
 // BADGES (Inline for now, can be extracted)
@@ -256,11 +256,12 @@ export default function ClientDetail() {
               />
               
               {/* TICKETS MODULE */}
-              <ClientTicketList 
-                tickets={tickets}
-                onAdd={() => setShowTicketModal(true)}
-                onDelete={(tid) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(tid))}
-              />
+              <TicketList 
+    tickets={tickets}
+    onAdd={() => setShowTicketModal(true)}
+    onDelete={(tid) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(tid))}
+    title="Recent Tickets"
+/>
 
               {/* AUDITS */}
               <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">

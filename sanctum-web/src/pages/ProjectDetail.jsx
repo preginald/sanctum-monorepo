@@ -8,6 +8,7 @@ import api from '../lib/api';
 // COMPONENTS
 import ProjectHeader from '../components/projects/ProjectHeader';
 import ProjectStats from '../components/projects/ProjectStats';
+import TicketList from '../components/tickets/TicketList';
 
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../lib/constants';
 import { TicketTypeIcon, StatusBadge } from '../components/tickets/TicketBadges';
@@ -100,26 +101,15 @@ export default function ProjectDetail() {
                                   </div>
                               </div>
                               {/* Inside ProjectDetail.jsx - Milestone Ticket List */}
-<div className="mt-4 pl-10 border-l-2 border-slate-800 space-y-2">
-    {getTicketsForMilestone(ms.id).map(t => (
-        <div 
-            key={t.id} 
-            onClick={() => navigate(`/tickets/${t.id}`)} 
-            className="flex justify-between items-center p-2 bg-slate-800/50 rounded cursor-pointer hover:bg-slate-800 transition-colors group"
-        >
-            <div className="flex items-center gap-2">
-                {/* Centralized Icon (Now supports "test") */}
-                <TicketTypeIcon type={t.ticket_type} /> 
-                
-                <span className={`text-sm ${t.status === 'resolved' ? 'line-through opacity-50' : ''}`}>
-                    {t.subject}
-                </span>
-            </div>
-            
-            {/* Centralized Status (Now supports purple "qa" badge) */}
-            <StatusBadge status={t.status} /> 
-        </div>
-    ))}
+                              <div className="mt-4 pl-4 border-l-2 border-slate-800">
+    <TicketList 
+        tickets={getTicketsForMilestone(ms.id)}
+        embedded={true} 
+        onAdd={() => {
+            setTicketForm({...ticketForm, milestone_id: ms.id}); 
+            setShowTicketModal(true); 
+        }}
+    />
 </div>
                           </div>
                       ))}
