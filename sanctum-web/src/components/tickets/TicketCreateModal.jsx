@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
+// NEW: Import Constants
+import { TICKET_TYPES, TICKET_PRIORITIES } from '../../lib/constants';
 
 export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselectedAccountId }) {
   const [loading, setLoading] = useState(false);
@@ -19,6 +21,8 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       priority: 'normal', 
       ticket_type: 'support' 
   });
+
+  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
   // Load Clients (if needed)
   useEffect(() => {
@@ -50,8 +54,16 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       await api.post('/tickets', payload);
       onSuccess();
       onClose();
-      // Reset form
-      setForm({ account_id: preselectedAccountId || '', contact_ids: [], milestone_id: '', subject: '', description: '', priority: 'normal', ticket_type: 'support' });
+      // Reset form (keep account if preselected)
+      setForm({ 
+          account_id: preselectedAccountId || '', 
+          contact_ids: [], 
+          milestone_id: '', 
+          subject: '', 
+          description: '', 
+          priority: 'normal', 
+          ticket_type: 'support' 
+      });
     } catch (e) {
       alert("Failed to create ticket");
     } finally {
@@ -88,27 +100,27 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
           <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Type</label>
+                {/* UPDATED: Dynamic Options */}
                 <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.ticket_type} onChange={e => setForm({...form, ticket_type: e.target.value})}>
-                    <option value="support">Support</option>
-                    <option value="bug">Bug Report</option>
-                    <option value="feature">Feature Request</option>
-                    <option value="task">Internal Task</option>
+                    {TICKET_TYPES.map(t => (
+                        <option key={t} value={t}>{capitalize(t)}</option>
+                    ))}
                 </select>
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Priority</label>
+                {/* UPDATED: Dynamic Options */}
                 <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
-                    <option value="low">Low</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">High</option>
-                    <option value="critical">Critical</option>
+                    {TICKET_PRIORITIES.map(p => (
+                        <option key={p} value={p}>{capitalize(p)}</option>
+                    ))}
                 </select>
               </div>
           </div>
 
           <div>
             <label className="text-xs text-slate-400 block mb-1">Subject</label>
-            <input required className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder="e.g. Printer Offline" />
+            <input required autoFocus className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.subject} onChange={e => setForm({...form, subject: e.target.value})} placeholder="e.g. Printer Offline" />
           </div>
 
           <div>

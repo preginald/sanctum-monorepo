@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
-import { Loader2, Save, Edit2, ArrowLeft, Activity, Ticket, Mail, Globe, Hash, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Edit2, ArrowLeft, Activity, Ticket, Mail, Globe, Hash, Trash2 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 // COMPONENTS
@@ -11,6 +11,9 @@ import HumanSection from '../components/clients/HumanSection';
 import FinancialSection from '../components/clients/FinancialSection';
 import ClientModals from '../components/clients/ClientModals';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
+import TicketCreateModal from '../components/tickets/TicketCreateModal';
+import ClientTicketList from '../components/clients/ClientTicketList';
+
 
 // BADGES (Inline for now, can be extracted)
 const Badge = ({ children, color }) => (
@@ -44,6 +47,8 @@ export default function ClientDetail() {
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', action: null });
 
+  const [showTicketModal, setShowTicketModal] = useState(false);
+
   useEffect(() => { fetchAll(); }, [id]);
 
   const fetchAll = async () => {
@@ -60,8 +65,11 @@ export default function ClientDetail() {
           
           // Tickets are nested in AccountDetail from the backend now?
           // If using the new schema logic, tickets might be in accRes.data.tickets
-          if (accRes.data.tickets) setTickets(accRes.data.tickets);
-
+          if (accRes.data.tickets) {
+              // FIX: Sort descending by ID or Date so newest appears first
+              const sorted = accRes.data.tickets.sort((a, b) => b.id - a.id);
+              setTickets(sorted);
+          }
       } catch(e) { console.error(e); }
       finally { setLoading(false); }
   };
@@ -133,8 +141,8 @@ export default function ClientDetail() {
       catch(e) { addToast("Failed to remove", "danger"); }
   };
 
-  const deleteTicket = async (e, tid) => {
-      e.stopPropagation();
+  // Updated signature: No event object needed, just ID
+  const deleteTicket = async (tid) => {
       try { await api.delete(`/tickets/${tid}`); addToast("Ticket archived", "info"); fetchAll(); }
       catch(err) { addToast("Failed to delete", "danger"); }
   };
@@ -166,6 +174,16 @@ export default function ClientDetail() {
         forms={forms} 
         setForms={setForms} 
       />
+
+      <TicketCreateModal 
+    isOpen={showTicketModal}
+    onClose={() => setShowTicketModal(false)}
+    onSuccess={() => {
+        fetchAll(); // Refresh the list
+        addToast("Ticket created", "success");
+    }}
+    preselectedAccountId={id} // Pass the current client ID
+    />
 
       {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
@@ -237,31 +255,12 @@ export default function ClientDetail() {
                   onAddProject={() => { setForms({...forms, project: { name: '', budget: 0, due_date: '' }}); setActiveModal('project'); }}
               />
               
-              {/* RESTORED: TICKETS */}
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
-                  <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-slate-400 mb-4">
-                      <Ticket size={16} /> Recent Tickets
-                  </h3>
-                  <div className="space-y-2">
-                      {tickets.length > 0 ? tickets.slice(0, 5).map(t => (
-                          <div key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer group relative pr-10 transition-colors">
-                              <div>
-                                  <span className="font-bold text-white block">{t.subject}</span>
-                                  <span className="text-xs opacity-50">{new Date(t.created_at).toLocaleDateString()}</span>
-                              </div>
-                              <div className={`px-2 py-1 rounded text-[10px] uppercase font-bold h-fit ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>{t.status}</div>
-                              
-                              {/* DELETE BUTTON */}
-                              <button 
-                                onClick={(e) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(e, t.id))}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                          </div>
-                      )) : <p className="text-sm opacity-30 italic">No tickets found.</p>}
-                  </div>
-              </div>
+              {/* TICKETS MODULE */}
+              <ClientTicketList 
+                tickets={tickets}
+                onAdd={() => setShowTicketModal(true)}
+                onDelete={(tid) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(tid))}
+              />
 
               {/* AUDITS */}
               <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
