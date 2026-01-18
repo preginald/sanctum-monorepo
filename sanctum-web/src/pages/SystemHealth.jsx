@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { Loader2, Activity, Database, HardDrive, Cpu, GitBranch, RefreshCw, Server, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Loader2, Activity, Database, HardDrive, Cpu, GitBranch, RefreshCw, Server, AlertTriangle, CheckCircle, Download, Shield } from 'lucide-react';
 import api from '../lib/api';
 
 export default function SystemHealth() {
@@ -19,6 +19,30 @@ export default function SystemHealth() {
   };
 
   useEffect(() => { fetchData(); }, []);
+
+  const handleBackup = async () => {
+      try {
+          // Trigger the download via Axios (keeps the Auth Token attached)
+          const response = await api.get('/admin/users/backup', { responseType: 'blob' });
+          
+          // Create a temporary URL for the file blob
+          const url = window.URL.createObjectURL(new Blob([response.data]));
+          const link = document.createElement('a');
+          link.href = url;
+          
+          // Timestamp filename
+          const date = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+          link.setAttribute('download', `sanctum_backup_${date}.sql`);
+          
+          // Trigger click and cleanup
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+      } catch (e) {
+          console.error("Backup failed", e);
+          alert("Backup failed. Check server logs or permissions.");
+      }
+  };
 
   // Status Colors
   const getStatusColor = (status) => {
@@ -95,6 +119,24 @@ export default function SystemHealth() {
                     </div>
                 </div>
             </div>
+        </div>
+
+        {/* THE VAULT (BACKUP) */}
+        <div className="bg-gradient-to-r from-slate-900 to-slate-800 border border-sanctum-gold/30 rounded-xl p-6 flex justify-between items-center">
+            <div>
+                <h3 className="font-bold text-lg text-white flex items-center gap-2">
+                    <Shield size={20} className="text-sanctum-gold" /> The Vault
+                </h3>
+                <p className="text-sm text-slate-400">
+                    Generate and download a full SQL snapshot of the database.
+                </p>
+            </div>
+            <button 
+                onClick={handleBackup}
+                className="flex items-center gap-2 px-6 py-3 bg-sanctum-gold hover:bg-yellow-500 text-slate-900 font-bold rounded shadow-lg transition-transform hover:-translate-y-0.5"
+            >
+                <Download size={18} /> Download Backup
+            </button>
         </div>
 
         {/* DETAILED CHECKS TABLE */}

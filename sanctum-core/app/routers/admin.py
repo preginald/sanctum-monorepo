@@ -3,6 +3,11 @@ from sqlalchemy.orm import Session
 from typing import List
 from .. import models, schemas, auth
 from ..database import get_db
+import subprocess
+import os
+from datetime import datetime
+from fastapi.responses import FileResponse
+from fastapi import BackgroundTasks
 
 # PREFIX: /admin/users
 router = APIRouter(prefix="/admin/users", tags=["Admin"])
@@ -74,3 +79,73 @@ def admin_delete_user(
     db.delete(user)
     db.commit()
     return {"status": "deleted"}
+
+# --- DATABASE BACKUP ---
+@router.get("/backup", response_class=FileResponse)
+def download_database_backup(
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(get_current_admin)
+):
+    # 1. Configuration
+    # We grab credentials from the Environment (loaded by dotenv in main)
+    db_url = os.getenv("DATABASE_URL")
+    if not db_url:
+        raise HTTPException(status_code=500, detail="Database configuration missing")
+
+    # Parse URL for pg_dump (simplified parsing)
+    # Assumes format: postgresql://user:pass@host/dbname
+    try:
+        # Very basic parsing logic, usually robust enough for standard conn strings
+        from urllib.parse import urlparse
+        url = urlparse(db_url)
+        username = url.username
+        password = url.password
+        hostname = url.hostname
+        port = url.port or "5432"
+        dbname = url.path.lstrip("/")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Could not parse database connection string")
+
+    # 2. File Setup
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"sanctum_backup_{timestamp}.sql"
+    filepath = f"/tmp/{filename}"
+
+    # 3. Execute Dump
+    # We pass PGPASSWORD as env var to avoid leaking it in process list
+    env = os.environ.copy()
+    env["PGPASSWORD"] = password
+
+    command = [
+        "pg_dump",
+        "-h", hostname,
+        "-p", str(port),
+        "-U", username,
+        "-F", "p", # Plain text SQL (easiest to audit/restore manually)
+        "-f", filepath,
+        dbname
+    ]
+
+    try:
+        subprocess.run(command, env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Backup failed: {e}")
+        raise HTTPException(status_code=500, detail="Backup generation failed on server")
+    except FileNotFoundError:
+         raise HTTPException(status_code=500, detail="pg_dump utility not found on server")
+
+    # 4. Cleanup Background Task
+    def remove_file(path: str):
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+
+    background_tasks.add_task(remove_file, filepath)
+
+    # 5. Serve File
+    return FileResponse(
+        path=filepath, 
+        filename=filename, 
+        media_type='application/sql'
+    )
