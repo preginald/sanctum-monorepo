@@ -1,17 +1,29 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Ticket, Clock, CheckCircle } from 'lucide-react';
-import { TicketTypeIcon } from '../tickets/TicketBadges'; 
+import { Plus, Trash2, Ticket, Clock, CheckCircle, List, Rows, Flag } from 'lucide-react';
+import { TicketTypeIcon, PriorityBadge } from '../tickets/TicketBadges'; 
 
 export default function ClientTicketList({ tickets, onAdd, onDelete }) {
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
+  
+  // VIEW MODE STATE (Persisted)
+  const [viewMode, setViewMode] = useState(() => {
+      return localStorage.getItem('sanctum_ticket_view') || 'expanded'; // 'compact' | 'expanded'
+  });
 
-  // Filter logic: If showAll is false, hide resolved. Always sort by ID desc (newest first).
+  const toggleView = (mode) => {
+      setViewMode(mode);
+      localStorage.setItem('sanctum_ticket_view', mode);
+  };
+
+  // Filter & Sort
   const visibleTickets = tickets
     .filter(t => showAll ? true : t.status !== 'resolved')
     .sort((a, b) => b.id - a.id)
-    .slice(0, showAll ? 50 : 5); // Limit display if not showing history
+    .slice(0, showAll ? 50 : 5);
+
+  const formatDate = (d) => new Date(d).toLocaleDateString();
 
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
@@ -22,6 +34,24 @@ export default function ClientTicketList({ tickets, onAdd, onDelete }) {
         </h3>
         
         <div className="flex items-center gap-3">
+            {/* VIEW TOGGLE */}
+            <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700 mr-2">
+                <button 
+                    onClick={() => toggleView('compact')}
+                    className={`p-1 rounded transition-colors ${viewMode === 'compact' ? 'bg-slate-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                    title="Single Line"
+                >
+                    <List size={14} />
+                </button>
+                <button 
+                    onClick={() => toggleView('expanded')}
+                    className={`p-1 rounded transition-colors ${viewMode === 'expanded' ? 'bg-slate-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                    title="Double Line"
+                >
+                    <Rows size={14} />
+                </button>
+            </div>
+
             {/* HISTORY TOGGLE */}
             <label className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-500 cursor-pointer hover:text-white transition-colors">
                 <span>History</span>
@@ -48,28 +78,53 @@ export default function ClientTicketList({ tickets, onAdd, onDelete }) {
           <div 
             key={t.id} 
             onClick={() => navigate(`/tickets/${t.id}`)} 
-            className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer group relative pr-10 transition-colors"
+            className="bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer group relative transition-colors"
           >
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <TicketTypeIcon type={t.ticket_type} />
-                <span className="font-bold text-white text-sm">{t.subject}</span>
-              </div>
-              <span className="text-xs opacity-50 block pl-6">
-                 #{t.id} • {new Date(t.created_at).toLocaleDateString()}
-              </span>
-            </div>
-            
-            <div className="flex flex-col items-end gap-1">
-                <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>
-                    {t.status}
+            {/* --- COMPACT VIEW (Single Line) --- */}
+            {viewMode === 'compact' && (
+                <div className="flex items-center justify-between p-3 pr-10 h-12">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                        <TicketTypeIcon type={t.ticket_type} />
+                        <span className="font-mono text-xs opacity-50">#{t.id}</span>
+                        <span className="font-bold text-white text-sm truncate">{t.subject}</span>
+                    </div>
+                    <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold whitespace-nowrap ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>
+                        {t.status}
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {/* --- EXPANDED VIEW (Double Line) --- */}
+            {viewMode === 'expanded' && (
+                <div className="p-3 pr-10">
+                    {/* Line 1 */}
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="flex items-center gap-2">
+                            <TicketTypeIcon type={t.ticket_type} />
+                            {/* NEW: ID Badge */}
+                            <span className="font-mono text-xs opacity-50">#{t.id}</span>
+                            <span className="font-bold text-white text-sm">{t.subject}</span>
+                        </div>
+                        <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>
+                            {t.status}
+                        </div>
+                    </div>
+                    
+                    {/* Line 2 */}
+                    <div className="flex items-center gap-4 text-xs opacity-60 pl-6">
+                        <span className="flex items-center gap-1"><Clock size={12}/> {formatDate(t.created_at)}</span>
+                        <div className="scale-90 origin-left"><PriorityBadge priority={t.priority} /></div>
+                        {t.milestone_name && (
+                            <span className="flex items-center gap-1 text-sanctum-gold"><Flag size={12}/> {t.milestone_name}</span>
+                        )}
+                    </div>
+                </div>
+            )}
             
-            {/* DELETE BUTTON */}
+            {/* DELETE BUTTON (Shared) */}
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all z-10"
               title="Archive Ticket"
             >
               <Trash2 size={14} />
