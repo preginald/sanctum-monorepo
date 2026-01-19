@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows } from 'lucide-react';
 import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -82,6 +82,17 @@ export default function TicketDetail() {
   };
   const fetchCatalog = async () => { try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { } };
   const fetchArticles = async () => { try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {} };
+
+  // LAYOUT STATE
+  const [layoutMode, setLayoutMode] = useState(() => {
+      return localStorage.getItem('sanctum_ticket_layout') || 'split';
+  });
+
+  const toggleLayout = () => {
+      const newMode = layoutMode === 'split' ? 'stacked' : 'split';
+      setLayoutMode(newMode);
+      localStorage.setItem('sanctum_ticket_layout', newMode);
+  };
 
   // --- HANDLERS ---
   const triggerConfirm = (title, message, action, isDangerous = false) => {
@@ -206,7 +217,18 @@ export default function TicketDetail() {
           </div>
         </div>
 
+        {/* RIGHT SIDE BUTTONS */}
         <div className="flex gap-2">
+            
+            {/* LAYOUT TOGGLE */}
+            <button 
+                onClick={toggleLayout}
+                className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors mr-2"
+                title={layoutMode === 'split' ? "Switch to Stacked View" : "Switch to Split View"}
+            >
+                {layoutMode === 'split' ? <Rows size={16} /> : <Columns size={16} />}
+            </button>
+
             {!isEditing && (
                 <>
                     {/* RESOLVE BUTTON (Only if not resolved) */}
@@ -237,8 +259,8 @@ export default function TicketDetail() {
         </div>
       </div>
 
-        {/* LAYOUT: 60% Content / 40% Context on large screens */}
-        <div className="grid grid-cols-1 xl:grid-cols-5 gap-8">
+        {/* DYNAMIC LAYOUT: Force stack if mode is 'stacked', else use responsive split */}
+        <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>
         
         {/* LEFT COLUMN (Content) */}
         <div className="xl:col-span-3 space-y-6 min-w-0">
