@@ -1,91 +1,145 @@
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Send, Lock, Globe } from 'lucide-react';
+import { Send, User, Clock, MessageSquare, Lock, Globe } from 'lucide-react'; // Added Icons
 import api from '../lib/api';
+import SanctumMarkdown from './ui/SanctumMarkdown';
 
 export default function CommentStream({ resourceType, resourceId }) {
   const [comments, setComments] = useState([]);
   const [newBody, setNewBody] = useState('');
-  const [visibility, setVisibility] = useState('internal');
+  const [visibility, setVisibility] = useState('internal'); // State for toggle
   const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
-    fetchComments();
-  }, [resourceType, resourceId]);
+    if (resourceId) fetchComments();
+  }, [resourceId, resourceType]);
 
   const fetchComments = async () => {
     try {
-      const param = `${resourceType}_id`;
+      const param = `${resourceType}_id`; 
       const res = await api.get(`/comments?${param}=${resourceId}`);
       setComments(res.data);
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error("Failed to load comments", e); } 
     finally { setLoading(false); }
   };
 
-  const postComment = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!newBody.trim()) return;
 
+    setSending(true);
     try {
       const payload = {
         body: newBody,
-        visibility: visibility,
+        visibility: visibility, // Use state
+        [`${resourceType}_id`]: resourceId
       };
-      payload[`${resourceType}_id`] = resourceId;
 
       await api.post('/comments', payload);
       setNewBody('');
-      fetchComments();
-    } catch (e) { alert("Failed to post comment"); }
+      fetchComments(); 
+    } catch (e) { alert("Failed to send."); } 
+    finally { setSending(false); }
+  };
+
+  const formatDate = (dateStr) => {
+    return new Date(dateStr).toLocaleString([], { 
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+    });
   };
 
   return (
-    <div className="flex flex-col h-full bg-black/20 rounded-xl border border-white/5 overflow-hidden">
-      <div className="p-3 border-b border-white/5 bg-white/5 flex items-center gap-2">
-        <MessageSquare size={16} className="opacity-50" />
-        <span className="text-xs font-bold uppercase tracking-widest opacity-70">Activity Stream</span>
+    <div className="flex flex-col h-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+      
+      {/* HEADER */}
+      <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+        <h3 className="font-bold text-sm uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <MessageSquare size={16} /> Activity Stream
+        </h3>
+        {/* Simple Legend */}
+        <div className="flex gap-2 text-[10px] uppercase font-bold">
+            <span className="flex items-center gap-1 text-purple-400"><Lock size={10}/> Internal</span>
+            <span className="flex items-center gap-1 text-blue-400"><Globe size={10}/> Public</span>
+        </div>
       </div>
 
-      {/* LIST */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 max-h-[600px]">
-        {comments.length === 0 && <p className="text-center opacity-30 text-xs italic">No activity yet.</p>}
-        {comments.map(c => (
-          <div key={c.id} className={`p-3 rounded-lg border ${c.visibility === 'internal' ? 'bg-slate-800/50 border-slate-700' : 'bg-blue-900/10 border-blue-500/30'}`}>
-            <div className="flex justify-between items-start mb-2">
-              <span className="font-bold text-xs text-sanctum-gold">{c.author_name}</span>
-              <div className="flex items-center gap-2">
-                {/* VISIBILITY BADGE */}
-                <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${c.visibility === 'internal' ? 'bg-slate-700 text-slate-300' : 'bg-blue-600 text-white'}`}>
-                  {c.visibility === 'internal' ? <Lock size={8} /> : <Globe size={8} />}
-                  {c.visibility === 'internal' ? 'INTERNAL' : 'PUBLIC CLIENT'}
-                </span>
-                <span className="text-[10px] opacity-40">
-                  {new Date(c.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                </span>
-              </div>
+      {/* STREAM */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+        {loading ? (
+            <div className="text-center opacity-30 text-sm">Loading...</div>
+        ) : comments.length === 0 ? (
+            <div className="text-center opacity-30 text-sm italic py-10">No activity recorded.</div>
+        ) : (
+            comments.map((c) => (
+                <div key={c.id} className="flex gap-4 group">
+                    <div className="flex-shrink-0 mt-1">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${c.visibility === 'public' ? 'bg-blue-900/20 text-blue-400 border-blue-500/30' : 'bg-purple-900/20 text-purple-400 border-purple-500/30'}`}>
+                            {c.author_name ? c.author_name.charAt(0).toUpperCase() : <User size={14}/>}
+                        </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="font-bold text-sm text-white">{c.author_name || 'Unknown'}</span>
+                            <span className="text-xs text-slate-500 flex items-center gap-1">
+                                <Clock size={10} /> {formatDate(c.created_at)}
+                            </span>
+                            {/* Visibility Badge */}
+                            <span className={`text-[10px] px-1.5 rounded uppercase font-bold ${c.visibility === 'public' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'}`}>
+                                {c.visibility === 'public' ? 'Public' : 'Internal'}
+                            </span>
+                        </div>
+                        
+                        <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10'} group-hover:border-white/10 transition-colors`}>
+                            <SanctumMarkdown content={c.body} className="prose-sm" />
+                        </div>
+                    </div>
+                </div>
+            ))
+        )}
+      </div>
+
+      {/* INPUT AREA */}
+      <div className="p-4 bg-slate-800/30 border-t border-slate-700">
+        <form onSubmit={handleSubmit} className="relative">
+            <textarea 
+                className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-sanctum-gold transition-colors pr-12 resize-none custom-scrollbar"
+                rows="3"
+                placeholder={`Log ${visibility} activity... (Markdown supported)`}
+                value={newBody}
+                onChange={(e) => setNewBody(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handleSubmit(e); }}
+            />
+            
+            {/* CONTROLS */}
+            <div className="absolute right-2 bottom-2.5 flex items-center gap-2">
+                {/* VISIBILITY TOGGLE */}
+                <button
+                    type="button"
+                    onClick={() => setVisibility(v => v === 'internal' ? 'public' : 'internal')}
+                    className={`p-1.5 rounded text-xs font-bold flex items-center gap-1 transition-all ${visibility === 'internal' ? 'bg-purple-600 text-white hover:bg-purple-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                    title={`Click to switch to ${visibility === 'internal' ? 'Public' : 'Internal'}`}
+                >
+                    {visibility === 'internal' ? <Lock size={12}/> : <Globe size={12}/>}
+                </button>
+
+                <button 
+                    type="submit" 
+                    disabled={sending || !newBody.trim()}
+                    className="p-1.5 bg-sanctum-gold hover:bg-yellow-500 text-slate-900 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="Send"
+                >
+                    <Send size={16} />
+                </button>
             </div>
-            <p className="text-sm text-gray-300 whitespace-pre-wrap leading-relaxed">{c.body}</p>
-          </div>
-        ))}
+        </form>
+        <div className="text-[10px] text-slate-600 mt-2 flex justify-between px-1">
+            <span>Supports Markdown</span>
+            <span className={visibility === 'internal' ? 'text-purple-500' : 'text-blue-500'}>
+                Posting as {visibility.toUpperCase()}
+            </span>
+        </div>
       </div>
 
-      {/* INPUT */}
-      <form onSubmit={postComment} className="p-3 border-t border-white/5 bg-white/5">
-        <div className="flex gap-2 mb-2">
-          <button type="button" onClick={() => setVisibility('internal')} className={`px-3 py-1 text-[10px] rounded uppercase font-bold transition-colors ${visibility === 'internal' ? 'bg-slate-600 text-white' : 'opacity-50 hover:bg-white/10'}`}>Internal Note</button>
-          <button type="button" onClick={() => setVisibility('public')} className={`px-3 py-1 text-[10px] rounded uppercase font-bold transition-colors ${visibility === 'public' ? 'bg-blue-600 text-white' : 'opacity-50 hover:bg-white/10'}`}>Public Reply</button>
-        </div>
-        <div className="flex gap-2">
-          <input 
-            className="flex-1 bg-transparent border border-white/10 rounded p-2 text-sm outline-none focus:border-sanctum-gold text-white placeholder-gray-600" 
-            placeholder={visibility === 'internal' ? "Add an internal note..." : "Reply to client..."}
-            value={newBody}
-            onChange={e => setNewBody(e.target.value)}
-          />
-          <button type="submit" className="p-2 rounded bg-sanctum-gold text-black hover:bg-yellow-500">
-            <Send size={16} />
-          </button>
-        </div>
-      </form>
     </div>
   );
 }
