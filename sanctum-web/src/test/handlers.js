@@ -17,6 +17,23 @@ export const handlers = [
     }]);
   }),
 
+// Handle the Resolve action (PUT /tickets/:id)
+  http.put('*/tickets/:id', async ({ request, params }) => {
+    const body = await request.json();
+    return HttpResponse.json({
+      id: Number(params.id),
+      status: 'resolved',
+      resolution: body.resolution,
+      closed_at: body.closed_at || new Date().toISOString(),
+      subject: "Server Outage",
+      account_name: "Acme Corp",
+      // Important: Return empty arrays for these to prevent crash on re-fetch
+      related_invoices: [],
+      contacts: [],
+      articles: []
+    });
+  }),
+
   // 2. Mock all secondary data pools used in useEffects
   http.get('*/projects', () => HttpResponse.json([])),
   http.get('*/accounts/:id', () => HttpResponse.json({ contacts: [] })),
