@@ -19,7 +19,17 @@ export default function ProjectDetail() {
   const [project, setProject] = useState(null);
   const [tickets, setTickets] = useState([]); 
   const [loading, setLoading] = useState(true);
-  
+  // PERSISTED STATE
+const [showCompletedMs, setShowCompletedMs] = useState(() => {
+    return localStorage.getItem('sanctum_show_completed_ms') === 'true';
+});
+
+const toggleShowCompleted = (e) => {
+    const val = e.target.checked;
+    setShowCompletedMs(val);
+    localStorage.setItem('sanctum_show_completed_ms', val);
+};
+
   // MODALS
   const [showMsModal, setShowMsModal] = useState(false);
   const [showTicketModal, setShowTicketModal] = useState(false);
@@ -63,6 +73,12 @@ export default function ProjectDetail() {
 
   if (loading || !project) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
+  const completedCount = project?.milestones?.filter(m => m.status === 'completed').length || 0;
+
+  const visibleMilestones = project?.milestones?.filter(ms => 
+    showCompletedMs ? true : ms.status !== 'completed'
+  ) || [];
+
   return (
     <Layout title="Mission Control">
       <ProjectHeader project={project} onAddMilestone={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} />
@@ -72,14 +88,36 @@ export default function ProjectDetail() {
               <ProjectStats project={project} />
           </div>
 
-          <div className="lg:col-span-2">
+        <div className="lg:col-span-2">
               {/* MILESTONE LIST */}
               <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
-                  <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-6 flex items-center gap-2"><Flag size={16} /> Milestones & Billing</h3>
+                  {/* HEADER WITH TOGGLE */}
+                  <div className="flex justify-between items-center mb-6">
+                      <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 flex items-center gap-2">
+                          <Flag size={16} /> Milestones & Billing
+                      </h3>
+                      
+                      <div className="flex items-center gap-4">
+                      {/* SHOW COMPLETED TOGGLE */}
+                      <label className="flex items-center gap-2 text-[10px] uppercase font-bold text-slate-500 cursor-pointer hover:text-white transition-colors select-none">
+                          <span>Show History {(!showCompletedMs && completedCount > 0) && <span className="text-slate-600">({completedCount})</span>}</span>
+                          <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${showCompletedMs ? 'bg-blue-600' : 'bg-slate-700'}`}>
+                              <div className={`w-3 h-3 bg-white rounded-full shadow-sm transform transition-transform ${showCompletedMs ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                          </div>
+                          <input type="checkbox" className="hidden" checked={showCompletedMs} onChange={toggleShowCompleted} />
+                      </label>
+
+                          <button onClick={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors">
+                              <Plus size={16} />
+                          </button>
+                      </div>
+                  </div>
+
                   <div className="space-y-4">
-                      {project.milestones?.map((ms, index) => (
+                      {visibleMilestones.length > 0 ? visibleMilestones.map((ms, index) => (
                           <div key={ms.id} className="p-4 bg-black/20 rounded border border-white/5">
                               <div className="flex justify-between items-start mb-4">
+                                  {/* ... (Existing Milestone Row Content remains unchanged) ... */}
                                   <div className="flex items-center gap-4">
                                       <div className="flex flex-col gap-0.5 mr-2">
                                           <button onClick={() => moveMilestone(index, -1)} className="text-slate-600 hover:text-white"><ChevronUp size={12}/></button>
@@ -100,19 +138,22 @@ export default function ProjectDetail() {
                                       {!ms.invoice_id ? <button onClick={() => generateInvoice(ms.id)} className="flex items-center gap-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded"><Receipt size={14} /> Bill Now</button> : <span className="flex items-center gap-2 text-xs font-bold text-green-500 border border-green-500/30 px-3 py-1 rounded bg-green-500/10"><Receipt size={14} /> BILLED</span>}
                                   </div>
                               </div>
-                              {/* Inside ProjectDetail.jsx - Milestone Ticket List */}
                               <div className="mt-4 pl-4 border-l-2 border-slate-800">
-    <TicketList 
-        tickets={getTicketsForMilestone(ms.id)}
-        embedded={true} 
-        onAdd={() => {
-            setTicketForm({...ticketForm, milestone_id: ms.id}); 
-            setShowTicketModal(true); 
-        }}
-    />
-</div>
+                                <TicketList 
+                                    tickets={getTicketsForMilestone(ms.id)}
+                                    embedded={true} 
+                                    onAdd={() => {
+                                        setTicketForm({...ticketForm, milestone_id: ms.id}); 
+                                        setShowTicketModal(true); 
+                                    }}
+                                />
+                            </div>
                           </div>
-                      ))}
+                      )) : (
+                          <p className="text-sm opacity-30 italic text-center py-8">
+                              {showCompletedMs ? "No milestones found." : "No active milestones. Toggle 'Show Completed' to see history."}
+                          </p>
+                      )}
                   </div>
               </div>
           </div>
