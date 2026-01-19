@@ -45,3 +45,11 @@ export const TICKET_TYPES = [
     "hotfix",
     "test" // [cite: 11] Added new type
 ];
+
+// KNOWLEDGE BASE
+export const ARTICLE_CATEGORIES = [
+    "sop",
+    "template",
+    "wiki",
+    "troubleshooting" // NEW
+];

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { BookOpen, ShieldCheck, Download, Loader2, Plus } from 'lucide-react';
+// ADDED: Wrench
+import { BookOpen, ShieldCheck, Download, Loader2, Plus, Wrench } from 'lucide-react';
 import api from '../lib/api';
 
 export default function LibraryIndex() {
@@ -19,6 +20,8 @@ export default function LibraryIndex() {
   const sops = articles.filter(a => a.category === 'sop');
   const templates = articles.filter(a => a.category === 'template');
   const wikis = articles.filter(a => a.category === 'wiki');
+  // NEW FILTER
+  const troubleshooting = articles.filter(a => a.category === 'troubleshooting');
 
   if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
@@ -35,28 +38,54 @@ export default function LibraryIndex() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-        {/* LEFT COLUMN: SOP REGISTRY */}
-        <div>
-          <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
-            <ShieldCheck className="text-sanctum-gold" /> SOP Registry
-            <span className="text-xs font-mono opacity-50 ml-auto">PROCEDURES</span>
-          </h2>
-          <div className="space-y-4">
-            {sops.map(sop => (
-              <div key={sop.id} onClick={() => navigate(`/wiki/${sop.slug}`)} className="p-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg cursor-pointer transition-all group">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-mono opacity-50 uppercase tracking-widest">{sop.identifier}</span>
-                  <span className="text-xs bg-white/10 px-2 py-0.5 rounded border border-white/5 font-mono">{sop.version}</span>
+        {/* LEFT COLUMN */}
+        <div className="space-y-12">
+          
+          {/* SOP REGISTRY */}
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
+              <ShieldCheck className="text-sanctum-gold" /> SOP Registry
+              <span className="text-xs font-mono opacity-50 ml-auto">PROCEDURES</span>
+            </h2>
+            <div className="space-y-4">
+              {sops.map(sop => (
+                <div key={sop.id} onClick={() => navigate(`/wiki/${sop.slug}`)} className="p-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg cursor-pointer transition-all group">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-mono opacity-50 uppercase tracking-widest">{sop.identifier}</span>
+                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded border border-white/5 font-mono">{sop.version}</span>
+                  </div>
+                  <h3 className="text-lg font-bold group-hover:text-sanctum-gold transition-colors">{sop.title}</h3>
                 </div>
-                <h3 className="text-lg font-bold group-hover:text-sanctum-gold transition-colors">{sop.title}</h3>
-              </div>
-            ))}
-            {sops.length === 0 && <p className="text-sm opacity-50 italic">No SOPs found in the database.</p>}
+              ))}
+              {sops.length === 0 && <p className="text-sm opacity-50 italic">No SOPs found.</p>}
+            </div>
           </div>
+
+          {/* NEW: TROUBLESHOOTING */}
+          <div>
+            <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
+              <Wrench className="text-orange-400" /> Troubleshooting
+              <span className="text-xs font-mono opacity-50 ml-auto">DIAGNOSTICS</span>
+            </h2>
+            <div className="space-y-4">
+              {troubleshooting.map(guide => (
+                <div key={guide.id} onClick={() => navigate(`/wiki/${guide.slug}`)} className="p-4 bg-orange-900/10 border border-orange-500/30 hover:bg-orange-900/20 rounded-lg cursor-pointer transition-all group">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-xs font-mono opacity-50 uppercase tracking-widest text-orange-300">{guide.identifier || 'GUIDE'}</span>
+                  </div>
+                  <h3 className="text-lg font-bold text-white group-hover:text-orange-200 transition-colors">{guide.title}</h3>
+                </div>
+              ))}
+              {troubleshooting.length === 0 && <p className="text-sm opacity-50 italic">No guides found.</p>}
+            </div>
+          </div>
+
         </div>
 
-        {/* RIGHT COLUMN: RESOURCES & WIKI */}
+        {/* RIGHT COLUMN */}
         <div className="space-y-12">
+          
+          {/* TEMPLATES */}
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
               <Download className="text-blue-400" /> Resource Library
@@ -69,9 +98,11 @@ export default function LibraryIndex() {
                   <h3 className="text-lg font-bold">{tpl.title}</h3>
                 </div>
               ))}
+              {templates.length === 0 && <p className="text-sm opacity-50 italic">No templates found.</p>}
             </div>
           </div>
 
+          {/* WIKI */}
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
               <BookOpen className="text-purple-400" /> Engineering Wiki
@@ -83,8 +114,10 @@ export default function LibraryIndex() {
                   <h3 className="font-bold text-purple-100">{wiki.title}</h3>
                 </div>
               ))}
+              {wikis.length === 0 && <p className="text-sm opacity-50 italic">No wiki entries found.</p>}
             </div>
           </div>
+
         </div>
       </div>
     </Layout>

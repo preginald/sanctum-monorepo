@@ -6,6 +6,7 @@ import api from '../lib/api';
 // IMPORT SHARED MARKDOWN COMPONENT
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { useToast } from '../context/ToastContext';
+import { ARTICLE_CATEGORIES } from '../lib/constants';
 
 export default function ArticleEditor() {
   const { id } = useParams();
@@ -97,11 +98,15 @@ export default function ArticleEditor() {
                   <input required className="w-full bg-black/40 border border-slate-600 rounded p-2 text-white font-mono text-sm" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} />
               </div>
               <div className="col-span-2">
-                  <label className="text-xs opacity-50 block mb-1">Category</label>
-                  <select className="w-full bg-black/40 border border-slate-600 rounded p-2 text-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                      <option value="sop">SOP</option>
-                      <option value="template">Template</option>
-                      <option value="wiki">Wiki</option>
+                <label className="text-xs opacity-50 block mb-1">Category</label>
+                  <select 
+                      className="w-full bg-black/40 border border-slate-600 rounded p-2 text-white capitalize" 
+                      value={formData.category} 
+                      onChange={e => setFormData({...formData, category: e.target.value})}
+                  >
+                      {ARTICLE_CATEGORIES.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                      ))}
                   </select>
               </div>
               <div className="col-span-2">
