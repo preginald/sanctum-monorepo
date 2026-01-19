@@ -70,28 +70,30 @@ export default function CommentStream({ resourceType, resourceId }) {
         ) : comments.length === 0 ? (
             <div className="text-center opacity-30 text-sm italic py-10">No activity recorded.</div>
         ) : (
-            comments.map((c) => (
-                <div key={c.id} className="flex gap-4 group">
-                    <div className="flex-shrink-0 mt-1">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border ${c.visibility === 'public' ? 'bg-blue-900/20 text-blue-400 border-blue-500/30' : 'bg-purple-900/20 text-purple-400 border-purple-500/30'}`}>
-                            {c.author_name ? c.author_name.charAt(0).toUpperCase() : <User size={14}/>}
+          comments.map((c) => (
+                <div key={c.id} className="group">
+                    {/* META HEADER ROW */}
+                    <div className="flex items-center gap-3 mb-2 pl-1">
+                        {/* Avatar (Inline) */}
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border flex-shrink-0 ${c.visibility === 'public' ? 'bg-blue-900/20 text-blue-400 border-blue-500/30' : 'bg-purple-900/20 text-purple-400 border-purple-500/30'}`}>
+                            {c.author_name ? c.author_name.charAt(0).toUpperCase() : <User size={12}/>}
                         </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="font-bold text-sm text-white">{c.author_name || 'Unknown'}</span>
-                            <span className="text-xs text-slate-500 flex items-center gap-1">
-                                <Clock size={10} /> {formatDate(c.created_at)}
-                            </span>
-                            {/* Visibility Badge */}
-                            <span className={`text-[10px] px-1.5 rounded uppercase font-bold ${c.visibility === 'public' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'}`}>
-                                {c.visibility === 'public' ? 'Public' : 'Internal'}
-                            </span>
-                        </div>
+
+                        <span className="font-bold text-sm text-white">{c.author_name || 'Unknown'}</span>
                         
-                        <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10'} group-hover:border-white/10 transition-colors`}>
-                            <SanctumMarkdown content={c.body} className="prose-sm" />
-                        </div>
+                        <span className="text-xs text-slate-500 flex items-center gap-1">
+                            <Clock size={10} /> {formatDate(c.created_at)}
+                        </span>
+                        
+                        {/* Visibility Badge */}
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ml-auto ${c.visibility === 'public' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'bg-purple-600/10 text-purple-400 border border-purple-500/20'}`}>
+                            {c.visibility === 'public' ? 'Public' : 'Internal'}
+                        </span>
+                    </div>
+                    
+                    {/* BODY (Full Width) */}
+                    <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10'} group-hover:border-white/10 transition-colors`}>
+                        <SanctumMarkdown content={c.body} className="prose-sm" />
                     </div>
                 </div>
             ))
