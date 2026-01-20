@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 // COMPONENTS
 import HumanSection from '../components/clients/HumanSection';
 import FinancialSection from '../components/clients/FinancialSection';
+import AuditList from '../components/audits/AuditList';
 import ClientModals from '../components/clients/ClientModals';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import TicketCreateModal from '../components/tickets/TicketCreateModal';
@@ -295,24 +296,11 @@ export default function ClientDetail() {
                 onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
               />
 
-              {/* AUDITS */}
-              <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
-                  <div className="flex justify-between items-center mb-4">
-                      <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-slate-400">
-                          <Activity size={16} /> Audit History
-                      </h3>
-                      <button onClick={() => navigate(`/audit/new?account=${id}`)} className="text-xs bg-white/10 px-2 py-1 rounded hover:bg-white/20">New Audit</button>
-                  </div>
-                  <div className="space-y-2">
-                      {audits.map(a => (
-                          <div key={a.id} onClick={() => navigate(`/audit/${a.id}`)} className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer">
-                              <span className="font-bold text-white">Security Audit</span>
-                              <span className="text-xs opacity-50">{new Date(a.created_at).toLocaleDateString()} • Score: {a.security_score}</span>
-                          </div>
-                      ))}
-                      {audits.length === 0 && <p className="text-sm opacity-30 italic">No audits performed.</p>}
-                  </div>
-              </div>
+            {/* AUDITS */}
+              <AuditList 
+                  audits={audits}
+                  onAdd={() => navigate(`/audit/new?account=${id}`)}
+              />
           </div>
 
           {/* RIGHT: HUMANS */}
