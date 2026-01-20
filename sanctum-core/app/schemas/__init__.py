@@ -25,7 +25,7 @@ from .operations import (
 )
 from .knowledge import (
     CommentCreate, CommentResponse,
-    ArticleCreate, ArticleUpdate, ArticleResponse
+    ArticleCreate, ArticleUpdate, ArticleResponse, ArticleHistoryResponse
 )
 
 from .assets import AssetCreate, AssetUpdate, AssetResponse

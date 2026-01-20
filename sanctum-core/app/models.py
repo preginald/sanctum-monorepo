@@ -387,6 +387,23 @@ class Article(Base):
 
     author = relationship("User")
 
+class ArticleHistory(Base):
+    __tablename__ = "article_history"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    article_id = Column(UUID(as_uuid=True), ForeignKey("articles.id"))
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    
+    # Snapshot Data
+    title = Column(String)
+    content = Column(Text)
+    version = Column(String) # The version string AT THE TIME of snapshot
+    
+    snapshot_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    article = relationship("Article", backref="history")
+    author = relationship("User")
+
+
 class Asset(Base):
     __tablename__ = "assets"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))

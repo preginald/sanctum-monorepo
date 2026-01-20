@@ -35,9 +35,19 @@ class ArticleUpdate(SanctumBase):
     identifier: Optional[str] = None
     version: Optional[str] = None
 
+class ArticleHistoryResponse(SanctumBase):
+    id: UUID
+    article_id: UUID
+    title: str
+    version: str
+    snapshot_at: datetime
+    author_name: Optional[str] = None # For UI display
+    # Content is usually heavy, maybe load only on detail, but for now include it
+
 class ArticleResponse(ArticleCreate):
     id: UUID
     author_id: Optional[UUID] = None
-    author_name: Optional[str] = None # NEW
+    author_name: Optional[str] = None
+    history: list[ArticleHistoryResponse] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
