@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server } from 'lucide-react';
 import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -24,6 +24,11 @@ export default function TicketDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Global Save Lock
   const [showResolveModal, setShowResolveModal] = useState(false);
+
+  // ASSET LINKING STATE
+  const [clientAssets, setClientAssets] = useState([]);
+  const [showLinkAsset, setShowLinkAsset] = useState(false);
+  const [selectedAssetId, setSelectedAssetId] = useState('');
 
   
   // DATA POOLS
@@ -53,6 +58,8 @@ export default function TicketDetail() {
       if (ticket?.account_id) {
           api.get(`/projects?account_id=${ticket.account_id}`).then(res => setAccountProjects(res.data));
           fetchContacts(ticket.account_id);
+          // NEW: Fetch Client Assets
+          api.get(`/assets?account_id=${ticket.account_id}`).then(res => setClientAssets(res.data));
       }
   }, [ticket?.account_id]);
 
@@ -151,6 +158,29 @@ export default function TicketDetail() {
       } finally {
           setIsSaving(false);
       }
+  };
+
+  // --- ASSET HANDLERS ---
+  const handleLinkAsset = async () => {
+      if(!selectedAssetId) return;
+      try {
+          await api.post(`/tickets/${id}/assets/${selectedAssetId}`);
+          addToast("Asset linked", "success");
+          setShowLinkAsset(false);
+          setSelectedAssetId('');
+          fetchTicket();
+      } catch(e) { addToast("Failed to link asset", "danger"); }
+  };
+
+  const handleUnlinkAsset = async (e, assetId) => {
+      e.stopPropagation();
+      triggerConfirm("Unlink Asset?", "This removes the reference.", async () => {
+          try {
+              await api.delete(`/tickets/${id}/assets/${assetId}`);
+              addToast("Asset unlinked", "info");
+              fetchTicket();
+          } catch(e) { addToast("Failed to unlink", "danger"); }
+      }, true);
   };
 
 
@@ -322,6 +352,52 @@ export default function TicketDetail() {
                           <button onClick={(e) => handleUnlinkArticle(e, article.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Unlink"><X size={14} /></button>
                       </div>
                   )) : <p className="text-xs opacity-30 italic">No SOPs linked to this ticket.</p>}
+              </div>
+          </div>
+
+          {/* AFFECTED ASSETS */}
+          <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+              <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
+                      <Server className="w-4 h-4 text-cyan-400" /> Affected Assets
+                  </h3>
+                  {!showLinkAsset && (
+                      <button onClick={() => setShowLinkAsset(true)} className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded flex items-center gap-1">
+                          <LinkIcon size={12}/> Link Asset
+                      </button>
+                  )}
+              </div>
+              
+              {showLinkAsset && (
+                  <div className="mb-4 p-3 bg-black/30 rounded border border-cyan-500/30 flex gap-2">
+                      <select 
+                        className="flex-1 bg-slate-800 text-xs p-2 rounded border border-slate-600" 
+                        value={selectedAssetId} 
+                        onChange={e => setSelectedAssetId(e.target.value)}
+                      >
+                          <option value="">Select Asset...</option>
+                          {clientAssets.map(a => (
+                              <option key={a.id} value={a.id}>{a.name} ({a.ip_address})</option>
+                          ))}
+                      </select>
+                      <button onClick={handleLinkAsset} disabled={!selectedAssetId} className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs font-bold">Link</button>
+                      <button onClick={() => setShowLinkAsset(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                  </div>
+              )}
+
+              <div className="space-y-2">
+                  {ticket.assets?.length > 0 ? ticket.assets.map(asset => (
+                      <div key={asset.id} className="flex items-center justify-between p-3 bg-cyan-900/10 border border-cyan-500/20 hover:bg-cyan-900/20 rounded cursor-pointer transition-colors group relative pr-8">
+                          <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono text-cyan-300 bg-cyan-500/10 px-1.5 py-0.5 rounded uppercase">{asset.asset_type}</span>
+                              <span className="text-sm font-bold text-white">{asset.name}</span>
+                              {asset.ip_address && <span className="text-xs opacity-50 font-mono">({asset.ip_address})</span>}
+                          </div>
+                          <button onClick={(e) => handleUnlinkAsset(e, asset.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Unlink"><X size={14} /></button>
+                      </div>
+                  )) : (
+                      <p className="text-xs opacity-30 italic">No assets linked.</p>
+                  )}
               </div>
           </div>
           

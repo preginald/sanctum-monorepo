@@ -29,3 +29,9 @@ class SearchResult(SanctumBase):
     title: str
     subtitle: Optional[str] = None
     link: str
+
+class AssetLite(SanctumBase):
+    id: UUID
+    name: str
+    asset_type: str
+    ip_address: Optional[str] = None

@@ -2,8 +2,9 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
-from .shared import SanctumBase, InvoiceLite, ArticleLite
 from .crm import ContactResponse
+from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite # ADDED AssetLite
+
 
 class TimeEntryCreate(SanctumBase):
     start_time: datetime
@@ -89,6 +90,9 @@ class TicketResponse(TicketCreate):
     time_entries: List[TimeEntryResponse] = []
     materials: List[TicketMaterialResponse] = [] 
     articles: List[ArticleLite] = [] # The Bridge
+    # NEW
+    assets: List[AssetLite] = [] 
+
     total_hours: float = 0.0
 
 class LeadSchema(SanctumBase):

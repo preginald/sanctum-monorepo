@@ -19,6 +19,11 @@ ticket_articles = Table('ticket_articles', Base.metadata,
     Column('article_id', UUID(as_uuid=True), ForeignKey('articles.id'))
 )
 
+ticket_assets = Table('ticket_assets', Base.metadata,
+    Column('ticket_id', Integer, ForeignKey('tickets.id')),
+    Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id'))
+)
+
 # 2. CORE MODELS
 
 class User(Base):
@@ -193,6 +198,9 @@ class Ticket(Base):
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
     milestone = relationship("Milestone", back_populates="tickets")
     articles = relationship("Article", secondary=ticket_articles, backref="tickets")
+
+    # NEW: Assets Link
+    assets = relationship("Asset", secondary=ticket_assets, backref="tickets")
 
     @property
     def total_hours(self):
