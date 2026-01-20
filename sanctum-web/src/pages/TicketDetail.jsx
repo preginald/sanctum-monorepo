@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus } from 'lucide-react';
 import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -12,6 +12,8 @@ import TicketOverview from '../components/tickets/TicketOverview';
 import TicketBilling from '../components/tickets/TicketBilling';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import ResolveModal from '../components/tickets/ResolveModal';
+import SearchableSelect from '../components/ui/SearchableSelect';
+
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -30,7 +32,6 @@ export default function TicketDetail() {
   const [showLinkAsset, setShowLinkAsset] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState('');
 
-  
   // DATA POOLS
   const [contacts, setContacts] = useState([]); 
   const [products, setProducts] = useState([]); 
@@ -39,8 +40,14 @@ export default function TicketDetail() {
 
   // KNOWLEDGE BASE UI
   const [showLinkArticle, setShowLinkArticle] = useState(false);
-  const [selectedArticleId, setSelectedArticleId] = useState('');
+  const [articleSearchQuery, setArticleSearchQuery] = useState(''); // NEW
 
+  // FILTER ARTICLES
+  const filteredArticles = allArticles.filter(a => 
+      a.title.toLowerCase().includes(articleSearchQuery.toLowerCase()) || 
+      (a.identifier && a.identifier.toLowerCase().includes(articleSearchQuery.toLowerCase()))
+  ).slice(0, 5); // Limit to top 5 results
+  
   // FORM DATA (For Edit Mode)
   const [formData, setFormData] = useState({});
 
@@ -161,13 +168,12 @@ export default function TicketDetail() {
   };
 
   // --- ASSET HANDLERS ---
-  const handleLinkAsset = async () => {
-      if(!selectedAssetId) return;
+  const handleLinkAsset = async (assetId) => {
       try {
-          await api.post(`/tickets/${id}/assets/${selectedAssetId}`);
+          await api.post(`/tickets/${id}/assets/${assetId}`);
           addToast("Asset linked", "success");
           setShowLinkAsset(false);
-          setSelectedAssetId('');
+          // setSelectedAssetId(''); // No longer needed
           fetchTicket();
       } catch(e) { addToast("Failed to link asset", "danger"); }
   };
@@ -185,13 +191,13 @@ export default function TicketDetail() {
 
 
   // KNOWLEDGE HANDLERS
-  const handleLinkArticle = async () => {
-      if(!selectedArticleId) return;
+  const handleLinkArticle = async (articleId) => {
       try {
-          await api.post(`/tickets/${id}/articles/${selectedArticleId}`);
+          // Use the 'articleId' argument, NOT 'selectedArticleId'
+          await api.post(`/tickets/${id}/articles/${articleId}`);
           addToast("Article linked", "success");
           setShowLinkArticle(false);
-          setSelectedArticleId('');
+          setArticleSearchQuery(''); 
           fetchTicket();
       } catch(e) { addToast("Failed to link article", "danger"); }
   };
@@ -332,13 +338,20 @@ export default function TicketDetail() {
               </div>
               
               {showLinkArticle && (
-                  <div className="mb-4 p-3 bg-black/30 rounded border border-purple-500/30 flex gap-2">
-                      <select className="flex-1 bg-slate-800 text-xs p-2 rounded border border-slate-600" value={selectedArticleId} onChange={e => setSelectedArticleId(e.target.value)}>
-                          <option value="">Select an Article...</option>
-                          {allArticles.map(a => (<option key={a.id} value={a.id}>{a.identifier ? `${a.identifier} - ` : ''}{a.title}</option>))}
-                      </select>
-                      <button onClick={handleLinkArticle} disabled={!selectedArticleId} className="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1 rounded text-xs font-bold">Link</button>
-                      <button onClick={() => setShowLinkArticle(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                  <div className="mb-4 p-3 bg-black/30 rounded border border-purple-500/30">
+                      <div className="flex justify-end mb-2">
+                          <button onClick={() => setShowLinkArticle(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                      </div>
+                      
+                      <SearchableSelect 
+                          items={allArticles}
+                          onSelect={(item) => handleLinkArticle(item.id)}
+                          selectedIds={ticket.articles?.map(a => a.id) || []}
+                          placeholder="Search Knowledge Base..."
+                          labelKey="title"
+                          subLabelKey="identifier"
+                          icon={BookOpen}
+                      />
                   </div>
               )}
 
@@ -369,19 +382,20 @@ export default function TicketDetail() {
               </div>
               
               {showLinkAsset && (
-                  <div className="mb-4 p-3 bg-black/30 rounded border border-cyan-500/30 flex gap-2">
-                      <select 
-                        className="flex-1 bg-slate-800 text-xs p-2 rounded border border-slate-600" 
-                        value={selectedAssetId} 
-                        onChange={e => setSelectedAssetId(e.target.value)}
-                      >
-                          <option value="">Select Asset...</option>
-                          {clientAssets.map(a => (
-                              <option key={a.id} value={a.id}>{a.name} ({a.ip_address})</option>
-                          ))}
-                      </select>
-                      <button onClick={handleLinkAsset} disabled={!selectedAssetId} className="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 rounded text-xs font-bold">Link</button>
-                      <button onClick={() => setShowLinkAsset(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                  <div className="mb-4 p-3 bg-black/30 rounded border border-cyan-500/30">
+                      <div className="flex justify-end mb-2">
+                          <button onClick={() => setShowLinkAsset(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
+                      </div>
+
+                      <SearchableSelect 
+                          items={clientAssets}
+                          onSelect={(item) => handleLinkAsset(item.id)} // You might need to update handleLinkAsset signature slightly or wrapper
+                          selectedIds={ticket.assets?.map(a => a.id) || []}
+                          placeholder="Search Assets by Name or IP..."
+                          labelKey="name"
+                          subLabelKey="ip_address"
+                          icon={Server}
+                      />
                   </div>
               )}
 
