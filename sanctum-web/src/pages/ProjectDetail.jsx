@@ -134,7 +134,6 @@ const toggleShowCompleted = (e) => {
                                   </div>
                                   <div className="flex gap-2">
                                       <select className="bg-slate-800 border border-slate-600 text-xs rounded p-1 text-white uppercase font-bold" value={ms.status} onChange={(e) => updateMilestoneStatus(ms.id, e.target.value)} disabled={!!ms.invoice_id}><option value="pending">Pending</option><option value="active">Active</option><option value="completed">Completed</option></select>
-                                      <button onClick={() => { setTicketForm({...ticketForm, milestone_id: ms.id}); setShowTicketModal(true); }} className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-white"><Plus size={14} /></button>
                                       {!ms.invoice_id ? <button onClick={() => generateInvoice(ms.id)} className="flex items-center gap-2 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded"><Receipt size={14} /> Bill Now</button> : <span className="flex items-center gap-2 text-xs font-bold text-green-500 border border-green-500/30 px-3 py-1 rounded bg-green-500/10"><Receipt size={14} /> BILLED</span>}
                                   </div>
                               </div>
