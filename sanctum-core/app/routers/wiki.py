@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
@@ -9,18 +9,28 @@ router = APIRouter(tags=["Wiki"])
 
 @router.get("/articles", response_model=List[schemas.ArticleResponse])
 def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(models.Article)
+    query = db.query(models.Article).options(joinedload(models.Article.author))
     if category: query = query.filter(models.Article.category == category)
-    return query.order_by(models.Article.identifier.asc()).all()
+    articles = query.order_by(models.Article.identifier.asc()).all()
+    
+    # Map Author Name
+    for a in articles:
+        if a.author: a.author_name = a.author.full_name
+        
+    return articles
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
 def get_article_detail(slug: str, db: Session = Depends(get_db)):
+    query = db.query(models.Article).options(joinedload(models.Article.author))
     try:
         uid = UUID(slug)
-        article = db.query(models.Article).filter(models.Article.id == uid).first()
+        article = query.filter(models.Article.id == uid).first()
     except ValueError:
-        article = db.query(models.Article).filter(models.Article.slug == slug).first()
+        article = query.filter(models.Article.slug == slug).first()
+        
     if not article: raise HTTPException(status_code=404, detail="Article not found")
+    
+    if article.author: article.author_name = article.author.full_name
     return article
 
 @router.post("/articles", response_model=schemas.ArticleResponse)

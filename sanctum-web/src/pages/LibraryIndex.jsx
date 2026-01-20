@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-// ADDED: Wrench
 import { BookOpen, ShieldCheck, Download, Loader2, Plus, Wrench } from 'lucide-react';
 import api from '../lib/api';
+// IMPORT CARD
+import ArticleCard from '../components/knowledge/ArticleCard';
 
 export default function LibraryIndex() {
   const navigate = useNavigate();
@@ -20,7 +21,6 @@ export default function LibraryIndex() {
   const sops = articles.filter(a => a.category === 'sop');
   const templates = articles.filter(a => a.category === 'template');
   const wikis = articles.filter(a => a.category === 'wiki');
-  // NEW FILTER
   const troubleshooting = articles.filter(a => a.category === 'troubleshooting');
 
   if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
@@ -49,19 +49,13 @@ export default function LibraryIndex() {
             </h2>
             <div className="space-y-4">
               {sops.map(sop => (
-                <div key={sop.id} onClick={() => navigate(`/wiki/${sop.slug}`)} className="p-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg cursor-pointer transition-all group">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-mono opacity-50 uppercase tracking-widest">{sop.identifier}</span>
-                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded border border-white/5 font-mono">{sop.version}</span>
-                  </div>
-                  <h3 className="text-lg font-bold group-hover:text-sanctum-gold transition-colors">{sop.title}</h3>
-                </div>
+                  <ArticleCard key={sop.id} article={sop} textClass="text-white group-hover:text-sanctum-gold" />
               ))}
               {sops.length === 0 && <p className="text-sm opacity-50 italic">No SOPs found.</p>}
             </div>
           </div>
 
-          {/* NEW: TROUBLESHOOTING */}
+          {/* TROUBLESHOOTING */}
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
               <Wrench className="text-orange-400" /> Troubleshooting
@@ -69,12 +63,12 @@ export default function LibraryIndex() {
             </h2>
             <div className="space-y-4">
               {troubleshooting.map(guide => (
-                <div key={guide.id} onClick={() => navigate(`/wiki/${guide.slug}`)} className="p-4 bg-orange-900/10 border border-orange-500/30 hover:bg-orange-900/20 rounded-lg cursor-pointer transition-all group">
-                  <div className="flex justify-between items-start mb-2">
-                    <span className="text-xs font-mono opacity-50 uppercase tracking-widest text-orange-300">{guide.identifier || 'GUIDE'}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-white group-hover:text-orange-200 transition-colors">{guide.title}</h3>
-                </div>
+                <ArticleCard 
+                    key={guide.id} 
+                    article={guide} 
+                    colorClass="bg-orange-900/10 border-orange-500/30 hover:bg-orange-900/20 hover:border-orange-500/50"
+                    textClass="text-white group-hover:text-orange-200"
+                />
               ))}
               {troubleshooting.length === 0 && <p className="text-sm opacity-50 italic">No guides found.</p>}
             </div>
@@ -93,10 +87,7 @@ export default function LibraryIndex() {
             </h2>
             <div className="space-y-4">
               {templates.map(tpl => (
-                <div key={tpl.id} onClick={() => navigate(`/wiki/${tpl.slug}`)} className="p-4 bg-slate-900 border border-slate-700 hover:border-slate-500 rounded-lg cursor-pointer transition-all">
-                  <span className="text-xs font-mono text-blue-400 mb-1 block uppercase tracking-widest">Template</span>
-                  <h3 className="text-lg font-bold">{tpl.title}</h3>
-                </div>
+                  <ArticleCard key={tpl.id} article={tpl} textClass="text-white group-hover:text-blue-300" />
               ))}
               {templates.length === 0 && <p className="text-sm opacity-50 italic">No templates found.</p>}
             </div>
@@ -110,9 +101,12 @@ export default function LibraryIndex() {
             </h2>
             <div className="space-y-4">
               {wikis.map(wiki => (
-                <div key={wiki.id} onClick={() => navigate(`/wiki/${wiki.slug}`)} className="p-4 bg-purple-900/10 border border-purple-500/30 hover:bg-purple-900/20 rounded-lg cursor-pointer transition-all">
-                  <h3 className="font-bold text-purple-100">{wiki.title}</h3>
-                </div>
+                <ArticleCard 
+                    key={wiki.id} 
+                    article={wiki} 
+                    colorClass="bg-purple-900/10 border-purple-500/30 hover:bg-purple-900/20 hover:border-purple-500/50"
+                    textClass="text-white group-hover:text-purple-200"
+                />
               ))}
               {wikis.length === 0 && <p className="text-sm opacity-50 italic">No wiki entries found.</p>}
             </div>

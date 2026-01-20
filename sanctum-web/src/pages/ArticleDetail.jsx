@@ -45,7 +45,11 @@ export default function ArticleDetail() {
               </div>
               <h1 className="text-4xl font-bold text-white mb-4 leading-tight">{article.title}</h1>
               <div className="flex items-center gap-6 text-sm text-slate-500">
-                <span className="flex items-center gap-2"><User size={14}/> Author ID: {article.author_id?.slice(0,8)}...</span>
+                <span className="flex items-center gap-2">
+                    <User size={14}/> 
+                    {/* NEW: Use author_name */}
+                    Author: {article.author_name || 'Unknown'}
+                </span>
                 <span className="flex items-center gap-2"><Calendar size={14}/> Updated: {new Date(article.created_at).toLocaleDateString()}</span>
               </div>
             </div>

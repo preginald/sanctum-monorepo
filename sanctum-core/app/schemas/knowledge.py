@@ -38,5 +38,6 @@ class ArticleUpdate(SanctumBase):
 class ArticleResponse(ArticleCreate):
     id: UUID
     author_id: Optional[UUID] = None
+    author_name: Optional[str] = None # NEW
     created_at: datetime
     updated_at: Optional[datetime] = None
