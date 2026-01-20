@@ -379,3 +379,20 @@ class Article(Base):
 
     author = relationship("User")
 
+class Asset(Base):
+    __tablename__ = "assets"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
+    
+    name = Column(String) # e.g. "FILE-SRV-01"
+    asset_type = Column(String) # Server, Workstation, Firewall, License
+    status = Column(String, default='active') # active, retired, maintenance
+    
+    serial_number = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    notes = Column(Text, nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    account = relationship("Account", backref="assets")

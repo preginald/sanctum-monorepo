@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
-import { Loader2, Plus, Edit2, ArrowLeft, Activity, Ticket, Mail, Globe, Hash, Trash2 } from 'lucide-react';
+import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 // COMPONENTS
@@ -13,9 +13,11 @@ import ClientModals from '../components/clients/ClientModals';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import TicketCreateModal from '../components/tickets/TicketCreateModal';
 import TicketList from '../components/tickets/TicketList';
+// NEW ASSET COMPONENTS
+import AssetList from '../components/clients/AssetList';
+import AssetModal from '../components/clients/AssetModal';
 
-
-// BADGES (Inline for now, can be extracted)
+// BADGES
 const Badge = ({ children, color }) => (
     <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${color}`}>
         {children}
@@ -28,10 +30,13 @@ export default function ClientDetail() {
   const { user } = useAuthStore();
   const { addToast } = useToast();
 
+  // STATE
   const [account, setAccount] = useState(null);
   const [users, setUsers] = useState([]);
   const [audits, setAudits] = useState([]);
-  const [tickets, setTickets] = useState([]); // Restore Tickets
+  const [tickets, setTickets] = useState([]);
+  const [assets, setAssets] = useState([]); // CMDB State
+
   const [loading, setLoading] = useState(true);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -39,34 +44,36 @@ export default function ClientDetail() {
   // FORM & MODAL STATE
   const [activeModal, setActiveModal] = useState(null);
   const [forms, setForms] = useState({
-      contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' }, // Added phone/reports_to
+      contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' },
       project: { name: '', budget: 0, due_date: '' },
       deal: { title: '', amount: 0, stage: 'Infiltration', probability: 10 },
       user: { email: '', password: '', full_name: '' }
   });
 
-  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', action: null });
+  // ASSET FORM
+  const [showAssetModal, setShowAssetModal] = useState(false);
+  const [assetForm, setAssetForm] = useState({ name: '', asset_type: 'server', status: 'active', ip_address: '', serial_number: '', notes: '' });
 
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', action: null });
   const [showTicketModal, setShowTicketModal] = useState(false);
 
   useEffect(() => { fetchAll(); }, [id]);
 
   const fetchAll = async () => {
       try {
-          // RESTORED: Ticket fetching
-          const [accRes, auditRes, userRes] = await Promise.all([
+          // Promise.all ensures we get everything before rendering
+          const [accRes, auditRes, userRes, assetRes] = await Promise.all([
               api.get(`/accounts/${id}`),
               api.get(`/audits?account_id=${id}`),
-              api.get(`/accounts/${id}/users`)
+              api.get(`/accounts/${id}/users`),
+              api.get(`/assets?account_id=${id}`) // Fetch Assets
           ]);
           setAccount(accRes.data);
           setAudits(auditRes.data);
           setUsers(userRes.data);
+          setAssets(assetRes.data);
           
-          // Tickets are nested in AccountDetail from the backend now?
-          // If using the new schema logic, tickets might be in accRes.data.tickets
           if (accRes.data.tickets) {
-              // FIX: Sort descending by ID or Date so newest appears first
               const sorted = accRes.data.tickets.sort((a, b) => b.id - a.id);
               setTickets(sorted);
           }
@@ -95,9 +102,8 @@ export default function ClientDetail() {
       setIsSaving(true);
       try {
           if (activeModal === 'contact') {
-              // Sanitize Payload
               const payload = { ...forms.contact, account_id: id };
-              if (payload.reports_to_id === '') payload.reports_to_id = null; // FIX UUID ERROR
+              if (payload.reports_to_id === '') payload.reports_to_id = null;
 
               if (forms.contact.id) await api.put(`/contacts/${forms.contact.id}`, payload);
               else await api.post('/contacts', payload);
@@ -117,7 +123,6 @@ export default function ClientDetail() {
       } catch(e) { 
           console.error("Modal Submit Error:", e);
           let errorMsg = "Action failed";
-          // Handle FastAPI Validation Errors (Array of objects)
           if (e.response?.data?.detail) {
               const detail = e.response.data.detail;
               if (Array.isArray(detail)) {
@@ -132,6 +137,26 @@ export default function ClientDetail() {
       } finally { setIsSaving(false); }
   };
 
+  // --- ASSET HANDLERS ---
+  const handleAssetSubmit = async (e) => {
+      e.preventDefault();
+      setIsSaving(true);
+      try {
+          const payload = { ...assetForm, account_id: id };
+          if (assetForm.id) await api.put(`/assets/${assetForm.id}`, payload);
+          else await api.post('/assets', payload);
+          addToast(assetForm.id ? "Asset updated" : "Asset deployed", "success");
+          setShowAssetModal(false);
+          fetchAll();
+      } catch(e) { addToast("Asset action failed", "danger"); }
+      finally { setIsSaving(false); }
+  };
+
+  const deleteAsset = async (aid) => {
+      try { await api.delete(`/assets/${aid}`); addToast("Asset removed", "info"); fetchAll(); }
+      catch(e) { addToast("Failed to delete", "danger"); }
+  };
+
   const confirmAction = (title, message, action) => {
       setConfirmModal({ isOpen: true, title, message, action, isDangerous: true });
   };
@@ -141,7 +166,6 @@ export default function ClientDetail() {
       catch(e) { addToast("Failed to remove", "danger"); }
   };
 
-  // Updated signature: No event object needed, just ID
   const deleteTicket = async (tid) => {
       try { await api.delete(`/tickets/${tid}`); addToast("Ticket archived", "info"); fetchAll(); }
       catch(err) { addToast("Failed to delete", "danger"); }
@@ -176,14 +200,20 @@ export default function ClientDetail() {
       />
 
       <TicketCreateModal 
-    isOpen={showTicketModal}
-    onClose={() => setShowTicketModal(false)}
-    onSuccess={() => {
-        fetchAll(); // Refresh the list
-        addToast("Ticket created", "success");
-    }}
-    preselectedAccountId={id} // Pass the current client ID
-    />
+        isOpen={showTicketModal}
+        onClose={() => setShowTicketModal(false)}
+        onSuccess={() => { fetchAll(); addToast("Ticket created", "success"); }}
+        preselectedAccountId={id}
+      />
+
+      <AssetModal 
+        isOpen={showAssetModal} 
+        onClose={() => setShowAssetModal(false)}
+        onSubmit={handleAssetSubmit}
+        loading={isSaving}
+        form={assetForm}
+        setForm={setAssetForm}
+      />
 
       {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
@@ -197,13 +227,7 @@ export default function ClientDetail() {
                               <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.status} onChange={e => setAccount({...account, status: e.target.value})}><option value="lead">Lead</option><option value="prospect">Prospect</option><option value="active">Active</option><option value="churned">Churned</option></select>
                               <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.type} onChange={e => setAccount({...account, type: e.target.value})}><option value="business">Business</option><option value="residential">Residential</option></select>
                           </div>
-                          {/* ADDED: Billing Email Input */}
-                          <input 
-                            placeholder="Billing Email"
-                            className="text-sm bg-black/40 border border-slate-600 rounded p-1 text-white w-full font-mono" 
-                            value={account.billing_email || ''} 
-                            onChange={e => setAccount({...account, billing_email: e.target.value})} 
-                          />
+                          <input placeholder="Billing Email" className="text-sm bg-black/40 border border-slate-600 rounded p-1 text-white w-full font-mono" value={account.billing_email || ''} onChange={e => setAccount({...account, billing_email: e.target.value})} />
                       </div>
                   ) : (
                       <>
@@ -234,7 +258,7 @@ export default function ClientDetail() {
           {/* LEFT: FINANCIALS & PROJECTS */}
           <div className="lg:col-span-2 space-y-6">
               
-              {/* RESTORED: METADATA CARD */}
+              {/* METADATA */}
               <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
                       <h4 className="text-xs text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Mail size={12}/> Billing Email</h4>
@@ -255,13 +279,21 @@ export default function ClientDetail() {
                   onAddProject={() => { setForms({...forms, project: { name: '', budget: 0, due_date: '' }}); setActiveModal('project'); }}
               />
               
-              {/* TICKETS MODULE */}
+              {/* TICKETS */}
               <TicketList 
-    tickets={tickets}
-    onAdd={() => setShowTicketModal(true)}
-    onDelete={(tid) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(tid))}
-    title="Recent Tickets"
-/>
+                tickets={tickets}
+                onAdd={() => setShowTicketModal(true)}
+                onDelete={(tid) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(tid))}
+                title="Recent Tickets"
+              />
+
+              {/* ASSETS (CMDB) */}
+              <AssetList 
+                assets={assets} 
+                onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active' }); setShowAssetModal(true); }}
+                onEdit={(a) => { setAssetForm(a); setShowAssetModal(true); }}
+                onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
+              />
 
               {/* AUDITS */}
               <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">

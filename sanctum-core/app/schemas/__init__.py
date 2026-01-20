@@ -27,6 +27,9 @@ from .knowledge import (
     CommentCreate, CommentResponse,
     ArticleCreate, ArticleUpdate, ArticleResponse
 )
+
+from .assets import AssetCreate, AssetUpdate, AssetResponse
+
 from .portal import PortalDashboard, AccountDetail
 
 # Analytics

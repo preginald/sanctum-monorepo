@@ -53,3 +53,23 @@ export const ARTICLE_CATEGORIES = [
     "wiki",
     "troubleshooting" // NEW
 ];
+
+// ASSETS (CMDB)
+export const ASSET_TYPES = [
+    "server",
+    "workstation",
+    "laptop",
+    "network",
+    "firewall",
+    "printer",
+    "software",
+    "license"
+];
+
+export const ASSET_STATUSES = [
+    "active",
+    "maintenance",
+    "storage",
+    "retired",
+    "lost"
+];
