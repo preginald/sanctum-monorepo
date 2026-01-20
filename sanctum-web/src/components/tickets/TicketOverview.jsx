@@ -3,6 +3,7 @@ import { StatusBadge, PriorityBadge } from './TicketBadges';
 import SanctumMarkdown from '../ui/SanctumMarkdown';
 // NEW IMPORT
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
+import { handleSmartWrap } from '../../lib/textUtils';
 
 export default function TicketOverview({ ticket, isEditing, formData, setFormData, contacts, accountProjects }) {
   
@@ -120,12 +121,23 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
         
         <div>
             <label className="block text-xs uppercase opacity-50 mb-1">Description</label>
-            <textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+            <textarea 
+    className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" 
+    value={formData.description} 
+    onChange={e => setFormData({...formData, description: e.target.value})} 
+    onKeyDown={(e) => handleSmartWrap(e, formData.description, (v) => setFormData({...formData, description: v}))}
+/>
         </div>
         
         <div className={formData.status === 'resolved' ? 'opacity-100' : 'opacity-50 grayscale transition-all'}>
             <label className="block text-xs uppercase opacity-50 mb-1">Resolution</label>
-            <textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" value={formData.resolution} onChange={e => setFormData({...formData, resolution: e.target.value})} disabled={formData.status !== 'resolved'} />
+            <textarea 
+    className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" 
+    value={formData.resolution} 
+    onChange={e => setFormData({...formData, resolution: e.target.value})} 
+    disabled={formData.status !== 'resolved'} 
+    onKeyDown={(e) => handleSmartWrap(e, formData.resolution, (v) => setFormData({...formData, resolution: v}))}
+/>
         </div>
     </div>
   );

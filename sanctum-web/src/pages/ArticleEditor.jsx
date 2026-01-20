@@ -7,6 +7,8 @@ import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { useToast } from '../context/ToastContext';
 import { ARTICLE_CATEGORIES } from '../lib/constants';
+import { handleSmartWrap } from '../lib/textUtils';
+
 
 export default function ArticleEditor() {
   const { id } = useParams();
@@ -123,12 +125,14 @@ export default function ArticleEditor() {
           <div className="flex-1 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex">
               {/* WRITE PANE */}
               <div className={`flex-1 flex flex-col ${activeTab === 'preview' ? 'hidden' : 'block'}`}>
-                  <textarea 
-                    className="flex-1 w-full bg-transparent p-6 text-slate-300 font-mono text-sm outline-none resize-none" 
-                    placeholder="# Start writing your SOP here..."
-                    value={formData.content}
-                    onChange={e => setFormData({...formData, content: e.target.value})}
-                  />
+              <textarea 
+  className="flex-1 w-full bg-transparent p-6 text-slate-300 font-mono text-sm outline-none resize-none" 
+  placeholder="# Start writing your SOP here..."
+  value={formData.content}
+  onChange={e => setFormData({...formData, content: e.target.value})}
+  // NEW: Add onKeyDown handler
+  onKeyDown={(e) => handleSmartWrap(e, formData.content, (v) => setFormData({...formData, content: v}))}
+/>
               </div>
 
               {/* PREVIEW PANE */}

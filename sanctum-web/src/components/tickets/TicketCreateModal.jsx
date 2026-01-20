@@ -3,6 +3,8 @@ import { X, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
 // NEW: Import Constants
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../../lib/constants';
+import { handleSmartWrap } from '../../lib/textUtils';
+
 
 export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselectedAccountId }) {
   const [loading, setLoading] = useState(false);
@@ -125,7 +127,12 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
           <div>
             <label className="text-xs text-slate-400 block mb-1">Description</label>
-            <textarea className="w-full p-2 h-24 rounded bg-black/20 border border-slate-700 text-white text-sm" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+            <textarea 
+    className="w-full p-2 h-24 rounded bg-black/20 border border-slate-700 text-white text-sm" 
+    value={form.description} 
+    onChange={e => setForm({...form, description: e.target.value})} 
+    onKeyDown={(e) => handleSmartWrap(e, form.description, (v) => setForm({...form, description: v}))}
+/>
           </div>
 
           {/* DYNAMIC CONTEXT */}

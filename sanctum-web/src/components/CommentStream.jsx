@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Send, User, Clock, MessageSquare, Lock, Globe } from 'lucide-react'; // Added Icons
 import api from '../lib/api';
 import SanctumMarkdown from './ui/SanctumMarkdown';
+import { handleSmartWrap } from '../lib/textUtils';
+
 
 export default function CommentStream({ resourceType, resourceId }) {
   const [comments, setComments] = useState([]);
@@ -108,9 +110,16 @@ export default function CommentStream({ resourceType, resourceId }) {
                 rows="3"
                 placeholder={`Log ${visibility} activity... (Markdown supported)`}
                 value={newBody}
-                onChange={(e) => setNewBody(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handleSubmit(e); }}
-            />
+    onChange={(e) => setNewBody(e.target.value)}
+    onKeyDown={(e) => {
+        // Handle Smart Wrap
+        handleSmartWrap(e, newBody, setNewBody);
+        
+        // Handle Submit (Cmd+Enter) - logic moved after smart wrap
+        if (e.key === 'Enter' && e.metaKey) handleSubmit(e); 
+    }}
+/>
+
             
             {/* CONTROLS */}
             <div className="absolute right-2 bottom-2.5 flex items-center gap-2">
