@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2, User, Ticket, BookOpen, Building } from 'lucide-react';
+import { Search, Loader2, User, Ticket, BookOpen, Building, Server } from 'lucide-react';
 import api from '../../lib/api';
 
 export default function GlobalSearch() {
@@ -69,6 +69,7 @@ export default function GlobalSearch() {
           case 'ticket': return <Ticket size={14} className="text-sanctum-gold"/>;
           case 'wiki': return <BookOpen size={14} className="text-purple-400"/>;
           case 'contact': return <User size={14} className="text-green-400"/>;
+          case 'asset': return <Server size={14} className="text-cyan-400"/>; // NEW
           default: return <Search size={14}/>;
       }
   };
