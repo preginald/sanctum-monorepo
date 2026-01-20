@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { Clock, Package, Plus, Edit2, Copy, Trash2, CheckCircle, X, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
+import SearchableSelect from '../ui/SearchableSelect';
+import { Tag } from 'lucide-react'; // Optional icon
+
 
 export default function TicketBilling({ ticket, products, onUpdate, triggerConfirm }) {
   const { addToast } = useToast();
@@ -118,7 +121,19 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                          <div><label className="text-xs opacity-50 block mb-1">Start</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} /></div>
                          <div><label className="text-xs opacity-50 block mb-1">End</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} /></div>
                      </div>
-                     <div><label className="text-xs opacity-50 block mb-1">Rate</label><select required className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.product_id} onChange={e => setNewEntry({...newEntry, product_id: e.target.value})}><option value="">-- Select Rate --</option>{products.filter(p => p.type === 'service').map(p => <option key={p.id} value={p.id}>{p.name} (${p.unit_price}/hr)</option>)}</select></div>
+                     {/* Rate Selector */}
+                 <div>
+                     <label className="text-xs opacity-50 block mb-1">Rate</label>
+                     <SearchableSelect 
+                        items={products.filter(p => p.type === 'service')}
+                        onSelect={(p) => setNewEntry({ ...newEntry, product_id: p.id })}
+                        selectedIds={[newEntry.product_id]}
+                        placeholder="Search Rates..."
+                        labelKey="name"
+                        subLabelKey="unit_price"
+                        icon={Tag}
+                     />
+                 </div>
                      <div><label className="text-xs opacity-50 block mb-1">Description</label><input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} /></div>
                      <div className="flex gap-2">
                          <button type="button" onClick={() => setShowTimeForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button>
@@ -150,7 +165,19 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              {showMatForm && (
                  <form onSubmit={handleAddMat} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3 animate-in slide-in-from-top-2">
                      <div className="grid grid-cols-3 gap-3">
-                         <div className="col-span-2"><label className="text-xs opacity-50 block mb-1">Item</label><select required className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newMat.product_id} onChange={e => setNewMat({...newMat, product_id: e.target.value})}><option value="">-- Select Product --</option>{products.filter(p => p.type === 'hardware').map(p => <option key={p.id} value={p.id}>{p.name} (${p.unit_price})</option>)}</select></div>
+                        {/* Product Selector */}
+                     <div className="col-span-2">
+                         <label className="text-xs opacity-50 block mb-1">Item</label>
+                         <SearchableSelect 
+                            items={products.filter(p => p.type === 'hardware' || p.type === 'license')}
+                            onSelect={(p) => setNewMat({ ...newMat, product_id: p.id })}
+                            selectedIds={[newMat.product_id]}
+                            placeholder="Search Products..."
+                            labelKey="name"
+                            subLabelKey="unit_price"
+                            icon={Package}
+                         />
+                     </div>
                          <div><label className="text-xs opacity-50 block mb-1">Qty</label><input required type="number" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newMat.quantity} onChange={e => setNewMat({...newMat, quantity: e.target.value})} /></div>
                      </div>
                      <div className="flex gap-2">
