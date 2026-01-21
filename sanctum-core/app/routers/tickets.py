@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
-from ..services.email_service import email_service
+from ..services.event_bus import event_bus # Import Bus
+
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -63,7 +64,12 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
     return results
 
 @router.post("", response_model=schemas.TicketResponse)
-def create_ticket(ticket: schemas.TicketCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+def create_ticket(
+    ticket: schemas.TicketCreate, 
+    background_tasks: BackgroundTasks, # Inject BG Tasks
+    current_user: models.User = Depends(auth.get_current_active_user), 
+    db: Session = Depends(get_db)
+):
     target_account_id = ticket.account_id
     if current_user.role == 'client':
         target_account_id = current_user.account_id
@@ -90,27 +96,46 @@ def create_ticket(ticket: schemas.TicketCreate, current_user: models.User = Depe
     new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
     new_ticket.account_name = new_ticket.account.name 
     
+    # EVENT EMISSION
+    # Logic: If client created it, emit event to notify admin
     if current_user.role == 'client':
-        try: email_service.send(email_service.admin_email, f"New Ticket: {new_ticket.subject}", "New Client Request")
-        except: pass
+        event_bus.emit("ticket_created", new_ticket, background_tasks)
     
     return new_ticket
 
+
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
-def update_ticket(ticket_id: int, ticket_update: schemas.TicketUpdate, db: Session = Depends(get_db)):
+def update_ticket(
+    ticket_id: int, 
+    ticket_update: schemas.TicketUpdate, 
+    background_tasks: BackgroundTasks, # Inject BG Tasks
+    db: Session = Depends(get_db)
+):
     ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts)).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
+
+    # Check if status is CHANGING to resolved
+    was_resolved = ticket.status == 'resolved'
+
     if 'contact_ids' in update_data:
         ids = update_data.pop('contact_ids') 
         ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
     if 'status' in update_data and update_data['status'] == 'resolved' and ticket.status != 'resolved':
         if 'closed_at' not in update_data: ticket.closed_at = func.now()
+    
     for key, value in update_data.items(): setattr(ticket, key, value)
+    
     db.commit()
     db.refresh(ticket)
     ticket.account_name = ticket.account.name
+
+    # EVENT EMISSION
+    if ticket.status == 'resolved' and not was_resolved:
+        event_bus.emit("ticket_resolved", ticket, background_tasks)
+
     return ticket
+
 
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
