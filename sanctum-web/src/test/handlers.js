@@ -42,4 +42,12 @@ export const handlers = [
   
   // 3. Mock comments to prevent the Right Column from crashing
   http.get('*/comments', () => HttpResponse.json([])),
+
+  // ASSETS (The Construct)
+  http.get('*/assets', () => {
+    return HttpResponse.json([
+      { id: 'asset-1', name: 'Server-01', asset_type: 'server', ip_address: '10.0.0.5', status: 'active' }
+    ]);
+  }),
+
 ];
