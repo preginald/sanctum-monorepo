@@ -59,14 +59,35 @@ const toggleShowCompleted = (e) => {
   const updateMilestoneStatus = async (mid, st) => { try { await api.put(`/milestones/${mid}`, {status:st}); fetchProject(); } catch(e){ alert("Failed"); } };
   const generateInvoice = async (mid) => { if(!confirm("Bill?")) return; try { await api.post(`/milestones/${mid}/invoice`); fetchProject(); alert("Billed."); } catch(e){ alert("Error"); } };
 
-  const moveMilestone = async (index, direction) => {
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= project.milestones.length) return;
-      const newMilestones = [...project.milestones];
-      [newMilestones[index], newMilestones[newIndex]] = [newMilestones[newIndex], newMilestones[index]];
-      newMilestones.forEach((m, idx) => m.sequence = idx + 1);
-      setProject({ ...project, milestones: newMilestones });
-      try { await api.post(`/projects/${id}/milestones/reorder`, { items: newMilestones.map(m => ({ id: m.id, sequence: m.sequence })) }); } catch(e) { fetchProject(); }
+  const moveMilestone = async (msId, direction) => {
+      if (!project || !project.milestones) return;
+      
+      const milestones = [...project.milestones];
+      const currentIndex = milestones.findIndex(m => m.id === msId);
+      
+      if (currentIndex === -1) return;
+      const newIndex = currentIndex + direction;
+      
+      // Boundary checks
+      if (newIndex < 0 || newIndex >= milestones.length) return;
+
+      // Swap
+      [milestones[currentIndex], milestones[newIndex]] = [milestones[newIndex], milestones[currentIndex]];
+      
+      // Re-assign sequences based on new array order
+      milestones.forEach((m, idx) => m.sequence = idx + 1);
+      
+      // Optimistic Update
+      setProject({ ...project, milestones });
+      
+      try { 
+          await api.post(`/projects/${id}/milestones/reorder`, { 
+              items: milestones.map(m => ({ id: m.id, sequence: m.sequence })) 
+          }); 
+      } catch(e) { 
+          console.error("Reorder failed", e);
+          fetchProject(); // Revert on error
+      }
   };
 
   // --- HELPERS ---
@@ -120,10 +141,11 @@ const toggleShowCompleted = (e) => {
                               <div className="flex justify-between items-start mb-4">
                                   {/* ... (Existing Milestone Row Content remains unchanged) ... */}
                                   <div className="flex items-center gap-4">
-                                      <div className="flex flex-col gap-0.5 mr-2">
-                                          <button onClick={() => moveMilestone(index, -1)} className="text-slate-600 hover:text-white"><ChevronUp size={12}/></button>
-                                          <button onClick={() => moveMilestone(index, 1)} className="text-slate-600 hover:text-white"><ChevronDown size={12}/></button>
-                                      </div>
+                                  <div className="flex flex-col gap-0.5 mr-2">
+    {/* Pass ms.id instead of index */}
+    <button onClick={() => moveMilestone(ms.id, -1)} className="text-slate-600 hover:text-white"><ChevronUp size={12}/></button>
+    <button onClick={() => moveMilestone(ms.id, 1)} className="text-slate-600 hover:text-white"><ChevronDown size={12}/></button>
+</div>
                                       <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600">{ms.sequence}</div>
                                       <div>
                                           <div className="flex items-center gap-2">
