@@ -32,6 +32,11 @@ from .assets import AssetCreate, AssetUpdate, AssetResponse
 
 from .portal import PortalDashboard, AccountDetail
 
+from .automation import (
+    AutomationCreate, AutomationUpdate, AutomationResponse, AutomationLogResponse
+)
+
+
 # Analytics
 from pydantic import BaseModel
 class DashboardStats(BaseModel):

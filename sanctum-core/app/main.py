@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets
+from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations
 from .services.event_bus import event_bus
 from .services import listeners
 
@@ -45,8 +45,7 @@ app.include_router(admin.router)
 app.include_router(search.router)
 app.include_router(sentinel.router)
 app.include_router(assets.router)
-
-
+app.include_router(automations.router)
 
 
 # ROOT HEALTH CHECK (Simple)

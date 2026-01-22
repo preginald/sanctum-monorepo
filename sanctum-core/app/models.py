@@ -438,3 +438,33 @@ class Asset(Base):
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
     account = relationship("Account", backref="assets")
+
+class Automation(Base):
+    __tablename__ = "automations"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    
+    # Trigger
+    event_type = Column(String, nullable=False) # e.g. 'ticket_created'
+    
+    # Action
+    action_type = Column(String, nullable=False) # e.g. 'send_email', 'webhook'
+    config = Column(JSON, default={}) # e.g. {'template_id': 'welcome', 'target': 'admin'}
+    
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    logs = relationship("AutomationLog", back_populates="automation", cascade="all, delete-orphan")
+
+class AutomationLog(Base):
+    __tablename__ = "automation_logs"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id"))
+    
+    triggered_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    status = Column(String) # 'success', 'failure'
+    output = Column(Text, nullable=True) # JSON string or error message
+    
+    automation = relationship("Automation", back_populates="logs")
