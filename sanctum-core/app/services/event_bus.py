@@ -137,10 +137,61 @@ class EventBus:
         subject = f"Automation: {template}"
         body = f"<p>Automation Rule Triggered.</p><pre>{str(payload)}</pre>"
 
-        # Context-aware overrides
-        if hasattr(payload, 'subject'): # It's a Ticket
-            subject = f"Ticket Update: {payload.subject}"
-            body = f"<h1>Ticket Update</h1><p>Action required on Ticket #{payload.id}.</p>"
+                # 2. INTELLIGENT OVERRIDE (Ticket Context)
+        if hasattr(payload, 'subject'): 
+            ticket_id = payload.id
+            subject = f"[Ticket #{ticket_id}] {payload.subject}"
+            
+            # Styles
+            style_container = "font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;"
+            style_header = "background-color: #0f172a; color: #fff; padding: 15px; border-radius: 6px 6px 0 0; text-align: center;"
+            style_status = "display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; background-color: #22c55e; color: #fff;"
+            style_body = "padding: 20px; color: #334155; line-height: 1.6;"
+            style_quote = "background-color: #f8fafc; border-left: 4px solid #22c55e; padding: 15px; margin: 15px 0; font-style: italic;"
+            style_footer = "text-align: center; font-size: 12px; color: #94a3b8; margin-top: 20px;"
+
+            html_content = f"""
+            <div style="{style_container}">
+                <div style="{style_header}">
+                    <h2 style="margin:0;">Ticket Update</h2>
+                </div>
+                <div style="{style_body}">
+                    <p>Hello,</p>
+                    <p>There has been an update to your ticket <strong>#{ticket_id}</strong>.</p>
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+            """
+
+            # If Resolution
+            if hasattr(payload, 'resolution') and payload.resolution:
+                html_content += f"""
+                    <div style="margin-bottom: 10px;">
+                        <span style="{style_status}">RESOLVED</span>
+                    </div>
+                    <p><strong>The issue has been marked as resolved by the technician.</strong></p>
+                    <p>Resolution Details:</p>
+                    <div style="{style_quote}">
+                        {payload.resolution}
+                    </div>
+                """
+            else:
+                # Generic Creation/Update
+                html_content += f"""
+                    <p>Your ticket <strong>{payload.subject}</strong> has been received/updated.</p>
+                    <p>Our team is reviewing it.</p>
+                """
+
+            html_content += f"""
+                    <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                    <p>You can view the full status in the <a href="https://core.digitalsanctum.com.au/portal">Client Portal</a>.</p>
+                </div>
+                <div style="{style_footer}">
+                    &copy; 2026 Digital Sanctum. Secure Systems.
+                </div>
+            </div>
+            """
+            
+            body = html_content
+
         
         email_service.send(to_email, subject, body)
         return f"Email sent to {to_email}"
