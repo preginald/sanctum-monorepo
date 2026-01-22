@@ -97,9 +97,8 @@ def create_ticket(
     new_ticket.account_name = new_ticket.account.name 
     
     # EVENT EMISSION
-    # Logic: If client created it, emit event to notify admin
-    if current_user.role == 'client':
-        event_bus.emit("ticket_created", new_ticket, background_tasks)
+    # UPDATED: Emit for EVERYONE (Admin or Client)
+    event_bus.emit("ticket_created", new_ticket, background_tasks)
     
     return new_ticket
 
