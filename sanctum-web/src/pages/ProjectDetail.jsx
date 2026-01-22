@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
+import { handleSmartWrap } from '../lib/textUtils';
 // FIX: Added 'Flag' to imports
 import { Loader2, ArrowLeft, Plus, CheckCircle, Circle, Receipt, Calendar, Flag, Activity, Bug, Zap, Clipboard, X, Edit2, ChevronUp, ChevronDown, Briefcase } from 'lucide-react';
 import api from '../lib/api';
@@ -208,7 +209,13 @@ const toggleShowCompleted = (e) => {
     </div>
 </div>
                     <div><label className="text-xs opacity-50 block mb-1">Subject</label><input autoFocus required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.subject} onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} /></div>
-                    <div><label className="text-xs opacity-50 block mb-1">Description</label><textarea className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} /></div>
+                    <div><label className="text-xs opacity-50 block mb-1">Description</label><textarea 
+                        className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm font-mono" 
+                        value={ticketForm.description} 
+                        onChange={e => setTicketForm({...ticketForm, description: e.target.value})}
+                        // NEW: Smart Wrap Logic
+                        onKeyDown={(e) => handleSmartWrap(e, ticketForm.description, (v) => setTicketForm({...ticketForm, description: v}))}
+                    /></div>
                     <button type="submit" className="w-full py-2 bg-sanctum-gold text-slate-900 font-bold rounded">Create Task</button>
                 </form>
             </div>

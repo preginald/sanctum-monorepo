@@ -73,7 +73,7 @@ const MarkdownComponents = {
     h3: ({node, ...props}) => <h3 className="text-xl font-bold text-blue-200 mt-6 mb-3" {...props} />,
     
     // Text
-    p: ({node, ...props}) => <p className="text-slate-300 leading-7 mb-4" {...props} />,
+    p: ({node, ...props}) => <p className="text-slate-300 leading-7 mb-4 whitespace-pre-wrap" {...props} />,
     strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
     
     // Lists

@@ -102,53 +102,51 @@ export default function CommentStream({ resourceType, resourceId }) {
         )}
       </div>
 
-      {/* INPUT AREA */}
+{/* INPUT AREA */}
       <div className="p-4 bg-slate-800/30 border-t border-slate-700">
-        <form onSubmit={handleSubmit} className="relative">
+        <form onSubmit={handleSubmit} className="space-y-2">
+            {/* Text Area */}
             <textarea 
-                className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-sanctum-gold transition-colors pr-12 resize-none custom-scrollbar"
+                className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-sanctum-gold transition-colors resize-none custom-scrollbar"
                 rows="3"
                 placeholder={`Log ${visibility} activity... (Markdown supported)`}
                 value={newBody}
-    onChange={(e) => setNewBody(e.target.value)}
-    onKeyDown={(e) => {
-        // Handle Smart Wrap
-        handleSmartWrap(e, newBody, setNewBody);
-        
-        // Handle Submit (Cmd+Enter) - logic moved after smart wrap
-        if (e.key === 'Enter' && e.metaKey) handleSubmit(e); 
-    }}
-/>
-
+                onChange={(e) => setNewBody(e.target.value)}
+                onKeyDown={(e) => {
+                    handleSmartWrap(e, newBody, setNewBody);
+                    if (e.key === 'Enter' && e.metaKey) handleSubmit(e); 
+                }}
+            />
             
-            {/* CONTROLS */}
-            <div className="absolute right-2 bottom-2.5 flex items-center gap-2">
-                {/* VISIBILITY TOGGLE */}
-                <button
-                    type="button"
-                    onClick={() => setVisibility(v => v === 'internal' ? 'public' : 'internal')}
-                    className={`p-1.5 rounded text-xs font-bold flex items-center gap-1 transition-all ${visibility === 'internal' ? 'bg-purple-600 text-white hover:bg-purple-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
-                    title={`Click to switch to ${visibility === 'internal' ? 'Public' : 'Internal'}`}
-                >
-                    {visibility === 'internal' ? <Lock size={12}/> : <Globe size={12}/>}
-                </button>
+            {/* Toolbar Row */}
+            <div className="flex justify-between items-center">
+                <div className="text-[10px] text-slate-600 px-1">
+                    Supports Markdown • Cmd+Enter to send
+                </div>
+                
+                <div className="flex items-center gap-2">
+                    {/* VISIBILITY TOGGLE */}
+                    <button
+                        type="button"
+                        onClick={() => setVisibility(v => v === 'internal' ? 'public' : 'internal')}
+                        className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-all ${visibility === 'internal' ? 'bg-purple-600 text-white hover:bg-purple-500' : 'bg-blue-600 text-white hover:bg-blue-500'}`}
+                        title={`Click to switch to ${visibility === 'internal' ? 'Public' : 'Internal'}`}
+                    >
+                        {visibility === 'internal' ? <Lock size={12}/> : <Globe size={12}/>}
+                        {visibility === 'internal' ? 'Internal' : 'Public'}
+                    </button>
 
-                <button 
-                    type="submit" 
-                    disabled={sending || !newBody.trim()}
-                    className="p-1.5 bg-sanctum-gold hover:bg-yellow-500 text-slate-900 rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    title="Send"
-                >
-                    <Send size={16} />
-                </button>
+                    <button 
+                        type="submit" 
+                        disabled={sending || !newBody.trim()}
+                        className="px-4 py-1.5 bg-sanctum-gold hover:bg-yellow-500 text-slate-900 font-bold rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                        title="Send"
+                    >
+                        <Send size={14} /> Send
+                    </button>
+                </div>
             </div>
         </form>
-        <div className="text-[10px] text-slate-600 mt-2 flex justify-between px-1">
-            <span>Supports Markdown</span>
-            <span className={visibility === 'internal' ? 'text-purple-500' : 'text-blue-500'}>
-                Posting as {visibility.toUpperCase()}
-            </span>
-        </div>
       </div>
 
     </div>
