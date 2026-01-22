@@ -2,11 +2,69 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from .. import models, schemas, auth
-from ..models import Article, ArticleHistory # Ensure ArticleHistory is imported
+from ..models import Article, ArticleHistory
 from ..database import get_db
 from uuid import UUID
+import re
 
 router = APIRouter(tags=["Wiki"])
+
+# --- HELPERS ---
+
+def _generate_identifier(db: Session, category: str) -> str:
+    """
+    Generates a unique ID based on category prefixes.
+    SOP -> SOP-001
+    Troubleshooting -> TRB-001
+    Wiki -> WIKI-001
+    Template -> TPL-001
+    """
+    prefix_map = {
+        'sop': 'SOP',
+        'troubleshooting': 'TRB',
+        'wiki': 'WIKI',
+        'template': 'TPL'
+    }
+    prefix = prefix_map.get(category.lower(), 'DOC')
+    
+    # Find the highest ID with this prefix
+    # We filter by length to ensure we are comparing "SOP-001" not "SOP-1000" wrongly if sorting string wise
+    # Ideally we'd use a regex query, but for compatibility let's fetch the last created
+    last_article = db.query(models.Article)\
+        .filter(models.Article.identifier.ilike(f"{prefix}-%"))\
+        .order_by(models.Article.created_at.desc())\
+        .first()
+
+    next_num = 1
+    if last_article and last_article.identifier:
+        try:
+            # Extract the number part
+            parts = last_article.identifier.split('-')
+            if len(parts) >= 2 and parts[-1].isdigit():
+                next_num = int(parts[-1]) + 1
+        except Exception:
+            pass # Fallback to 1 if parsing fails
+
+    return f"{prefix}-{str(next_num).zfill(3)}"
+
+def _increment_version(current_version: str) -> str:
+    """
+    Parses v1.0 -> v1.1. 
+    Handles basic integer or float strings gracefully.
+    """
+    if not current_version: 
+        return "v1.0"
+    
+    # Regex to find major.minor
+    match = re.search(r"v?(\d+)\.(\d+)", current_version)
+    if match:
+        major = match.group(1)
+        minor = int(match.group(2))
+        return f"v{major}.{minor + 1}"
+    
+    return "v1.1" # Fallback reset
+
+# --- ENDPOINTS ---
 
 @router.get("/articles", response_model=List[schemas.ArticleResponse])
 def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
@@ -14,7 +72,6 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     if category: query = query.filter(models.Article.category == category)
     articles = query.order_by(models.Article.identifier.asc()).all()
     
-    # Map Author Name
     for a in articles:
         if a.author: a.author_name = a.author.full_name
         
@@ -37,7 +94,14 @@ def get_article_detail(slug: str, db: Session = Depends(get_db)):
 @router.post("/articles", response_model=schemas.ArticleResponse)
 def create_article(article: schemas.ArticleCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
-    new_article = models.Article(**article.model_dump(), author_id=current_user.id)
+    
+    article_data = article.model_dump()
+    
+    # AUTOMATION: Generate Identifier if missing
+    if not article_data.get('identifier'):
+        article_data['identifier'] = _generate_identifier(db, article_data.get('category', 'wiki'))
+        
+    new_article = models.Article(**article_data, author_id=current_user.id)
     db.add(new_article)
     db.commit()
     db.refresh(new_article)
@@ -47,37 +111,45 @@ def create_article(article: schemas.ArticleCreate, current_user: models.User = D
 def update_article(
     article_id: str, 
     update: schemas.ArticleUpdate, 
-    current_user: models.User = Depends(auth.get_current_active_user), # Need user for history attribution
+    current_user: models.User = Depends(auth.get_current_active_user), 
     db: Session = Depends(get_db)
 ):
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not article: raise HTTPException(status_code=404, detail="Article not found")
     
-    # 1. SNAPSHOT CURRENT STATE (Copy-on-Write)
-    # We save what it WAS before this update
+    # 1. HISTORY SNAPSHOT
     history_entry = models.ArticleHistory(
         article_id=article.id,
-        author_id=article.author_id, # The person who wrote the OLD version (or current_user? Usually preserve original author credit or snapshotter. Let's use the modifier.)
-        # Actually, standard logic: History record shows WHO made the change? 
-        # No, History shows "This was v1.0". The *current* update is v1.1.
-        # Let's save the current state as a history record.
+        author_id=article.author_id, 
         title=article.title,
         content=article.content,
         version=article.version
     )
     db.add(history_entry)
     
-    # 2. APPLY UPDATE
     update_data = update.model_dump(exclude_unset=True)
+
+    # 2. AUTOMATION: Smart Versioning
+    # If version is missing OR matches the current DB version, we auto-increment
+    payload_version = update_data.get('version')
+    
+    if not payload_version or payload_version == article.version:
+        # Calculate new version
+        article.version = _increment_version(article.version)
+        # CRITICAL: Remove 'version' from update_data so the loop below doesn't overwrite our new value with the old one
+        if 'version' in update_data:
+            del update_data['version']
+    
+    # 3. APPLY UPDATE
     for key, value in update_data.items(): 
         setattr(article, key, value)
     
-    # Update latest author to the person making THIS edit
     article.author_id = current_user.id
     
     db.commit()
     db.refresh(article)
     return article
+
 
 @router.get("/articles/{article_id}/history", response_model=List[schemas.ArticleHistoryResponse])
 def get_article_history(article_id: str, db: Session = Depends(get_db)):
