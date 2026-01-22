@@ -40,6 +40,10 @@ import LibraryIndex from './pages/LibraryIndex';
 import ArticleDetail from './pages/ArticleDetail';
 import ArticleEditor from './pages/ArticleEditor';
 
+// --- AUTOMATION MODULE ---
+import AdminAutomationList from './pages/AdminAutomationList';
+
+
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
 
@@ -108,6 +112,8 @@ function App() {
                               <Route path="/wiki/new" element={<ArticleEditor />} />
                               <Route path="/wiki/:slug" element={<ArticleDetail />} />
                               <Route path="/wiki/:id/edit" element={<ArticleEditor />} />
+
+                              <Route path="/admin/automations" element={<AdminAutomationList />} />
                               
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/system/health" element={<SystemHealth />} />
