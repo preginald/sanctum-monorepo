@@ -197,12 +197,23 @@ class Ticket(Base):
     contact = relationship("Contact", foreign_keys=[contact_id])
     contacts = relationship("Contact", secondary=ticket_contacts, backref="tickets")
     
-    comments = relationship("Comment", back_populates="ticket", order_by="desc(Comment.created_at)")
+    comments = relationship(
+        "Comment", 
+        back_populates="ticket", 
+        order_by="desc(Comment.created_at)",
+        foreign_keys="[Comment.ticket_id]" # FIX
+    )
+
     time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
     milestone = relationship("Milestone", back_populates="tickets")
     articles = relationship("Article", secondary=ticket_articles, backref="tickets")
-    resolution_comment = relationship("Comment", foreign_keys=[resolution_comment_id])
+    # Resolution comment uses the 'resolution_comment_id' on the Ticket table
+    resolution_comment = relationship(
+        "Comment", 
+        foreign_keys=[resolution_comment_id],
+        post_update=True # Avoid circular dependency issues during flush
+    )
 
 
     # NEW: Assets Link
@@ -356,7 +367,7 @@ class Comment(Base):
     audit_id = Column(UUID(as_uuid=True), ForeignKey("audit_reports.id"), nullable=True)
     
     author = relationship("User")
-    ticket = relationship("Ticket", back_populates="comments")
+    ticket = relationship("Ticket", back_populates="comments", foreign_keys=[ticket_id])
     deal = relationship("Deal", back_populates="comments")
     audit = relationship("AuditReport", back_populates="comments")
 

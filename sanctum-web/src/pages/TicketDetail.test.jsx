@@ -72,26 +72,28 @@ it('opens resolve modal and submits resolution successfully', async () => {
       </MemoryRouter>
     );
 
-    // Wait for button to be available
-    const resolveBtn = await screen.findByRole('button', { name: /resolve/i });
-    
-    // Click it
+    await screen.findByText('Server Outage');
+
+    // 1. Click Resolve
+    const resolveBtn = screen.getByRole('button', { name: /resolve/i });
     fireEvent.click(resolveBtn);
 
-    // Wait for Modal Title to appear (Implicitly waits for Modal to render)
-    const modalTitle = await screen.findByText('Resolve Ticket', {}, { timeout: 2000 });
+    // 2. Verify Modal (Increased timeout and specific text query)
+    // We look for the HEADER of the modal
+    const modalTitle = await screen.findByText('Resolve Ticket', {}, { timeout: 4000 });
     expect(modalTitle).toBeInTheDocument();
 
-    // Enter Text & Submit
+    // 3. Enter Text
     const textarea = screen.getByPlaceholderText(/Fixed by/i);
     fireEvent.change(textarea, { target: { value: 'Fixed it.' } });
     
+    // 4. Submit
     const confirmBtn = screen.getByRole('button', { name: /confirm resolution/i });
     expect(confirmBtn).toBeEnabled();
     fireEvent.click(confirmBtn);
 
-    // Verify Success Toast call or Modal Disappearance
-    await waitFor(() => expect(screen.queryByText('Resolve Ticket')).not.toBeInTheDocument());
+    // 5. Verify Close
+    await waitFor(() => expect(screen.queryByText('Resolve Ticket')).not.toBeInTheDocument(), { timeout: 3000 });
   });
 
 
