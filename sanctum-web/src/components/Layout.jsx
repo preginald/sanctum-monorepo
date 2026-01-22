@@ -131,13 +131,6 @@ export default function Layout({ children, title }) {
             <>
                 <div className="my-4 border-t border-white/10 mx-2"></div>
                 <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
-            </>
-          )}
-
-          {user?.role === 'admin' && (
-            <>
-                <div className="my-4 border-t border-white/10 mx-2"></div>
-                <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
                 {/* NEW */}
                 <NavItem icon={<Zap size={20} className="text-yellow-400" />} label="The Weaver" path="/admin/automations" />
             </>
