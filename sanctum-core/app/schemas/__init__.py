@@ -1,5 +1,8 @@
 from .shared import InvoiceLite, ArticleLite, SearchResult
-from .auth import Token, TokenData, UserResponse, ClientUserCreate
+from .auth import (
+    Token, TokenData, UserResponse, ClientUserCreate, 
+    TwoFASetupResponse, TwoFAVerify # <--- ADD THESE TWO
+)
 from .billing import (
     ProductCreate, ProductResponse, 
     InvoiceItemCreate, InvoiceItemUpdate, InvoiceItemSchema, 

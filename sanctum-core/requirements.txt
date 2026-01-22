@@ -47,3 +47,5 @@ dnspython
 pytest
 httpx
 pytest-cov
+pyotp
+qrcode

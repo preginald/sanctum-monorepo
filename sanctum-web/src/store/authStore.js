@@ -26,11 +26,13 @@ const useAuthStore = create((set) => ({
   token: storedToken,
   isAuthenticated: !!storedToken,
 
-  login: async (email, password) => {
+  login: async (email, password, otp = null) => {
     try {
+      // Create FormData
       const formData = new FormData();
       formData.append('username', email);
       formData.append('password', password);
+      if (otp) formData.append('otp', otp);
 
       const response = await api.post('/token', formData);
       const { access_token } = response.data;
@@ -46,13 +48,14 @@ const useAuthStore = create((set) => ({
       });
       
       return true;
+
     } catch (error) {
       console.error("Login failed:", error);
-      return false;
+      // CRITICAL: We must re-throw the error so Login.jsx can catch "2FA_REQUIRED"
+      throw error;
     }
   },
 
-  // --- THIS IS THE MISSING ACTION ---
   setToken: (access_token) => {
     try {
         const decodedUser = jwtDecode(access_token);

@@ -34,12 +34,20 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     full_name = Column(String)
-    role = Column(String) # 'admin', 'tech', 'client'
+    role = Column(String) 
     access_scope = Column(String)
     is_active = Column(Boolean, default=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
     
+    # NEW: Store the secret (nullable)
+    totp_secret = Column(String, nullable=True)
+    
     account = relationship("Account", foreign_keys=[account_id])
+
+    # NEW: Helper Property for Pydantic
+    @property
+    def has_2fa(self):
+        return bool(self.totp_secret)
 
 class Account(Base):
     __tablename__ = "accounts"

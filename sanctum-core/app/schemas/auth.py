@@ -10,6 +10,13 @@ class Token(SanctumBase):
 class TokenData(SanctumBase):
     email: Optional[str] = None
 
+class TwoFASetupResponse(SanctumBase):
+    secret: str
+    qr_uri: str
+
+class TwoFAVerify(SanctumBase):
+    code: str
+
 class UserResponse(SanctumBase):
     id: UUID
     email: EmailStr
@@ -18,6 +25,7 @@ class UserResponse(SanctumBase):
     access_scope: str
     is_active: bool
     account_id: Optional[UUID] = None
+    has_2fa: bool = False
 
 class ClientUserCreate(SanctumBase):
     email: EmailStr

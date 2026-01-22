@@ -4,7 +4,7 @@ import useAuthStore from './store/authStore';
 import { ToastProvider } from './context/ToastContext';
 
 // --- AUTH PAGES ---
-import Login from './Login';
+import Login from './pages/Login';
 import PortalDashboard from './pages/PortalDashboard';
 
 // --- CORE MODULES ---
@@ -45,6 +45,10 @@ import AdminAutomationList from './pages/AdminAutomationList';
 
 // --- TIMESHEET MODULE ---
 import TimesheetView from './pages/TimesheetView';
+
+// --- PROFILE MODULE ---
+import Profile from './pages/Profile';
+
 
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
@@ -117,6 +121,7 @@ function App() {
 
                               <Route path="/admin/automations" element={<AdminAutomationList />} />
                               <Route path="/timesheets" element={<TimesheetView />} />
+                              <Route path="/profile" element={<Profile />} />
                               
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/system/health" element={<SystemHealth />} />
