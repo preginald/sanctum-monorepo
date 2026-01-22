@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
 import subprocess
@@ -8,6 +8,12 @@ import os
 from datetime import datetime
 from fastapi.responses import FileResponse
 from fastapi import BackgroundTasks
+from pydantic import BaseModel
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    # Add other fields as needed
 
 # PREFIX: /admin/users
 router = APIRouter(prefix="/admin/users", tags=["Admin"])
@@ -49,6 +55,23 @@ def create_user(
     db.commit()
     db.refresh(new_user)
     return new_user
+
+@router.put("/{user_id}", response_model=schemas.UserResponse)
+def admin_update_user(
+    user_id: str, 
+    update: UserUpdate, # We define this simple schema locally or in schemas
+    current_user: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user: raise HTTPException(status_code=404, detail="User not found")
+    
+    if update.full_name: user.full_name = update.full_name
+    if update.email: user.email = update.email
+    
+    db.commit()
+    db.refresh(user)
+    return user
 
 @router.put("/{user_id}/reset_password")
 def admin_reset_password(

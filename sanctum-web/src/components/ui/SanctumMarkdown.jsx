@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import { Copy, Check, Terminal } from 'lucide-react';
+import { Copy, Check, Terminal, FileJson, FileCode, Hash, FileType } from 'lucide-react';
 
 // --- HELPER COMPONENT FOR CODE BLOCKS ---
 const CodeBlock = ({ inline, className, children, ...props }) => {
@@ -18,6 +18,24 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
         setTimeout(() => setCopied(false), 2000);
     };
 
+    // Helper to pick icon
+    const getLangIcon = (lang) => {
+        switch (lang) {
+            case 'json': return <FileJson size={12} className="text-yellow-400"/>;
+            case 'javascript':
+            case 'js':
+            case 'jsx': return <FileCode size={12} className="text-yellow-300"/>;
+            case 'python':
+            case 'py': return <Hash size={12} className="text-blue-400"/>;
+            case 'html': 
+            case 'markup': return <FileType size={12} className="text-orange-400"/>;
+            case 'bash':
+            case 'sh':
+            case 'shell': return <Terminal size={12} className="text-green-400"/>;
+            default: return <Terminal size={12} className="text-slate-500"/>;
+        }
+    };
+
     if (isInline) {
         return (
             <code className="bg-slate-800 text-orange-300 font-mono text-sm px-1.5 py-0.5 rounded border border-white/10" {...props}>
@@ -26,14 +44,16 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
         );
     }
 
+    const lang = match ? match[1] : 'text';
+
     return (
         <div className="my-6 rounded-lg overflow-hidden border border-slate-700 bg-[#1e1e1e] group relative">
             {/* HEADER */}
             <div className="flex justify-between items-center px-4 py-2 bg-[#2d2d2d] border-b border-slate-700 select-none">
                 <div className="flex items-center gap-2">
-                    <Terminal size={12} className="text-slate-500" />
+                    {getLangIcon(lang)}
                     <span className="text-xs font-mono text-slate-400 uppercase tracking-wider">
-                        {match ? match[1] : 'TEXT'}
+                        {lang}
                     </span>
                 </div>
                 <button 
@@ -49,7 +69,7 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
             <SyntaxHighlighter
                 {...props}
                 style={vscDarkPlus}
-                language={match ? match[1] : 'text'}
+                language={lang}
                 PreTag="div"
                 customStyle={{
                     margin: 0,
