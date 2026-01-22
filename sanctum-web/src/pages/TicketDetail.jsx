@@ -26,6 +26,9 @@ export default function TicketDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false); // Global Save Lock
   const [showResolveModal, setShowResolveModal] = useState(false);
+  const [resolveText, setResolveText] = useState(''); // NEW
+  const [resolveId, setResolveId] = useState(null); // NEW
+
 
   // ASSET LINKING STATE
   const [clientAssets, setClientAssets] = useState([]);
@@ -113,6 +116,13 @@ export default function TicketDetail() {
       setModal({ isOpen: true, title, message, action, isDangerous });
   };
 
+  // Store both text and ID
+  const handlePinComment = (text, commentId) => {
+      setResolveText(text);
+      setResolveId(commentId); // NEW STATE
+      setShowResolveModal(true);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     const payload = { ...formData };
@@ -153,7 +163,8 @@ export default function TicketDetail() {
           const payload = {
               status: 'resolved',
               resolution: resolutionText,
-              closed_at: new Date().toISOString() // Explicit close time
+              closed_at: new Date().toISOString(), // Explicit close time
+              resolution_comment_id: resolveId // Pass the ID
           };
           
           await api.put(`/tickets/${id}`, payload);
@@ -231,6 +242,7 @@ export default function TicketDetail() {
         onClose={() => setShowResolveModal(false)} 
         onResolve={handleResolve} 
         loading={isSaving} 
+        initialValue={resolveText} // Pass 
       />
 
       {/* HEADER */}
@@ -427,7 +439,12 @@ export default function TicketDetail() {
 
         {/* RIGHT COLUMN (Stream) - Spans 2 cols (40%) */}
         <div className="xl:col-span-2 h-[800px] xl:sticky xl:top-8">
-          <CommentStream resourceType="ticket" resourceId={ticket.id} />
+            <CommentStream 
+                resourceType="ticket" 
+                resourceId={ticket.id} 
+                onPromote={ticket.status !== 'resolved' ? handlePinComment : null}
+                highlightId={ticket.resolution_comment_id} // NEW PROP
+            />
         </div>
       </div>
     </Layout>

@@ -70,6 +70,7 @@ class TicketUpdate(SanctumBase):
     ticket_type: Optional[str] = None
     milestone_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
+    resolution_comment_id: Optional[UUID] = None # NEW
 
 class TicketResponse(TicketCreate):
     id: int
@@ -94,6 +95,8 @@ class TicketResponse(TicketCreate):
     assets: List[AssetLite] = [] 
 
     total_hours: float = 0.0
+    resolution_comment_id: Optional[UUID] = None # NEW
+
 
 class LeadSchema(SanctumBase):
     name: str

@@ -9,19 +9,21 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 # 1. ASSOCIATION TABLES
+# Fix: Added primary_key=True to columns to prevent Alembic from trying to make them nullable.
+
 ticket_contacts = Table('ticket_contacts', Base.metadata,
-    Column('ticket_id', Integer, ForeignKey('tickets.id')),
-    Column('contact_id', UUID(as_uuid=True), ForeignKey('contacts.id'))
+    Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
+    Column('contact_id', UUID(as_uuid=True), ForeignKey('contacts.id'), primary_key=True)
 )
 
 ticket_articles = Table('ticket_articles', Base.metadata,
-    Column('ticket_id', Integer, ForeignKey('tickets.id')),
-    Column('article_id', UUID(as_uuid=True), ForeignKey('articles.id'))
+    Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
+    Column('article_id', UUID(as_uuid=True), ForeignKey('articles.id'), primary_key=True)
 )
 
 ticket_assets = Table('ticket_assets', Base.metadata,
-    Column('ticket_id', Integer, ForeignKey('tickets.id')),
-    Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id'))
+    Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
+    Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id'), primary_key=True)
 )
 
 # 2. CORE MODELS
@@ -180,6 +182,8 @@ class Ticket(Base):
     status = Column(String, default='new')
     priority = Column(String, default='normal')
     resolution = Column(Text)
+    # NEW: Link to specific comment
+    resolution_comment_id = Column(UUID(as_uuid=True), ForeignKey("comments.id"), nullable=True)
 
     milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
     is_deleted = Column(Boolean, default=False)
@@ -198,6 +202,8 @@ class Ticket(Base):
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
     milestone = relationship("Milestone", back_populates="tickets")
     articles = relationship("Article", secondary=ticket_articles, backref="tickets")
+    resolution_comment = relationship("Comment", foreign_keys=[resolution_comment_id])
+
 
     # NEW: Assets Link
     assets = relationship("Asset", secondary=ticket_assets, backref="tickets")

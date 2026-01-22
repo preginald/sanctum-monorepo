@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Send, User, Clock, MessageSquare, Lock, Globe } from 'lucide-react'; // Added Icons
+import { Send, User, Clock, MessageSquare, Lock, Globe, CheckCircle } from 'lucide-react'; // Added Icons
 import api from '../lib/api';
 import SanctumMarkdown from './ui/SanctumMarkdown';
 import { handleSmartWrap } from '../lib/textUtils';
 
 
-export default function CommentStream({ resourceType, resourceId }) {
+export default function CommentStream({ resourceType, resourceId, onPromote, highlightId }) {
   const [comments, setComments] = useState([]);
   const [newBody, setNewBody] = useState('');
   const [visibility, setVisibility] = useState('internal'); // State for toggle
@@ -65,16 +65,23 @@ export default function CommentStream({ resourceType, resourceId }) {
         </div>
       </div>
 
-      {/* STREAM */}
+{/* STREAM */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
         {loading ? (
             <div className="text-center opacity-30 text-sm">Loading...</div>
         ) : comments.length === 0 ? (
             <div className="text-center opacity-30 text-sm italic py-10">No activity recorded.</div>
         ) : (
-          comments.map((c) => (
-                <div key={c.id} className="group">
-                    {/* META HEADER ROW */}
+          comments.map((c) => {
+                const isSolution = highlightId === c.id;
+                
+                return (
+                  <div key={c.id} className={`group ${isSolution ? 'relative' : ''}`}>
+                    {/* Solution Indicator */}
+                    {isSolution && (
+                        <div className="absolute -left-3 top-2 w-1 h-8 bg-green-500 rounded-r-md shadow-[0_0_10px_rgba(34,197,94,0.5)]"></div>
+                    )}
+                  {/* META HEADER ROW */}
                     <div className="flex items-center gap-3 mb-2 pl-1">
                         {/* Avatar (Inline) */}
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border flex-shrink-0 ${c.visibility === 'public' ? 'bg-blue-900/20 text-blue-400 border-blue-500/30' : 'bg-purple-900/20 text-purple-400 border-purple-500/30'}`}>
@@ -86,20 +93,39 @@ export default function CommentStream({ resourceType, resourceId }) {
                         <span className="text-xs text-slate-500 flex items-center gap-1">
                             <Clock size={10} /> {formatDate(c.created_at)}
                         </span>
+
+                        {/* SOLUTION BADGE */}
+                        {isSolution && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-green-900/40 text-green-400 border border-green-500/30 flex items-center gap-1 mr-2">
+                                <CheckCircle size={10} /> Solution
+                            </span>
+                        )}
                         
                         {/* Visibility Badge */}
                         <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ml-auto ${c.visibility === 'public' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'bg-purple-600/10 text-purple-400 border border-purple-500/20'}`}>
                             {c.visibility === 'public' ? 'Public' : 'Internal'}
                         </span>
+
+                        {/* NEW: PIN BUTTON */}
+                        {onPromote && !isSolution && (
+                            <button 
+                                onClick={() => onPromote(c.body, c.id)}
+                                className="ml-2 p-1 text-slate-500 hover:text-green-400 transition-colors"
+                                title="Pin as Resolution"
+                            >
+                                <CheckCircle size={14} />
+                            </button>
+                        )}
                     </div>
                     
-                    {/* BODY (Full Width) */}
-                    <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10'} group-hover:border-white/10 transition-colors`}>
+                    {/* BODY - Add Green Border if solution */}
+                    <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${isSolution ? 'border-green-500/30 bg-green-900/5' : (c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10')} group-hover:border-white/10 transition-colors`}>
                         <SanctumMarkdown content={c.body} className="prose-sm" />
                     </div>
                 </div>
-            ))
-        )}
+                );
+            })
+        )} 
       </div>
 
 {/* INPUT AREA */}

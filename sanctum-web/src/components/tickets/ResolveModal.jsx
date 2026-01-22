@@ -1,9 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { Loader2, CheckCircle } from 'lucide-react';
 
-export default function ResolveModal({ isOpen, onClose, onResolve, loading }) {
+export default function ResolveModal({ isOpen, onClose, onResolve, loading, initialValue = ''  }) {
   const [resolution, setResolution] = useState('');
+
+  useEffect(() => {
+      if (isOpen && initialValue) {
+          setResolution(initialValue);
+      } else if (isOpen && !initialValue) {
+          setResolution('');
+      }
+  }, [isOpen, initialValue]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
