@@ -43,6 +43,8 @@ import ArticleEditor from './pages/ArticleEditor';
 // --- AUTOMATION MODULE ---
 import AdminAutomationList from './pages/AdminAutomationList';
 
+// --- TIMESHEET MODULE ---
+import TimesheetView from './pages/TimesheetView';
 
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
@@ -114,6 +116,7 @@ function App() {
                               <Route path="/wiki/:id/edit" element={<ArticleEditor />} />
 
                               <Route path="/admin/automations" element={<AdminAutomationList />} />
+                              <Route path="/timesheets" element={<TimesheetView />} />
                               
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/system/health" element={<SystemHealth />} />

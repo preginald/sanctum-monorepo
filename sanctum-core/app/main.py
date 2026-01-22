@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations
+from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets
 from .services.event_bus import event_bus
 
 app = FastAPI(title="Sanctum Core", version="1.9.0")
@@ -39,6 +39,8 @@ app.include_router(search.router)
 app.include_router(sentinel.router)
 app.include_router(assets.router)
 app.include_router(automations.router)
+app.include_router(timesheets.router)
+
 
 
 # ROOT HEALTH CHECK (Simple)

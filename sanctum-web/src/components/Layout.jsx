@@ -4,7 +4,7 @@ import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
     Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, 
-    BookOpen, Zap 
+    BookOpen, Zap, Clock
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
@@ -133,8 +133,11 @@ export default function Layout({ children, title }) {
                 <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
                 {/* NEW */}
                 <NavItem icon={<Zap size={20} className="text-yellow-400" />} label="The Weaver" path="/admin/automations" />
+                <NavItem icon={<Clock size={20} />} label="Timesheets" path="/timesheets" />
             </>
           )}
+
+
         </nav>
 
         <div className="p-4 border-t border-slate-800/50 space-y-2">
