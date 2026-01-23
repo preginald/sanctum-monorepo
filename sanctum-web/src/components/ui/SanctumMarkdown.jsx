@@ -1,9 +1,32 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import rehypeSanitize from 'rehype-sanitize';
+import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+// --- LANGUAGE IMPORTS (Bundle Size Optimization) ---
+import js from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import py from 'react-syntax-highlighter/dist/esm/languages/prism/python';
+import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
+import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
+import markup from 'react-syntax-highlighter/dist/esm/languages/prism/markup'; // html/xml
+
 import { Copy, Check, Terminal, FileJson, FileCode, Hash, FileType } from 'lucide-react';
+
+// --- REGISTER LANGUAGES ---
+SyntaxHighlighter.registerLanguage('javascript', js);
+SyntaxHighlighter.registerLanguage('js', js);
+SyntaxHighlighter.registerLanguage('jsx', js);
+SyntaxHighlighter.registerLanguage('python', py);
+SyntaxHighlighter.registerLanguage('py', py);
+SyntaxHighlighter.registerLanguage('bash', bash);
+SyntaxHighlighter.registerLanguage('sh', bash);
+SyntaxHighlighter.registerLanguage('json', json);
+SyntaxHighlighter.registerLanguage('sql', sql);
+SyntaxHighlighter.registerLanguage('html', markup);
+SyntaxHighlighter.registerLanguage('markup', markup);
 
 // --- HELPER COMPONENT FOR CODE BLOCKS ---
 const CodeBlock = ({ inline, className, children, ...props }) => {
@@ -47,9 +70,11 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
     const lang = match ? match[1] : 'text';
 
     return (
-        <div className="my-6 rounded-lg overflow-hidden border border-slate-700 bg-[#1e1e1e] group relative">
+        // REF: Theme consistency - Replaced bg-[#1e1e1e] with bg-slate-950
+        <div className="my-6 rounded-lg overflow-hidden border border-slate-700 bg-slate-950 group relative">
             {/* HEADER */}
-            <div className="flex justify-between items-center px-4 py-2 bg-[#2d2d2d] border-b border-slate-700 select-none">
+            {/* REF: Theme consistency - Replaced bg-[#2d2d2d] with bg-slate-900 */}
+            <div className="flex justify-between items-center px-4 py-2 bg-slate-900 border-b border-slate-700 select-none">
                 <div className="flex items-center gap-2">
                     {getLangIcon(lang)}
                     <span className="text-xs font-mono text-slate-400 uppercase tracking-wider">
@@ -58,6 +83,9 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
                 </div>
                 <button 
                     onClick={handleCopy}
+                    // REF: Accessibility - Added aria-label and title
+                    aria-label="Copy code to clipboard"
+                    title="Copy code to clipboard"
                     className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-slate-400 hover:text-white transition-colors"
                 >
                     {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
@@ -132,9 +160,12 @@ export default function SanctumMarkdown({ content, className="" }) {
             <ReactMarkdown 
                 components={MarkdownComponents}
                 remarkPlugins={[remarkGfm]}
+                // REF: Security - Added rehype-sanitize
+                rehypePlugins={[rehypeSanitize]}
             >
                 {content}
             </ReactMarkdown>
         </div>
     );
 }
+
