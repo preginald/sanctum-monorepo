@@ -49,6 +49,9 @@ import TimesheetView from './pages/TimesheetView';
 // --- PROFILE MODULE ---
 import Profile from './pages/Profile';
 
+// --- ANALYTICS MODULE ---
+import Analytics from './pages/Analytics';
+
 
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
@@ -121,6 +124,8 @@ function App() {
 
                               <Route path="/admin/automations" element={<AdminAutomationList />} />
                               <Route path="/timesheets" element={<TimesheetView />} />
+                              <Route path="/analytics" element={<Analytics />} />
+
                               <Route path="/profile" element={<Profile />} />
                               
                               <Route path="/admin/health" element={<Diagnostics />} />

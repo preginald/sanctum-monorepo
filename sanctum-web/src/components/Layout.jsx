@@ -4,7 +4,7 @@ import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
     Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, 
-    BookOpen, Zap, Clock, User
+    BookOpen, Zap, Clock, User, PieChart
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
@@ -112,6 +112,7 @@ export default function Layout({ children, title }) {
         </div>
 
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          {/* CORE MODULES */}
           <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
           <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
           {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
@@ -120,10 +121,10 @@ export default function Layout({ children, title }) {
           
           <div className="my-4 border-t border-white/10 mx-2"></div>
           
+          {/* RESOURCES */}
           <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
           <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
           {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" />}
-          
           <NavItem icon={<BookOpen size={20} />} label="The Library" path="/wiki" />
 
           {/* ADMIN ONLY SECTION */}
@@ -131,16 +132,24 @@ export default function Layout({ children, title }) {
             <>
                 <div className="my-4 border-t border-white/10 mx-2"></div>
                 <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
-                {/* NEW */}
                 <NavItem icon={<Zap size={20} className="text-yellow-400" />} label="The Weaver" path="/admin/automations" />
-                <NavItem icon={<Clock size={20} />} label="Timesheets" path="/timesheets" />
-                <div className="my-4 border-t border-white/10 mx-2"></div>
-                <NavItem icon={<User size={20} />} label="My Profile" path="/profile" />
+                
+                {/* NEW: THE ORACLE */}
+                <NavItem icon={<PieChart size={20} className="text-green-400" />} label="The Oracle" path="/analytics" />
             </>
           )}
 
+          {/* SHARED STAFF TOOLS (Admin + Tech) */}
+          {(user?.role === 'admin' || user?.role === 'tech') && (
+             <NavItem icon={<Clock size={20} />} label="Timesheets" path="/timesheets" />
+          )}
+
+          {/* GLOBAL USER TOOLS */}
+          <div className="my-4 border-t border-white/10 mx-2"></div>
+          <NavItem icon={<User size={20} />} label="My Profile" path="/profile" />
 
         </nav>
+
 
         <div className="p-4 border-t border-slate-800/50 space-y-2">
           <button onClick={() => navigate('/system/health')} className={`flex items-center gap-3 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold w-full px-2 py-2 rounded hover:bg-white/5 ${collapsed ? "justify-center" : "text-left"}`} title="System Health">

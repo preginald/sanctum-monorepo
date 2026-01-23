@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets
-from .services.event_bus import event_bus
+# UPDATED IMPORTS: Added 'analytics'
+from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets, analytics
 
-app = FastAPI(title="Sanctum Core", version="1.9.0")
+app = FastAPI(title="Sanctum Core", version="1.9.1")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # CORS
@@ -40,10 +40,10 @@ app.include_router(sentinel.router)
 app.include_router(assets.router)
 app.include_router(automations.router)
 app.include_router(timesheets.router)
+# NEW REGISTRATION
+app.include_router(analytics.router)
 
-
-
-# ROOT HEALTH CHECK (Simple)
+# ROOT HEALTH CHECK
 @app.get("/")
 def read_root():
-    return {"status": "operational", "system": "Sanctum Core v1.9.0"}
+    return {"status": "operational", "system": "Sanctum Core v1.9.1"}
