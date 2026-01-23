@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { Loader2, CheckCircle, XCircle, Clock, FileText, Settings, Activity } from 'lucide-react';
 import api from '../../lib/api';
+import { AUTOMATION_EVENTS, AUTOMATION_ACTIONS } from '../../lib/constants';
 
 export default function AutomationModal({ isOpen, onClose, onSubmit, loading, form, setForm }) {
   const [configString, setConfigString] = useState('{}');
@@ -42,6 +43,13 @@ export default function AutomationModal({ isOpen, onClose, onSubmit, loading, fo
       }
   };
 
+  const getPlaceholder = () => {
+        if (form.action_type === 'create_notification') {
+            return '{ "target": "admin", "title": "Alert", "message": "Ticket created" }';
+        }
+        return '{ "template": "alert", "target": "admin" }';
+    };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={form.id ? "Edit Rule" : "New Automation"}>
         
@@ -80,18 +88,17 @@ export default function AutomationModal({ isOpen, onClose, onSubmit, loading, fo
                     <div>
                         <label className="text-xs opacity-50 block mb-1">Trigger Event</label>
                         <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" value={form.event_type} onChange={e => setForm({...form, event_type: e.target.value})}>
-                            <option value="ticket_created">Ticket Created</option>
-                            <option value="ticket_resolved">Ticket Resolved</option>
-                            <option value="deal_won">Deal Won</option>
-                            <option value="invoice_overdue">Invoice Overdue</option>
+                            {AUTOMATION_EVENTS.map(evt => (
+                                <option key={evt.value} value={evt.value}>{evt.label}</option>
+                            ))}
                         </select>
                     </div>
                     <div>
                         <label className="text-xs opacity-50 block mb-1">Action</label>
                         <select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" value={form.action_type} onChange={e => setForm({...form, action_type: e.target.value})}>
-                            <option value="send_email">Send Email</option>
-                            <option value="log_info">Log Info (Debug)</option>
-                            <option value="webhook">Call Webhook</option>
+                            {AUTOMATION_ACTIONS.map(act => (
+                                <option key={act.value} value={act.value}>{act.label}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -102,7 +109,7 @@ export default function AutomationModal({ isOpen, onClose, onSubmit, loading, fo
                         className="w-full p-3 h-32 bg-slate-950 border border-slate-700 rounded text-green-400 font-mono text-xs custom-scrollbar" 
                         value={configString} 
                         onChange={e => setConfigString(e.target.value)} 
-                        placeholder='{ "template": "alert", "target": "admin" }'
+                        placeholder={getPlaceholder()}
                     />
                     <p className="text-[10px] text-slate-500 mt-1">Check Wiki (SYS-016) for config schemas.</p>
                 </div>

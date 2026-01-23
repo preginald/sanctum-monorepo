@@ -73,3 +73,18 @@ export const ASSET_STATUSES = [
     "retired",
     "lost"
 ];
+
+// AUTOMATION
+export const AUTOMATION_EVENTS = [
+    { value: "ticket_created", label: "Ticket Created" },
+    { value: "ticket_resolved", label: "Ticket Resolved" },
+    { value: "deal_won", label: "Deal Won" },
+    { value: "invoice_overdue", label: "Invoice Overdue" }
+];
+
+export const AUTOMATION_ACTIONS = [
+    { value: "send_email", label: "Send Email" },
+    { value: "create_notification", label: "In-App Notification" },
+    { value: "log_info", label: "Log Info (Debug)" },
+    { value: "webhook", label: "Call Webhook" }
+];

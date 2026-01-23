@@ -476,3 +476,17 @@ class AutomationLog(Base):
     output = Column(Text, nullable=True) # JSON string or error message
     
     automation = relationship("Automation", back_populates="logs")
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    
+    title = Column(String, nullable=False)
+    message = Column(Text, nullable=False)
+    link = Column(String, nullable=True) # e.g. "/tickets/123"
+    
+    is_read = Column(Boolean, default=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="notifications")

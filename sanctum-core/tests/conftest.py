@@ -1,5 +1,6 @@
 import pytest
 from sqlalchemy import create_engine
+from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 from app.main import app
@@ -20,16 +21,21 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 
 @pytest.fixture(scope="function")
 def db():
-    # 1. Create Tables
+    # 1. Force Clean Schema
+    with engine.connect() as conn:
+        conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
+        conn.commit()
+    
+    # 2. Recreate Tables
     Base.metadata.create_all(bind=engine)
     
-    # 2. Bind Session
+    # 3. Bind Session
     session = TestingSessionLocal()
     yield session
     
-    # 3. Teardown
+    # 4. Cleanup
     session.close()
-    Base.metadata.drop_all(bind=engine)
+    # No need to drop_all, next test will nukes schema
 
 @pytest.fixture(scope="function")
 def client(db):

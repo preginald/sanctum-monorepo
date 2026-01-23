@@ -9,6 +9,8 @@ import {
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 import GlobalSearch from './ui/GlobalSearch';
+import NotificationBell from './ui/NotificationBell';
+
 
 export default function Layout({ children, title }) {
   const { user, token, setToken, logout } = useAuthStore();
@@ -177,8 +179,10 @@ export default function Layout({ children, title }) {
           </div>
           
           {/* SEARCH BAR (Center-Right) */}
-          <div className="flex-1 px-12 flex justify-end">
+          <div className="flex-1 px-4 md:px-12 flex justify-end items-center gap-4">
               <GlobalSearch />
+              <div className="border-l border-white/10 h-6 mx-2"></div>
+              <NotificationBell />
           </div>
 
           <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${buttonClass} text-white ml-4`}>

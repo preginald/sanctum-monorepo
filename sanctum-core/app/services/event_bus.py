@@ -5,6 +5,7 @@ from .. import models
 from .email_service import email_service
 import json
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 # Define Payload Types
 EventPayload = Any
@@ -92,6 +93,9 @@ class EventBus:
             elif rule.action_type == 'webhook':
                 output = "Webhook not implemented yet."
 
+            elif rule.action_type == 'create_notification':
+                output = self._handle_notification_action(db, rule.config, payload)
+
             else:
                 output = f"Unknown action type: {rule.action_type}"
 
@@ -137,7 +141,7 @@ class EventBus:
         subject = f"Automation: {template}"
         body = f"<p>Automation Rule Triggered.</p><pre>{str(payload)}</pre>"
 
-                # 2. INTELLIGENT OVERRIDE (Ticket Context)
+        # 2. INTELLIGENT OVERRIDE (Ticket Context)
         if hasattr(payload, 'subject'): 
             ticket_id = payload.id
             subject = f"[Ticket #{ticket_id}] {payload.subject}"
@@ -191,10 +195,38 @@ class EventBus:
             """
             
             body = html_content
-
         
         email_service.send(to_email, subject, body)
         return f"Email sent to {to_email}"
+
+    def _handle_notification_action(self, db: Session, config: dict, payload: Any) -> str:
+        """
+        Config: {'target': 'admin'|'tech'|'owner', 'title': 'str', 'message': 'str'}
+        """
+        target = config.get('target', 'admin')
+        
+        # Resolve Users to notify
+        users_to_notify = []
+        if target == 'admin':
+            users_to_notify = db.query(models.User).filter(models.User.role == 'admin').all()
+        elif target == 'owner' and hasattr(payload, 'assigned_tech_id'):
+            if payload.assigned_tech_id:
+                users_to_notify = db.query(models.User).filter(models.User.id == payload.assigned_tech_id).all()
+        
+        if not users_to_notify:
+            return "No users found to notify."
+
+        for user in users_to_notify:
+            notif = models.Notification(
+                user_id=user.id,
+                title=config.get('title', 'System Alert'),
+                message=config.get('message', f"Update regarding {str(payload)}"),
+                link=f"/tickets/{payload.id}" if hasattr(payload, 'id') else None
+            )
+            db.add(notif)
+        
+        db.commit()
+        return f"Notifications created for {len(users_to_notify)} users."
 
 # Global Instance
 event_bus = EventBus()

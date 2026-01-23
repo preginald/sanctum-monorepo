@@ -39,6 +39,9 @@ from .automation import (
     AutomationCreate, AutomationUpdate, AutomationResponse, AutomationLogResponse
 )
 
+from .notification import NotificationResponse, NotificationUpdate
+
+
 
 # Analytics
 from pydantic import BaseModel
