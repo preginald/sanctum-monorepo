@@ -480,7 +480,7 @@ class AutomationLog(Base):
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # ADD ondelete="CASCADE"
     
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
@@ -490,3 +490,20 @@ class Notification(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="notifications")
+
+
+class PasswordToken(Base):
+    __tablename__ = "password_tokens"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # ADD ondelete="CASCADE"
+    
+    token_hash = Column(String, nullable=False, index=True) # We store hash of token for security? Or raw token if short lived? 
+    # For simplicity in MVP, we'll store the raw high-entropy string, but best practice is hashing. 
+    # Let's store the raw token string for now to keep the lookup simple, assuming tokens are high-entropy secrets.
+    token = Column(String, unique=True, nullable=False)
+    
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
+    used = Column(Boolean, default=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    user = relationship("User")

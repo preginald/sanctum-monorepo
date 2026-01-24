@@ -31,3 +31,10 @@ class ClientUserCreate(SanctumBase):
     email: EmailStr
     password: str
     full_name: str
+
+class PasswordSetRequest(SanctumBase):
+    token: str
+    new_password: str
+
+class InviteRequest(SanctumBase):
+    email: str # EmailStr

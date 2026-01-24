@@ -110,7 +110,7 @@ export default function Login() {
           {step === 1 && (
               <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Identity</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label> {/* CHANGED */}
                   <input
                     type="email"
                     required
@@ -122,7 +122,7 @@ export default function Login() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Cipher</label>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Password</label> {/* CHANGED */}
                   <input
                     type="password"
                     required

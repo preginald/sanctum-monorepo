@@ -61,6 +61,23 @@ export default function ClientModals({ activeModal, onClose, onSubmit, loading, 
                       ))}
                   </select>
               </div>
+
+              {/* PORTAL INVITE TOGGLE */}
+              {!forms.contact.id && ( // Only show on Create, not Edit (simplifies logic)
+                  <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded border border-slate-700">
+                      <input 
+                        type="checkbox" 
+                        id="portal_access"
+                        className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
+                        checked={forms.contact.enable_portal_access || false}
+                        onChange={e => handleChange('contact', 'enable_portal_access', e.target.checked)}
+                      />
+                      <label htmlFor="portal_access" className="cursor-pointer">
+                          <span className="block text-sm font-bold text-white">Enable Portal Access</span>
+                          <span className="block text-xs text-slate-500">Automatically creates a user account and sends an invite email.</span>
+                      </label>
+                  </div>
+              )}
               
               <button type="submit" disabled={loading} className="w-full py-2 bg-sanctum-blue text-white font-bold rounded flex justify-center items-center gap-2">{loading && <Loader2 className="animate-spin" size={16}/>} Save Contact</button>
           </form>
