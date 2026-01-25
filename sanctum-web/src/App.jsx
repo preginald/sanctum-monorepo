@@ -110,6 +110,7 @@ function App() {
                               
                               {/* OPERATIONS */}
                               <Route path="/tickets" element={<Tickets />} />
+                              <Route path="/tickets/new" element={<Tickets autoCreate={true} />} /> 
                               <Route path="/tickets/:id" element={<TicketDetail />} />
                               
                               <Route path="/audit" element={<AuditIndex />} />

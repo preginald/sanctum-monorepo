@@ -26,7 +26,7 @@ const COLUMNS = {
   'resolved': { id: 'resolved', label: 'Resolved', color: 'border-green-500' }
 };
 
-export default function Tickets() {
+export default function Tickets({ autoCreate = false }) { // NEW PROP
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const { addToast } = useToast();
@@ -43,10 +43,18 @@ export default function Tickets() {
 
   const isAdmin = user?.role !== 'client';
 
+  // --- INITIALIZATION ---
   useEffect(() => { fetchData(); }, [token]);
 
+  // NEW: Handle Auto-Open from Router (Action Search)
+  useEffect(() => {
+    if (autoCreate) {
+        setShowModal(true);
+    }
+  }, [autoCreate]);
+
   const fetchData = async () => {
-    setLoading(true); // Ensure loader shows on refresh
+    setLoading(true); 
     try {
       const res = await api.get('/tickets');
       setTickets(res.data);
@@ -108,9 +116,20 @@ export default function Tickets() {
     }
   };
 
+  // NEW: Close Handler with Navigation
+  const handleCloseModal = () => {
+      setShowModal(false);
+      // If we are in "autoCreate" mode, we want to clear the URL back to /tickets
+      // so a refresh doesn't pop the modal again.
+      if (autoCreate) {
+          navigate('/tickets');
+      }
+  };
+
   const handleTicketCreated = () => {
     fetchData();
     addToast("Ticket created successfully", "success");
+    handleCloseModal(); // Use the smart handler to potentially navigate
   };
 
   // --- LOADING STATE ---
@@ -211,7 +230,12 @@ export default function Tickets() {
           />
       )}
 
-      <TicketCreateModal isOpen={showModal} onClose={() => setShowModal(false)} onSuccess={handleTicketCreated} />
+      {/* UPDATED MODAL USAGE */}
+      <TicketCreateModal 
+        isOpen={showModal} 
+        onClose={handleCloseModal} // Use new handler 
+        onSuccess={handleTicketCreated} 
+      />
     </Layout>
   );
 }
