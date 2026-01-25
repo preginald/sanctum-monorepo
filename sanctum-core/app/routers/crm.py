@@ -7,6 +7,8 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import email_service
 from .auth import invite_user
+from ..services.auth_service import auth_service
+
 
 router = APIRouter(tags=["CRM"])
 
@@ -158,28 +160,18 @@ def create_contact(contact: schemas.ContactCreate, current_user: models.User = D
     db.commit()
     db.refresh(new_contact)
     
-    # 3. Convergence Logic
+    # 3. Convergence Logic (Delegated)
     if enable_portal and new_contact.email:
         # Check if user exists
         existing_user = db.query(models.User).filter(models.User.email == new_contact.email).first()
         
-        if existing_user:
-            # OPTIONAL: Notify the admin that the user wasn't created because they exist
-            # For now, we assume this is fine (Contact created, User linked by email implicitly)
-            # But if you want to block it:
-            # raise HTTPException(status_code=400, detail="Contact created, but Portal User already exists.")
-            pass 
-        else:
+        if not existing_user:
             # Create Shadow User
             import secrets
-            from datetime import datetime, timezone, timedelta
-            from ..models import PasswordToken
-            from ..services.email_service import email_service
-            
             random_pw = secrets.token_urlsafe(32) 
             hashed_pw = auth.get_password_hash(random_pw)
             
-            new_user = models.User(
+            existing_user = models.User(
                 email=new_contact.email,
                 password_hash=hashed_pw,
                 full_name=f"{new_contact.first_name} {new_contact.last_name}",
@@ -187,39 +179,12 @@ def create_contact(contact: schemas.ContactCreate, current_user: models.User = D
                 access_scope="restricted",
                 account_id=new_contact.account_id
             )
-            db.add(new_user)
+            db.add(existing_user)
             db.commit()
-            db.refresh(new_user)
+            db.refresh(existing_user)
             
-            # Trigger Invite
-            raw_token = secrets.token_urlsafe(32)
-            token_hash = auth.get_password_hash(raw_token) # Use Auth util to hash it
-            
-            expiry = datetime.now(timezone.utc) + timedelta(hours=24)
-            db_token = PasswordToken(
-                user_id=new_user.id, 
-                token=raw_token, 
-                token_hash=token_hash, # FIX
-                expires_at=expiry
-            )
-            db.add(db_token)
-            db.commit()
-
-            
-            # FIX: Dynamic URL
-            base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-            link = f"{base_url}/auth/set-password?token={raw_token}"
-            
-            print(f"--- [DEBUG] SENDING INVITE ---")
-            print(f"To: {new_user.email}")
-            print(f"Link: {link}")
-            
-            email_sent = email_service.send(
-                new_user.email,
-                "Welcome to Sanctum",
-                f"<p>Hi {new_contact.first_name},</p><p>You have been granted access.</p><p><a href='{link}'>Click to Activate Account</a></p>"
-            )
-            print(f"--- [DEBUG] EMAIL SERVICE RESULT: {email_sent} ---")
+        # TRIGGER INVITE VIA SERVICE
+        auth_service.invite_user(db, existing_user)
 
     return new_contact
 

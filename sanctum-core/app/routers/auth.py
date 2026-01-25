@@ -9,6 +9,8 @@ from typing import Optional
 from datetime import timedelta, datetime, timezone # Added timezone
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.auth_service import auth_service # IMPORT SERVICE
+
 
 router = APIRouter(tags=["Authentication"])
 
@@ -124,45 +126,16 @@ def disable_two_factor(current_user: models.User = Depends(auth.get_current_acti
 @router.post("/invite")
 def invite_user(
     payload: schemas.InviteRequest,
-    current_user: models.User = Depends(auth.get_current_active_user), # Only logged in users can invite
+    current_user: models.User = Depends(auth.get_current_active_user), 
     db: Session = Depends(get_db)
 ):
     user = db.query(models.User).filter(models.User.email == payload.email).first()
     if not user: raise HTTPException(status_code=404, detail="User not found")
     
-    # Generate Token
-    raw_token = secrets.token_urlsafe(32)
-    token_hash = auth.get_password_hash(raw_token) # FIX
-
-    expiry = datetime.now(timezone.utc) + timedelta(hours=24)
+    # DELEGATE TO SERVICE
+    auth_service.invite_user(db, user)
     
-    db_token = models.PasswordToken(
-        user_id=user.id,
-        token=raw_token,
-        token_hash=token_hash, # FIX
-        expires_at=expiry
-    )
-    db.add(db_token)
-    db.commit()
-    
-    # Send Email
-    # FIX: Dynamic URL
-    base_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    link = f"{base_url}/auth/set-password?token={raw_token}"
-    
-    email_service.send(
-        user.email,
-        "Welcome to Sanctum - Set Your Password",
-        f"""
-        <h1>Welcome, {user.full_name}</h1>
-        <p>You have been invited to the Digital Sanctum Client Portal.</p>
-        <p>Click the link below to set your secure password and enable 2FA.</p>
-        <p><a href="{link}">Set Password & Access Portal</a></p>
-        <p>This link expires in 24 hours.</p>
-        """
-    )
-    
-    return {"status": "invited", "expires_at": expiry}
+    return {"status": "invited", "message": f"Invitation sent to {user.email}"}
 
 @router.post("/set-password")
 def set_password(payload: schemas.PasswordSetRequest, db: Session = Depends(get_db)):

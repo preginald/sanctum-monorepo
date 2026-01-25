@@ -2,6 +2,7 @@ import os
 import resend
 import logging
 from dotenv import load_dotenv
+from jinja2 import Environment, FileSystemLoader
 
 load_dotenv()
 
@@ -20,10 +21,32 @@ class EmailService:
         self.system_email = "notifications@digitalsanctum.com.au"
         self.admin_email = "hello@digitalsanctum.com.au"
 
+        # JINJA2 SETUP
+        # Points to app/templates/emails/
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        template_dir = os.path.join(current_dir, '../templates/emails')
+        self.env = Environment(loader=FileSystemLoader(template_dir))
+
+    def send_template(self, to_email: str, subject: str, template_name: str, context: dict):
+        """
+        Renders a Jinja2 template and sends the email using the existing send method.
+        """
+        try:
+            logger.info(f"Rendering template '{template_name}' for {to_email}...")
+            template = self.env.get_template(template_name)
+            html_content = template.render(**context)
+            
+            # Delegate to the raw send method
+            return self.send(to_email, subject, html_content)
+        except Exception as e:
+            logger.error(f"Template Rendering Failed: {e}")
+            return False
+
     def send(self, to_emails, subject: str, html_content: str, cc_emails=None, attachments=None):
         if not self.api_key:
             logger.info(f"[MOCK EMAIL] To: {to_emails} | Subject: {subject}")
-            return True # Pretend success in dev without key
+            # logger.info(f"[CONTENT] {html_content[:100]}...") # Optional debug
+            return True 
 
         if isinstance(to_emails, str): to_emails = [to_emails]
         if isinstance(cc_emails, str): cc_emails = [cc_emails]
@@ -48,7 +71,6 @@ class EmailService:
                             att_list.append({"filename": filename, "content": content})
                     except Exception as e:
                         logger.error(f"Failed to read attachment {path}: {e}")
-                        # Don't fail the whole email for one bad attachment, but log it
                 
                 if att_list: params["attachments"] = att_list
 
@@ -58,7 +80,6 @@ class EmailService:
 
         except Exception as e:
             logger.error(f"EMAIL FAILED: {str(e)}")
-            # Do not raise exception to crash the request, but return False so caller knows
             return False
 
 email_service = EmailService()

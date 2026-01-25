@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <p>Hi {{ name }},</p>
+    
+    <p>You have been granted access to the <strong>Sanctum Client Portal</strong>.</p>
+    <p>This portal serves as your command center for Tickets, Invoices, and Project Strategy.</p>
+    
+    <p>Please click the button below to set your secure password and activate your account.</p>
+    
+    <p style="text-align: center; margin: 40px 0;">
+        <a href="{{ link }}" class="button">Initialize Account</a>
+    </p>
+    
+    <p style="font-size: 14px; color: #666;">
+        <em>Note: This security link expires in 24 hours.</em>
+    </p>
+{% endblock %}

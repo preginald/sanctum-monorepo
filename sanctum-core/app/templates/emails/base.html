@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; line-height: 1.6; background-color: #f9f9f9; margin: 0; padding: 0; }
+        .wrapper { width: 100%; background-color: #f9f9f9; padding: 40px 0; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 2px solid #d4af37; padding-bottom: 20px; margin-bottom: 30px; }
+        .header h2 { margin: 0; color: #1a1a1a; letter-spacing: 1px; }
+        .button { background-color: #d4af37; color: #000000; padding: 14px 28px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block; transition: background-color 0.3s; }
+        .button:hover { background-color: #b5952f; }
+        .footer { font-size: 12px; color: #999; margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; }
+        .content { font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <div class="container">
+            <div class="header">
+                <h2>SANCTUM CORE</h2>
+            </div>
+            
+            <div class="content">
+                {% block content %}{% endblock %}
+            </div>
+            
+            <div class="footer">
+                <p>Digital Sanctum • Sovereign Architecture</p>
+                <p>This is an automated notification. Please do not reply directly.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
