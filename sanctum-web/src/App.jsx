@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import { ToastProvider } from './context/ToastContext';
+import GlobalModalManager from './components/GlobalModalManager'; // <--- NEW
 
 // --- AUTH PAGES ---
 import Login from './pages/Login';
@@ -78,6 +79,9 @@ function App() {
   return (
     <ToastProvider>
       <BrowserRouter>
+        {/* GLOBAL OVERLAY MANAGER (Inside Router context) */}
+        <GlobalModalManager /> 
+
         <Routes>
           
           {/* === PUBLIC ROUTES === */}

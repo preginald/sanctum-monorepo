@@ -2,9 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, User, Ticket, BookOpen, Building, Server, PlusCircle, Command } from 'lucide-react';
 import api from '../../lib/api';
+import useModalStore from '../../store/modalStore'; // <--- NEW
+
 
 export default function GlobalSearch() {
   const navigate = useNavigate();
+  const { openModal } = useModalStore(); // <--- NEW
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +76,15 @@ export default function GlobalSearch() {
   const handleSelect = (link) => {
       setIsOpen(false);
       setQuery('');
-      navigate(link);
+
+      // INTERCEPTION LOGIC
+      if (link === '/tickets/new') {
+          openModal('TICKET_CREATE');
+          return;
+      }
+      
+    // Default Navigation
+    navigate(link);
   };
 
   const getResultIcon = (type) => {

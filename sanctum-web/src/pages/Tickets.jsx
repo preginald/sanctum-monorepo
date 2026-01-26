@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
+import useModalStore from '../store/modalStore';
 
 // UI KIT
 import Button from '../components/ui/Button';
@@ -17,7 +18,6 @@ import { Plus, LayoutList, Kanban as KanbanIcon, Filter } from 'lucide-react';
 
 // COMPONENTS
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
-import TicketCreateModal from '../components/tickets/TicketCreateModal';
 
 const COLUMNS = {
   'new': { id: 'new', label: 'New / Triage', color: 'border-blue-500' },
@@ -26,15 +26,15 @@ const COLUMNS = {
   'resolved': { id: 'resolved', label: 'Resolved', color: 'border-green-500' }
 };
 
-export default function Tickets({ autoCreate = false }) { // NEW PROP
+export default function Tickets({ autoCreate = false }) { 
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const { addToast } = useToast();
+  const { openModal } = useModalStore();
   
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('list');
-  const [showModal, setShowModal] = useState(false);
   
   // Filters & Sort
   const [statusFilter, setStatusFilter] = useState('active');
@@ -43,18 +43,11 @@ export default function Tickets({ autoCreate = false }) { // NEW PROP
 
   const isAdmin = user?.role !== 'client';
 
-  // --- INITIALIZATION ---
   useEffect(() => { fetchData(); }, [token]);
 
-  // NEW: Handle Auto-Open from Router (Action Search)
-  useEffect(() => {
-    if (autoCreate) {
-        setShowModal(true);
-    }
-  }, [autoCreate]);
-
+  // DATA FETCHING
   const fetchData = async () => {
-    setLoading(true); 
+    // Note: We don't set loading(true) here to avoid flashing if just refreshing list
     try {
       const res = await api.get('/tickets');
       setTickets(res.data);
@@ -64,6 +57,19 @@ export default function Tickets({ autoCreate = false }) { // NEW PROP
     } 
     finally { setLoading(false); }
   };
+
+  // HANDLE MODAL OPEN
+  const handleOpenModal = () => {
+      // FIX: Pass fetchData as the onSuccess callback
+      openModal('TICKET_CREATE', { onSuccess: fetchData });
+  };
+
+  // Handle Auto-Open from Router
+  useEffect(() => {
+    if (autoCreate) {
+        handleOpenModal();
+    }
+  }, [autoCreate]); // Depend on autoCreate only to prevent loops
 
   const handleSort = (key) => {
       let direction = 'asc';
@@ -116,23 +122,6 @@ export default function Tickets({ autoCreate = false }) { // NEW PROP
     }
   };
 
-  // NEW: Close Handler with Navigation
-  const handleCloseModal = () => {
-      setShowModal(false);
-      // If we are in "autoCreate" mode, we want to clear the URL back to /tickets
-      // so a refresh doesn't pop the modal again.
-      if (autoCreate) {
-          navigate('/tickets');
-      }
-  };
-
-  const handleTicketCreated = () => {
-    fetchData();
-    addToast("Ticket created successfully", "success");
-    handleCloseModal(); // Use the smart handler to potentially navigate
-  };
-
-  // --- LOADING STATE ---
   if (loading) {
       return (
           <Layout title="Service Desk">
@@ -168,7 +157,7 @@ export default function Tickets({ autoCreate = false }) { // NEW PROP
         </div>
         
         {isAdmin && (
-            <Button variant="primary" icon={Plus} onClick={() => setShowModal(true)}>New Ticket</Button>
+            <Button variant="primary" icon={Plus} onClick={handleOpenModal}>New Ticket</Button>
         )}
       </div>
 
@@ -229,13 +218,6 @@ export default function Tickets({ autoCreate = false }) { // NEW PROP
             )}
           />
       )}
-
-      {/* UPDATED MODAL USAGE */}
-      <TicketCreateModal 
-        isOpen={showModal} 
-        onClose={handleCloseModal} // Use new handler 
-        onSuccess={handleTicketCreated} 
-      />
     </Layout>
   );
 }
