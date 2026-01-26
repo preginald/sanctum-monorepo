@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import api from '../../lib/api';
-// NEW: Import Constants
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../../lib/constants';
 import { handleSmartWrap } from '../../lib/textUtils';
-
 
 export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselectedAccountId }) {
   const [loading, setLoading] = useState(false);
@@ -28,9 +26,12 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
   // Load Clients (if needed)
   useEffect(() => {
+    // Logic Fix: Load clients if modal is open AND no account is preselected
     if (isOpen && !preselectedAccountId) {
       api.get('/accounts').then(res => setClients(res.data));
     }
+    
+    // Logic Fix: If preselectedAccountId changes (or modal opens with one), set it
     if (isOpen && preselectedAccountId) {
         setForm(prev => ({ ...prev, account_id: preselectedAccountId }));
     }
@@ -53,10 +54,14 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       const payload = { ...form };
       if (!payload.milestone_id) delete payload.milestone_id;
       
-      await api.post('/tickets', payload);
-      onSuccess();
+      // FIX 1: Capture Response
+      const res = await api.post('/tickets', payload);
+      
+      // FIX 2: Pass Response Data to onSuccess so Manager can Toast it
+      if (onSuccess) onSuccess(res.data);
+      
       onClose();
-      // Reset form (keep account if preselected)
+      // Reset form
       setForm({ 
           account_id: preselectedAccountId || '', 
           contact_ids: [], 
@@ -67,7 +72,9 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
           ticket_type: 'support' 
       });
     } catch (e) {
-      alert("Failed to create ticket");
+      console.error(e);
+      // Improve Error Handling
+      alert("Failed to create ticket: " + (e.response?.data?.detail || "Unknown Error"));
     } finally {
       setLoading(false);
     }
@@ -82,14 +89,14 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative">
+      <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative animate-in fade-in zoom-in-95 duration-200">
         <button onClick={onClose} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
         <h2 className="text-xl font-bold mb-4 text-white">Create Ticket</h2>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           
           {/* CLIENT SELECTOR (Only if not preselected) */}
-          {!preselectedAccountId && (
+          {!preselectedAccountId ? (
             <div>
                 <label className="text-xs text-slate-400 block mb-1">Client</label>
                 <select required className="w-full p-2 rounded bg-black/40 border border-slate-700 text-white" value={form.account_id} onChange={e => setForm({...form, account_id: e.target.value})}>
@@ -97,12 +104,16 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
             </div>
+          ) : (
+             // Visual confirmation of preselection
+             <div className="text-xs text-sanctum-gold mb-2 uppercase font-bold tracking-wider">
+                 Client: {clients.find(c => c.id === preselectedAccountId)?.name || 'Linked Account'}
+             </div>
           )}
 
           <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Type</label>
-                {/* UPDATED: Dynamic Options */}
                 <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.ticket_type} onChange={e => setForm({...form, ticket_type: e.target.value})}>
                     {TICKET_TYPES.map(t => (
                         <option key={t} value={t}>{capitalize(t)}</option>
@@ -111,7 +122,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Priority</label>
-                {/* UPDATED: Dynamic Options */}
                 <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
                     {TICKET_PRIORITIES.map(p => (
                         <option key={p} value={p}>{capitalize(p)}</option>
@@ -128,11 +138,11 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
           <div>
             <label className="text-xs text-slate-400 block mb-1">Description</label>
             <textarea 
-    className="w-full p-2 h-24 rounded bg-black/20 border border-slate-700 text-white text-sm" 
-    value={form.description} 
-    onChange={e => setForm({...form, description: e.target.value})} 
-    onKeyDown={(e) => handleSmartWrap(e, form.description, (v) => setForm({...form, description: v}))}
-/>
+                className="w-full p-2 h-24 rounded bg-black/20 border border-slate-700 text-white text-sm" 
+                value={form.description} 
+                onChange={e => setForm({...form, description: e.target.value})} 
+                onKeyDown={(e) => handleSmartWrap(e, form.description, (v) => setForm({...form, description: v}))}
+            />
           </div>
 
           {/* DYNAMIC CONTEXT */}
