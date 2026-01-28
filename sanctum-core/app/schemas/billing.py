@@ -10,6 +10,8 @@ class ProductCreate(SanctumBase):
     description: Optional[str] = None
     type: str 
     unit_price: Decimal # FIXED: Decimal
+    is_recurring: bool = False
+    billing_frequency: Optional[str] = None
 
 class ProductResponse(ProductCreate):
     id: UUID

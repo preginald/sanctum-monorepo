@@ -55,6 +55,7 @@ export const ARTICLE_CATEGORIES = [
 ];
 
 // ASSETS (CMDB)
+// UPDATED: Added Digital Asset Types
 export const ASSET_TYPES = [
     "server",
     "workstation",
@@ -63,7 +64,11 @@ export const ASSET_TYPES = [
     "firewall",
     "printer",
     "software",
-    "license"
+    "license",
+    "domain",         // NEW
+    "hosting_web",    // NEW
+    "hosting_email",  // NEW
+    "saas"            // NEW
 ];
 
 export const ASSET_STATUSES = [
@@ -72,6 +77,14 @@ export const ASSET_STATUSES = [
     "storage",
     "retired",
     "lost"
+];
+
+// CATALOG / PRODUCTS
+export const PRODUCT_TYPES = [
+    { value: "service", label: "Service (Labor)", color: "info" },
+    { value: "hardware", label: "Hardware (Goods)", color: "warning" },
+    { value: "hosting", label: "Hosting / Cloud", color: "purple" }, // NEW
+    { value: "license", label: "Software License", color: "pink" }   // NEW
 ];
 
 // AUTOMATION

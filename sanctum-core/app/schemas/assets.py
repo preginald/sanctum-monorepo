@@ -1,6 +1,6 @@
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, date
 from .shared import SanctumBase
 
 class AssetCreate(SanctumBase):
@@ -11,6 +11,12 @@ class AssetCreate(SanctumBase):
     serial_number: Optional[str] = None
     ip_address: Optional[str] = None
     notes: Optional[str] = None
+    
+    # NEW: Digital Lifecycle Fields (Must be present to save)
+    expires_at: Optional[date] = None
+    vendor: Optional[str] = None
+    linked_product_id: Optional[UUID] = None
+    auto_invoice: bool = False
 
 class AssetUpdate(SanctumBase):
     name: Optional[str] = None
@@ -19,6 +25,12 @@ class AssetUpdate(SanctumBase):
     serial_number: Optional[str] = None
     ip_address: Optional[str] = None
     notes: Optional[str] = None
+    
+    # NEW: Digital Lifecycle Fields (Must be present to update)
+    expires_at: Optional[date] = None
+    vendor: Optional[str] = None
+    linked_product_id: Optional[UUID] = None
+    auto_invoice: Optional[bool] = None
 
 class AssetResponse(AssetCreate):
     id: UUID

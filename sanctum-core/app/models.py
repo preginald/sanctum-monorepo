@@ -311,6 +311,11 @@ class Product(Base):
     type = Column(String) 
     unit_price = Column(Numeric(12, 2))
     is_active = Column(Boolean, default=True)
+        
+    # NEW: Recurring Billing Context
+    is_recurring = Column(Boolean, default=False)
+    billing_frequency = Column(String, nullable=True) # 'monthly', 'yearly'
+    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class AuditReport(Base):
@@ -441,11 +446,20 @@ class Asset(Base):
     serial_number = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+
+    # NEW: Digital Lifecycle
+    expires_at = Column(Date, nullable=True)
+    vendor = Column(String, nullable=True) # e.g. "GoDaddy"
+    linked_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
+    auto_invoice = Column(Boolean, default=False)
     
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
     account = relationship("Account", backref="assets")
+
+    # NEW: Relationship to Product
+    linked_product = relationship("Product")
 
 class Automation(Base):
     __tablename__ = "automations"

@@ -1,9 +1,11 @@
 from typing import List, Optional, Dict
 from .shared import SanctumBase
-from .crm import AccountResponse, ContactResponse # Added ContactResponse
+from .crm import AccountResponse, ContactResponse
 from .operations import TicketResponse
 from .billing import InvoiceResponse
-from .strategy import ProjectResponse, DealResponse # Added DealResponse
+from .strategy import ProjectResponse, DealResponse
+# NEW: Import AssetResponse
+from .assets import AssetResponse 
 
 class PortalDashboard(SanctumBase):
     account: AccountResponse
@@ -20,3 +22,6 @@ class AccountDetail(AccountResponse):
     projects: List[ProjectResponse] = []
     audit_data: Optional[Dict] = None 
     invoices: List[InvoiceResponse] = []
+    
+    # NEW: Explicitly define assets to allow new fields through
+    assets: List[AssetResponse] = []
