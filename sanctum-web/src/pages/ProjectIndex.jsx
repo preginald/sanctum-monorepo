@@ -13,7 +13,6 @@ import Modal from '../components/ui/Modal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import Loading from '../components/ui/Loading';
-import Card from '../components/ui/Card';
 
 const PROJECT_COLS = {
     'planning': { id: 'planning', label: 'Planning', color: 'border-slate-500' },
@@ -22,24 +21,106 @@ const PROJECT_COLS = {
     'completed': { id: 'completed', label: 'Completed', color: 'border-blue-500' }
 };
 
+// --- SUB-COMPONENT: List View ---
+const ProjectListView = ({ projects, onNavigate }) => (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {projects.map(p => (
+      <div 
+        key={p.id} 
+        onClick={() => onNavigate(p.id)}
+        // FIX: Replaced <Card> with <div> to ensure onClick works reliably
+        className="bg-slate-900 border border-slate-700 rounded-xl p-6 hover:border-sanctum-gold/50 cursor-pointer transition-all group relative overflow-hidden"
+      >
+        <div className="flex justify-between items-start mb-4">
+          <div className="p-3 bg-black/30 rounded-lg">
+            <Briefcase className="text-sanctum-gold" size={24} />
+          </div>
+          <span className={`px-2 py-1 rounded text-xs uppercase font-bold bg-slate-700 text-slate-300`}>
+            {p.status.replace('_', ' ')}
+          </span>
+        </div>
+        <h3 className="text-lg font-bold text-white mb-1 group-hover:text-sanctum-gold transition-colors">{p.name}</h3>
+        <p className="text-sm text-slate-400 mb-4">{p.account_name}</p>
+        <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-xs text-slate-500 font-mono">
+          <span className="flex items-center gap-2"><Calendar size={12} /> {p.due_date || 'No Deadline'}</span>
+          <span>${Number(p.budget).toLocaleString()}</span>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+// --- SUB-COMPONENT: Board View ---
+const ProjectBoardView = ({ projects, onNavigate, onDragEnd }) => (
+  <div className="flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-200px)]">
+    <DragDropContext onDragEnd={onDragEnd}>
+      {Object.values(PROJECT_COLS).map((col) => (
+        <div key={col.id} className="min-w-[320px] w-1/4 bg-slate-900/30 rounded-xl border border-slate-700/50 flex flex-col">
+          <div className={`p-4 border-b-2 ${col.color} bg-black/20 rounded-t-xl sticky top-0`}>
+            <h3 className="font-bold text-sm uppercase flex justify-between text-white">
+                {col.label}
+                <span className="opacity-50">{projects.filter(p => p.status === col.id).length}</span>
+            </h3>
+          </div>
+          <Droppable droppableId={col.id}>
+            {(provided, snapshot) => (
+              <div ref={provided.innerRef} {...provided.droppableProps} className={`flex-1 p-3 overflow-y-auto ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}>
+                {projects.filter(p => p.status === col.id).map((p, index) => (
+                  <Draggable key={p.id} draggableId={p.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        onClick={() => onNavigate(p.id)}
+                        className={`p-4 mb-3 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group ${snapshot.isDragging ? 'rotate-2 shadow-2xl scale-105' : ''}`}
+                      >
+                        <h4 className="font-bold text-base mb-1 text-white group-hover:text-sanctum-gold">{p.name}</h4>
+                        <div className="text-xs opacity-50 mb-3">{p.account_name}</div>
+                        
+                        <div className="flex justify-between items-center text-[10px] font-mono opacity-60 pt-3 border-t border-slate-700">
+                            <span>{p.due_date || 'TBD'}</span>
+                            <span>${Number(p.budget).toLocaleString()}</span>
+                        </div>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        </div>
+      ))}
+    </DragDropContext>
+  </div>
+);
+
+// --- MAIN COMPONENT ---
 export default function ProjectIndex() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
   const { addToast } = useToast();
+  
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // View State
-  const [viewMode, setViewMode] = useState('board'); 
+  // FEATURE: Persist View Preference
+  const [viewMode, setViewMode] = useState(() => {
+      return localStorage.getItem('sanctum_project_view') || 'board';
+  });
   
-  // Modal State
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
 
-  useEffect(() => {
-    fetchData();
-  }, [token]);
+  useEffect(() => { fetchData(); }, [token]);
+
+  // Handle View Toggle & Save
+  const handleViewChange = (mode) => {
+      setViewMode(mode);
+      localStorage.setItem('sanctum_project_view', mode);
+  };
 
   const fetchData = async () => {
     try {
@@ -78,7 +159,6 @@ export default function ProjectIndex() {
     const newStatus = destination.droppableId;
     const projId = draggableId; 
 
-    // Optimistic
     setProjects(projects.map(p => p.id === projId ? { ...p, status: newStatus } : p));
 
     try {
@@ -89,94 +169,24 @@ export default function ProjectIndex() {
     } 
   };
 
-  // --- RENDERERS ---
-
-  const renderList = () => (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects.map(p => (
-          <Card 
-            key={p.id} 
-            onClick={() => navigate(`/projects/${p.id}`)}
-            className="hover:border-sanctum-gold/50 cursor-pointer transition-all group"
-          >
-            <div className="flex justify-between items-start mb-4">
-              <div className="p-3 bg-black/30 rounded-lg">
-                <Briefcase className="text-sanctum-gold" size={24} />
-              </div>
-              <span className={`px-2 py-1 rounded text-xs uppercase font-bold bg-slate-700 text-slate-300`}>
-                {p.status}
-              </span>
-            </div>
-            <h3 className="text-lg font-bold text-white mb-1 group-hover:text-sanctum-gold transition-colors">{p.name}</h3>
-            <p className="text-sm text-slate-400 mb-4">{p.account_name}</p>
-            <div className="flex items-center justify-between pt-4 border-t border-slate-800 text-xs text-slate-500 font-mono">
-              <span className="flex items-center gap-2"><Calendar size={12} /> {p.due_date || 'No Deadline'}</span>
-              <span>${p.budget.toLocaleString()}</span>
-            </div>
-          </Card>
-        ))}
-      </div>
-  );
-
-  const renderBoard = () => (
-      <div className="flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-200px)]">
-        <DragDropContext onDragEnd={onDragEnd}>
-          {Object.values(PROJECT_COLS).map((col) => (
-            <div key={col.id} className="min-w-[320px] w-1/4 bg-slate-900/30 rounded-xl border border-slate-700/50 flex flex-col">
-              <div className={`p-4 border-b-2 ${col.color} bg-black/20 rounded-t-xl sticky top-0`}>
-                <h3 className="font-bold text-sm uppercase flex justify-between text-white">
-                    {col.label}
-                    <span className="opacity-50">{projects.filter(p => p.status === col.id).length}</span>
-                </h3>
-              </div>
-              <Droppable droppableId={col.id}>
-                {(provided, snapshot) => (
-                  <div ref={provided.innerRef} {...provided.droppableProps} className={`flex-1 p-3 overflow-y-auto ${snapshot.isDraggingOver ? 'bg-white/5' : ''}`}>
-                    {projects.filter(p => p.status === col.id).map((p, index) => (
-                      <Draggable key={p.id} draggableId={p.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            onClick={() => navigate(`/projects/${p.id}`)}
-                            className={`p-4 mb-3 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group ${snapshot.isDragging ? 'rotate-2 shadow-2xl scale-105' : ''}`}
-                          >
-                            <h4 className="font-bold text-base mb-1 text-white group-hover:text-sanctum-gold">{p.name}</h4>
-                            <div className="text-xs opacity-50 mb-3">{p.account_name}</div>
-                            
-                            <div className="flex justify-between items-center text-[10px] font-mono opacity-60 pt-3 border-t border-slate-700">
-                                <span>{p.due_date || 'TBD'}</span>
-                                <span>${p.budget.toLocaleString()}</span>
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
-        </DragDropContext>
-      </div>
-  );
-
-  if (loading) {
-    return (
-      <Layout title="Project Governance">
-        <Loading />
-      </Layout>
-    );
-  }
+  if (loading) return <Layout title="Project Governance"><Loading /></Layout>;
 
   return (
     <Layout title="Project Governance">
       <div className="flex justify-between items-center mb-6">
         <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-            <button onClick={() => setViewMode('list')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><LayoutList size={16} /> List</button>
-            <button onClick={() => setViewMode('board')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'board' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><KanbanIcon size={16} /> Board</button>
+            <button 
+                onClick={() => handleViewChange('list')} 
+                className={`p-2 rounded flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+            >
+                <LayoutList size={16} /> List
+            </button>
+            <button 
+                onClick={() => handleViewChange('board')} 
+                className={`p-2 rounded flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'board' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
+            >
+                <KanbanIcon size={16} /> Board
+            </button>
         </div>
 
         <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">
@@ -184,7 +194,18 @@ export default function ProjectIndex() {
         </Button>
       </div>
 
-      {viewMode === 'list' ? renderList() : renderBoard()}
+      {viewMode === 'list' ? (
+          <ProjectListView 
+            projects={projects} 
+            onNavigate={(id) => navigate(`/projects/${id}`)} 
+          />
+      ) : (
+          <ProjectBoardView 
+            projects={projects} 
+            onNavigate={(id) => navigate(`/projects/${id}`)} 
+            onDragEnd={onDragEnd} 
+          />
+      )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Initialize Project">
         <form onSubmit={handleCreate} className="space-y-4">
