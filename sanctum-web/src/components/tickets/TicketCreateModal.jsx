@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Loader2, User, Briefcase } from 'lucide-react';
 import api from '../../lib/api';
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../../lib/constants';
 import { handleSmartWrap } from '../../lib/textUtils';
+import SearchableSelect from '../ui/SearchableSelect'; // NEW IMPORT
 
 export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselectedAccountId }) {
   const [loading, setLoading] = useState(false);
@@ -26,12 +27,9 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
   // Load Clients (if needed)
   useEffect(() => {
-    // Logic Fix: Load clients if modal is open AND no account is preselected
     if (isOpen && !preselectedAccountId) {
       api.get('/accounts').then(res => setClients(res.data));
     }
-    
-    // Logic Fix: If preselectedAccountId changes (or modal opens with one), set it
     if (isOpen && preselectedAccountId) {
         setForm(prev => ({ ...prev, account_id: preselectedAccountId }));
     }
@@ -47,6 +45,25 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       }
   }, [form.account_id]);
 
+  // --- DATA TRANSFORMATION FOR SEARCHABLE SELECT ---
+  const milestoneOptions = useMemo(() => {
+      return activeProjects.flatMap(p => 
+          p.milestones.map(m => ({
+              id: m.id,
+              title: m.name,
+              subtitle: p.name // Project Name acts as context
+          }))
+      );
+  }, [activeProjects]);
+
+  const contactOptions = useMemo(() => {
+      return activeContacts.map(c => ({
+          id: c.id,
+          title: `${c.first_name} ${c.last_name}`,
+          subtitle: c.email || c.persona || 'Contact'
+      }));
+  }, [activeContacts]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -54,14 +71,10 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       const payload = { ...form };
       if (!payload.milestone_id) delete payload.milestone_id;
       
-      // FIX 1: Capture Response
       const res = await api.post('/tickets', payload);
-      
-      // FIX 2: Pass Response Data to onSuccess so Manager can Toast it
       if (onSuccess) onSuccess(res.data);
-      
       onClose();
-      // Reset form
+      
       setForm({ 
           account_id: preselectedAccountId || '', 
           contact_ids: [], 
@@ -72,8 +85,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
           ticket_type: 'support' 
       });
     } catch (e) {
-      console.error(e);
-      // Improve Error Handling
       alert("Failed to create ticket: " + (e.response?.data?.detail || "Unknown Error"));
     } finally {
       setLoading(false);
@@ -89,13 +100,12 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         <button onClick={onClose} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
         <h2 className="text-xl font-bold mb-4 text-white">Create Ticket</h2>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2">
           
-          {/* CLIENT SELECTOR (Only if not preselected) */}
           {!preselectedAccountId ? (
             <div>
                 <label className="text-xs text-slate-400 block mb-1">Client</label>
@@ -105,7 +115,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
                 </select>
             </div>
           ) : (
-             // Visual confirmation of preselection
              <div className="text-xs text-sanctum-gold mb-2 uppercase font-bold tracking-wider">
                  Client: {clients.find(c => c.id === preselectedAccountId)?.name || 'Linked Account'}
              </div>
@@ -115,17 +124,13 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Type</label>
                 <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.ticket_type} onChange={e => setForm({...form, ticket_type: e.target.value})}>
-                    {TICKET_TYPES.map(t => (
-                        <option key={t} value={t}>{capitalize(t)}</option>
-                    ))}
+                    {TICKET_TYPES.map(t => <option key={t} value={t}>{capitalize(t)}</option>)}
                 </select>
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Priority</label>
                 <select className="w-full p-2 rounded bg-black/20 border border-slate-700 text-white" value={form.priority} onChange={e => setForm({...form, priority: e.target.value})}>
-                    {TICKET_PRIORITIES.map(p => (
-                        <option key={p} value={p}>{capitalize(p)}</option>
-                    ))}
+                    {TICKET_PRIORITIES.map(p => <option key={p} value={p}>{capitalize(p)}</option>)}
                 </select>
               </div>
           </div>
@@ -145,35 +150,47 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
             />
           </div>
 
-          {/* DYNAMIC CONTEXT */}
+          {/* DYNAMIC CONTEXT (Refactored to SearchableSelect) */}
           {form.account_id && (
               <div className="grid grid-cols-2 gap-4 p-4 bg-slate-800 rounded border border-slate-700">
                   {/* CONTACTS */}
-                  <div>
+                  <div className="flex flex-col h-full">
                     <label className="text-xs text-blue-400 block mb-1">Contacts</label>
-                    <div className="flex flex-wrap gap-1 mb-1">
+                    <div className="flex flex-wrap gap-1 mb-2 min-h-[20px]">
                         {form.contact_ids.map(id => {
                             const c = activeContacts.find(x => x.id === id);
-                            return c ? <span key={id} className="text-[10px] bg-slate-600 px-1 rounded flex items-center">{c.first_name}<button type="button" onClick={() => toggleContact(id)} className="ml-1"><X size={10}/></button></span> : null;
+                            return c ? <span key={id} className="text-[10px] bg-slate-600 px-1 rounded flex items-center">{c.first_name}<button type="button" onClick={() => toggleContact(id)} className="ml-1 hover:text-red-400"><X size={10}/></button></span> : null;
                         })}
                     </div>
-                    <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" onChange={e => { if(e.target.value) toggleContact(e.target.value); }} value="">
-                        <option value="">+ Add Person</option>
-                        {activeContacts.filter(c => !form.contact_ids.includes(c.id)).map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
-                    </select>
+                    <div className="flex-1">
+                        <SearchableSelect 
+                            items={contactOptions.filter(c => !form.contact_ids.includes(c.id))}
+                            onSelect={(item) => toggleContact(item.id)}
+                            placeholder="+ Add Person..."
+                            labelKey="title"
+                            subLabelKey="subtitle"
+                            icon={User}
+                        />
+                    </div>
                   </div>
 
-                  {/* PROJECTS */}
+                  {/* MILESTONES */}
                   <div>
                     <label className="text-xs text-blue-400 block mb-1">Link to Milestone</label>
-                    <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={form.milestone_id} onChange={e => setForm({...form, milestone_id: e.target.value})}>
-                        <option value="">-- None --</option>
-                        {activeProjects.map(p => (
-                            <optgroup key={p.id} label={p.name}>
-                                {p.milestones.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                            </optgroup>
-                        ))}
-                    </select>
+                    <SearchableSelect 
+                        items={milestoneOptions}
+                        selectedIds={form.milestone_id ? [form.milestone_id] : []}
+                        onSelect={(item) => setForm({...form, milestone_id: item.id})}
+                        placeholder="Search Project..."
+                        labelKey="title"
+                        subLabelKey="subtitle"
+                        icon={Briefcase}
+                    />
+                    {form.milestone_id && (
+                        <button type="button" onClick={() => setForm({...form, milestone_id: ''})} className="text-[10px] text-red-400 mt-1 hover:underline">
+                            Clear Selection
+                        </button>
+                    )}
                   </div>
               </div>
           )}

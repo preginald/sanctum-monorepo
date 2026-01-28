@@ -1,20 +1,37 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StatusBadge, PriorityBadge } from './TicketBadges';
 import SanctumMarkdown from '../ui/SanctumMarkdown';
-// NEW IMPORT
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
 import { handleSmartWrap } from '../../lib/textUtils';
+import SearchableSelect from '../ui/SearchableSelect'; // NEW IMPORT
+import { User, Briefcase } from 'lucide-react';
 
 export default function TicketOverview({ ticket, isEditing, formData, setFormData, contacts, accountProjects }) {
   
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
   const formatInputDate = (d) => d ? d.slice(0, 16) : ''; 
-
-  // Helper for capitalization
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  // --- DATA TRANSFORM ---
+  const milestoneOptions = useMemo(() => {
+      return (accountProjects || []).flatMap(p => 
+          p.milestones.map(m => ({
+              id: m.id,
+              title: m.name,
+              subtitle: p.name 
+          }))
+      );
+  }, [accountProjects]);
+
+  const contactOptions = useMemo(() => {
+      return (contacts || []).map(c => ({
+          id: c.id,
+          title: `${c.first_name} ${c.last_name}`,
+          subtitle: c.email || c.persona || 'Contact'
+      }));
+  }, [contacts]);
+
   if (!isEditing) {
-    // ... (Existing Read-Only View - No Changes needed) ...
     return (
       <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative space-y-6">
         <div className="grid grid-cols-2 gap-4">
@@ -54,6 +71,7 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
     );
   }
 
+  // --- EDIT MODE ---
   return (
     <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl space-y-6 animate-in fade-in duration-200">
         <div className="grid grid-cols-3 gap-6">
@@ -95,22 +113,42 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
             </div>
         </div>
 
-        {/* ... Rest of the form remains same (Project, Contact, Dates, Markdown) ... */}
-        
+        {/* SEARCHABLE SELECTS */}
         <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Project / Milestone</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.milestone_id || ""} onChange={e => setFormData({...formData, milestone_id: e.target.value || null})}>
-                    <option value="">(No Link)</option>
-                    {accountProjects.map(p => (<optgroup key={p.id} label={p.name}>{p.milestones.map(m => (<option key={m.id} value={m.id}>{m.name}</option>))}</optgroup>))}
-                </select>
+                <SearchableSelect 
+                    items={milestoneOptions}
+                    selectedIds={formData.milestone_id ? [formData.milestone_id] : []}
+                    onSelect={(item) => setFormData({...formData, milestone_id: item.id})}
+                    placeholder="Search Project..."
+                    labelKey="title"
+                    subLabelKey="subtitle"
+                    icon={Briefcase}
+                />
+                {formData.milestone_id && (
+                    <button onClick={() => setFormData({...formData, milestone_id: null})} className="text-[10px] text-red-400 mt-1 hover:underline">
+                        Clear Selection
+                    </button>
+                )}
             </div>
+            
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Primary Contact</label>
-                <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.contact_id || ""} onChange={e => setFormData({...formData, contact_id: e.target.value || null})}>
-                    <option value="">-- None --</option>
-                    {contacts.map(c => (<option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>))}
-                </select>
+                <SearchableSelect 
+                    items={contactOptions}
+                    selectedIds={formData.contact_id ? [formData.contact_id] : []}
+                    onSelect={(item) => setFormData({...formData, contact_id: item.id})}
+                    placeholder="Search Contact..."
+                    labelKey="title"
+                    subLabelKey="subtitle"
+                    icon={User}
+                />
+                {formData.contact_id && (
+                    <button onClick={() => setFormData({...formData, contact_id: null})} className="text-[10px] text-red-400 mt-1 hover:underline">
+                        Clear Selection
+                    </button>
+                )}
             </div>
         </div>
 
@@ -122,22 +160,22 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
         <div>
             <label className="block text-xs uppercase opacity-50 mb-1">Description</label>
             <textarea 
-    className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" 
-    value={formData.description} 
-    onChange={e => setFormData({...formData, description: e.target.value})} 
-    onKeyDown={(e) => handleSmartWrap(e, formData.description, (v) => setFormData({...formData, description: v}))}
-/>
+                className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" 
+                value={formData.description} 
+                onChange={e => setFormData({...formData, description: e.target.value})} 
+                onKeyDown={(e) => handleSmartWrap(e, formData.description, (v) => setFormData({...formData, description: v}))}
+            />
         </div>
         
         <div className={formData.status === 'resolved' ? 'opacity-100' : 'opacity-50 grayscale transition-all'}>
             <label className="block text-xs uppercase opacity-50 mb-1">Resolution</label>
             <textarea 
-    className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" 
-    value={formData.resolution} 
-    onChange={e => setFormData({...formData, resolution: e.target.value})} 
-    disabled={formData.status !== 'resolved'} 
-    onKeyDown={(e) => handleSmartWrap(e, formData.resolution, (v) => setFormData({...formData, resolution: v}))}
-/>
+                className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" 
+                value={formData.resolution} 
+                onChange={e => setFormData({...formData, resolution: e.target.value})} 
+                disabled={formData.status !== 'resolved'} 
+                onKeyDown={(e) => handleSmartWrap(e, formData.resolution, (v) => setFormData({...formData, resolution: v}))}
+            />
         </div>
     </div>
   );
