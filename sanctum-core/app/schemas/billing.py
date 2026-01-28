@@ -13,6 +13,15 @@ class ProductCreate(SanctumBase):
     is_recurring: bool = False
     billing_frequency: Optional[str] = None
 
+# NEW: Update Schema (Everything Optional)
+class ProductUpdate(SanctumBase):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    type: Optional[str] = None
+    unit_price: Optional[Decimal] = None
+    is_recurring: Optional[bool] = None
+    billing_frequency: Optional[str] = None
+
 class ProductResponse(ProductCreate):
     id: UUID
     is_active: bool

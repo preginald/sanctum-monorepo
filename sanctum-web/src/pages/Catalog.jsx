@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
-import { Trash2, Plus, Calendar } from 'lucide-react';
+import { Trash2, Plus, Calendar, Edit2, X } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Card from '../components/ui/Card';
 import Loading from '../components/ui/Loading';
-import Input from '../components/ui/Input';   // RESTORED
-import Select from '../components/ui/Select'; // RESTORED
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
 import { PRODUCT_TYPES } from '../lib/constants';
 
@@ -17,7 +17,9 @@ export default function Catalog() {
   const { addToast } = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  
+  // EDIT STATE: null = hidden, 'new' = create mode, object = edit mode
+  const [editMode, setEditMode] = useState(null); 
   
   const [formData, setFormData] = useState({
       name: '', 
@@ -40,25 +42,55 @@ export default function Catalog() {
     finally { setLoading(false); }
   };
 
-  const handleCreate = async (e) => {
+  // Setup Form for Edit
+  const handleEditClick = (product) => {
+      setFormData({
+          name: product.name,
+          description: product.description || '',
+          type: product.type,
+          unit_price: product.unit_price,
+          is_recurring: product.is_recurring,
+          billing_frequency: product.billing_frequency || ''
+      });
+      setEditMode(product); // Store full object to get ID
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Setup Form for Create
+  const handleNewClick = () => {
+      setFormData({ 
+          name: '', description: '', type: 'service', unit_price: '', 
+          is_recurring: false, billing_frequency: '' 
+      });
+      setEditMode('new');
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
         const payload = { ...formData };
         if (!payload.is_recurring) {
             payload.billing_frequency = null;
         }
-        await api.post('/products', payload);
-        setShowForm(false);
-        setFormData({ name: '', description: '', type: 'service', unit_price: '', is_recurring: false, billing_frequency: '' });
-        addToast("Product added to catalog", "success");
+
+        if (editMode === 'new') {
+            await api.post('/products', payload);
+            addToast("Product added to catalog", "success");
+        } else {
+            // Update Mode
+            await api.put(`/products/${editMode.id}`, payload);
+            addToast("Product updated", "success");
+        }
+
+        setEditMode(null);
         fetchProducts();
     } catch (e) { 
-        addToast("Failed to create product", "error");
+        addToast("Failed to save product", "error");
     }
   };
 
   const handleDelete = async (id) => {
-      if(!confirm("Archive this product?")) return;
+      if(!confirm("Archive this product? Existing assets/invoices will remain unchanged.")) return;
       try {
           await api.delete(`/products/${id}`);
           addToast("Product archived", "info");
@@ -81,9 +113,9 @@ export default function Catalog() {
   return (
     <Layout title="Service & Hardware Catalog">
       <div className="flex justify-end mb-6">
-        {isAdmin && !showForm && (
+        {isAdmin && !editMode && (
             <Button 
-              onClick={() => setShowForm(true)} 
+              onClick={handleNewClick} 
               icon={Plus}
               className="bg-sanctum-gold text-slate-900 hover:bg-yellow-500 border-none"
             >
@@ -92,50 +124,65 @@ export default function Catalog() {
         )}
       </div>
 
-      {showForm && (
+      {editMode && (
           <div className="mb-6 bg-slate-800 border border-slate-700 p-6 rounded-xl animate-in fade-in slide-in-from-top-4">
-              <h3 className="text-lg font-bold text-white mb-4">New Catalogue Item</h3>
+              <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-bold text-white">
+                      {editMode === 'new' ? 'New Catalogue Item' : 'Edit Item'}
+                  </h3>
+                  <button onClick={() => setEditMode(null)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+              </div>
               
-              <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
-                  
-                  {/* RESTORED: Use UI Kit Input */}
-                  <div className="md:col-span-2">
-                      <Input 
-                        label="Item Name"
-                        required 
-                        value={formData.name} 
-                        onChange={e => setFormData({...formData, name: e.target.value})} 
-                        placeholder="e.g. Server Maintenance" 
-                        autoFocus
-                      />
-                  </div>
-                  
-                  {/* RESTORED: Use UI Kit Select */}
-                  <div>
-                      <Select 
-                        label="Type"
-                        value={formData.type} 
-                        onChange={e => setFormData({...formData, type: e.target.value})}
-                      >
-                          {PRODUCT_TYPES.map(t => (
-                              <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                      </Select>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+                      <div className="md:col-span-2">
+                          <Input 
+                            label="Item Name"
+                            required 
+                            value={formData.name} 
+                            onChange={e => setFormData({...formData, name: e.target.value})} 
+                            placeholder="e.g. Server Maintenance" 
+                            autoFocus
+                          />
+                      </div>
+                      
+                      <div>
+                          <Select 
+                            label="Type"
+                            value={formData.type} 
+                            onChange={e => setFormData({...formData, type: e.target.value})}
+                          >
+                              {PRODUCT_TYPES.map(t => (
+                                  <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
+                          </Select>
+                      </div>
+
+                      <div>
+                          <Input 
+                            label="Unit Price ($)"
+                            required 
+                            type="number" 
+                            step="0.01" 
+                            value={formData.unit_price} 
+                            onChange={e => setFormData({...formData, unit_price: e.target.value})} 
+                          />
+                      </div>
                   </div>
 
+                  {/* NEW: Description Field */}
                   <div>
-                      <Input 
-                        label="Unit Price ($)"
-                        required 
-                        type="number" 
-                        step="0.01" 
-                        value={formData.unit_price} 
-                        onChange={e => setFormData({...formData, unit_price: e.target.value})} 
+                      <label className="text-xs text-slate-400 block mb-1">Description (Optional)</label>
+                      <textarea 
+                          className="w-full p-2 bg-slate-900 border border-slate-600 rounded text-white text-sm h-20 focus:border-sanctum-gold outline-none"
+                          value={formData.description}
+                          onChange={e => setFormData({...formData, description: e.target.value})}
+                          placeholder="Internal notes or invoice default description..."
                       />
                   </div>
 
                   {/* RECURRING BILLING TOGGLE */}
-                  <div className="md:col-span-4 flex items-center gap-4 py-4 border-t border-slate-700 mt-2">
+                  <div className="flex items-center gap-4 py-4 border-t border-slate-700 mt-2">
                       <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input 
                             type="checkbox" 
@@ -161,9 +208,9 @@ export default function Catalog() {
                       )}
                   </div>
 
-                  <div className="md:col-span-4 flex gap-2">
-                      <Button type="submit" variant="success">Save Item</Button>
-                      <Button onClick={() => setShowForm(false)} variant="secondary">Cancel</Button>
+                  <div className="flex gap-2">
+                      <Button type="submit" variant="success">{editMode === 'new' ? 'Save Item' : 'Update Item'}</Button>
+                      <Button onClick={() => setEditMode(null)} variant="secondary">Cancel</Button>
                   </div>
               </form>
           </div>
@@ -208,13 +255,22 @@ export default function Catalog() {
                               </td>
                               {isAdmin && (
                                   <td className="p-4 text-right">
-                                      <button 
-                                        onClick={() => handleDelete(p.id)} 
-                                        className="text-red-500 opacity-50 hover:opacity-100 transition-opacity"
-                                        title="Archive Product"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
+                                      <div className="flex justify-end gap-2">
+                                          <button 
+                                            onClick={() => handleEditClick(p)} 
+                                            className="text-slate-500 opacity-70 hover:opacity-100 hover:text-white transition-all"
+                                            title="Edit Product"
+                                          >
+                                            <Edit2 size={16} />
+                                          </button>
+                                          <button 
+                                            onClick={() => handleDelete(p.id)} 
+                                            className="text-red-500 opacity-50 hover:opacity-100 transition-opacity"
+                                            title="Archive Product"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                      </div>
                                   </td>
                               )}
                           </tr>

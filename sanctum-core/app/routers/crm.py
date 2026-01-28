@@ -130,6 +130,26 @@ def create_product(product: schemas.ProductCreate, current_user: models.User = D
     db.refresh(new_product)
     return new_product
 
+@router.put("/products/{product_id}", response_model=schemas.ProductResponse)
+def update_product(product_id: str, product_update: schemas.ProductUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    if current_user.access_scope != 'global': raise HTTPException(status_code=403, detail="Forbidden")
+    
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product: raise HTTPException(status_code=404, detail="Product not found")
+    
+    # Update fields
+    update_data = product_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(product, key, value)
+    
+    # Logic Fix: If turning off recurring, clear frequency
+    if product.is_recurring is False:
+        product.billing_frequency = None
+
+    db.commit()
+    db.refresh(product)
+    return product
+
 @router.delete("/products/{product_id}")
 def archive_product(product_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.access_scope != 'global': raise HTTPException(status_code=403, detail="Forbidden")

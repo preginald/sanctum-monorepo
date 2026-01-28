@@ -5,7 +5,7 @@ from .auth import (
     PasswordSetRequest, InviteRequest # <--- ADD THESE TWO
 )
 from .billing import (
-    ProductCreate, ProductResponse, 
+    ProductCreate, ProductUpdate, ProductResponse, 
     InvoiceItemCreate, InvoiceItemUpdate, InvoiceItemSchema, 
     InvoiceDeliveryLogResponse, InvoiceSendRequest, 
     InvoiceUpdate, InvoiceResponse
