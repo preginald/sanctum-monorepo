@@ -54,6 +54,9 @@ import Profile from './pages/Profile';
 // --- ANALYTICS MODULE (The Oracle) ---
 import Analytics from './pages/Analytics';
 
+
+import NotificationCenter from './pages/NotificationCenter'; // <--- NEW
+
 // --- ADMIN MODULES (The Quartermaster/Watchtower) ---
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
@@ -142,6 +145,8 @@ function App() {
                               {/* USER & SYSTEM */}
                               <Route path="/profile" element={<Profile />} />
                               <Route path="/admin/users" element={<AdminUserList />} />
+                              <Route path="/notifications" element={<NotificationCenter />} />
+
                               
                               {/* DIAGNOSTICS */}
                               <Route path="/admin/health" element={<Diagnostics />} />

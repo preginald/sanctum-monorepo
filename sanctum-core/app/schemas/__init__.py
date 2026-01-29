@@ -2,7 +2,7 @@ from .shared import InvoiceLite, ArticleLite, SearchResult
 from .auth import (
     Token, TokenData, UserResponse, ClientUserCreate, 
     TwoFASetupResponse, TwoFAVerify,
-    PasswordSetRequest, InviteRequest # <--- ADD THESE TWO
+    PasswordSetRequest, InviteRequest 
 )
 from .billing import (
     ProductCreate, ProductUpdate, ProductResponse, 
@@ -40,9 +40,11 @@ from .automation import (
     AutomationCreate, AutomationUpdate, AutomationResponse, AutomationLogResponse
 )
 
-from .notification import NotificationResponse, NotificationUpdate
-
-
+# UPDATED: Added PreferenceUpdate and PreferenceResponse
+from .notification import (
+    NotificationResponse, NotificationUpdate, 
+    PreferenceUpdate, PreferenceResponse
+)
 
 # Analytics
 from pydantic import BaseModel
