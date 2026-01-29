@@ -1,0 +1,12 @@
+[Unit]
+Description=Run Sanctum Signal Worker every 15 minutes
+
+[Timer]
+# Run 5 minutes after boot
+OnBootSec=5min
+# Run every 15 minutes thereafter
+OnUnitActiveSec=15min
+Unit=sanctum-worker.service
+
+[Install]
+WantedBy=timers.target
