@@ -1,6 +1,7 @@
 from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Date, Text, Table, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import JSON
+from sqlalchemy import Enum as SAEnum # Rename to avoid conflict if needed
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text, func
 from sqlalchemy.types import TIMESTAMP
@@ -499,12 +500,27 @@ class Notification(Base):
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
     link = Column(String, nullable=True) # e.g. "/tickets/123"
-    
     is_read = Column(Boolean, default=False)
+
+    # --- NEW FIELDS FOR SMART ROUTING ---
+    # Status: pending, queued, sent, failed, batched
+    status = Column(String, default='pending')
+
+    # Priority Snapshot: critical, high, normal, low
+    priority = Column(String, default='normal') 
+    
+    # Event Type: ticket_update, mention, system_alert
+    event_type = Column(String, nullable=True)
+    
+    # Batching: If sent as part of a digest
+    batch_id = Column(UUID(as_uuid=True), nullable=True)
+    
+    # Timestamp: When the email actually left the system
+    sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="notifications")
-
 
 class PasswordToken(Base):
     __tablename__ = "password_tokens"
@@ -521,3 +537,19 @@ class PasswordToken(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user = relationship("User")
+
+# 1. NEW MODEL: PREFERENCES
+class UserNotificationPreference(Base):
+    __tablename__ = "user_notification_preferences"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
+    
+    # Frequency: realtime, hourly, daily
+    email_frequency = Column(String, default='realtime') 
+    
+    # Override: If True, Critical tickets bypass batching
+    force_critical = Column(Boolean, default=True)
+    
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    user = relationship("User", backref=backref("notification_preferences", uselist=False))

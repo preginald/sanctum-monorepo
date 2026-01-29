@@ -4,8 +4,9 @@ from sqlalchemy import func, desc
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
-from ..services.event_bus import event_bus # Import Bus
-
+from ..services.event_bus import event_bus 
+# NEW: Import The Signal
+from ..services.notification_service import notification_service
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -20,7 +21,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
             joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
             joinedload(models.Ticket.contacts),
             joinedload(models.Ticket.articles),
-            joinedload(models.Ticket.assets) # NEW
+            joinedload(models.Ticket.assets) 
         )\
         .filter(models.Ticket.is_deleted == False)
 
@@ -44,7 +45,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         t_dict['time_entries'] = t.time_entries 
         t_dict['materials'] = t.materials 
         t_dict['articles'] = t.articles
-        t_dict['assets'] = t.assets # NEW
+        t_dict['assets'] = t.assets 
         
         if t.milestone:
             t_dict['milestone_name'] = t.milestone.name
@@ -66,7 +67,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
 @router.post("", response_model=schemas.TicketResponse)
 def create_ticket(
     ticket: schemas.TicketCreate, 
-    background_tasks: BackgroundTasks, # Inject BG Tasks
+    background_tasks: BackgroundTasks, 
     current_user: models.User = Depends(auth.get_current_active_user), 
     db: Session = Depends(get_db)
 ):
@@ -97,8 +98,20 @@ def create_ticket(
     new_ticket.account_name = new_ticket.account.name 
     
     # EVENT EMISSION
-    # UPDATED: Emit for EVERYONE (Admin or Client)
     event_bus.emit("ticket_created", new_ticket, background_tasks)
+    
+    # --- SMART NOTIFICATION: ASSIGNMENT ---
+    if new_ticket.assigned_tech_id:
+        tech = db.query(models.User).filter(models.User.id == new_ticket.assigned_tech_id).first()
+        if tech:
+            notification_service.notify(
+                db, tech,
+                title=f"New Assignment: #{new_ticket.id}",
+                message=f"You have been assigned to: {new_ticket.subject} ({new_ticket.account_name})",
+                link=f"/tickets/{new_ticket.id}",
+                priority=new_ticket.priority,
+                event_type="ticket_assigned"
+            )
     
     return new_ticket
 
@@ -107,7 +120,7 @@ def create_ticket(
 def update_ticket(
     ticket_id: int, 
     ticket_update: schemas.TicketUpdate, 
-    background_tasks: BackgroundTasks, # Inject BG Tasks
+    background_tasks: BackgroundTasks, 
     db: Session = Depends(get_db)
 ):
     ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts)).filter(models.Ticket.id == ticket_id).first()
@@ -129,9 +142,25 @@ def update_ticket(
     db.refresh(ticket)
     ticket.account_name = ticket.account.name
 
-    # EVENT EMISSION
+    # --- SMART NOTIFICATION: RESOLUTION ---
     if ticket.status == 'resolved' and not was_resolved:
+        # 1. Notify Automation Bus
         event_bus.emit("ticket_resolved", ticket, background_tasks)
+        
+        # 2. Notify Client (If Portal User)
+        if ticket.contact_id:
+            contact = db.query(models.Contact).filter(models.Contact.id == ticket.contact_id).first()
+            if contact and contact.email:
+                client_user = db.query(models.User).filter(models.User.email == contact.email).first()
+                if client_user:
+                    notification_service.notify(
+                        db, client_user,
+                        title=f"Ticket Resolved: #{ticket.id}",
+                        message=f"Ticket '{ticket.subject}' has been marked as resolved.",
+                        link=f"/portal",
+                        priority=ticket.priority,
+                        event_type="ticket_resolved"
+                    )
 
     return ticket
 
