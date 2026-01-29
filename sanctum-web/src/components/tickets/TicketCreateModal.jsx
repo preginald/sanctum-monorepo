@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Loader2, User, Briefcase, Building } from 'lucide-react'; // Added Building
+import { X, Loader2, User, Briefcase, Building, History } from 'lucide-react'; // Added History icon
 import api from '../../lib/api';
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../../lib/constants';
 import { handleSmartWrap } from '../../lib/textUtils';
 import SearchableSelect from '../ui/SearchableSelect';
+import { sortByRecency } from '../../lib/history'; // NEW IMPORT
 
 export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselectedAccountId }) {
   const [loading, setLoading] = useState(false);
@@ -28,7 +29,11 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
   // Load Clients (if needed)
   useEffect(() => {
     if (isOpen && !preselectedAccountId) {
-      api.get('/accounts').then(res => setClients(res.data));
+      api.get('/accounts').then(res => {
+          // NEW: Smart Sort (Recency)
+          const sorted = sortByRecency(res.data, 'clients');
+          setClients(sorted);
+      });
     }
     if (isOpen && preselectedAccountId) {
         setForm(prev => ({ ...prev, account_id: preselectedAccountId }));
@@ -43,7 +48,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
               setActiveProjects(res.data.projects || []);
           });
       } else {
-          // Reset context if account cleared
           setActiveContacts([]);
           setActiveProjects([]);
       }
@@ -71,7 +75,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validation: Client is mandatory
     if (!form.account_id) {
         alert("Please select a client.");
         return;
@@ -87,7 +90,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       
       onClose();
       
-      // Reset Form
       setForm({ 
           account_id: preselectedAccountId || '', 
           contact_ids: [], 
@@ -119,17 +121,22 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
         
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
           
-          {/* CLIENT SELECTOR (Refactored) */}
+          {/* CLIENT SELECTOR */}
           {!preselectedAccountId ? (
             <div className="bg-slate-800/50 p-3 rounded border border-slate-700">
-                <label className="text-xs text-blue-400 block mb-2 uppercase font-bold tracking-wider">Client Context</label>
+                <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs text-blue-400 uppercase font-bold tracking-wider">Client Context</label>
+                    <span className="text-[10px] text-slate-500 flex items-center gap-1" title="Most recently visited clients appear first">
+                        <History size={10} /> Smart Sort
+                    </span>
+                </div>
                 <SearchableSelect
                     items={clients}
                     selectedIds={form.account_id ? [form.account_id] : []}
                     onSelect={(item) => setForm({...form, account_id: item.id})}
                     placeholder="Search Clients..."
                     labelKey="name"
-                    subLabelKey="type" // Shows 'client' or 'prospect'
+                    subLabelKey="type" 
                     icon={Building}
                 />
                 {form.account_id && (
@@ -176,8 +183,6 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
             />
           </div>
 
-          {/* DYNAMIC CONTEXT (Contacts & Milestones) */}
-          {/* Only show this if account is selected */}
           {form.account_id && (
               <div className="grid grid-cols-2 gap-4 p-4 bg-slate-800 rounded border border-slate-700 animate-in fade-in slide-in-from-top-2">
                   <div className="flex flex-col h-full">
@@ -224,7 +229,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
             <button type="button" onClick={onClose} className="flex-1 py-2 bg-slate-700 rounded text-white">Cancel</button>
             <button 
                 type="submit" 
-                disabled={loading || !form.account_id} // Disable if no client
+                disabled={loading || !form.account_id}
                 className="flex-1 py-2 rounded text-white font-bold bg-sanctum-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {loading ? <Loader2 className="animate-spin mx-auto" /> : 'Create'}

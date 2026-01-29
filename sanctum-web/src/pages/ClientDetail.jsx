@@ -5,6 +5,8 @@ import api from '../lib/api';
 import useAuthStore from '../store/authStore';
 import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import { recordVisit } from '../lib/history'; // <--- NEW IMPORT
+
 
 // COMPONENTS
 import HumanSection from '../components/clients/HumanSection';
@@ -59,6 +61,18 @@ export default function ClientDetail() {
   const [showTicketModal, setShowTicketModal] = useState(false);
 
   useEffect(() => { fetchAll(); }, [id]);
+
+    // NEW: Record Visit Side Effect
+  useEffect(() => {
+      if (account?.id) {
+          recordVisit('clients', { 
+              id: account.id, 
+              name: account.name, 
+              type: account.type 
+          });
+      }
+  }, [account]); // Runs when account data loads
+
 
   const fetchAll = async () => {
       try {
