@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Loader2, ArrowLeft, Plus, Trash2, Save, Download, Send, CheckCircle, Mail, X } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Trash2, Save, Download, Send, CheckCircle, Mail, X, Ban } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore'; // Import Auth Store for Admin Check
 import ConfirmationModal from '../components/ui/ConfirmationModal'; // Import Confirm
@@ -14,6 +14,7 @@ export default function InvoiceDetail() {
   // === STATE ===
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [confirmVoid, setConfirmVoid] = useState(false); // NEW STATE
   
   // Ad-Hoc Item Form
   const [showAddItem, setShowAddItem] = useState(false);
@@ -51,6 +52,18 @@ export default function InvoiceDetail() {
       }
     } catch (e) { console.error(e); } 
     finally { setLoading(false); }
+  };
+
+  // NEW HANDLER
+  const handleVoid = async () => {
+      try {
+          await api.put(`/invoices/${id}/void`);
+          addToast("Invoice Voided. Items released.", "success");
+          fetchInvoice();
+          setConfirmVoid(false);
+      } catch (e) {
+          alert("Failed to void invoice: " + (e.response?.data?.detail || "Unknown error"));
+      }
   };
 
   // === ITEM HANDLERS (CRUD) ===
@@ -184,6 +197,16 @@ export default function InvoiceDetail() {
           message="This cannot be undone. Associated tickets and milestones will be released back to the unbilled pool."
           isDangerous={true}
       />
+
+      {/* NEW VOID CONFIRM */}
+      <ConfirmationModal 
+          isOpen={confirmVoid}
+          onClose={() => setConfirmVoid(false)}
+          onConfirm={handleVoid}
+          title="Void Invoice?"
+          message="This will set the amount to $0 and RELEASE all linked tickets back to the billable pool. This cannot be undone."
+          isDangerous={true}
+      />
       
       {/* --- HEADER --- */}
       <div className="flex justify-between items-start mb-8">
@@ -209,6 +232,16 @@ export default function InvoiceDetail() {
                     className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors"
                 >
                     <Trash2 size={16} /> Delete Draft
+                </button>
+            )}
+
+            {/* NEW: VOID (Sent Only) */}
+            {invoice.status === 'sent' && isAdmin && (
+                <button 
+                    onClick={() => setConfirmVoid(true)} 
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors"
+                >
+                    <Ban size={16} /> Void
                 </button>
             )}
             

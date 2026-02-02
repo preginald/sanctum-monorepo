@@ -171,6 +171,40 @@ def delete_invoice_item(item_id: str, db: Session = Depends(get_db)):
     db.commit()
     return recalculate_invoice(pid, db)
 
+@router.put("/{invoice_id}/void", response_model=schemas.InvoiceResponse)
+def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    # 1. PERMISSION GUARD
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Only Admins can void invoices.")
+
+    inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+    if not inv: 
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # 2. STATUS GUARD
+    if inv.status == 'paid':
+        raise HTTPException(status_code=400, detail="Cannot void a Paid invoice. Issue a Credit Note instead.")
+    if inv.status == 'void':
+        raise HTTPException(status_code=400, detail="Invoice is already void.")
+
+    # 3. RELEASE LOGIC (The Critical Step)
+    # We strip the source_id and source_type from the line items.
+    # This keeps the text on the Void Invoice, but tells the Ticket it is no longer billed.
+    for item in inv.items:
+        item.source_id = None
+        item.source_type = None
+        # We keep description/price for historical record of what WAS on the voided invoice
+    
+    # 4. ZEROIZE & UPDATE
+    inv.status = 'void'
+    inv.subtotal_amount = 0
+    inv.gst_amount = 0
+    inv.total_amount = 0
+    
+    db.commit()
+    db.refresh(inv)
+    return inv
+
 @router.post("/{invoice_id}/send")
 def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
