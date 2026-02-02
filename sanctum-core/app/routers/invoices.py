@@ -116,12 +116,29 @@ def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Sess
     return inv
 
 @router.delete("/{invoice_id}")
-def delete_invoice(invoice_id: str, db: Session = Depends(get_db)):
+def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    # 1. PERMISSION GUARD
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Only Admins can delete invoices.")
+
     inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
-    if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
+    if not inv: 
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    
+    # 2. STATUS GUARD (The Strict Rule)
+    if inv.status != 'draft':
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Cannot delete invoice in '{inv.status}' status. Only drafts can be deleted."
+        )
+
+    # 3. RELEASE LOGIC (Implicit via Cascade)
+    # Deleting the invoice deletes the items. 
+    # Tickets referencing these items will simply stop seeing them in 'related_invoices'.
+    
     db.delete(inv)
     db.commit()
-    return {"status": "deleted"}
+    return {"status": "deleted", "id": invoice_id}
 
 @router.post("/{invoice_id}/items", response_model=schemas.InvoiceResponse)
 def add_invoice_item(invoice_id: str, item: schemas.InvoiceItemCreate, db: Session = Depends(get_db)):

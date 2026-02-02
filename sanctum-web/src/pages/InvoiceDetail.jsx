@@ -3,10 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Loader2, ArrowLeft, Plus, Trash2, Save, Download, Send, CheckCircle, Mail, X } from 'lucide-react';
 import api from '../lib/api';
+import useAuthStore from '../store/authStore'; // Import Auth Store for Admin Check
+import ConfirmationModal from '../components/ui/ConfirmationModal'; // Import Confirm
 
 export default function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore(); // Get User
   
   // === STATE ===
   const [invoice, setInvoice] = useState(null);
@@ -20,6 +23,9 @@ export default function InvoiceDetail() {
   const [showSendModal, setShowSendModal] = useState(false);
   const [sendForm, setSendForm] = useState({ to: '', cc: [], subject: '', message: '' });
   const [sending, setSending] = useState(false);
+
+  // NEW: Confirm Delete Modal
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // === INITIALIZATION ===
   useEffect(() => { fetchInvoice(); }, [id]);
@@ -133,6 +139,17 @@ export default function InvoiceDetail() {
       }
   };
 
+  // NEW: DELETE INVOICE HANDLER
+  const handleDeleteInvoice = async () => {
+      try {
+          await api.delete(`/invoices/${id}`);
+          navigate(`/clients/${invoice.account_id}`); // Return to client page
+          // Or toast success
+      } catch (e) {
+          alert("Failed to delete invoice: " + (e.response?.data?.detail || "Unknown error"));
+      }
+  };
+
   // === HELPERS ===
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
   const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
@@ -152,9 +169,21 @@ export default function InvoiceDetail() {
   if (loading || !invoice) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   const isLocked = invoice.status === 'paid';
+  const isDraft = invoice.status === 'draft';
+  const isAdmin = user?.role === 'admin'; // Assume role check
 
   return (
     <Layout title={`Invoice #${invoice.id.slice(0,8)}`}>
+
+      {/* CONFIRMATION MODAL */}
+      <ConfirmationModal 
+          isOpen={confirmDelete}
+          onClose={() => setConfirmDelete(false)}
+          onConfirm={handleDeleteInvoice}
+          title="Delete Draft Invoice?"
+          message="This cannot be undone. Associated tickets and milestones will be released back to the unbilled pool."
+          isDangerous={true}
+      />
       
       {/* --- HEADER --- */}
       <div className="flex justify-between items-start mb-8">
@@ -172,6 +201,16 @@ export default function InvoiceDetail() {
         </div>
 
         <div className="flex gap-2">
+
+            {/* NEW: DELETE BUTTON (Only Draft + Admin) */}
+            {isDraft && isAdmin && (
+                <button 
+                    onClick={() => setConfirmDelete(true)} 
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors"
+                >
+                    <Trash2 size={16} /> Delete Draft
+                </button>
+            )}
             
             {/* SEND BUTTON (Visible for Draft AND Sent) */}
             {invoice.status !== 'paid' && (
