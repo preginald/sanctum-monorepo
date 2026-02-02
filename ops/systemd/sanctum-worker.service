@@ -4,10 +4,10 @@ After=network.target
 
 [Service]
 Type=oneshot
-User=root
-WorkingDirectory=/var/www/sanctum-core
-EnvironmentFile=/var/www/sanctum-core/.env
-ExecStart=/var/www/sanctum-core/venv/bin/python3 -m app.worker
+User=preginald
+WorkingDirectory=/home/preginald/DigitalSanctum/sanctum-core
+EnvironmentFile=/home/preginald/DigitalSanctum/sanctum-core/.env
+ExecStart=/home/preginald/DigitalSanctum/sanctum-core/venv/bin/python3 -m app.worker
 
 [Install]
 WantedBy=multi-user.target
