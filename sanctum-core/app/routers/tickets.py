@@ -115,7 +115,6 @@ def create_ticket(
     
     return new_ticket
 
-
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
 def update_ticket(
     ticket_id: int, 
@@ -127,8 +126,9 @@ def update_ticket(
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
 
-    # Check if status is CHANGING to resolved
+    # State Tracking
     was_resolved = ticket.status == 'resolved'
+    old_tech_id = ticket.assigned_tech_id # Track old tech
 
     if 'contact_ids' in update_data:
         ids = update_data.pop('contact_ids') 
@@ -142,12 +142,23 @@ def update_ticket(
     db.refresh(ticket)
     ticket.account_name = ticket.account.name
 
-    # --- SMART NOTIFICATION: RESOLUTION ---
+    # 1. NOTIFY: ASSIGNMENT CHANGE
+    # If tech changed AND it's not None
+    if ticket.assigned_tech_id and ticket.assigned_tech_id != old_tech_id:
+        tech = db.query(models.User).filter(models.User.id == ticket.assigned_tech_id).first()
+        if tech:
+            notification_service.notify(
+                db, tech,
+                title=f"Assignment Update: #{ticket.id}",
+                message=f"You have been assigned to ticket: {ticket.subject}",
+                link=f"/tickets/{ticket.id}",
+                priority=ticket.priority,
+                event_type="ticket_assigned"
+            )
+
+    # 2. NOTIFY: RESOLUTION (Existing Logic)
     if ticket.status == 'resolved' and not was_resolved:
-        # 1. Notify Automation Bus
         event_bus.emit("ticket_resolved", ticket, background_tasks)
-        
-        # 2. Notify Client (If Portal User)
         if ticket.contact_id:
             contact = db.query(models.Contact).filter(models.Contact.id == ticket.contact_id).first()
             if contact and contact.email:

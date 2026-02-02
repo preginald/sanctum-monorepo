@@ -6,7 +6,7 @@ import { handleSmartWrap } from '../../lib/textUtils';
 import SearchableSelect from '../ui/SearchableSelect'; // NEW IMPORT
 import { User, Briefcase } from 'lucide-react';
 
-export default function TicketOverview({ ticket, isEditing, formData, setFormData, contacts, accountProjects }) {
+export default function TicketOverview({ ticket, isEditing, formData, setFormData, contacts, accountProjects, techs }) {
   
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
   const formatInputDate = (d) => d ? d.slice(0, 16) : ''; 
@@ -37,6 +37,17 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
         <div className="grid grid-cols-2 gap-4">
           <div><label className="text-xs uppercase opacity-50 block mb-1">Status</label><StatusBadge status={ticket.status} /></div>
           <div><label className="text-xs uppercase opacity-50 block mb-1">Priority</label><PriorityBadge priority={ticket.priority} /></div>
+           {/* NEW: DISPLAY ASSIGNED TECH */}
+            {ticket.assigned_tech_id && (
+             <div className="absolute top-6 right-6">
+                 <div className="flex items-center gap-2 bg-purple-900/30 border border-purple-500/30 px-3 py-1.5 rounded-full">
+                     <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+                     <span className="text-xs font-bold text-purple-200 uppercase tracking-wide">
+                         {techs?.find(u => u.id === ticket.assigned_tech_id)?.full_name || "Assigned"}
+                     </span>
+                 </div>
+             </div>
+        )}
         </div>
         
         <div className="pt-2 border-t border-slate-800">
@@ -109,6 +120,20 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
                     onChange={e => setFormData({...formData, ticket_type: e.target.value})}
                 >
                     {TICKET_TYPES.map(t => <option key={t} value={t}>{capitalize(t)}</option>)}
+                </select>
+            </div>
+            {/* NEW: ASSIGNED TECH */}
+            <div>
+                <label className="block text-xs uppercase opacity-50 mb-1 text-purple-400">Assigned Agent</label>
+                <select 
+                    className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm focus:border-purple-500 outline-none transition-colors" 
+                    value={formData.assigned_tech_id || ""} 
+                    onChange={e => setFormData({...formData, assigned_tech_id: e.target.value || null})}
+                >
+                    <option value="">-- Unassigned --</option>
+                    {techs && techs.map(u => (
+                        <option key={u.id} value={u.id}>{u.full_name}</option>
+                    ))}
                 </select>
             </div>
         </div>

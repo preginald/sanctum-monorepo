@@ -28,7 +28,7 @@ export default function TicketDetail() {
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [resolveText, setResolveText] = useState(''); // NEW
   const [resolveId, setResolveId] = useState(null); // NEW
-
+  const [techs, setTechs] = useState([]); // NEW
 
   // ASSET LINKING STATE
   const [clientAssets, setClientAssets] = useState([]);
@@ -62,6 +62,7 @@ export default function TicketDetail() {
       fetchTicket(); 
       fetchCatalog();
       fetchArticles();
+      fetchTechs();
   }, [id]);
 
   useEffect(() => {
@@ -72,6 +73,19 @@ export default function TicketDetail() {
           api.get(`/assets?account_id=${ticket.account_id}`).then(res => setClientAssets(res.data));
       }
   }, [ticket?.account_id]);
+
+    // NEW FETCHER
+    const fetchTechs = async () => {
+      try {
+          // We use the admin endpoint. 
+          // Note: Non-admin techs might fail here if RBAC is strict. 
+          // If so, we'd need a public '/users/staff' endpoint.
+          const res = await api.get('/admin/users'); 
+          setTechs(res.data);
+      } catch (e) { 
+          console.warn("Could not load tech roster", e);
+      }
+    };
 
   // --- API ---
   const fetchTicket = async () => {
@@ -340,6 +354,7 @@ export default function TicketDetail() {
             setFormData={setFormData} 
             contacts={contacts} 
             accountProjects={accountProjects} 
+            techs={techs} // PASS IT DOWN
           />
 
           {/* KNOWLEDGE BASE */}

@@ -56,6 +56,7 @@ class TicketCreate(SanctumBase):
     assigned_tech_id: Optional[UUID] = None
     ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
+    assigned_tech_id: Optional[UUID] = None # Ensure this exists
 
 class TicketUpdate(SanctumBase):
     status: Optional[str] = None
@@ -63,6 +64,7 @@ class TicketUpdate(SanctumBase):
     subject: Optional[str] = None
     description: Optional[str] = None
     resolution: Optional[str] = None
+    assigned_tech_id: Optional[UUID] = None # <--- CRITICAL FOR ASSIGNMENT
     assigned_tech_id: Optional[UUID] = None
     contact_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
