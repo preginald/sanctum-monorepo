@@ -3,8 +3,7 @@ import { Clock, Package, Plus, Edit2, Copy, Trash2, CheckCircle, X, Loader2 } fr
 import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import SearchableSelect from '../ui/SearchableSelect';
-import { Tag } from 'lucide-react'; // Optional icon
-
+import { Tag } from 'lucide-react';
 
 export default function TicketBilling({ ticket, products, onUpdate, triggerConfirm }) {
   const { addToast } = useToast();
@@ -12,20 +11,16 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
   // --- TIME STATE ---
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [newEntry, setNewEntry] = useState({ start_time: '', end_time: '', description: '', product_id: '' });
-  const [editingTimeId, setEditingTimeId] = useState(null);
-  const [timeEditForm, setTimeEditForm] = useState({});
   const [loadingAction, setLoadingAction] = useState(false);
 
   // --- MATERIAL STATE ---
   const [showMatForm, setShowMatForm] = useState(false);
   const [newMat, setNewMat] = useState({ product_id: '', quantity: 1 });
-  const [editingMatId, setEditingMatId] = useState(null);
-  const [matEditForm, setMatEditForm] = useState({});
+  const [loadingMatAction, setLoadingMatAction] = useState(false);
 
   // HELPERS
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val || 0);
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
-  const formatInputDate = (d) => d ? d.slice(0, 16) : '';
   const formatDuration = (m) => `${Math.floor(m/60)}h ${m%60}m`;
 
   // --- ACTIONS (TIME) ---
@@ -33,13 +28,22 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
       e.preventDefault();
       setLoadingAction(true);
       try {
-          await api.post(`/tickets/${ticket.id}/time_entries`, newEntry);
+          // TIMEZONE FIX: Convert Local Input to UTC ISO String
+          const payload = { ...newEntry };
+          if (payload.start_time) payload.start_time = new Date(payload.start_time).toISOString();
+          if (payload.end_time) payload.end_time = new Date(payload.end_time).toISOString();
+
+          await api.post(`/tickets/${ticket.id}/time_entries`, payload);
           setNewEntry({ start_time: '', end_time: '', description: '', product_id: '' });
           setShowTimeForm(false);
-          onUpdate(); // Parent refresh
+          onUpdate(); 
           addToast("Time logged", "success");
-      } catch(e) { addToast("Failed", "danger"); }
-      finally { setLoadingAction(false); }
+      } catch(e) { 
+          console.error(e);
+          addToast("Failed to log time", "danger"); 
+      } finally { 
+          setLoadingAction(false); 
+      }
   };
 
   const deleteTime = async (id) => {
@@ -53,7 +57,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
   // --- ACTIONS (MATERIAL) ---
   const handleAddMat = async (e) => {
       e.preventDefault();
-      setLoadingAction(true);
+      setLoadingMatAction(true);
       try {
           await api.post(`/tickets/${ticket.id}/materials`, newMat);
           setNewMat({ product_id: '', quantity: 1 });
@@ -61,7 +65,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
           onUpdate();
           addToast("Material added", "success");
       } catch(e) { addToast("Failed", "danger"); }
-      finally { setLoadingAction(false); }
+      finally { setLoadingMatAction(false); }
   };
 
   const deleteMat = async (id) => {
@@ -72,7 +76,6 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
       } catch(e) { addToast("Failed", "danger"); }
   };
 
-  // TOTALS (Using Backend Calculations now!)
   const totalLabor = ticket.time_entries?.reduce((sum, e) => sum + (parseFloat(e.calculated_value) || 0), 0);
   const totalMat = ticket.materials?.reduce((sum, m) => sum + (parseFloat(m.calculated_value) || 0), 0);
 
@@ -118,10 +121,10 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              {showTimeForm && (
                  <form onSubmit={handleAddTime} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3 animate-in slide-in-from-top-2">
                      <div className="grid grid-cols-2 gap-3">
-                         <div><label className="text-xs opacity-50 block mb-1">Start</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} /></div>
-                         <div><label className="text-xs opacity-50 block mb-1">End</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} /></div>
+                         <div><label className="text-xs opacity-50 block mb-1">Start</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} /></div>
+                         <div><label className="text-xs opacity-50 block mb-1">End</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} /></div>
                      </div>
-                     {/* Rate Selector */}
+                     
                  <div>
                      <label className="text-xs opacity-50 block mb-1">Rate</label>
                      <SearchableSelect 
@@ -134,9 +137,9 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                         icon={Tag}
                      />
                  </div>
-                     <div><label className="text-xs opacity-50 block mb-1">Description</label><input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} /></div>
+                     <div><label className="text-xs opacity-50 block mb-1">Description</label><input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} /></div>
                      <div className="flex gap-2">
-                         <button type="button" onClick={() => setShowTimeForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button>
+                         <button type="button" onClick={() => setShowTimeForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs text-white">Cancel</button>
                          <button type="submit" disabled={loadingAction} className="flex-1 py-1 bg-sanctum-gold text-slate-900 font-bold rounded text-xs flex justify-center items-center gap-2">{loadingAction && <Loader2 size={12} className="animate-spin"/>} Log Time</button>
                      </div>
                  </form>
@@ -165,7 +168,6 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              {showMatForm && (
                  <form onSubmit={handleAddMat} className="mt-4 p-4 bg-black/20 rounded border border-white/10 space-y-3 animate-in slide-in-from-top-2">
                      <div className="grid grid-cols-3 gap-3">
-                        {/* Product Selector */}
                      <div className="col-span-2">
                          <label className="text-xs opacity-50 block mb-1">Item</label>
                          <SearchableSelect 
@@ -178,11 +180,11 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                             icon={Package}
                          />
                      </div>
-                         <div><label className="text-xs opacity-50 block mb-1">Qty</label><input required type="number" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs" value={newMat.quantity} onChange={e => setNewMat({...newMat, quantity: e.target.value})} /></div>
+                         <div><label className="text-xs opacity-50 block mb-1">Qty</label><input required type="number" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newMat.quantity} onChange={e => setNewMat({...newMat, quantity: e.target.value})} /></div>
                      </div>
                      <div className="flex gap-2">
-                         <button type="button" onClick={() => setShowMatForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs">Cancel</button>
-                         <button type="submit" disabled={loadingAction} className="flex-1 py-1 bg-orange-600 text-white font-bold rounded text-xs flex justify-center items-center gap-2">{loadingAction && <Loader2 size={12} className="animate-spin"/>} Add</button>
+                         <button type="button" onClick={() => setShowMatForm(false)} className="flex-1 py-1 bg-slate-700 rounded text-xs text-white">Cancel</button>
+                         <button type="submit" disabled={loadingMatAction} className="flex-1 py-1 bg-orange-600 text-white font-bold rounded text-xs flex justify-center items-center gap-2">{loadingMatAction && <Loader2 size={12} className="animate-spin"/>} Add</button>
                      </div>
                  </form>
              )}
