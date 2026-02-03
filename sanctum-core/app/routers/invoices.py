@@ -193,6 +193,7 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
     for item in inv.items:
         item.source_id = None
         item.source_type = None
+        item.ticket_id = None # <--- ADD THIS
         # We keep description/price for historical record of what WAS on the voided invoice
     
     # 4. ZEROIZE & UPDATE
