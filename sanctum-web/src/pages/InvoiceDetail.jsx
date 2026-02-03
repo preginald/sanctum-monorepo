@@ -5,11 +5,13 @@ import { Loader2, ArrowLeft, Plus, Trash2, Save, Download, Send, CheckCircle, Ma
 import api from '../lib/api';
 import useAuthStore from '../store/authStore'; // Import Auth Store for Admin Check
 import ConfirmationModal from '../components/ui/ConfirmationModal'; // Import Confirm
+import { useToast } from '../context/ToastContext'; // <--- 1. ADD IMPORT
 
 export default function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore(); // Get User
+  const { addToast } = useToast(); // <--- 2. GET HOOK
   
   // === STATE ===
   const [invoice, setInvoice] = useState(null);

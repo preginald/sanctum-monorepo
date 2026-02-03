@@ -173,38 +173,58 @@ def delete_invoice_item(item_id: str, db: Session = Depends(get_db)):
 
 @router.put("/{invoice_id}/void", response_model=schemas.InvoiceResponse)
 def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    # 1. PERMISSION GUARD
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Only Admins can void invoices.")
 
-    inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+    # 1. Fetch & Execute Logic
+    inv = db.query(models.Invoice).options(joinedload(models.Invoice.items)).filter(models.Invoice.id == invoice_id).first()
+    
     if not inv: 
         raise HTTPException(status_code=404, detail="Invoice not found")
     
-    # 2. STATUS GUARD
     if inv.status == 'paid':
-        raise HTTPException(status_code=400, detail="Cannot void a Paid invoice. Issue a Credit Note instead.")
-    if inv.status == 'void':
-        raise HTTPException(status_code=400, detail="Invoice is already void.")
+        raise HTTPException(status_code=400, detail="Cannot void a Paid invoice.")
 
-    # 3. RELEASE LOGIC (The Critical Step)
-    # We strip the source_id and source_type from the line items.
-    # This keeps the text on the Void Invoice, but tells the Ticket it is no longer billed.
-    for item in inv.items:
-        item.source_id = None
-        item.source_type = None
-        item.ticket_id = None # <--- ADD THIS
-        # We keep description/price for historical record of what WAS on the voided invoice
+    if inv.status != 'void':
+        # Release Items
+        for item in inv.items:
+            item.source_id = None
+            item.source_type = None
+            item.ticket_id = None
+        
+        # Zeroize Header
+        inv.status = 'void'
+        inv.subtotal_amount = 0
+        inv.gst_amount = 0
+        inv.total_amount = 0
+        
+        db.commit()
+        
+        # CRITICAL: Clear session to ensure clean read of unlinked items
+        db.expire_all()
     
-    # 4. ZEROIZE & UPDATE
-    inv.status = 'void'
-    inv.subtotal_amount = 0
-    inv.gst_amount = 0
-    inv.total_amount = 0
+    # 2. Clean Read (Post-Expire)
+    fresh_inv = db.query(models.Invoice).options(
+        joinedload(models.Invoice.items).joinedload(models.InvoiceItem.ticket).joinedload(models.Ticket.contacts),
+        joinedload(models.Invoice.delivery_logs).joinedload(models.InvoiceDeliveryLog.sender),
+        joinedload(models.Invoice.account)
+    ).filter(models.Invoice.id == invoice_id).first()
+
+    # 3. Manual Decoration
+    fresh_inv.account_name = fresh_inv.account.name if fresh_inv.account else "Unknown"
     
-    db.commit()
-    db.refresh(inv)
-    return inv
+    for log in fresh_inv.delivery_logs:
+        log.sender_name = log.sender.full_name if log.sender else "System"
+        
+    cc_set = set()
+    for item in fresh_inv.items:
+        if item.ticket:
+            for c in item.ticket.contacts:
+                if c.email: cc_set.add(c.email)
+    fresh_inv.suggested_cc = list(cc_set)
+
+    # 4. Explicit Validation (Ensures Schema Compliance)
+    return schemas.InvoiceResponse.model_validate(fresh_inv)
 
 @router.post("/{invoice_id}/send")
 def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
