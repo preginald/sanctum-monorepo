@@ -2,34 +2,37 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, User, Ticket, BookOpen, Building, Server, PlusCircle, Command } from 'lucide-react';
 import api from '../../lib/api';
-import useModalStore from '../../store/modalStore'; // <--- NEW
-
+import useModalStore from '../../store/modalStore';
 
 export default function GlobalSearch() {
   const navigate = useNavigate();
-  const { openModal } = useModalStore(); // <--- NEW
+  const { openModal } = useModalStore();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [mode, setMode] = useState('global'); // global, wiki, ticket, client, etc.
-  const containerRef = useRef(null);
+  const [selectedIndex, setSelectedIndex] = useState(-1); // <--- NEW: Track keyboard selection
 
-  // Keyboard Shortcut (Cmd+K)
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+  const resultListRef = useRef(null); // <--- NEW: Ref for scroll container
+
+  // Keyboard Shortcut (Cmd+K to open)
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleGlobalKeyDown = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        document.getElementById('global-search-input')?.focus();
+        inputRef.current?.focus();
       }
       if (e.key === 'Escape') {
           setIsOpen(false);
-          document.getElementById('global-search-input')?.blur();
+          inputRef.current?.blur();
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown);
   }, []);
 
   // Click Outside
@@ -60,9 +63,12 @@ export default function GlobalSearch() {
           if (query.length > 1) {
               setLoading(true);
               setIsOpen(true);
+              setSelectedIndex(-1); // Reset selection on new search
               try {
                   const res = await api.get(`/search?q=${encodeURIComponent(query)}`);
                   setResults(res.data);
+                  // Auto-select first result for quicker access? 
+                  // setSelectedIndex(0); // Optional: Uncomment to auto-select first
               } catch (e) { console.error(e); }
               finally { setLoading(false); }
           } else {
@@ -73,9 +79,20 @@ export default function GlobalSearch() {
       return () => clearTimeout(delayDebounceFn);
   }, [query]);
 
+  // Scroll active item into view
+  useEffect(() => {
+    if (selectedIndex >= 0 && resultListRef.current) {
+      const activeItem = resultListRef.current.children[selectedIndex];
+      if (activeItem) {
+        activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }
+  }, [selectedIndex]);
+
   const handleSelect = (link) => {
       setIsOpen(false);
       setQuery('');
+      setSelectedIndex(-1);
 
       // INTERCEPTION LOGIC
       if (link === '/tickets/new') {
@@ -85,6 +102,27 @@ export default function GlobalSearch() {
       
     // Default Navigation
     navigate(link);
+  };
+
+  // KEYBOARD NAVIGATION HANDLER
+  const handleInputKeyDown = (e) => {
+    if (!results.length) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : 0)); // Cycle to top
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedIndex(prev => (prev > 0 ? prev - 1 : results.length - 1)); // Cycle to bottom
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (selectedIndex >= 0 && results[selectedIndex]) {
+        handleSelect(results[selectedIndex].link);
+      } else if (results.length > 0) {
+        // Optional: If nothing selected, Enter selects first result
+        handleSelect(results[0].link);
+      }
+    }
   };
 
   const getResultIcon = (type) => {
@@ -99,7 +137,6 @@ export default function GlobalSearch() {
       }
   };
 
-  // Dynamic Search Bar Icon based on Mode
   const getSearchIcon = () => {
       if (loading) return <Loader2 className="animate-spin text-slate-500" size={16} />;
       switch(mode) {
@@ -120,6 +157,7 @@ export default function GlobalSearch() {
           </div>
           
           <input 
+            ref={inputRef}
             id="global-search-input"
             type="text" 
             placeholder="Search... (Cmd+K)" 
@@ -132,6 +170,7 @@ export default function GlobalSearch() {
             }}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleInputKeyDown} // <--- ATTACHED HANDLER
             onFocus={() => { if(query.length > 1) setIsOpen(true); }}
             autoComplete="off"
           />
@@ -145,29 +184,36 @@ export default function GlobalSearch() {
 
       {isOpen && results.length > 0 && (
           <div className="absolute top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-100">
-              <div className="max-h-96 overflow-y-auto custom-scrollbar">
-                  {results.map((r) => (
-                      <div 
-                        key={`${r.type}-${r.id}`} 
-                        onClick={() => handleSelect(r.link)}
-                        className={`flex items-center gap-3 p-3 cursor-pointer border-b border-slate-800 last:border-0 transition-colors
-                            ${r.type === 'action' ? 'bg-sanctum-gold/10 hover:bg-sanctum-gold/20' : 'hover:bg-slate-800'}
-                        `}
-                      >
-                          <div className={`p-2 rounded border ${r.type === 'action' ? 'border-sanctum-gold/30 bg-sanctum-gold/10' : 'border-white/5 bg-black/40'}`}>
-                              {getResultIcon(r.type)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                              <div className={`font-bold text-sm truncate ${r.type === 'action' ? 'text-sanctum-gold' : 'text-white'}`}>
-                                  {r.title}
-                              </div>
-                              {r.subtitle && <div className="text-xs text-slate-500 truncate">{r.subtitle}</div>}
-                          </div>
-                          
-                          {/* Hint for Actions */}
-                          {r.type === 'action' && <span className="text-[10px] uppercase font-bold tracking-wider text-sanctum-gold opacity-50 px-2">Run</span>}
-                      </div>
-                  ))}
+              <div ref={resultListRef} className="max-h-96 overflow-y-auto custom-scrollbar">
+                  {results.map((r, index) => {
+                      const isSelected = index === selectedIndex;
+                      return (
+                        <div 
+                          key={`${r.type}-${r.id}`} 
+                          onClick={() => handleSelect(r.link)}
+                          className={`flex items-center gap-3 p-3 cursor-pointer border-b border-slate-800 last:border-0 transition-colors
+                              ${isSelected ? 'bg-slate-800 ring-1 ring-inset ring-sanctum-gold/20' : ''}
+                              ${!isSelected && r.type === 'action' ? 'bg-sanctum-gold/10 hover:bg-sanctum-gold/20' : ''}
+                              ${!isSelected && r.type !== 'action' ? 'hover:bg-slate-800' : ''}
+                          `}
+                        >
+                            <div className={`p-2 rounded border ${r.type === 'action' ? 'border-sanctum-gold/30 bg-sanctum-gold/10' : 'border-white/5 bg-black/40'}`}>
+                                {getResultIcon(r.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className={`font-bold text-sm truncate ${r.type === 'action' ? 'text-sanctum-gold' : 'text-white'}`}>
+                                    {r.title}
+                                </div>
+                                {r.subtitle && <div className="text-xs text-slate-500 truncate">{r.subtitle}</div>}
+                            </div>
+                            
+                            {/* Hint for Actions */}
+                            {r.type === 'action' && <span className="text-[10px] uppercase font-bold tracking-wider text-sanctum-gold opacity-50 px-2">Run</span>}
+                            {/* Hint for Selection */}
+                            {isSelected && <span className="text-[10px] text-slate-400 opacity-50 px-2">↵</span>}
+                        </div>
+                      );
+                  })}
               </div>
               <div className="bg-slate-950 p-2 text-[10px] text-center text-slate-600 font-mono border-t border-slate-800">
                   {results.length} result{results.length !== 1 ? 's' : ''} found • {mode.toUpperCase()} MODE
