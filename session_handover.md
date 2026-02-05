@@ -1,21 +1,38 @@
-# 🔄 PHOENIX SESSION HANDOVER
-**Date:** Thu 05 Feb 2026
-**Session Status:** CLEAN EXIT
+# 📁 Session Handover: Portal Refactor & Recovery
 
-## 1. ACCOMPLISHMENTS
-- **Ticket #153 (Invoice Email Modernisation):**
-    - **Architecture:** Upgraded `EmailService` to support Attachments and CC fields in Jinja2 templates.
-    - **Design:** Implemented `invoice_notice.html` to replace plain-text notifications with a professional, branded layout.
-    - **UX (Financial):** Invoice emails now clearly display Amount Due, Issue Date, and Due Date in a summary card.
-    - **Logic (Terms):** Fixed "Due Date" display logic to respect "Due on Receipt" payment terms.
-    - **Logic (Humanisation):** Implemented persona-based greetings (Billing Lead -> Primary Contact -> Team) to avoid "Hi Company Ltd".
+**Date:** $(date)
+**Status:** ✅ STABLE / DEPLOYED
+**Last Focus:** Client Portal Repair, Auth Flow, and UX Polish.
 
-## 2. SYSTEM STATE
-- **Frontend:** `sanctum-web` (No changes this session).
-- **Backend:** `sanctum-core` v1.9.2 (Email Service upgraded).
-- **Database:** No schema changes.
+## 📝 Executive Summary
+We resolved a critical backend crash caused by circular imports and successfully refactored the Client Portal. The portal now enforces strict data scoping (users only see their own tickets unless they are managers) and dynamically adapts its branding (Sanctum vs. Naked Tech). We also implemented a complete "Forgot Password" flow with real-time validation.
 
-## 3. NEXT IMMEDIATE ACTIONS
-1. **QA:** Verify mobile responsiveness of the new Command Bar and Drawer (Original Ticket #153 scope deferred).
-2. **Operations:** Resume **Phase 53: Revenue Assurance**.
-3. **Refinement:** Consider adding a "Pay Now" button to the invoice email if a payment gateway is integrated in Phase 54.
+## 🛠️ Key Technical Changes
+
+### 1. Backend (sanctum-core)
+* **Fixed Circular Imports:** Restructured imports in `routers/portal.py` and `routers/tickets.py` to prevent server crashes.
+* **Strict Scoping:** Updated `/portal/tickets` and `/portal/dashboard` to filter data based on the specific `Contact` ID, not just the Account ID.
+* **File Delivery:** Rewrote `download_portal_invoice` with robust path resolution (checks absolute, app-relative, and static-relative paths) to fix 404 errors.
+* **Auth Expansion:** Added `POST /auth/request-reset` to generate tokens and dispatch emails via `email_service`.
+
+### 2. Frontend (sanctum-web)
+* **Portal Dashboard:** Restored the original rich dashboard design while wiring up the new strict-scope data feeds.
+* **Portal Ticket Detail:** Created a new view that inherits the correct branding (Dark/Gold for Sanctum, Light/Pink for Naked Tech) from the ticket data.
+* **Login Flow:** Updated `Login.jsx` to handle the "Forgot Password" view and api calls.
+* **Set Password:** Enhanced `SetPassword.jsx` with real-time validation (length/match checks) and visual feedback.
+* **Routing:** Fixed `App.jsx` to correctly map the `/set-password` route matching the email links.
+
+## 📂 Critical Files Modified
+* `sanctum-core/app/routers/auth.py`
+* `sanctum-core/app/routers/portal.py`
+* `sanctum-web/src/App.jsx`
+* `sanctum-web/src/pages/Login.jsx`
+* `sanctum-web/src/pages/SetPassword.jsx`
+* `sanctum-web/src/pages/PortalDashboard.jsx`
+* `sanctum-web/src/pages/PortalTicketDetail.jsx`
+
+## ⏭️ Next Actions
+1.  **Ticket Creation Audit:** Verify the "Create Ticket" modal on the Portal Dashboard functions correctly with the new strict scoping rules.
+2.  **Knowledge Base:** Ensure clients can access the Wiki/Library (read-only) as per their plan.
+3.  **Automations:** Review automation triggers related to new ticket creation.
+
