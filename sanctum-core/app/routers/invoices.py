@@ -205,6 +205,7 @@ def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, cur
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.account)).filter(models.Invoice.id == invoice_id).first()
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
 
+    # PDF GENERATION OR RETRIEVAL
     abs_path = ""
     cwd = os.getcwd()
     static_dir = os.path.join(cwd, "app/static/reports")
@@ -226,17 +227,28 @@ def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, cur
     else:
         abs_path = os.path.join(cwd, "app", inv.pdf_path.lstrip("/"))
 
-    # NEW: Logic to prioritize "Due on Receipt" semantics for the email body
+    # NEW: Determine Greeting based on Contacts
+    greeting_name = "Team" # Default
+    if inv.account_id:
+        contacts = db.query(models.Contact).filter(models.Contact.account_id == inv.account_id).all()
+        # 1. Try Billing Lead
+        billing_lead = next((c for c in contacts if c.persona == 'Billing Lead'), None)
+        if billing_lead:
+            greeting_name = billing_lead.first_name
+        else:
+            # 2. Try Primary Contact
+            primary = next((c for c in contacts if c.is_primary_contact), None)
+            if primary:
+                greeting_name = primary.first_name
+
     display_due = "Due on Receipt"
-    # If terms explicitly mention receipt/immediate, force the text
     if inv.payment_terms and ("receipt" in inv.payment_terms.lower() or "immediate" in inv.payment_terms.lower()):
         display_due = "Due on Receipt"
     else:
-        # Otherwise fall back to date formatting
         display_due = inv.due_date.strftime("%d %b %Y") if inv.due_date else "Due on Receipt"
 
     context = {
-        "client_name": inv.account.name if inv.account else "Valued Client",
+        "client_name": greeting_name, # Overriding generic Account Name with Greeting Name
         "invoice_number": str(inv.id)[:8].upper(),
         "issue_date": inv.generated_at.strftime("%d %b %Y") if inv.generated_at else "N/A",
         "due_date": display_due,
