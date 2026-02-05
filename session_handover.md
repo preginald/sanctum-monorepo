@@ -1,38 +1,27 @@
-# 📁 Session Handover: Portal Refactor & Recovery
+# 📁 Session Handover: Signal Deduplication & Portal Audit
 
-**Date:** $(date)
-**Status:** ✅ STABLE / DEPLOYED
-**Last Focus:** Client Portal Repair, Auth Flow, and UX Polish.
+**Date:** Fri 06 Feb 2026 01:10:00 AEDT
+**Status:** 🟡 TRANSITIONING
+**Last Focus:** Fixed Duplicate Email Digests (BUG-155); Prepared Portal Ticket Audit.
 
 ## 📝 Executive Summary
-We resolved a critical backend crash caused by circular imports and successfully refactored the Client Portal. The portal now enforces strict data scoping (users only see their own tickets unless they are managers) and dynamically adapts its branding (Sanctum vs. Naked Tech). We also implemented a complete "Forgot Password" flow with real-time validation.
+We successfully identified and patched a bug in `sanctum-core/app/worker.py` where identical notifications were being listed multiple times in the hourly digest. The worker now uses "Smart Aggregation" to group updates by their entity link and deduplicate messages within those groups. We are now pivoting back to the Milestone: **Phase 55: UX & Stability**, specifically auditing the "Create Ticket" flow in the Portal.
 
 ## 🛠️ Key Technical Changes
-
 ### 1. Backend (sanctum-core)
-* **Fixed Circular Imports:** Restructured imports in `routers/portal.py` and `routers/tickets.py` to prevent server crashes.
-* **Strict Scoping:** Updated `/portal/tickets` and `/portal/dashboard` to filter data based on the specific `Contact` ID, not just the Account ID.
-* **File Delivery:** Rewrote `download_portal_invoice` with robust path resolution (checks absolute, app-relative, and static-relative paths) to fix 404 errors.
-* **Auth Expansion:** Added `POST /auth/request-reset` to generate tokens and dispatch emails via `email_service`.
-
-### 2. Frontend (sanctum-web)
-* **Portal Dashboard:** Restored the original rich dashboard design while wiring up the new strict-scope data feeds.
-* **Portal Ticket Detail:** Created a new view that inherits the correct branding (Dark/Gold for Sanctum, Light/Pink for Naked Tech) from the ticket data.
-* **Login Flow:** Updated `Login.jsx` to handle the "Forgot Password" view and api calls.
-* **Set Password:** Enhanced `SetPassword.jsx` with real-time validation (length/match checks) and visual feedback.
-* **Routing:** Fixed `App.jsx` to correctly map the `/set-password` route matching the email links.
+* **Refactored `worker.py`:**
+    * Implemented `grouped_by_link` logic to bundle notifications for the same ticket/item.
+    * Added message deduplication using a `set()`.
+    * Enhanced HTML digest template with grouped list items and entity-specific containers.
 
 ## 📂 Critical Files Modified
-* `sanctum-core/app/routers/auth.py`
-* `sanctum-core/app/routers/portal.py`
-* `sanctum-web/src/App.jsx`
-* `sanctum-web/src/pages/Login.jsx`
-* `sanctum-web/src/pages/SetPassword.jsx`
-* `sanctum-web/src/pages/PortalDashboard.jsx`
-* `sanctum-web/src/pages/PortalTicketDetail.jsx`
+* `sanctum-core/app/worker.py` (Smart Aggregation Logic)
 
 ## ⏭️ Next Actions
-1.  **Ticket Creation Audit:** Verify the "Create Ticket" modal on the Portal Dashboard functions correctly with the new strict scoping rules.
-2.  **Knowledge Base:** Ensure clients can access the Wiki/Library (read-only) as per their plan.
-3.  **Automations:** Review automation triggers related to new ticket creation.
+1. **Portal Ticket Audit (Urgent):** Inspect `sanctum-core/app/routers/portal.py` and `sanctum-web/src/pages/PortalDashboard.jsx`.
+    * Ensure `create_portal_ticket` derives `account_id` from the backend `Contact` record rather than accepting it from the frontend request body.
+2. **Digest Verification:** Monitor the next hourly run of the worker to ensure the new HTML layout renders correctly across different mail clients.
 
+## 📍 System Context
+* **Current Milestone:** Phase 55: UX & Stability
+* **Open Ticket:** BUG-155 (Resolved, pending verification)
