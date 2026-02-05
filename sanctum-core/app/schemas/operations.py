@@ -3,8 +3,7 @@ from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from .crm import ContactResponse
-from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite # ADDED AssetLite
-
+from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite
 
 class TimeEntryCreate(SanctumBase):
     start_time: datetime
@@ -56,7 +55,6 @@ class TicketCreate(SanctumBase):
     assigned_tech_id: Optional[UUID] = None
     ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
-    assigned_tech_id: Optional[UUID] = None # Ensure this exists
 
 class TicketUpdate(SanctumBase):
     status: Optional[str] = None
@@ -64,15 +62,14 @@ class TicketUpdate(SanctumBase):
     subject: Optional[str] = None
     description: Optional[str] = None
     resolution: Optional[str] = None
-    assigned_tech_id: Optional[UUID] = None # <--- CRITICAL FOR ASSIGNMENT
     assigned_tech_id: Optional[UUID] = None
     contact_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
     ticket_type: Optional[str] = None
     milestone_id: Optional[UUID] = None
-    contact_id: Optional[UUID] = None
-    resolution_comment_id: Optional[UUID] = None # NEW
+    contact_id: Optional[UUID] = None # Legacy support
+    resolution_comment_id: Optional[UUID] = None
 
 class TicketResponse(TicketCreate):
     id: int
@@ -92,13 +89,11 @@ class TicketResponse(TicketCreate):
     contacts: List[ContactResponse] = [] 
     time_entries: List[TimeEntryResponse] = []
     materials: List[TicketMaterialResponse] = [] 
-    articles: List[ArticleLite] = [] # The Bridge
-    # NEW
+    articles: List[ArticleLite] = []
     assets: List[AssetLite] = [] 
 
     total_hours: float = 0.0
-    resolution_comment_id: Optional[UUID] = None # NEW
-
+    resolution_comment_id: Optional[UUID] = None
 
 class LeadSchema(SanctumBase):
     name: str

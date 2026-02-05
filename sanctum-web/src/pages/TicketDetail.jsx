@@ -14,7 +14,6 @@ import ConfirmationModal from '../components/ui/ConfirmationModal';
 import ResolveModal from '../components/tickets/ResolveModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
 
-
 export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -24,17 +23,16 @@ export default function TicketDetail() {
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Global Save Lock
+  const [isSaving, setIsSaving] = useState(false); 
   const [showResolveModal, setShowResolveModal] = useState(false);
-  const [resolveText, setResolveText] = useState(''); // NEW
-  const [resolveId, setResolveId] = useState(null); // NEW
-  const [techs, setTechs] = useState([]); // NEW
+  const [resolveText, setResolveText] = useState(''); 
+  const [resolveId, setResolveId] = useState(null); 
+  const [techs, setTechs] = useState([]); 
 
   // ASSET LINKING STATE
   const [clientAssets, setClientAssets] = useState([]);
   const [showLinkAsset, setShowLinkAsset] = useState(false);
-  const [selectedAssetId, setSelectedAssetId] = useState('');
-
+  
   // DATA POOLS
   const [contacts, setContacts] = useState([]); 
   const [products, setProducts] = useState([]); 
@@ -43,19 +41,18 @@ export default function TicketDetail() {
 
   // KNOWLEDGE BASE UI
   const [showLinkArticle, setShowLinkArticle] = useState(false);
-  const [articleSearchQuery, setArticleSearchQuery] = useState(''); // NEW
+  const [articleSearchQuery, setArticleSearchQuery] = useState(''); 
 
-  // FILTER ARTICLES
-  const filteredArticles = allArticles.filter(a => 
-      a.title.toLowerCase().includes(articleSearchQuery.toLowerCase()) || 
-      (a.identifier && a.identifier.toLowerCase().includes(articleSearchQuery.toLowerCase()))
-  ).slice(0, 5); // Limit to top 5 results
-  
   // FORM DATA (For Edit Mode)
   const [formData, setFormData] = useState({});
 
   // MODAL STATE
   const [modal, setModal] = useState({ isOpen: false, title: '', message: '', action: null, isDangerous: false });
+
+  // LAYOUT STATE
+  const [layoutMode, setLayoutMode] = useState(() => {
+      return localStorage.getItem('sanctum_ticket_layout') || 'split';
+  });
 
   // --- INITIALIZATION ---
   useEffect(() => { 
@@ -69,17 +66,12 @@ export default function TicketDetail() {
       if (ticket?.account_id) {
           api.get(`/projects?account_id=${ticket.account_id}`).then(res => setAccountProjects(res.data));
           fetchContacts(ticket.account_id);
-          // NEW: Fetch Client Assets
           api.get(`/assets?account_id=${ticket.account_id}`).then(res => setClientAssets(res.data));
       }
   }, [ticket?.account_id]);
 
-    // NEW FETCHER
     const fetchTechs = async () => {
       try {
-          // We use the admin endpoint. 
-          // Note: Non-admin techs might fail here if RBAC is strict. 
-          // If so, we'd need a public '/users/staff' endpoint.
           const res = await api.get('/admin/users'); 
           setTechs(res.data);
       } catch (e) { 
@@ -96,12 +88,17 @@ export default function TicketDetail() {
         setTicket(target);
         // Hydrate Form Data
         setFormData({
-          status: target.status, priority: target.priority, description: target.description || '', resolution: target.resolution || '',
-          created_at: target.created_at, closed_at: target.closed_at,
+          status: target.status, 
+          priority: target.priority, 
+          description: target.description || '', 
+          resolution: target.resolution || '',
+          created_at: target.created_at, 
+          closed_at: target.closed_at,
+          // MULTI-SELECT INITIALIZATION
           contact_ids: target.contacts?.map(c => c.id) || [], 
           ticket_type: target.ticket_type || 'support', 
           milestone_id: target.milestone_id || '', 
-          contact_id: target.contact_id || ''
+          assigned_tech_id: target.assigned_tech_id || null
         });
       }
     } catch (e) { console.error(e); } 
@@ -114,26 +111,19 @@ export default function TicketDetail() {
   const fetchCatalog = async () => { try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { } };
   const fetchArticles = async () => { try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {} };
 
-  // LAYOUT STATE
-  const [layoutMode, setLayoutMode] = useState(() => {
-      return localStorage.getItem('sanctum_ticket_layout') || 'split';
-  });
-
   const toggleLayout = () => {
       const newMode = layoutMode === 'split' ? 'stacked' : 'split';
       setLayoutMode(newMode);
       localStorage.setItem('sanctum_ticket_layout', newMode);
   };
 
-  // --- HANDLERS ---
   const triggerConfirm = (title, message, action, isDangerous = false) => {
       setModal({ isOpen: true, title, message, action, isDangerous });
   };
 
-  // Store both text and ID
   const handlePinComment = (text, commentId) => {
       setResolveText(text);
-      setResolveId(commentId); // NEW STATE
+      setResolveId(commentId); 
       setShowResolveModal(true);
   };
 
@@ -142,7 +132,7 @@ export default function TicketDetail() {
     const payload = { ...formData };
     if (!payload.closed_at) delete payload.closed_at;
     if (!payload.milestone_id) payload.milestone_id = null;
-    if (!payload.contact_id) payload.contact_id = null;
+    // We do NOT send contact_id (singular) anymore
     try { 
       await api.put(`/tickets/${id}`, payload); 
       await fetchTicket(); 
@@ -177,8 +167,8 @@ export default function TicketDetail() {
           const payload = {
               status: 'resolved',
               resolution: resolutionText,
-              closed_at: new Date().toISOString(), // Explicit close time
-              resolution_comment_id: resolveId // Pass the ID
+              closed_at: new Date().toISOString(), 
+              resolution_comment_id: resolveId 
           };
           
           await api.put(`/tickets/${id}`, payload);
@@ -192,13 +182,12 @@ export default function TicketDetail() {
       }
   };
 
-  // --- ASSET HANDLERS ---
+  // --- LINKING HANDLERS ---
   const handleLinkAsset = async (assetId) => {
       try {
           await api.post(`/tickets/${id}/assets/${assetId}`);
           addToast("Asset linked", "success");
           setShowLinkAsset(false);
-          // setSelectedAssetId(''); // No longer needed
           fetchTicket();
       } catch(e) { addToast("Failed to link asset", "danger"); }
   };
@@ -214,11 +203,8 @@ export default function TicketDetail() {
       }, true);
   };
 
-
-  // KNOWLEDGE HANDLERS
   const handleLinkArticle = async (articleId) => {
       try {
-          // Use the 'articleId' argument, NOT 'selectedArticleId'
           await api.post(`/tickets/${id}/articles/${articleId}`);
           addToast("Article linked", "success");
           setShowLinkArticle(false);
@@ -256,7 +242,7 @@ export default function TicketDetail() {
         onClose={() => setShowResolveModal(false)} 
         onResolve={handleResolve} 
         loading={isSaving} 
-        initialValue={resolveText} // Pass 
+        initialValue={resolveText} 
       />
 
       {/* HEADER */}
@@ -281,8 +267,6 @@ export default function TicketDetail() {
 
         {/* RIGHT SIDE BUTTONS */}
         <div className="flex gap-2">
-            
-            {/* LAYOUT TOGGLE */}
             <button 
                 onClick={toggleLayout}
                 className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors mr-2"
@@ -293,7 +277,6 @@ export default function TicketDetail() {
 
             {!isEditing && (
                 <>
-                    {/* RESOLVE BUTTON (Only if not resolved) */}
                     {ticket.status !== 'resolved' && (
                         <button 
                             onClick={() => setShowResolveModal(true)} 
@@ -309,7 +292,6 @@ export default function TicketDetail() {
                 </>
             )}
             
-            {/* EDIT / SAVE (Existing) */}
             {!isEditing ? (
                 <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit</button>
             ) : (
@@ -321,13 +303,12 @@ export default function TicketDetail() {
         </div>
       </div>
 
-        {/* DYNAMIC LAYOUT: Force stack if mode is 'stacked', else use responsive split */}
+        {/* MAIN GRID */}
         <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>
         
-        {/* LEFT COLUMN (Content) */}
+        {/* LEFT COLUMN */}
         <div className="xl:col-span-3 space-y-6 min-w-0">
           
-          {/* FINANCIAL GUARD */}
           {ticket.related_invoices?.length > 0 && (
               <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -346,7 +327,6 @@ export default function TicketDetail() {
               </div>
           )}
 
-          {/* OVERVIEW */}
           <TicketOverview 
             ticket={ticket} 
             isEditing={isEditing} 
@@ -354,7 +334,7 @@ export default function TicketDetail() {
             setFormData={setFormData} 
             contacts={contacts} 
             accountProjects={accountProjects} 
-            techs={techs} // PASS IT DOWN
+            techs={techs} 
           />
 
           {/* KNOWLEDGE BASE */}
@@ -395,7 +375,7 @@ export default function TicketDetail() {
               </div>
           </div>
 
-          {/* AFFECTED ASSETS */}
+          {/* ASSETS */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
@@ -416,7 +396,7 @@ export default function TicketDetail() {
 
                       <SearchableSelect 
                           items={clientAssets}
-                          onSelect={(item) => handleLinkAsset(item.id)} // You might need to update handleLinkAsset signature slightly or wrapper
+                          onSelect={(item) => handleLinkAsset(item.id)} 
                           selectedIds={ticket.assets?.map(a => a.id) || []}
                           placeholder="Search Assets by Name or IP..."
                           labelKey="name"
@@ -442,7 +422,6 @@ export default function TicketDetail() {
               </div>
           </div>
           
-          {/* BILLING SECTION */}
           <TicketBilling 
             ticket={ticket} 
             products={products} 
@@ -452,13 +431,13 @@ export default function TicketDetail() {
 
         </div>
 
-        {/* RIGHT COLUMN (Stream) - Spans 2 cols (40%) */}
+        {/* RIGHT COLUMN */}
         <div className="xl:col-span-2 h-[800px] xl:sticky xl:top-8">
             <CommentStream 
                 resourceType="ticket" 
                 resourceId={ticket.id} 
                 onPromote={ticket.status !== 'resolved' ? handlePinComment : null}
-                highlightId={ticket.resolution_comment_id} // NEW PROP
+                highlightId={ticket.resolution_comment_id}
             />
         </div>
       </div>

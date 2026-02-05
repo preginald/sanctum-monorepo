@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Date, Text, Table, Numeric
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.types import JSON
-from sqlalchemy import Enum as SAEnum # Rename to avoid conflict if needed
+from sqlalchemy import Enum as SAEnum 
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text, func
 from sqlalchemy.types import TIMESTAMP
@@ -10,7 +10,6 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
 # 1. ASSOCIATION TABLES
-# Fix: Added primary_key=True to columns to prevent Alembic from trying to make them nullable.
 
 ticket_contacts = Table('ticket_contacts', Base.metadata,
     Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
@@ -40,12 +39,10 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
     
-    # NEW: Store the secret (nullable)
     totp_secret = Column(String, nullable=True)
     
     account = relationship("Account", foreign_keys=[account_id])
 
-    # NEW: Helper Property for Pydantic
     @property
     def has_2fa(self):
         return bool(self.totp_secret)
@@ -77,6 +74,9 @@ class Contact(Base):
     is_primary_contact = Column(Boolean, default=False)
     persona = Column(String)
     reports_to_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+    
+    # NEW: Preference store for non-users (External Contacts)
+    notification_preferences = Column(JSON, default={}) 
 
     account = relationship("Account", back_populates="contacts")
     subordinates = relationship("Contact", backref=backref('manager', remote_side=[id]))
@@ -184,6 +184,8 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     assigned_tech_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    
+    # LEGACY FIELD: Do not remove yet, but Logic will migrate to 'contacts' relationship
     contact_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
     
     subject = Column(String)
@@ -191,7 +193,6 @@ class Ticket(Base):
     status = Column(String, default='new')
     priority = Column(String, default='normal')
     resolution = Column(Text)
-    # NEW: Link to specific comment
     resolution_comment_id = Column(UUID(as_uuid=True), ForeignKey("comments.id"), nullable=True)
 
     milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
@@ -203,29 +204,27 @@ class Ticket(Base):
     closed_at = Column(TIMESTAMP(timezone=True))
 
     account = relationship("Account", back_populates="tickets")
-    contact = relationship("Contact", foreign_keys=[contact_id])
+    contact = relationship("Contact", foreign_keys=[contact_id]) # Legacy Relationship
+    
+    # NEW: The Many-to-Many Relationship
     contacts = relationship("Contact", secondary=ticket_contacts, backref="tickets")
     
     comments = relationship(
         "Comment", 
         back_populates="ticket", 
         order_by="desc(Comment.created_at)",
-        foreign_keys="[Comment.ticket_id]" # FIX
+        foreign_keys="[Comment.ticket_id]"
     )
 
     time_entries = relationship("TicketTimeEntry", back_populates="ticket", cascade="all, delete-orphan")
     materials = relationship("TicketMaterial", back_populates="ticket", cascade="all, delete-orphan")
     milestone = relationship("Milestone", back_populates="tickets")
     articles = relationship("Article", secondary=ticket_articles, backref="tickets")
-    # Resolution comment uses the 'resolution_comment_id' on the Ticket table
     resolution_comment = relationship(
         "Comment", 
         foreign_keys=[resolution_comment_id],
-        post_update=True # Avoid circular dependency issues during flush
+        post_update=True 
     )
-
-
-    # NEW: Assets Link
     assets = relationship("Asset", secondary=ticket_assets, backref="tickets")
 
     @property
@@ -265,15 +264,9 @@ class TicketTimeEntry(Base):
     @property
     def calculated_value(self):
         if not self.product: return Decimal("0.00")
-        
-        # Convert duration to Decimal explicitly
         hours = Decimal(self.duration_minutes) / Decimal("60")
-        
-        # Ensure unit_price is Decimal (SQLAlchemy Numeric returns Decimal, but just in case)
         rate = self.product.unit_price
-        if not isinstance(rate, Decimal):
-            rate = Decimal(str(rate))
-            
+        if not isinstance(rate, Decimal): rate = Decimal(str(rate))
         total = hours * rate
         return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -295,12 +288,9 @@ class TicketMaterial(Base):
     @property
     def calculated_value(self):
         if not self.product: return Decimal("0.00")
-        
         qty = Decimal(self.quantity)
         rate = self.product.unit_price
-        if not isinstance(rate, Decimal):
-            rate = Decimal(str(rate))
-            
+        if not isinstance(rate, Decimal): rate = Decimal(str(rate))
         total = qty * rate
         return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
@@ -312,11 +302,8 @@ class Product(Base):
     type = Column(String) 
     unit_price = Column(Numeric(12, 2))
     is_active = Column(Boolean, default=True)
-        
-    # NEW: Recurring Billing Context
     is_recurring = Column(Boolean, default=False)
-    billing_frequency = Column(String, nullable=True) # 'monthly', 'yearly'
-    
+    billing_frequency = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
 class AuditReport(Base):
@@ -401,18 +388,13 @@ class InvoiceDeliveryLog(Base):
 class Article(Base):
     __tablename__ = "articles"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    
     title = Column(String, nullable=False)
     slug = Column(String, unique=True, index=True)
     content = Column(Text)
-    
-    # Metadata for the UI (Matches the screenshot)
-    category = Column(String, default="wiki") # sop, template, wiki
-    identifier = Column(String, nullable=True) # e.g., "DS-SOP-001"
-    version = Column(String, default="v1.0")   # e.g., "v1.1"
-    
+    category = Column(String, default="wiki") 
+    identifier = Column(String, nullable=True)
+    version = Column(String, default="v1.0")
     author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
@@ -423,59 +405,42 @@ class ArticleHistory(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     article_id = Column(UUID(as_uuid=True), ForeignKey("articles.id"))
     author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
-    
-    # Snapshot Data
     title = Column(String)
     content = Column(Text)
-    version = Column(String) # The version string AT THE TIME of snapshot
-    
+    version = Column(String) 
     snapshot_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     article = relationship("Article", backref="history")
     author = relationship("User")
 
-
 class Asset(Base):
     __tablename__ = "assets"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
-    
-    name = Column(String) # e.g. "FILE-SRV-01"
-    asset_type = Column(String) # Server, Workstation, Firewall, License
-    status = Column(String, default='active') # active, retired, maintenance
-    
+    name = Column(String) 
+    asset_type = Column(String) 
+    status = Column(String, default='active') 
     serial_number = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
-
-    # NEW: Digital Lifecycle
     expires_at = Column(Date, nullable=True)
-    vendor = Column(String, nullable=True) # e.g. "GoDaddy"
+    vendor = Column(String, nullable=True) 
     linked_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
     auto_invoice = Column(Boolean, default=False)
-    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
     account = relationship("Account", backref="assets")
-
-    # NEW: Relationship to Product
     linked_product = relationship("Product")
 
 class Automation(Base):
     __tablename__ = "automations"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    
-    # Trigger
-    event_type = Column(String, nullable=False) # e.g. 'ticket_created'
-    
-    # Action
-    action_type = Column(String, nullable=False) # e.g. 'send_email', 'webhook'
-    config = Column(JSON, default={}) # e.g. {'template_id': 'welcome', 'target': 'admin'}
-    
+    event_type = Column(String, nullable=False) 
+    action_type = Column(String, nullable=False) 
+    config = Column(JSON, default={}) 
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -485,39 +450,39 @@ class AutomationLog(Base):
     __tablename__ = "automation_logs"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id"))
-    
     triggered_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-    status = Column(String) # 'success', 'failure'
-    output = Column(Text, nullable=True) # JSON string or error message
+    status = Column(String) # 'success', 'failure', 'running'
+    output = Column(Text, nullable=True) 
     
     automation = relationship("Automation", back_populates="logs")
 
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # ADD ondelete="CASCADE"
     
+    # UPDATED: Nullable to allow external contacts (e.g. billing email, vendors)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
+    
+    # NEW: Stores the actual target email. Mandatory if user_id is None.
+    recipient_email = Column(String, nullable=True, index=True)
+
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
-    link = Column(String, nullable=True) # e.g. "/tickets/123"
+    link = Column(String, nullable=True) 
     is_read = Column(Boolean, default=False)
 
-    # --- NEW FIELDS FOR SMART ROUTING ---
-    # Status: pending, queued, sent, failed, batched
-    status = Column(String, default='pending')
-
-    # Priority Snapshot: critical, high, normal, low
+    status = Column(String, default='pending') # pending, sent, failed, batched
     priority = Column(String, default='normal') 
-    
-    # Event Type: ticket_update, mention, system_alert
     event_type = Column(String, nullable=True)
     
-    # Batching: If sent as part of a digest
+    # NEW: Snapshot of data (ticket_id, subject, etc.) for building Digests later
+    event_payload = Column(JSON, default={})
+    
+    # NEW: Channel Preference (email, in_app, etc)
+    delivery_channel = Column(String, default='email')
+
     batch_id = Column(UUID(as_uuid=True), nullable=True)
-    
-    # Timestamp: When the email actually left the system
     sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
-    
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="notifications")
@@ -525,31 +490,21 @@ class Notification(Base):
 class PasswordToken(Base):
     __tablename__ = "password_tokens"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False) # ADD ondelete="CASCADE"
-    
-    token_hash = Column(String, nullable=False, index=True) # We store hash of token for security? Or raw token if short lived? 
-    # For simplicity in MVP, we'll store the raw high-entropy string, but best practice is hashing. 
-    # Let's store the raw token string for now to keep the lookup simple, assuming tokens are high-entropy secrets.
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    token_hash = Column(String, nullable=False, index=True) 
     token = Column(String, unique=True, nullable=False)
-    
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
     used = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user = relationship("User")
 
-# 1. NEW MODEL: PREFERENCES
 class UserNotificationPreference(Base):
     __tablename__ = "user_notification_preferences"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    
-    # Frequency: realtime, hourly, daily
     email_frequency = Column(String, default='realtime') 
-    
-    # Override: If True, Critical tickets bypass batching
     force_critical = Column(Boolean, default=True)
-    
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
     user = relationship("User", backref=backref("notification_preferences", uselist=False))

@@ -5,7 +5,6 @@ from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.event_bus import event_bus 
-# NEW: Import The Signal
 from ..services.notification_service import notification_service
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -53,7 +52,6 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
                 t_dict['project_id'] = t.milestone.project.id
                 t_dict['project_name'] = t.milestone.project.name
         
-        # Financial Guard Link
         linked_items = db.query(models.InvoiceItem).options(joinedload(models.InvoiceItem.invoice))\
             .filter(models.InvoiceItem.ticket_id == t.id).all()
         unique_invoices = {}
@@ -97,10 +95,8 @@ def create_ticket(
     new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
     new_ticket.account_name = new_ticket.account.name 
     
-    # EVENT EMISSION
     event_bus.emit("ticket_created", new_ticket, background_tasks)
     
-    # --- SMART NOTIFICATION: ASSIGNMENT ---
     if new_ticket.assigned_tech_id:
         tech = db.query(models.User).filter(models.User.id == new_ticket.assigned_tech_id).first()
         if tech:
@@ -126,24 +122,30 @@ def update_ticket(
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
 
-    # State Tracking
     was_resolved = ticket.status == 'resolved'
-    old_tech_id = ticket.assigned_tech_id # Track old tech
+    old_tech_id = ticket.assigned_tech_id
 
+    # 1. HANDLE MANY-TO-MANY CONTACTS
     if 'contact_ids' in update_data:
-        ids = update_data.pop('contact_ids') 
-        ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
+        ids = update_data.pop('contact_ids') # Remove from dict so setattr doesn't crash
+        # Replace the entire collection with new list
+        if ids:
+            ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
+        else:
+            ticket.contacts = []
+
+    # 2. STATUS CHECK
     if 'status' in update_data and update_data['status'] == 'resolved' and ticket.status != 'resolved':
         if 'closed_at' not in update_data: ticket.closed_at = func.now()
     
+    # 3. GENERIC FIELDS
     for key, value in update_data.items(): setattr(ticket, key, value)
     
     db.commit()
     db.refresh(ticket)
     ticket.account_name = ticket.account.name
 
-    # 1. NOTIFY: ASSIGNMENT CHANGE
-    # If tech changed AND it's not None
+    # 4. NOTIFY: ASSIGNMENT CHANGE
     if ticket.assigned_tech_id and ticket.assigned_tech_id != old_tech_id:
         tech = db.query(models.User).filter(models.User.id == ticket.assigned_tech_id).first()
         if tech:
@@ -156,25 +158,13 @@ def update_ticket(
                 event_type="ticket_assigned"
             )
 
-    # 2. NOTIFY: RESOLUTION (Existing Logic)
+    # 5. NOTIFY: RESOLUTION
     if ticket.status == 'resolved' and not was_resolved:
         event_bus.emit("ticket_resolved", ticket, background_tasks)
-        if ticket.contact_id:
-            contact = db.query(models.Contact).filter(models.Contact.id == ticket.contact_id).first()
-            if contact and contact.email:
-                client_user = db.query(models.User).filter(models.User.email == contact.email).first()
-                if client_user:
-                    notification_service.notify(
-                        db, client_user,
-                        title=f"Ticket Resolved: #{ticket.id}",
-                        message=f"Ticket '{ticket.subject}' has been marked as resolved.",
-                        link=f"/portal",
-                        priority=ticket.priority,
-                        event_type="ticket_resolved"
-                    )
+        # Note: The NotificationRouter in EventBus will now handle notifying ALL contacts
+        # so we don't need manual notification logic here anymore.
 
     return ticket
-
 
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
@@ -287,11 +277,8 @@ def link_asset_to_ticket(ticket_id: int, asset_id: str, db: Session = Depends(ge
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
-    
-    # Validation: Asset must belong to Ticket's Account
     if ticket.account_id != asset.account_id:
         raise HTTPException(status_code=400, detail="Asset belongs to different account")
-
     if asset not in ticket.assets:
         ticket.assets.append(asset)
         db.commit()

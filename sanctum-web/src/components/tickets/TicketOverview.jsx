@@ -3,8 +3,8 @@ import { StatusBadge, PriorityBadge } from './TicketBadges';
 import SanctumMarkdown from '../ui/SanctumMarkdown';
 import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
 import { handleSmartWrap } from '../../lib/textUtils';
-import SearchableSelect from '../ui/SearchableSelect'; // NEW IMPORT
-import { User, Briefcase } from 'lucide-react';
+import SearchableSelect from '../ui/SearchableSelect';
+import { User, Briefcase, X } from 'lucide-react';
 
 export default function TicketOverview({ ticket, isEditing, formData, setFormData, contacts, accountProjects, techs }) {
   
@@ -31,13 +31,27 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
       }));
   }, [contacts]);
 
+  // HELPER: Add ID to list if unique
+  const handleAddContact = (contact) => {
+      const current = formData.contact_ids || [];
+      if (!current.includes(contact.id)) {
+          setFormData({ ...formData, contact_ids: [...current, contact.id] });
+      }
+  };
+
+  // HELPER: Remove ID from list
+  const handleRemoveContact = (id) => {
+      const current = formData.contact_ids || [];
+      setFormData({ ...formData, contact_ids: current.filter(cid => cid !== id) });
+  };
+
   if (!isEditing) {
     return (
       <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative space-y-6">
         <div className="grid grid-cols-2 gap-4">
           <div><label className="text-xs uppercase opacity-50 block mb-1">Status</label><StatusBadge status={ticket.status} /></div>
           <div><label className="text-xs uppercase opacity-50 block mb-1">Priority</label><PriorityBadge priority={ticket.priority} /></div>
-           {/* NEW: DISPLAY ASSIGNED TECH */}
+           {/* DISPLAY ASSIGNED TECH */}
             {ticket.assigned_tech_id && (
              <div className="absolute top-6 right-6">
                  <div className="flex items-center gap-2 bg-purple-900/30 border border-purple-500/30 px-3 py-1.5 rounded-full">
@@ -122,7 +136,7 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
                     {TICKET_TYPES.map(t => <option key={t} value={t}>{capitalize(t)}</option>)}
                 </select>
             </div>
-            {/* NEW: ASSIGNED TECH */}
+            {/* ASSIGNED TECH */}
             <div>
                 <label className="block text-xs uppercase opacity-50 mb-1 text-purple-400">Assigned Agent</label>
                 <select 
@@ -159,21 +173,42 @@ export default function TicketOverview({ ticket, isEditing, formData, setFormDat
             </div>
             
             <div>
-                <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Primary Contact</label>
+                <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Contacts (Multi-Select)</label>
+                
+                {/* 1. SELECTION INPUT */}
                 <SearchableSelect 
                     items={contactOptions}
-                    selectedIds={formData.contact_id ? [formData.contact_id] : []}
-                    onSelect={(item) => setFormData({...formData, contact_id: item.id})}
-                    placeholder="Search Contact..."
+                    selectedIds={formData.contact_ids || []}
+                    onSelect={handleAddContact}
+                    placeholder="Add Contact..."
                     labelKey="title"
                     subLabelKey="subtitle"
                     icon={User}
                 />
-                {formData.contact_id && (
-                    <button onClick={() => setFormData({...formData, contact_id: null})} className="text-[10px] text-red-400 mt-1 hover:underline">
-                        Clear Selection
-                    </button>
-                )}
+
+                {/* 2. SELECTED TAGS */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                    {formData.contact_ids && formData.contact_ids.length > 0 ? (
+                        formData.contact_ids.map(id => {
+                            const contact = contactOptions.find(c => c.id === id);
+                            if (!contact) return null;
+                            return (
+                                <span key={id} className="flex items-center gap-1 bg-blue-900/30 text-blue-200 border border-blue-500/30 px-2 py-1 rounded text-xs animate-in fade-in zoom-in">
+                                    <User size={10} />
+                                    {contact.title}
+                                    <button 
+                                        onClick={() => handleRemoveContact(id)}
+                                        className="ml-1 p-0.5 hover:bg-red-500 hover:text-white rounded transition-colors"
+                                    >
+                                        <X size={10} />
+                                    </button>
+                                </span>
+                            )
+                        })
+                    ) : (
+                        <span className="text-xs text-slate-500 italic">No contacts selected.</span>
+                    )}
+                </div>
             </div>
         </div>
 
