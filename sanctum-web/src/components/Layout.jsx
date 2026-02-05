@@ -4,35 +4,45 @@ import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
     Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, 
-    BookOpen, Zap, Clock, User, PieChart
+    BookOpen, Zap, Clock, User, PieChart, Menu, X
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 import GlobalSearch from './ui/GlobalSearch';
 import NotificationBell from './ui/NotificationBell';
 
-
 export default function Layout({ children, title }) {
   const { user, token, setToken, logout } = useAuthStore();
-
-  const [collapsed, setCollapsed] = useState(() => {
-      return localStorage.getItem('sanctum_sidebar') === 'true';
-  });
+  
+  // Drawer State (Default closed to maximize focus)
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  
+   
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
 
   // HELPER: Dynamic Classes
-  const sidebarWidth = collapsed ? "w-20" : "w-64";
-  const sidebarColors = isNaked ? 'bg-white border-r border-slate-200' : 'bg-slate-900 border-r border-slate-800';
+  const drawerColors = isNaked ? 'bg-white border-r border-slate-200' : 'bg-slate-900 border-r border-slate-800';
   const textColors = isNaked ? 'text-slate-900' : 'text-white';
   const bgColors = isNaked ? 'bg-slate-50' : 'bg-sanctum-dark';
   const buttonClass = isNaked ? 'bg-naked-pink hover:bg-pink-600' : 'bg-sanctum-blue hover:bg-blue-600';
   const accentText = isNaked ? 'text-naked-pink' : 'text-sanctum-gold';
+
+  // KEYBOARD SHORTCUTS
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+        // Cmd/Ctrl + B to toggle Drawer
+        if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+            e.preventDefault();
+            setDrawerOpen(prev => !prev);
+        }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // SESSION KEEPER
   useEffect(() => {
@@ -61,137 +71,159 @@ export default function Layout({ children, title }) {
     return () => clearInterval(interval);
   }, [token, setToken]);
 
-  const toggleSidebar = () => {
-      const newState = !collapsed;
-      setCollapsed(newState);
-      localStorage.setItem('sanctum_sidebar', newState);
-  };
-
   // NAV ITEM COMPONENT
   const NavItem = ({ icon, label, path }) => {
-    // Check for exact match or sub-route match (except for root "/")
     const active = path === '/' 
         ? location.pathname === '/' 
         : location.pathname === path || location.pathname.startsWith(path + '/');
 
     const baseClass = "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all min-h-[48px]";
     const activeClass = active ? `${buttonClass} text-white shadow-lg` : "hover:bg-white/5 opacity-70 hover:opacity-100";
-    const collapseClass = collapsed ? "justify-center" : "";
     
     return (
       <div 
-        onClick={() => navigate(path)}
-        className={`${baseClass} ${activeClass} ${collapseClass}`}
-        title={collapsed ? label : ""}
+        onClick={() => { navigate(path); setDrawerOpen(false); }}
+        className={`${baseClass} ${activeClass}`}
       >
-        {/* ICON ALWAYS RENDERS */}
         <span className="flex-shrink-0">{icon}</span>
-        
-        {/* TEXT ONLY RENDERS IF NOT COLLAPSED */}
-        {!collapsed && <span className="font-medium whitespace-nowrap overflow-hidden text-ellipsis">{label}</span>}
+        <span className="font-medium">{label}</span>
       </div>
     );
   };
 
   return (
-    <div className={`flex h-screen w-screen ${bgColors} ${textColors}`}>
-      {/* SIDEBAR */}
-      <aside className={`${sidebarColors} flex flex-col transition-all duration-300 ${sidebarWidth} overflow-hidden`}>
-        <div className="p-6 flex justify-between items-start h-20">
-          {!collapsed && (
-              <div className="animate-in fade-in duration-300">
-                <h1 className={`text-2xl font-bold ${accentText}`}>
-                    {isNaked ? 'Naked' : 'SANCTUM'}
-                </h1>
-                <p className="text-xs opacity-50 uppercase tracking-widest mt-1">
-                    {isNaked ? 'Ops' : 'Core'}
-                </p>
-              </div>
-          )}
-          <button onClick={toggleSidebar} className={`opacity-50 hover:opacity-100 mt-1 transition-transform ${collapsed ? 'mx-auto' : ''}`}>
-              {collapsed ? <ChevronRight size={20}/> : <ChevronLeft size={20}/>}
-          </button>
+    <div className={`flex flex-col h-screen w-screen ${bgColors} ${textColors} overflow-hidden`}>
+        
+      {/* --- TOP COMMAND BAR --- */}
+      <header className={`h-16 flex items-center justify-between px-4 border-b border-white/10 ${isNaked ? 'bg-white' : 'bg-slate-900'} z-30 shrink-0`}>
+        
+        {/* LEFT: Trigger & Brand */}
+        <div className="flex items-center gap-4 w-64">
+            <button 
+                onClick={() => setDrawerOpen(true)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                title="Toggle Menu (Cmd+B)"
+            >
+                <Menu size={24} />
+            </button>
+            <div className="hidden md:block">
+                <span className={`font-bold text-lg tracking-wider ${accentText}`}>
+                    {isNaked ? 'NAKED' : 'SANCTUM'}
+                </span>
+            </div>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          {/* CORE MODULES */}
-          <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
-          <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
-          {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
-          {!isNaked && <NavItem icon={<Briefcase size={20} />} label="Projects" path="/projects" />}
-          <NavItem icon={<Wifi size={20} />} label="Tickets" path="/tickets" />
-          
-          <div className="my-4 border-t border-white/10 mx-2"></div>
-          
-          {/* RESOURCES */}
-          <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
-          <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
-          {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" />}
-          <NavItem icon={<BookOpen size={20} />} label="The Library" path="/wiki" />
-
-          {/* ADMIN ONLY SECTION */}
-          {user?.role === 'admin' && (
-            <>
-                <div className="my-4 border-t border-white/10 mx-2"></div>
-                <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
-                <NavItem icon={<Zap size={20} className="text-yellow-400" />} label="The Weaver" path="/admin/automations" />
-                
-                {/* NEW: THE ORACLE */}
-                <NavItem icon={<PieChart size={20} className="text-green-400" />} label="The Oracle" path="/analytics" />
-            </>
-          )}
-
-          {/* SHARED STAFF TOOLS (Admin + Tech) */}
-          {(user?.role === 'admin' || user?.role === 'tech') && (
-             <NavItem icon={<Clock size={20} />} label="Timesheets" path="/timesheets" />
-          )}
-
-          {/* GLOBAL USER TOOLS */}
-          <div className="my-4 border-t border-white/10 mx-2"></div>
-          <NavItem icon={<User size={20} />} label="My Profile" path="/profile" />
-
-        </nav>
-
-
-        <div className="p-4 border-t border-slate-800/50 space-y-2">
-          <button onClick={() => navigate('/system/health')} className={`flex items-center gap-3 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold w-full px-2 py-2 rounded hover:bg-white/5 ${collapsed ? "justify-center" : "text-left"}`} title="System Health">
-            <Activity size={18} /> {!collapsed && <span>System Health</span>}
-          </button>
-          <button onClick={logout} className={`flex items-center gap-3 text-sm opacity-70 hover:opacity-100 w-full px-2 py-2 rounded hover:bg-white/5 ${collapsed ? "justify-center" : "text-left"}`} title="Disconnect">
-            <LogOut size={18} /> {!collapsed && <span>Disconnect</span>}
-          </button>
+        {/* CENTER: Global Search */}
+        <div className="flex-1 max-w-2xl px-4">
+            <GlobalSearch />
         </div>
-      </aside>
 
-      {/* MAIN CONTENT */}
-      <main className="flex-1 p-8 overflow-auto relative">
-        {showExpiryWarning && (
-          <div className="absolute top-0 left-0 w-full bg-red-600 text-white text-center text-xs font-bold py-2 z-50 animate-pulse shadow-lg">
-            ⚠️ SESSION CRITICAL - SAVE WORK IMMEDIATELY
-          </div>
+        {/* RIGHT: User Actions */}
+        <div className="flex items-center gap-4 w-64 justify-end">
+            <NotificationBell />
+            <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${buttonClass} text-white`}>
+                {scope}
+            </div>
+            <button 
+                onClick={logout}
+                className="p-2 hover:bg-white/10 rounded-full text-red-400 opacity-70 hover:opacity-100"
+                title="Logout"
+            >
+                <LogOut size={18} />
+            </button>
+        </div>
+      </header>
+
+
+      {/* --- MAIN BODY --- */}
+      <div className="flex-1 relative flex overflow-hidden">
+        
+        {/* BACKDROP */}
+        {drawerOpen && (
+            <div 
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 animate-in fade-in duration-200"
+                onClick={() => setDrawerOpen(false)}
+            />
         )}
 
-        {/* UPDATED HEADER */}
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <h2 className="text-3xl font-bold">{title}</h2>
-            <p className="opacity-60">Sovereign Architecture</p>
-          </div>
-          
-          {/* SEARCH BAR (Center-Right) */}
-          <div className="flex-1 px-4 md:px-12 flex justify-end items-center gap-4">
-              <GlobalSearch />
-              <div className="border-l border-white/10 h-6 mx-2"></div>
-              <NotificationBell />
-          </div>
+        {/* SLIDE-OUT DRAWER */}
+        <aside 
+            className={`fixed top-0 left-0 h-full w-72 ${drawerColors} z-50 shadow-2xl transition-transform duration-300 ease-in-out ${drawerOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        >
+            {/* Drawer Header */}
+            <div className="p-4 h-16 flex items-center justify-between border-b border-white/10">
+                <h2 className="font-bold text-lg px-2">Navigation</h2>
+                <button onClick={() => setDrawerOpen(false)} className="p-2 hover:bg-white/10 rounded-lg">
+                    <X size={20} />
+                </button>
+            </div>
 
-          <div className={`px-4 py-2 rounded-full text-xs font-bold uppercase ${buttonClass} text-white ml-4`}>
-            {scope.toUpperCase()} ACCESS
-          </div>
-        </header>
-        
-        {children}
-      </main>
+            {/* Navigation Links */}
+            <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100%-4rem)] custom-scrollbar">
+                
+                {/* SYSTEM HEALTH SHORTCUT */}
+                <button 
+                    onClick={() => { navigate('/system/health'); setDrawerOpen(false); }} 
+                    className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg hover:bg-white/5 text-sm opacity-50 hover:opacity-100 hover:text-sanctum-gold mb-4 border border-white/5`}
+                >
+                    <Activity size={18} /> <span>System Status</span>
+                </button>
+
+                <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-2">Core</div>
+                <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
+                <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
+                <NavItem icon={<Wifi size={20} />} label="Tickets" path="/tickets" />
+                {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
+                {!isNaked && <NavItem icon={<Briefcase size={20} />} label="Projects" path="/projects" />}
+
+                <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-4">Resources</div>
+                <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
+                <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
+                {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" /> }
+                <NavItem icon={<BookOpen size={20} />} label="The Library" path="/wiki" />
+
+                {(user?.role === 'admin' || user?.role === 'tech') && (
+                    <>
+                        <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-4">Operations</div>
+                        <NavItem icon={<Clock size={20} />} label="Timesheets" path="/timesheets" />
+                    </>
+                )}
+
+                {user?.role === 'admin' && (
+                    <>
+                        <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-4">Administration</div>
+                        <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
+                        <NavItem icon={<Zap size={20} className="text-yellow-400" />} label="The Weaver" path="/admin/automations" />
+                        <NavItem icon={<PieChart size={20} className="text-green-400" />} label="The Oracle" path="/analytics" />
+                    </>
+                )}
+                
+                <div className="h-20"></div> {/* Spacer for scroll */}
+            </nav>
+        </aside>
+
+        {/* PAGE CONTENT */}
+        <main className="flex-1 overflow-auto relative w-full">
+            {showExpiryWarning && (
+                <div className="sticky top-0 left-0 w-full bg-red-600 text-white text-center text-xs font-bold py-2 z-20 animate-pulse shadow-lg">
+                    ⚠️ SESSION CRITICAL - SAVE WORK IMMEDIATELY
+                </div>
+            )}
+            
+            {/* Inner Content Wrapper */}
+            <div className="p-8 max-w-[1920px] mx-auto">
+                 {/* Page Header (Optional: Can be removed since we have the Top Bar, but keeping for Context) */}
+                <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                    <h2 className="text-3xl font-bold">{title}</h2>
+                    <p className="opacity-60 text-sm mt-1">Sovereign Architecture</p>
+                </div>
+
+                {children}
+            </div>
+        </main>
+
+      </div>
     </div>
   );
 }
+

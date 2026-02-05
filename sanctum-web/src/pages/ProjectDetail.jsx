@@ -102,7 +102,7 @@ const toggleShowCompleted = (e) => {
   ) || [];
 
   return (
-    <Layout title="Mission Control">
+    <Layout title="Project">
       <ProjectHeader project={project} onAddMilestone={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

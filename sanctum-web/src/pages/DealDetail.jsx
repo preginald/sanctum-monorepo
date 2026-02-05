@@ -10,11 +10,11 @@ export default function DealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  
+   
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  
+   
   const [formData, setFormData] = useState({
     title: '',
     amount: 0,
@@ -52,7 +52,7 @@ export default function DealDetail() {
   if (loading || !deal) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
   return (
-    <Layout title="Deal Intelligence">
+    <Layout title="Deal">
       
       {/* HEADER */}
       <div className="flex justify-between items-start mb-6">

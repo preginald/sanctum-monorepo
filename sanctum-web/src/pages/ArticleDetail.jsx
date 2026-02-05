@@ -8,7 +8,7 @@ import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 export default function ArticleDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  
+   
   const [article, setArticle] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -41,8 +41,12 @@ export default function ArticleDetail() {
 
   if (loading || !article) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
+  // LOGIC FIX: Use the Identifier (e.g. SOP-001) as the Header Title, 
+  // mirroring the "Ticket #39" pattern. Fallback to "Wiki Entry".
+  const layoutTitle = article.identifier || 'Wiki Entry';
+
   return (
-    <Layout title={article.title}>
+    <Layout title={layoutTitle}> 
       <div className="max-w-5xl mx-auto">
         
         {/* HEADER */}
@@ -57,6 +61,7 @@ export default function ArticleDetail() {
                     <span className="text-xs font-mono uppercase tracking-widest bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">
                     {article.category}
                     </span>
+                    {/* We keep the identifier here too for context, but it's small metadata now */}
                     {article.identifier && (
                     <span className="text-xs font-mono uppercase tracking-widest text-slate-500">
                         {article.identifier}

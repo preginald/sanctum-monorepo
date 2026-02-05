@@ -11,12 +11,10 @@
     - Verified and Deployed to `main`.
 
 ## 2. SYSTEM STATE
-- **Frontend:** `sanctum-web` is stable with improved UX.
-- **Backend:** `sanctum-core` v1.9.1 is running, but technical debt detected in `Ticket` model (Legacy fields).
+- **Frontend:** `sanctum-web` (React/Vite) currently uses a layout that may require modernization.
+- **Backend:** `sanctum-core` v1.9.1 stable.
 
 ## 3. NEXT IMMEDIATE ACTIONS
-1. **Governance:** Initialize **Ticket** for the next milestone.
-2. **Potential Targets:**
-    - **Refactor:** Migrate `Ticket.contact_id` to `ticket_contacts` (Critical Technical Debt).
-    - **Feature:** Verify `notifications` router logic.
-    - **Feature:** Implement `analytics` dashboard.
+1. **Governance:** Initialize **Ticket** for "UI Structural Refinement".
+2. **Primary Objective:** - **Top Navigation Architecture:** Move away from the current layout logic to a **Fixed Horizontal Top Bar**.
+    - **UX Review:** Assess impact on `GlobalSearch` placement and mobile responsiveness with the new top bar.

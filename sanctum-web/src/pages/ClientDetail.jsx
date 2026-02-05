@@ -5,7 +5,7 @@ import api from '../lib/api';
 import useAuthStore from '../store/authStore';
 import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { recordVisit } from '../lib/history'; // <--- NEW IMPORT
+import { recordVisit } from '../lib/history'; 
 
 
 // COMPONENTS
@@ -194,7 +194,7 @@ export default function ClientDetail() {
   if (loading || !account) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title="Client Profile">
+    <Layout title="Client">
       
       <ConfirmationModal 
         isOpen={confirmModal.isOpen} 
