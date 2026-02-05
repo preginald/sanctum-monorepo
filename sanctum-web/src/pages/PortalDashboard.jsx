@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // <--- Added
 import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X } from 'lucide-react';
 import api from '../lib/api';
@@ -7,6 +8,7 @@ import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
 
 export default function PortalDashboard() {
+  const navigate = useNavigate(); // <--- Added
   const { user, logout } = useAuthStore();
   const { addToast } = useToast();
   const [data, setData] = useState(null);
@@ -16,6 +18,7 @@ export default function PortalDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false); 
   const [ticketForm, setTicketForm] = useState({ subject: '', description: '', priority: 'normal' });
+  const [downloadingInv, setDownloadingInv] = useState(null); // <--- Added for download state
 
   useEffect(() => { fetchPortal(); }, []);
 
@@ -31,9 +34,9 @@ export default function PortalDashboard() {
 
   const handleCreateTicket = async (e) => {
       e.preventDefault();
-      if (submitting) return; // Prevent double-click
+      if (submitting) return;
 
-      setSubmitting(true); // Lock UI
+      setSubmitting(true);
       try {
           await api.post('/tickets', { 
               ...ticketForm, 
@@ -47,8 +50,32 @@ export default function PortalDashboard() {
       } catch (e) { 
           addToast("Failed to send request", "error");
       } finally {
-          setSubmitting(false); // Unlock UI
+          setSubmitting(false);
       }
+  };
+
+  // <--- NEW: Invoice Download Logic
+  const handleDownloadInvoice = async (invoiceId) => {
+    setDownloadingInv(invoiceId);
+    try {
+      const response = await api.get(`/portal/invoices/${invoiceId}/download`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Invoice_${invoiceId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      addToast("Invoice downloaded", "success");
+    } catch (error) {
+      console.error("Download failed", error);
+      addToast("Failed to download invoice", "error");
+    } finally {
+      setDownloadingInv(null);
+    }
   };
 
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-white"><Loader2 className="animate-spin" /></div>;
@@ -114,7 +141,6 @@ export default function PortalDashboard() {
                     <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
                         <AlertCircle size={16} /> Active Requests
                     </h3>
-                    {/* NEW REQUEST BUTTON */}
                     <button onClick={() => setShowModal(true)} className={`p-2 rounded-lg ${theme.btn} shadow-lg transition-transform hover:-translate-y-1`}>
                         <Plus size={20} />
                     </button>
@@ -143,7 +169,11 @@ export default function PortalDashboard() {
                 <div className="space-y-3">
                     {open_tickets.length === 0 && <p className="text-sm opacity-50">No active tickets.</p>}
                     {open_tickets.slice(0, 5).map(t => (
-                        <div key={t.id} className="p-3 rounded bg-black/5 dark:bg-white/5 flex justify-between items-center">
+                        <div 
+                            key={t.id} 
+                            onClick={() => navigate(`/portal/tickets/${t.id}`)} // <--- NAVIGATION ADDED
+                            className="p-3 rounded bg-black/5 dark:bg-white/5 flex justify-between items-center cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                        >
                             <div>
                                 <div className="font-bold text-sm">{t.subject}</div>
                                 <div className="text-xs opacity-50">#{t.id} • {formatDate(t.created_at)}</div>
@@ -171,9 +201,15 @@ export default function PortalDashboard() {
                                 <span className={`text-[10px] uppercase font-bold ${inv.status === 'paid' ? 'text-green-500' : 'text-orange-500'}`}>
                                     {inv.status}
                                 </span>
-                                <button className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 opacity-50 hover:opacity-100`}>
-                                    <Download size={14} />
-                                </button>
+                                {inv.pdf_path && (
+                                  <button 
+                                    onClick={() => handleDownloadInvoice(inv.id)} // <--- DOWNLOAD WIRED UP
+                                    disabled={downloadingInv === inv.id}
+                                    className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 opacity-50 hover:opacity-100 disabled:opacity-20`}
+                                  >
+                                      {downloadingInv === inv.id ? <Loader2 size={14} className="animate-spin"/> : <Download size={14} />}
+                                  </button>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -217,7 +253,7 @@ export default function PortalDashboard() {
 
       </main>
 
-      {/* CREATE TICKET MODAL (CLIENT FACING) */}
+      {/* CREATE TICKET MODAL */}
       {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
             <div className={`p-6 rounded-xl w-full max-w-md relative shadow-2xl ${theme.card} ${isNaked ? 'text-slate-900' : 'text-white'}`}>
@@ -248,7 +284,6 @@ export default function PortalDashboard() {
                         <textarea required className="w-full p-2 h-24 rounded bg-black/10 border border-slate-500/30 text-sm" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} placeholder="Please describe the issue..." />
                     </div>
                     
-                    {/* BUTTON WITH LOADING STATE */}
                     <button 
                         type="submit" 
                         disabled={submitting}

@@ -2,17 +2,18 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import useAuthStore from './store/authStore';
 import { ToastProvider } from './context/ToastContext';
-import GlobalModalManager from './components/GlobalModalManager'; // <--- NEW
+import GlobalModalManager from './components/GlobalModalManager';
 
 // --- AUTH PAGES ---
 import Login from './pages/Login';
-import SetPassword from './pages/SetPassword'; // Phase 52
-import PortalDashboard from './pages/PortalDashboard'; // Optional, or handled by Dashboard.jsx logic
+import SetPassword from './pages/SetPassword';
+import PortalDashboard from './pages/PortalDashboard';
+import PortalTicketDetail from './pages/PortalTicketDetail'; 
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
 import Catalog from './pages/Catalog';
-import Diagnostics from './pages/Diagnostics'; // If used, otherwise SystemHealth takes over
+import Diagnostics from './pages/Diagnostics'; 
 
 // --- CRM MODULE ---
 import Clients from './pages/Clients';
@@ -37,39 +38,37 @@ import InvoiceDetail from './pages/InvoiceDetail';
 import Campaigns from './pages/Campaigns';
 import CampaignDetail from './pages/CampaignDetail';
 
-// --- LIBRARY MODULE (The Library) ---
+// --- LIBRARY MODULE ---
 import LibraryIndex from './pages/LibraryIndex';
 import ArticleDetail from './pages/ArticleDetail';
 import ArticleEditor from './pages/ArticleEditor';
 
-// --- AUTOMATION MODULE (The Weaver) ---
+// --- AUTOMATION MODULE ---
 import AdminAutomationList from './pages/AdminAutomationList';
 
-// --- TIMESHEET MODULE (The Chronos) ---
+// --- TIMESHEET MODULE ---
 import TimesheetView from './pages/TimesheetView';
 
-// --- PROFILE MODULE (The Fortress) ---
+// --- PROFILE MODULE ---
 import Profile from './pages/Profile';
 
-// --- ANALYTICS MODULE (The Oracle) ---
+// --- ANALYTICS MODULE ---
 import Analytics from './pages/Analytics';
 
+import NotificationCenter from './pages/NotificationCenter';
 
-import NotificationCenter from './pages/NotificationCenter'; // <--- NEW
-
-// --- ADMIN MODULES (The Quartermaster/Watchtower) ---
+// --- ADMIN MODULES ---
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
 
 
-// 1. BASIC AUTH GUARD (Is Logged In?)
+// 1. BASIC AUTH GUARD
 const ProtectedRoute = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// 2. ADMIN/TECH GUARD (The Iron Gate)
-// If a Client tries to access these routes, bounce them to their specific portal view.
+// 2. ADMIN GUARD
 const AdminRoute = ({ children }) => {
   const user = useAuthStore((state) => state.user);
   if (user?.role === 'client') {
@@ -82,26 +81,27 @@ function App() {
   return (
     <ToastProvider>
       <BrowserRouter>
-        {/* GLOBAL OVERLAY MANAGER (Inside Router context) */}
         <GlobalModalManager /> 
-
         <Routes>
           
           {/* === PUBLIC ROUTES === */}
           <Route path="/login" element={<Login />} />
-          <Route path="/auth/set-password" element={<SetPassword />} />
+          
+          {/* FIX: Route matched to email link structure */}
+          <Route path="/set-password" element={<SetPassword />} /> 
           
           {/* === SECURE ZONE === */}
           <Route path="/*" element={<ProtectedRoute><Routes>
                   
                   {/* CLIENT PORTAL (Explicit) */}
                   <Route path="/portal" element={<PortalDashboard />} />
+                  <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
 
-                  {/* ADMIN CITADEL (Nested Routes) */}
+                  {/* ADMIN CITADEL */}
                   <Route path="*" element={
                       <AdminRoute>
                           <Routes>
-                              {/* DASHBOARD (Gatekeeper) */}
+                              {/* DASHBOARD */}
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
                               
@@ -131,7 +131,7 @@ function App() {
                               <Route path="/campaigns" element={<Campaigns />} />
                               <Route path="/campaigns/:id" element={<CampaignDetail />} />
 
-                              {/* KNOWLEDGE (Wiki) */}
+                              {/* KNOWLEDGE */}
                               <Route path="/wiki" element={<LibraryIndex />} />
                               <Route path="/wiki/new" element={<ArticleEditor />} />
                               <Route path="/wiki/:slug" element={<ArticleDetail />} />
@@ -147,7 +147,6 @@ function App() {
                               <Route path="/admin/users" element={<AdminUserList />} />
                               <Route path="/notifications" element={<NotificationCenter />} />
 
-                              
                               {/* DIAGNOSTICS */}
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/system/health" element={<SystemHealth />} />
