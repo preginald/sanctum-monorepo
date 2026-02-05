@@ -7,7 +7,6 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import email_service
 from ..services.pdf_engine import pdf_engine
-# NEW: Import Billing Service
 from ..services.billing_service import billing_service
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
@@ -16,13 +15,9 @@ def recalculate_invoice(invoice_id: str, db: Session):
     invoice = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
     if not invoice: return
 
-    # NEW: Logic delegated to Service
     totals = billing_service.calculate_totals(invoice.items)
 
-    # Update line item totals (persistence)
     for item in invoice.items:
-        # Simple recalculation of line total to ensure consistency
-        # In a real app, you might want to call a service method for line items too
         item.total = round(item.quantity * item.unit_price, 2)
 
     invoice.subtotal_amount = totals["subtotal"]
@@ -36,16 +31,13 @@ def recalculate_invoice(invoice_id: str, db: Session):
 
 @router.post("/from_ticket/{ticket_id}", response_model=schemas.InvoiceResponse)
 def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    # Note: API path updated slightly to fit router prefix conventions
     ticket = db.query(models.Ticket).options(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product)
         ).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
 
-    # [Logic for extracting items remains same, but we use Decimal for initial calcs in buffer]
     items_buffer = []
-    running_subtotal = 0.0
 
     for entry in ticket.time_entries:
         hours = entry.duration_minutes / 60
@@ -54,7 +46,7 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         desc = f"Labor: {entry.product.name} ({entry.user_name})" if entry.product else f"Labor: General ({entry.user_name})"
         if entry.description: desc += f" - {entry.description}"
         desc += f" [Ref: Ticket #{ticket.id}]"
-        line_total = hours * float(rate) # Temp float for buffer
+        line_total = hours * float(rate)
         items_buffer.append({"description": desc, "quantity": round(hours, 2), "unit_price": rate, "total": round(line_total, 2), "ticket_id": ticket.id, "source_type": "time", "source_id": entry.id})
 
     for mat in ticket.materials:
@@ -66,7 +58,6 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
 
     if not items_buffer: raise HTTPException(status_code=400, detail="No billable items.")
 
-    # Create Invoice shell
     new_invoice = models.Invoice(
         account_id=ticket.account_id, status="draft", 
         due_date=datetime.now() + timedelta(days=14), generated_at=func.now()
@@ -79,7 +70,6 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
 
     db.commit()
     
-    # Trigger Recalculate to do the Decimal Math
     return recalculate_invoice(new_invoice.id, db)
 
 @router.get("/{invoice_id}", response_model=schemas.InvoiceResponse)
@@ -117,7 +107,6 @@ def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Sess
 
 @router.delete("/{invoice_id}")
 def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    # 1. PERMISSION GUARD
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Only Admins can delete invoices.")
 
@@ -125,27 +114,21 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
     if not inv: 
         raise HTTPException(status_code=404, detail="Invoice not found")
     
-    # 2. STATUS GUARD (The Strict Rule)
     if inv.status != 'draft':
         raise HTTPException(
             status_code=400, 
             detail=f"Cannot delete invoice in '{inv.status}' status. Only drafts can be deleted."
         )
 
-    # 3. RELEASE LOGIC (Implicit via Cascade)
-    # Deleting the invoice deletes the items. 
-    # Tickets referencing these items will simply stop seeing them in 'related_invoices'.
-    
     db.delete(inv)
     db.commit()
     return {"status": "deleted", "id": invoice_id}
 
 @router.post("/{invoice_id}/items", response_model=schemas.InvoiceResponse)
 def add_invoice_item(invoice_id: str, item: schemas.InvoiceItemCreate, db: Session = Depends(get_db)):
-    # Using Decimal/Numeric logic via DB
     new_item = models.InvoiceItem(
         invoice_id=invoice_id, description=item.description, quantity=item.quantity, unit_price=item.unit_price,
-        total=round(item.quantity * item.unit_price, 2) # Temp calc, recalculate fixes it
+        total=round(item.quantity * item.unit_price, 2)
     )
     db.add(new_item)
     db.commit()
@@ -176,7 +159,6 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Only Admins can void invoices.")
 
-    # 1. Fetch & Execute Logic
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.items)).filter(models.Invoice.id == invoice_id).first()
     
     if not inv: 
@@ -186,33 +168,26 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
         raise HTTPException(status_code=400, detail="Cannot void a Paid invoice.")
 
     if inv.status != 'void':
-        # Release Items
         for item in inv.items:
             item.source_id = None
             item.source_type = None
             item.ticket_id = None
         
-        # Zeroize Header
         inv.status = 'void'
         inv.subtotal_amount = 0
         inv.gst_amount = 0
         inv.total_amount = 0
         
         db.commit()
-        
-        # CRITICAL: Clear session to ensure clean read of unlinked items
         db.expire_all()
     
-    # 2. Clean Read (Post-Expire)
     fresh_inv = db.query(models.Invoice).options(
         joinedload(models.Invoice.items).joinedload(models.InvoiceItem.ticket).joinedload(models.Ticket.contacts),
         joinedload(models.Invoice.delivery_logs).joinedload(models.InvoiceDeliveryLog.sender),
         joinedload(models.Invoice.account)
     ).filter(models.Invoice.id == invoice_id).first()
 
-    # 3. Manual Decoration
     fresh_inv.account_name = fresh_inv.account.name if fresh_inv.account else "Unknown"
-    
     for log in fresh_inv.delivery_logs:
         log.sender_name = log.sender.full_name if log.sender else "System"
         
@@ -223,19 +198,15 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
                 if c.email: cc_set.add(c.email)
     fresh_inv.suggested_cc = list(cc_set)
 
-    # 4. Explicit Validation (Ensures Schema Compliance)
     return schemas.InvoiceResponse.model_validate(fresh_inv)
 
 @router.post("/{invoice_id}/send")
 def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    # UPDATED: Eager load account for template context
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.account)).filter(models.Invoice.id == invoice_id).first()
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
 
     abs_path = ""
-    # Safe path handling
     cwd = os.getcwd()
-    # In router, cwd might be root. Logic: app/static/reports/
     static_dir = os.path.join(cwd, "app/static/reports")
     if not os.path.exists(static_dir): os.makedirs(static_dir)
 
@@ -255,15 +226,22 @@ def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, cur
     else:
         abs_path = os.path.join(cwd, "app", inv.pdf_path.lstrip("/"))
 
-    # NEW TEMPLATE LOGIC
-    # ------------------
+    # NEW: Logic to prioritize "Due on Receipt" semantics for the email body
+    display_due = "Due on Receipt"
+    # If terms explicitly mention receipt/immediate, force the text
+    if inv.payment_terms and ("receipt" in inv.payment_terms.lower() or "immediate" in inv.payment_terms.lower()):
+        display_due = "Due on Receipt"
+    else:
+        # Otherwise fall back to date formatting
+        display_due = inv.due_date.strftime("%d %b %Y") if inv.due_date else "Due on Receipt"
+
     context = {
         "client_name": inv.account.name if inv.account else "Valued Client",
         "invoice_number": str(inv.id)[:8].upper(),
         "issue_date": inv.generated_at.strftime("%d %b %Y") if inv.generated_at else "N/A",
-        "due_date": inv.due_date.strftime("%d %b %Y") if inv.due_date else "Due on Receipt",
+        "due_date": display_due,
         "total_amount": "{:,.2f}".format(inv.total_amount or 0.0),
-        "custom_message": request.message # Optional override from UI
+        "custom_message": request.message 
     }
     
     subject = request.subject or f"Invoice #{str(inv.id)[:8].upper()} from Digital Sanctum"
