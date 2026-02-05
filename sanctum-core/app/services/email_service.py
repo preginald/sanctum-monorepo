@@ -27,9 +27,10 @@ class EmailService:
         template_dir = os.path.join(current_dir, '../templates/emails')
         self.env = Environment(loader=FileSystemLoader(template_dir))
 
-    def send_template(self, to_email: str, subject: str, template_name: str, context: dict):
+    def send_template(self, to_email: str, subject: str, template_name: str, context: dict, cc_emails=None, attachments=None):
         """
         Renders a Jinja2 template and sends the email using the existing send method.
+        Supports CC and Attachments.
         """
         try:
             logger.info(f"Rendering template '{template_name}' for {to_email}...")
@@ -37,7 +38,7 @@ class EmailService:
             html_content = template.render(**context)
             
             # Delegate to the raw send method
-            return self.send(to_email, subject, html_content)
+            return self.send(to_email, subject, html_content, cc_emails=cc_emails, attachments=attachments)
         except Exception as e:
             logger.error(f"Template Rendering Failed: {e}")
             return False
@@ -46,7 +47,7 @@ class EmailService:
         if not self.api_key:
             logger.info(f"[MOCK EMAIL] To: {to_emails} | Subject: {subject}")
             # logger.info(f"[CONTENT] {html_content[:100]}...") # Optional debug
-            return True 
+            return True   
 
         if isinstance(to_emails, str): to_emails = [to_emails]
         if isinstance(cc_emails, str): cc_emails = [cc_emails]

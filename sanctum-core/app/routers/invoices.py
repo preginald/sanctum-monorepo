@@ -228,7 +228,8 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
 
 @router.post("/{invoice_id}/send")
 def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+    # UPDATED: Eager load account for template context
+    inv = db.query(models.Invoice).options(joinedload(models.Invoice.account)).filter(models.Invoice.id == invoice_id).first()
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
 
     abs_path = ""
@@ -254,10 +255,28 @@ def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, cur
     else:
         abs_path = os.path.join(cwd, "app", inv.pdf_path.lstrip("/"))
 
-    html_body = request.message or f"<p>Please find attached invoice #{str(inv.id)[:8]}.</p>"
-    if "\n" in html_body and "<p>" not in html_body: html_body = html_body.replace("\n", "<br>")
+    # NEW TEMPLATE LOGIC
+    # ------------------
+    context = {
+        "client_name": inv.account.name if inv.account else "Valued Client",
+        "invoice_number": str(inv.id)[:8].upper(),
+        "issue_date": inv.generated_at.strftime("%d %b %Y") if inv.generated_at else "N/A",
+        "due_date": inv.due_date.strftime("%d %b %Y") if inv.due_date else "Due on Receipt",
+        "total_amount": "{:,.2f}".format(inv.total_amount or 0.0),
+        "custom_message": request.message # Optional override from UI
+    }
     
-    success = email_service.send(to_emails=[request.to_email], subject=request.subject or "Invoice", html_content=html_body, cc_emails=request.cc_emails, attachments=[abs_path])
+    subject = request.subject or f"Invoice #{str(inv.id)[:8].upper()} from Digital Sanctum"
+
+    success = email_service.send_template(
+        to_email=request.to_email,
+        subject=subject,
+        template_name="invoice_notice.html",
+        context=context,
+        cc_emails=request.cc_emails,
+        attachments=[abs_path]
+    )
+
     if not success: raise HTTPException(status_code=500, detail="Email failed")
     
     db.add(models.InvoiceDeliveryLog(invoice_id=inv.id, sent_by_user_id=current_user.id, sent_to=request.to_email, sent_cc=",".join(request.cc_emails), status="sent"))
