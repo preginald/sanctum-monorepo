@@ -311,6 +311,12 @@ class AuditReport(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
+
+    # NEW FIELDS FOR THE SENTINEL
+    target_url = Column(String, nullable=True)
+    scan_status = Column(String, default="idle") # idle, queued, running, completed, failed
+    last_scan_at = Column(TIMESTAMP(timezone=True), nullable=True)
+
     security_score = Column(Integer, default=0)
     infrastructure_score = Column(Integer, default=0)
     report_pdf_path = Column(String, nullable=True)
