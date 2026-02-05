@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import api from '../lib/api';
-import { Loader2, Shield, CheckCircle, UserCheck, AlertTriangle } from 'lucide-react'; // Added icons
+import { Loader2, Shield, CheckCircle, UserCheck, AlertTriangle, XCircle, Check } from 'lucide-react';
 
 export default function SetPassword() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
   
-  const [userInfo, setUserInfo] = useState(null); // Stores email/name
-  const [pageLoading, setPageLoading] = useState(true); // Initial load
+  const [userInfo, setUserInfo] = useState(null);
+  const [pageLoading, setPageLoading] = useState(true);
   
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [loading, setLoading] = useState(false); // Submit load
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -25,31 +25,27 @@ export default function SetPassword() {
           return;
       }
       
-      // Call the new endpoint
       api.get(`/verify-invite?token=${token}`)
-         .then(res => {
-             setUserInfo(res.data);
-             setPageLoading(false);
-         })
-         .catch(err => {
-             setError(err.response?.data?.detail || "Invalid or expired link.");
-             setPageLoading(false);
-         });
+          .then(res => {
+              setUserInfo(res.data);
+              setPageLoading(false);
+          })
+          .catch(err => {
+              setError(err.response?.data?.detail || "Invalid or expired link.");
+              setPageLoading(false);
+          });
   }, [token]);
+
+  // 2. REAL-TIME VALIDATION HELPERS
+  const isLengthValid = password.length >= 8;
+  const isMatchValid = password.length > 0 && password === confirm;
+  const canSubmit = isLengthValid && isMatchValid;
 
   const handleSubmit = async (e) => {
       e.preventDefault();
-      setError('');
+      if (!canSubmit) return;
       
-      if (password !== confirm) {
-          setError("Passwords do not match");
-          return;
-      }
-      if (password.length < 8) {
-          setError("Password must be at least 8 characters");
-          return;
-      }
-
+      setError('');
       setLoading(true);
       try {
           await api.post('/set-password', { token, new_password: password });
@@ -57,7 +53,6 @@ export default function SetPassword() {
           setTimeout(() => navigate('/login'), 3000);
       } catch(e) {
           setError(e.response?.data?.detail || "Failed to set password.");
-      } finally {
           setLoading(false);
       }
   };
@@ -115,7 +110,11 @@ export default function SetPassword() {
                             type="password"
                             required
                             autoFocus
-                            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-sanctum-gold transition-colors"
+                            className={`w-full bg-slate-800 border rounded-lg p-3 text-white focus:outline-none transition-colors ${
+                                password.length > 0 && !isLengthValid 
+                                    ? 'border-red-500 focus:border-red-500' 
+                                    : 'border-slate-700 focus:border-sanctum-gold'
+                            }`}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                         />
@@ -125,17 +124,33 @@ export default function SetPassword() {
                         <input
                             type="password"
                             required
-                            className="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-white focus:outline-none focus:border-sanctum-gold transition-colors"
+                            className={`w-full bg-slate-800 border rounded-lg p-3 text-white focus:outline-none transition-colors ${
+                                confirm.length > 0 && !isMatchValid 
+                                    ? 'border-red-500 focus:border-red-500' 
+                                    : 'border-slate-700 focus:border-sanctum-gold'
+                            }`}
                             value={confirm}
                             onChange={(e) => setConfirm(e.target.value)}
                         />
+                    </div>
+
+                    {/* LIVE VALIDATION CHECKLIST */}
+                    <div className="space-y-2 pt-2">
+                        <div className={`flex items-center gap-2 text-xs transition-colors ${isLengthValid ? 'text-green-500' : 'text-slate-500'}`}>
+                            {isLengthValid ? <Check size={14} /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-600" />}
+                            <span>At least 8 characters</span>
+                        </div>
+                        <div className={`flex items-center gap-2 text-xs transition-colors ${isMatchValid ? 'text-green-500' : 'text-slate-500'}`}>
+                            {isMatchValid ? <Check size={14} /> : <div className="w-3.5 h-3.5 rounded-full border border-slate-600" />}
+                            <span>Passwords match</span>
+                        </div>
                     </div>
                 </div>
 
                 <button
                     type="submit"
-                    disabled={loading}
-                    className="w-full bg-sanctum-blue hover:bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95 disabled:opacity-50 flex justify-center items-center gap-2"
+                    disabled={loading || !canSubmit}
+                    className="w-full bg-sanctum-blue hover:bg-blue-600 text-white font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
                     {loading ? <Loader2 className="animate-spin" /> : 'Activate Account'}
                 </button>
