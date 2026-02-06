@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // <--- Added
+import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X } from 'lucide-react';
 import api from '../lib/api';
@@ -8,7 +8,7 @@ import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
 
 export default function PortalDashboard() {
-  const navigate = useNavigate(); // <--- Added
+  const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { addToast } = useToast();
   const [data, setData] = useState(null);
@@ -18,7 +18,7 @@ export default function PortalDashboard() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false); 
   const [ticketForm, setTicketForm] = useState({ subject: '', description: '', priority: 'normal' });
-  const [downloadingInv, setDownloadingInv] = useState(null); // <--- Added for download state
+  const [downloadingInv, setDownloadingInv] = useState(null);
 
   useEffect(() => { fetchPortal(); }, []);
 
@@ -54,7 +54,6 @@ export default function PortalDashboard() {
       }
   };
 
-  // <--- NEW: Invoice Download Logic
   const handleDownloadInvoice = async (invoiceId) => {
     setDownloadingInv(invoiceId);
     try {
@@ -171,7 +170,7 @@ export default function PortalDashboard() {
                     {open_tickets.slice(0, 5).map(t => (
                         <div 
                             key={t.id} 
-                            onClick={() => navigate(`/portal/tickets/${t.id}`)} // <--- NAVIGATION ADDED
+                            onClick={() => navigate(`/portal/tickets/${t.id}`)}
                             className="p-3 rounded bg-black/5 dark:bg-white/5 flex justify-between items-center cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         >
                             <div>
@@ -203,7 +202,7 @@ export default function PortalDashboard() {
                                 </span>
                                 {inv.pdf_path && (
                                   <button 
-                                    onClick={() => handleDownloadInvoice(inv.id)} // <--- DOWNLOAD WIRED UP
+                                    onClick={() => handleDownloadInvoice(inv.id)}
                                     disabled={downloadingInv === inv.id}
                                     className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 opacity-50 hover:opacity-100 disabled:opacity-20`}
                                   >
@@ -229,14 +228,17 @@ export default function PortalDashboard() {
                         const billed = p.milestones.reduce((sum, m) => m.invoice_id ? sum + m.billable_amount : sum, 0);
                         const progress = p.budget > 0 ? (billed / p.budget) * 100 : 0;
                         return (
-                            <div key={p.id} className="p-4 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5">
+                            <div 
+                                key={p.id} 
+                                onClick={() => navigate(`/portal/projects/${p.id}`)} // <--- CLICK HANDLER ADDED
+                                className="p-4 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                            >
                                 <div className="flex justify-between items-start mb-2">
                                     <h4 className="font-bold">{p.name}</h4>
                                     <span className="text-xs opacity-50 uppercase">{p.status}</span>
                                 </div>
                                 <div className="text-xs opacity-50 mb-2">Due: {p.due_date || 'TBD'}</div>
                                 
-                                {/* Client-Facing Progress Bar */}
                                 <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
                                     <div className={`h-full ${isNaked ? 'bg-naked-pink' : 'bg-sanctum-gold'}`} style={{ width: `${progress}%` }}></div>
                                 </div>
