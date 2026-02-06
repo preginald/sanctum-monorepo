@@ -7,8 +7,12 @@ import GlobalModalManager from './components/GlobalModalManager';
 // --- AUTH PAGES ---
 import Login from './pages/Login';
 import SetPassword from './pages/SetPassword';
+
+// --- PORTAL PAGES ---
 import PortalDashboard from './pages/PortalDashboard';
 import PortalTicketDetail from './pages/PortalTicketDetail'; 
+import PortalAssets from './pages/PortalAssets'; // NEW
+import PortalProjectDetail from './pages/PortalProjectDetail'; // NEW
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
@@ -86,8 +90,6 @@ function App() {
           
           {/* === PUBLIC ROUTES === */}
           <Route path="/login" element={<Login />} />
-          
-          {/* FIX: Route matched to email link structure */}
           <Route path="/set-password" element={<SetPassword />} /> 
           
           {/* === SECURE ZONE === */}
@@ -96,6 +98,8 @@ function App() {
                   {/* CLIENT PORTAL (Explicit) */}
                   <Route path="/portal" element={<PortalDashboard />} />
                   <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
+                  <Route path="/portal/assets" element={<PortalAssets />} />
+                  <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />
 
                   {/* ADMIN CITADEL */}
                   <Route path="*" element={

@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, or_
+from sqlalchemy import desc, or_, asc
 from uuid import UUID
 from fastapi.responses import FileResponse
 import os
+from datetime import date
 
 # STABLE IMPORTS
 from .. import models, schemas, auth
 from ..database import get_db
-from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact
+from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact, Comment, Asset, Project, Milestone
+from ..services.event_bus import event_bus
 
 router = APIRouter(prefix="/portal", tags=["Portal"])
 
@@ -27,7 +29,29 @@ def get_current_contact(user: models.User, db: Session):
     
     return contact
 
-# --- DASHBOARD (UNCHANGED) ---
+def verify_ticket_access(ticket_id: int, user: models.User, db: Session):
+    """
+    Ensures the user is a Contact on the ticket OR the ticket belongs to their account 
+    (depending on strictness, usually M:N match is safer).
+    """
+    contact = get_current_contact(user, db)
+    
+    ticket = db.query(Ticket).options(joinedload(Ticket.account))\
+        .outerjoin(ticket_contacts).filter(
+        Ticket.id == ticket_id,
+        Ticket.account_id == user.account_id,
+        or_(
+            Ticket.contact_id == contact.id,
+            ticket_contacts.c.contact_id == contact.id
+        )
+    ).first()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found or access denied.")
+    
+    return ticket, contact
+
+# --- DASHBOARD ---
 @router.get("/dashboard", response_model=schemas.PortalDashboard)
 def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role != 'client' or not current_user.account_id: 
@@ -36,7 +60,6 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
     aid = current_user.account_id
     account = db.query(models.Account).filter(models.Account.id == aid).first()
     
-    # Resolve Contact ID
     contact = db.query(Contact).filter(
         Contact.account_id == aid,
         Contact.email == current_user.email
@@ -70,7 +93,7 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
     
     return { "account": account, "security_score": score, "open_tickets": tickets, "invoices": invoices, "projects": projects }
 
-# --- TICKET LIST (STRICT SCOPE) ---
+# --- TICKET LIST ---
 @router.get("/tickets")
 def get_portal_tickets(
     db: Session = Depends(get_db), 
@@ -97,38 +120,78 @@ def get_portal_tickets(
         } for t in tickets
     ]
 
-# --- TICKET DETAIL (UPDATED FOR BRANDING) ---
+# --- TICKET DETAIL (ENRICHED) ---
 @router.get("/tickets/{ticket_id}")
 def get_portal_ticket(
     ticket_id: int, 
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    contact = get_current_contact(current_user, db)
+    ticket, contact = verify_ticket_access(ticket_id, current_user, db)
 
-    # Join Account to get brand_affinity
-    ticket = db.query(Ticket).options(joinedload(Ticket.account))\
-        .outerjoin(ticket_contacts).filter(
-        Ticket.id == ticket_id,
-        Ticket.account_id == current_user.account_id,
-        or_(
-            Ticket.contact_id == contact.id,
-            ticket_contacts.c.contact_id == contact.id
-        )
-    ).first()
+    comments = db.query(Comment).options(joinedload(Comment.author))\
+        .filter(
+            Comment.ticket_id == ticket.id,
+            Comment.visibility == 'public'
+        ).order_by(asc(Comment.created_at)).all()
 
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found or access denied.")
+    formatted_comments = [{
+        "id": c.id,
+        "body": c.body,
+        "created_at": c.created_at,
+        "author_name": c.author.full_name if c.author else "Support",
+        "is_me": c.author_id == current_user.id
+    } for c in comments]
+
+    formatted_assets = [{
+        "id": a.id,
+        "name": a.name,
+        "type": a.asset_type,
+        "status": a.status
+    } for a in ticket.assets]
 
     return {
         "id": ticket.id,
         "subject": ticket.subject,
         "status": ticket.status,
+        "priority": ticket.priority,
         "description": ticket.description,
         "created_at": ticket.created_at,
         "resolution": ticket.resolution,
         "milestone": ticket.milestone.name if ticket.milestone else None,
-        "brand_affinity": ticket.account.brand_affinity if ticket.account else 'ds' # <--- ADDED
+        "brand_affinity": ticket.account.brand_affinity if ticket.account else 'ds',
+        "comments": formatted_comments,
+        "assets": formatted_assets
+    }
+
+@router.post("/tickets/{ticket_id}/comments")
+def create_portal_comment(
+    ticket_id: int,
+    payload: schemas.CommentCreate, 
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    ticket, contact = verify_ticket_access(ticket_id, current_user, db)
+    
+    new_comment = Comment(
+        ticket_id=ticket.id,
+        author_id=current_user.id,
+        body=payload.body,
+        visibility='public' 
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    
+    event_bus.emit("ticket_comment_created", ticket, background_tasks)
+    
+    return {
+        "id": new_comment.id,
+        "body": new_comment.body,
+        "created_at": new_comment.created_at,
+        "author_name": current_user.full_name,
+        "is_me": True
     }
 
 @router.get("/tickets/{ticket_id}/invoices")
@@ -137,18 +200,7 @@ def get_portal_ticket_invoices(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    contact = get_current_contact(current_user, db)
-    ticket = db.query(Ticket).outerjoin(ticket_contacts).filter(
-        Ticket.id == ticket_id,
-        Ticket.account_id == current_user.account_id,
-        or_(
-            Ticket.contact_id == contact.id,
-            ticket_contacts.c.contact_id == contact.id
-        )
-    ).first()
-
-    if not ticket:
-        raise HTTPException(status_code=404, detail="Ticket not found or access denied.")
+    ticket, _ = verify_ticket_access(ticket_id, current_user, db)
 
     invoices = db.query(Invoice).join(InvoiceItem).filter(
         InvoiceItem.ticket_id == ticket.id,
@@ -167,7 +219,74 @@ def get_portal_ticket_invoices(
         for inv in invoices
     ]
 
-# --- INVOICE DOWNLOAD (FIXED PATH LOGIC) ---
+# --- ASSETS ---
+@router.get("/assets")
+def get_portal_assets(
+    db: Session = Depends(get_db), 
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.account_id:
+        raise HTTPException(status_code=403, detail="No account context.")
+
+    assets = db.query(Asset).filter(
+        Asset.account_id == current_user.account_id,
+        Asset.status != 'retired'
+    ).order_by(Asset.asset_type, Asset.name).all()
+
+    return [
+        {
+            "id": a.id,
+            "name": a.name,
+            "asset_type": a.asset_type,
+            "status": a.status,
+            "serial_number": a.serial_number,
+            "ip_address": a.ip_address,
+            "expires_at": a.expires_at
+        } for a in assets
+    ]
+
+# --- PROJECTS ---
+@router.get("/projects/{project_id}")
+def get_portal_project(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    if not current_user.account_id:
+        raise HTTPException(status_code=403, detail="No account context.")
+
+    project = db.query(Project).options(joinedload(Project.milestones)).filter(
+        Project.id == project_id,
+        Project.account_id == current_user.account_id
+    ).first()
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found.")
+
+    # Calculate Progress
+    total_milestones = len(project.milestones)
+    completed_milestones = len([m for m in project.milestones if m.status == 'completed'])
+    progress = (completed_milestones / total_milestones * 100) if total_milestones > 0 else 0
+
+    return {
+        "id": project.id,
+        "name": project.name,
+        "description": project.description,
+        "status": project.status,
+        "start_date": project.start_date,
+        "due_date": project.due_date,
+        "progress": round(progress),
+        "milestones": [
+            {
+                "id": m.id,
+                "name": m.name,
+                "status": m.status,
+                "due_date": m.due_date
+            } for m in project.milestones
+        ]
+    }
+
+# --- INVOICE DOWNLOAD ---
 @router.get("/invoices/{invoice_id}/download")
 def download_portal_invoice(
     invoice_id: UUID,
@@ -188,19 +307,16 @@ def download_portal_invoice(
     if not invoice.pdf_path:
         raise HTTPException(status_code=404, detail="Invoice PDF not generated.")
 
-    # --- ROBUST PATH RESOLUTION ---
     base_path = os.getcwd()
     clean_path = invoice.pdf_path.lstrip('/')
     
-    # Check 1: Is it absolute?
     if os.path.isabs(invoice.pdf_path) and os.path.exists(invoice.pdf_path):
         return FileResponse(invoice.pdf_path, media_type='application/pdf', filename=f"Invoice_{invoice.id}.pdf")
 
-    # Define candidate paths to check in order
     candidates = [
-        os.path.join(base_path, "app", clean_path),      # sanctum-core/app/static/reports/...
-        os.path.join(base_path, clean_path),             # sanctum-core/static/reports/...
-        os.path.join(base_path, "app", "static", "reports", os.path.basename(clean_path)) # Hardcoded fallback
+        os.path.join(base_path, "app", clean_path),      
+        os.path.join(base_path, clean_path),             
+        os.path.join(base_path, "app", "static", "reports", os.path.basename(clean_path)) 
     ]
 
     final_path = None
@@ -210,9 +326,6 @@ def download_portal_invoice(
             break
     
     if not final_path:
-        # Debug info for the server logs
-        print(f"[ERROR] PDF Download Failed. DB Path: {invoice.pdf_path}")
-        print(f"[DEBUG] Checked locations: {candidates}")
         raise HTTPException(status_code=404, detail="Invoice PDF file missing on server.")
 
     return FileResponse(
