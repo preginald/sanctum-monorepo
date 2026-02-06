@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 from uuid import UUID
 from .. import models, schemas, auth
@@ -15,6 +15,36 @@ def get_admin(user: models.User = Depends(auth.get_current_active_user)):
 @router.get("", response_model=List[schemas.AutomationResponse])
 def list_automations(db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
     return db.query(models.Automation).all()
+
+@router.get("/logs", response_model=List[schemas.AutomationLogResponse])
+def get_global_logs(skip: int = 0, limit: int = 100, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
+    """
+    The Panopticon: View execution history across ALL rules.
+    """
+    logs = db.query(models.AutomationLog)\
+        .options(joinedload(models.AutomationLog.automation))\
+        .order_by(models.AutomationLog.triggered_at.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+    
+    # Enrich with Automation Name
+    results = []
+    for log in logs:
+        # Clone dict to avoid mutating DB object state if needed, 
+        # though Pydantic reads attributes fine. We explicitly set the name field.
+        # Note: SQLAlchemy objects are not dicts, so we construct the response data.
+        log_data = {
+            "id": log.id,
+            "automation_id": log.automation_id,
+            "triggered_at": log.triggered_at,
+            "status": log.status,
+            "output": log.output,
+            "automation_name": log.automation.name if log.automation else "Unknown Rule"
+        }
+        results.append(log_data)
+        
+    return results
 
 @router.post("", response_model=schemas.AutomationResponse)
 def create_automation(auto: schemas.AutomationCreate, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
@@ -46,4 +76,18 @@ def delete_automation(auto_id: UUID, db: Session = Depends(get_db), _: models.Us
 
 @router.get("/{auto_id}/logs", response_model=List[schemas.AutomationLogResponse])
 def get_automation_logs(auto_id: UUID, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
-    return db.query(models.AutomationLog).filter(models.AutomationLog.automation_id == auto_id).order_by(models.AutomationLog.triggered_at.desc()).limit(50).all()
+    logs = db.query(models.AutomationLog).options(joinedload(models.AutomationLog.automation)).filter(models.AutomationLog.automation_id == auto_id).order_by(models.AutomationLog.triggered_at.desc()).limit(50).all()
+    
+    # Consistent enrichment for single view as well
+    results = []
+    for log in logs:
+        log_data = {
+            "id": log.id,
+            "automation_id": log.automation_id,
+            "triggered_at": log.triggered_at,
+            "status": log.status,
+            "output": log.output,
+            "automation_name": log.automation.name if log.automation else "Unknown Rule"
+        }
+        results.append(log_data)
+    return results

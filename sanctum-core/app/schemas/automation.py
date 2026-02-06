@@ -24,6 +24,7 @@ class AutomationResponse(AutomationCreate):
 class AutomationLogResponse(SanctumBase):
     id: UUID
     automation_id: UUID
+    automation_name: Optional[str] = None # NEW
     triggered_at: datetime
     status: str
     output: Optional[str] = None
