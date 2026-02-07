@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X } from 'lucide-react';
+import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight } from 'lucide-react';
 import api from '../lib/api';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
@@ -119,7 +119,7 @@ export default function PortalDashboard() {
       <main className="p-8 max-w-7xl mx-auto space-y-8">
         
         {/* TOP ROW: HEALTH & STATUS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             
             {/* SECURITY SCORE */}
             <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
@@ -158,6 +158,21 @@ export default function PortalDashboard() {
                     {invoices.filter(i => i.status === 'sent').length}
                 </div>
             </div>
+
+            {/* NEW: ASSETS CARD */}
+            <div 
+                onClick={() => navigate('/portal/assets')}
+                className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between cursor-pointer hover:border-cyan-500/50 transition-colors group`}
+            >
+                <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                    <Server size={16} /> Asset Inventory
+                </h3>
+                <div className="mt-4 flex justify-between items-end">
+                    <span className="text-xl font-bold opacity-80 group-hover:text-cyan-400 transition-colors">View All</span>
+                    <ArrowRight size={24} className="opacity-50 group-hover:translate-x-1 group-hover:text-cyan-400 transition-all"/>
+                </div>
+            </div>
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -230,7 +245,7 @@ export default function PortalDashboard() {
                         return (
                             <div 
                                 key={p.id} 
-                                onClick={() => navigate(`/portal/projects/${p.id}`)} // <--- CLICK HANDLER ADDED
+                                onClick={() => navigate(`/portal/projects/${p.id}`)}
                                 className="p-4 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                             >
                                 <div className="flex justify-between items-start mb-2">
