@@ -12,3 +12,4 @@ sanctum-web/node_modules/
 sanctum-web/dist/
 sanctum-web/.env.local
 .aider*
+sanctum-core/app/static/reports/*.pdf

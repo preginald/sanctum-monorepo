@@ -61,11 +61,21 @@ class DealUpdate(SanctumBase):
     probability: Optional[int] = None
     expected_close_date: Optional[str] = None
 
+class DealItemResponse(SanctumBase):
+    id: UUID
+    product_id: UUID
+    product_name: Optional[str] = None
+    quantity: int
+    override_price: Optional[Decimal] = None
+    unit_price: Optional[Decimal] = None
+    total: Optional[Decimal] = None
+
 class DealResponse(DealCreate):
     id: UUID
     account_name: Optional[str] = None 
     source_campaign_id: Optional[UUID] = None
     campaign_name: Optional[str] = None      
+    items: List[DealItemResponse] = []
 
 # --- PROJECTS & MILESTONES ---
 class MilestoneReorderItem(SanctumBase):

@@ -89,11 +89,46 @@ def get_deals(current_user: models.User = Depends(auth.get_current_active_user),
 
 @router.get("/deals/{deal_id}", response_model=schemas.DealResponse)
 def get_deal_detail(deal_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    deal = db.query(models.Deal).filter(models.Deal.id == deal_id).first()
-    if not deal: raise HTTPException(status_code=404, detail="Deal not found")
-    if current_user.access_scope == 'nt_only' and deal.account.brand_affinity == 'ds': raise HTTPException(status_code=403, detail="Forbidden")
-    deal.account_name = deal.account.name
-    return deal
+    deal = db.query(models.Deal)\
+        .options(joinedload(models.Deal.items).joinedload(models.DealItem.product))\
+        .filter(models.Deal.id == deal_id).first()
+    
+    if not deal: 
+        raise HTTPException(status_code=404, detail="Deal not found")
+    
+    if current_user.access_scope == 'nt_only' and deal.account.brand_affinity == 'ds': 
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    # Build items list
+    items_data = []
+    for item in deal.items:
+        unit_price = item.override_price if item.override_price else item.product.unit_price
+        total = float(unit_price) * item.quantity
+        
+        items_data.append({
+            'id': item.id,
+            'product_id': item.product_id,
+            'product_name': item.product.name,
+            'quantity': item.quantity,
+            'override_price': item.override_price,
+            'unit_price': unit_price,
+            'total': total
+        })
+    
+    # Return response dict (Pydantic will validate)
+    return {
+        'id': deal.id,
+        'account_id': deal.account_id,
+        'title': deal.title,
+        'amount': deal.amount,
+        'stage': deal.stage,
+        'probability': deal.probability,
+        'expected_close_date': deal.expected_close_date,
+        'account_name': deal.account.name,
+        'source_campaign_id': deal.source_campaign_id,
+        'campaign_name': None,
+        'items': items_data
+    }
 
 @router.post("/deals", response_model=schemas.DealResponse)
 def create_deal(deal: schemas.DealCreate, db: Session = Depends(get_db)):

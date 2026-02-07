@@ -12,6 +12,22 @@ export default function PortalSecurityReport() {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [loading, setLoading] = useState(true);
 
+  const handleRequestRemediation = async () => {
+  if (!confirm('Generate a remediation quote for all failed controls?')) return;
+  
+  try {
+    const res = await api.post(`/sentinel/audits/${auditId}/generate-deal`);
+    alert(`Remediation quote created! Total: $${res.data.deal_amount.toLocaleString()}\n\nOur team will review and contact you shortly.`);
+  } catch (e) {
+    if (e.response?.data?.detail) {
+      alert(e.response.data.detail);
+    } else {
+      alert('Failed to generate quote. Please contact support.');
+    }
+  }
+};
+
+
   useEffect(() => {
     fetchSecurityReport();
   }, []);
@@ -20,12 +36,15 @@ export default function PortalSecurityReport() {
     try {
       // Get dashboard data to find audit_id
       const dashRes = await api.get('/portal/dashboard');
+      const [auditId, setAuditId] = useState(null);
       setAccount(dashRes.data.account);
       
       if (!dashRes.data.audit_id) {
         setLoading(false);
         return;
       }
+
+      setAuditId(dashRes.data.audit_id);  
 
       // Fetch full audit details
       const auditRes = await api.get(`/sentinel/audits/${dashRes.data.audit_id}`);
@@ -152,19 +171,33 @@ export default function PortalSecurityReport() {
         {/* HEADER SECTION */}
         <div className={`p-8 rounded-xl border ${theme.card}`}>
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-3xl font-bold mb-2">Security Assessment</h2>
-              <p className={`text-sm ${theme.textSub}`}>
-                Framework: {audit.template_name}
-              </p>
-            </div>
-            <div className="text-center">
-              <div className={`text-6xl font-bold ${getScoreColor(audit.security_score)}`}>
-                {audit.security_score}
-              </div>
-              <div className="text-sm opacity-50 mt-1">/ 100</div>
-            </div>
-          </div>
+  <div>
+    <h2 className="text-3xl font-bold mb-2">Security Assessment</h2>
+    <p className={`text-sm ${theme.textSub}`}>
+      Framework: {audit.template_name}
+    </p>
+  </div>
+  <div className="flex items-center gap-6">
+    <div className="text-center">
+      <div className={`text-6xl font-bold ${getScoreColor(audit.security_score)}`}>
+        {audit.security_score}
+      </div>
+      <div className="text-sm opacity-50 mt-1">/ 100</div>
+    </div>
+    {failCount > 0 && (
+      <button
+        onClick={handleRequestRemediation}
+        className={`px-6 py-3 rounded-lg font-bold text-sm transition-all shadow-lg hover:scale-105 ${
+          isNaked 
+            ? 'bg-naked-pink hover:bg-pink-600 text-white' 
+            : 'bg-sanctum-gold hover:bg-yellow-500 text-slate-900'
+        }`}
+      >
+        Request Remediation Quote
+      </button>
+    )}
+  </div>
+</div>
         </div>
 
         {/* STATS GRID */}

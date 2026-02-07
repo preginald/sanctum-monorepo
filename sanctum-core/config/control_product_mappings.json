@@ -1,0 +1,91 @@
+{
+  "essential8": {
+    "e8_app_01": [
+      {"product_name": "Application Whitelisting Implementation", "quantity": 1}
+    ],
+    "e8_app_02": [
+      {"product_name": "Application Whitelisting Implementation", "quantity": 1}
+    ],
+    "e8_app_03": [
+      {"product_name": "Application Whitelisting Implementation", "quantity": 1}
+    ],
+    "e8_patch_01": [
+      {"product_name": "Emergency Patch Deployment", "quantity": 1}
+    ],
+    "e8_patch_02": [
+      {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
+    ],
+    "e8_patch_03": [
+      {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
+    ],
+    "e8_macro_01": [
+      {"product_name": "Microsoft Office Hardening Service", "quantity": 1}
+    ],
+    "e8_macro_02": [
+      {"product_name": "Microsoft Office Hardening Service", "quantity": 1}
+    ],
+    "e8_macro_03": [
+      {"product_name": "Microsoft Office Hardening Service", "quantity": 1}
+    ],
+    "e8_hard_01": [
+      {"product_name": "Browser Security Hardening", "quantity": 1}
+    ],
+    "e8_hard_02": [
+      {"product_name": "Browser Security Hardening", "quantity": 1}
+    ],
+    "e8_hard_03": [
+      {"product_name": "Browser Security Hardening", "quantity": 1}
+    ],
+    "e8_admin_01": [
+      {"product_name": "Privileged Access Workstation (PAW) Setup", "quantity": 1}
+    ],
+    "e8_admin_02": [
+      {"product_name": "Privileged Access Workstation (PAW) Setup", "quantity": 1}
+    ],
+    "e8_admin_03": [
+      {"product_name": "Just-In-Time (JIT) Admin Access Implementation", "quantity": 1}
+    ],
+    "e8_os_01": [
+      {"product_name": "Emergency Patch Deployment", "quantity": 1}
+    ],
+    "e8_os_02": [
+      {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
+    ],
+    "e8_os_03": [
+      {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
+    ],
+    "e8_mfa_01": [
+      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
+    ],
+    "e8_mfa_02": [
+      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
+    ],
+    "e8_mfa_03": [
+      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1},
+      {"product_name": "FIDO2 Security Key (YubiKey 5 NFC)", "quantity": 5}
+    ],
+    "e8_backup_01": [
+      {"product_name": "Immutable Backup Solution (Monthly)", "quantity": 1}
+    ],
+    "e8_backup_02": [
+      {"product_name": "Immutable Backup Solution (Monthly)", "quantity": 1}
+    ],
+    "e8_backup_03": [
+      {"product_name": "Backup Restoration Testing Service", "quantity": 1}
+    ]
+  },
+  "nist-csf": {
+    "nist_pr_01": [
+      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
+    ],
+    "nist_pr_03": [
+      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
+    ],
+    "nist_de_01": [
+      {"product_name": "Endpoint Detection & Response (EDR) License", "quantity": 10}
+    ],
+    "nist_de_02": [
+      {"product_name": "Endpoint Detection & Response (EDR) License", "quantity": 10}
+    ]
+  }
+}
