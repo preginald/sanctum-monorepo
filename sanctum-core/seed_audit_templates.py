@@ -12,6 +12,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 ESSENTIAL_8_TEMPLATE = {
     "name": "Essential 8 Maturity Model",
     "framework": "Essential8",
+    "category": "security",
     "description": "Australian Cyber Security Centre (ACSC) Essential Eight security controls for threat mitigation.",
     "category_structure": [
         {
@@ -85,6 +86,7 @@ ESSENTIAL_8_TEMPLATE = {
 NIST_CSF_LITE = {
     "name": "NIST Cybersecurity Framework (Lite)",
     "framework": "NIST-CSF",
+    "category": "security",
     "description": "Simplified NIST CSF assessment covering Identify, Protect, Detect, Respond, Recover functions.",
     "category_structure": [
         {

@@ -86,12 +86,23 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
     projects = db.query(models.Project).options(joinedload(models.Project.milestones))\
         .filter(models.Project.account_id == aid, models.Project.is_deleted == False).all()
     
-    last_audit = db.query(models.AuditReport).filter(models.AuditReport.account_id == aid, models.AuditReport.status == 'finalized')\
-        .order_by(desc(models.AuditReport.finalized_at)).first()
+    # Get latest audit (draft or finalized) with actual submissions
+    last_audit = db.query(models.AuditReport).filter(
+    models.AuditReport.account_id == aid,
+    models.AuditReport.template_id.isnot(None)  # Must have a template selected
+    ).order_by(desc(models.AuditReport.created_at)).first();
     
     score = last_audit.security_score if last_audit else 0
+    audit_id = str(last_audit.id) if last_audit else None
     
-    return { "account": account, "security_score": score, "open_tickets": tickets, "invoices": invoices, "projects": projects }
+    return { 
+    "account": account, 
+    "security_score": score, 
+    "audit_id": audit_id,  # ADD THIS LINE
+    "open_tickets": tickets, 
+    "invoices": invoices, 
+    "projects": projects 
+    }
 
 # --- TICKET LIST ---
 @router.get("/tickets")

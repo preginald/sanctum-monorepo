@@ -10,6 +10,7 @@ from .assets import AssetResponse
 class PortalDashboard(SanctumBase):
     account: AccountResponse
     security_score: int
+    audit_id: Optional[str] = None
     open_tickets: List[TicketResponse]
     invoices: List[InvoiceResponse]
     projects: List[ProjectResponse]

@@ -309,10 +309,11 @@ class Product(Base):
 class AuditTemplate(Base):
     __tablename__ = "audit_templates"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    name = Column(String, nullable=False)  # "Essential 8 Maturity Model"
-    framework = Column(String, nullable=False)  # "Essential8", "NIST-CSF", "ISO27001"
+    name = Column(String, nullable=False)
+    framework = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    category_structure = Column(JSON, default=[])  # Array of {category, controls: [{id, name, weight}]}
+    category = Column(String, default='security')  # NEW: 'security', 'infrastructure', 'digital_presence', etc.
+    category_structure = Column(JSON, default=[])
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())

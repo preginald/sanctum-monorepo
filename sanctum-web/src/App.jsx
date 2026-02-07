@@ -13,6 +13,7 @@ import PortalDashboard from './pages/PortalDashboard';
 import PortalTicketDetail from './pages/PortalTicketDetail'; 
 import PortalAssets from './pages/PortalAssets'; // NEW
 import PortalProjectDetail from './pages/PortalProjectDetail'; // NEW
+import PortalSecurityReport from './pages/PortalSecurityReport'; // ADD THIS LINE
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
@@ -97,6 +98,7 @@ function App() {
                   
                   {/* CLIENT PORTAL (Explicit) */}
                   <Route path="/portal" element={<PortalDashboard />} />
+                  <Route path="/portal/security" element={<PortalSecurityReport />} />  {/* ADD THIS LINE */}
                   <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
                   <Route path="/portal/assets" element={<PortalAssets />} />
                   <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />

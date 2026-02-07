@@ -122,17 +122,28 @@ export default function PortalDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
             
             {/* SECURITY SCORE */}
-            <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
-                <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                    <Shield size={16} /> Security Posture
-                </h3>
-                <div className="mt-4 flex items-end gap-2">
-                    <span className={`text-5xl font-bold ${security_score < 50 ? 'text-red-500' : security_score < 80 ? 'text-orange-500' : 'text-green-500'}`}>
-                        {security_score}
-                    </span>
-                    <span className="text-xl opacity-30 mb-1">/ 100</span>
-                </div>
-            </div>
+<div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between group cursor-pointer hover:border-blue-500/50 transition-all`}
+     onClick={() => data.audit_id && navigate('/portal/security')}>
+    <div className="flex justify-between items-start">
+        <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+            <Shield size={16} /> Security Posture
+        </h3>
+        {data.audit_id && (
+            <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-blue-400" />
+        )}
+    </div>
+    <div className="mt-4 flex items-end gap-2">
+        <span className={`text-5xl font-bold ${security_score < 50 ? 'text-red-500' : security_score < 80 ? 'text-yellow-500' : 'text-green-500'}`}>
+            {security_score}
+        </span>
+        <span className="text-xl opacity-30 mb-1">/ 100</span>
+    </div>
+    {data.audit_id && (
+        <div className="mt-2 text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+            View Detailed Report →
+        </div>
+    )}
+</div>
 
             {/* OPEN TICKETS COUNT + BUTTON */}
             <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
