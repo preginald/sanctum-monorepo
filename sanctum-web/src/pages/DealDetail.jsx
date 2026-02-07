@@ -105,6 +105,33 @@ export default function DealDetail() {
                   <label className="text-xs uppercase opacity-50 block mb-1">Value</label>
                   <span className="text-3xl font-bold text-sanctum-gold">{formatCurrency(deal.amount)}</span>
                 </div>
+                {/* DEAL ITEMS */}
+{deal.items && deal.items.length > 0 && (
+  <div className="pt-6 border-t border-slate-800 mt-6">
+    <label className="text-xs uppercase opacity-50 block mb-3">Line Items</label>
+    <div className="space-y-2">
+      {deal.items.map(item => (
+        <div key={item.id} className="flex justify-between items-center p-3 bg-black/20 rounded border border-slate-800">
+          <div className="flex-1">
+            <div className="font-medium">{item.product_name}</div>
+            <div className="text-xs opacity-50">
+              Qty: {item.quantity} × {formatCurrency(item.unit_price)}
+            </div>
+          </div>
+          <div className="text-lg font-bold text-sanctum-gold">
+            {formatCurrency(item.total)}
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-700">
+      <span className="text-sm uppercase opacity-70">Total</span>
+      <span className="text-2xl font-bold text-sanctum-gold">
+        {formatCurrency(deal.amount)}
+      </span>
+    </div>
+  </div>
+)}
               </div>
             )}
 

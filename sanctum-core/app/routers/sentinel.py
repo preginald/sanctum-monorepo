@@ -44,6 +44,7 @@ class AuditDetailResponse(BaseModel):
     template_id: Optional[UUID]
     security_score: int
     status: str
+    deal_id: Optional[UUID]
     template_name: Optional[str]
     responses: Optional[Dict[str, Dict[str, str]]]
     category_structure: Optional[List[Dict]]
@@ -141,6 +142,7 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
         "template_id": audit.template_id,
         "security_score": audit.security_score,
         "status": audit.status,
+        "deal_id": audit.deal_id,
         "template_name": template_name,
         "category_structure": category_structure,
         "responses": responses
