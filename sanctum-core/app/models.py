@@ -306,11 +306,39 @@ class Product(Base):
     billing_frequency = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
+class AuditTemplate(Base):
+    __tablename__ = "audit_templates"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    name = Column(String, nullable=False)  # "Essential 8 Maturity Model"
+    framework = Column(String, nullable=False)  # "Essential8", "NIST-CSF", "ISO27001"
+    description = Column(Text, nullable=True)
+    category_structure = Column(JSON, default=[])  # Array of {category, controls: [{id, name, weight}]}
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    submissions = relationship("AuditSubmission", back_populates="template", cascade="all, delete-orphan")
+
+class AuditSubmission(Base):
+    __tablename__ = "audit_submissions"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    audit_report_id = Column(UUID(as_uuid=True), ForeignKey("audit_reports.id"), nullable=False)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("audit_templates.id"), nullable=False)
+    responses = Column(JSON, default={})  # {control_id: {status: "pass/fail/partial/na", notes: "..."}}
+    submitted_by_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    submitted_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    audit_report = relationship("AuditReport", back_populates="submissions")
+    template = relationship("AuditTemplate", back_populates="submissions")
+    submitted_by = relationship("User")
+
 class AuditReport(Base):
     __tablename__ = "audit_reports"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("audit_templates.id"), nullable=True)
 
     # NEW FIELDS FOR THE SENTINEL
     target_url = Column(String, nullable=True)
@@ -329,6 +357,8 @@ class AuditReport(Base):
     account = relationship("Account")
     deal = relationship("Deal")
     comments = relationship("Comment", back_populates="audit", order_by="desc(Comment.created_at)")
+    template = relationship("AuditTemplate")
+    submissions = relationship("AuditSubmission", back_populates="audit_report", cascade="all, delete-orphan")
 
 class Invoice(Base):
     __tablename__ = "invoices"
