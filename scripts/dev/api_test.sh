@@ -13,7 +13,7 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 # Config
-API_BASE="${API_BASE:-http://localhost:8000/api}"
+API_BASE="${API_BASE:-http://localhost:8000}"
 TOKEN_FILE="/tmp/sanctum_token.txt"
 
 # Check if token exists

@@ -1,29 +1,22 @@
-# SYSTEM CONTEXT INJECTION: START PHASE 59
+## 0. SESSION HANDOVER (CURRENT STATE)
+**Status:** GREEN / STABLE
+**Milestone:** Unified Pytest Suite Implementation
+**Date:** 2026-02-07
 
-**Project:** Sanctum Core v2.2
-**Current Phase:** **Phase 59: The Sentinel (Security & Compliance)**
-**Status:** Ready for Architecture
+### ARCHITECTURAL UPDATES
+- **Test Consolidation:** Internal tests from `sanctum-core/tests` moved to `tests/core_internal`.
+- **Global Config:** `pytest.ini` created at root to manage `pythonpath` and suppress Pydantic v2 warnings.
+- **Static Fix:** `app/static` placeholder created to prevent FastAPI mount failures during root-level execution.
 
-## 1. RECENT VICTORIES (Context)
-*   **The Signal (Phase 57):** Complete. "Grand Unification" of notifications implemented. `EventBus` uses a `NotificationRouter` to dispatch to `NotificationService`. Logic supports M:N contacts (Ticket Contacts + Billing Email) and distinguishes between Registered Users (Portal+Email) and External Contacts (Email Only).
-*   **The Mirror (Phase 58):** Complete. Client Portal is fully functional.
-    *   **Dashboard:** Shows Security Score (Placeholder), Active Requests, Invoices.
-    *   **Tickets:** Read/Write access for clients (Comments/Stream).
-    *   **Assets:** Read-only inventory (`/portal/assets`).
-    *   **Projects:** Timeline and progress tracking (`/portal/projects/:id`).
+### AUTHENTICATION STACK
+- `tests/client.py`: Pythonic replacement for `api_test.sh`. Handles OAuth2 + TOTP.
+- `conftest.py`: Implements interactive secret gathering with an `export` reminder to keep creds out of `.env`.
 
-## 2. ARCHITECTURAL STATE
-*   **Notifications:** `notifications` table acts as a queue (`user_id` nullable, `event_payload` JSON).
-*   **Contacts:** `Ticket` model uses `ticket_contacts` (M:N). `Contact` model has `notification_preferences`.
-*   **Audits:** `AuditReport` model exists in `models.py` but is currently a shell (`content` JSON field).
+### KNOWN ROUTES (STRICT)
+- All routers are mounted at root (no `/api` prefix).
+- Notifications require action-based suffixes (e.g., `PUT /notifications/{id}/read`).
 
-## 3. IMMEDIATE OBJECTIVE: THE SENTINEL
-**Goal:** Operationalise the Security Audit Engine to drive NRR (Net Recurring Revenue) via remediation projects.
-
-**Requirements:**
-1.  **Audit Builder:** Admin UI to create "Security Audits" based on templates (e.g., Essential 8, NIST).
-2.  **Scoring Engine:** Logic to calculate the "Security Score" (0-100) based on audit results (Pass/Fail/Partial).
-3.  **Client Visibility:** Expose a detailed "Report Card" in the Client Portal (clicking the 0/100 score).
-4.  **Sales Integration:** Failed audit items should easily convert into **Deals** or **Projects**.
-
-**Next Step:** Architect the `AuditTemplate` and `AuditSubmission` schemas and the Scoring Algorithm.
+### NEXT ACTIONS
+1. **Audit Legacy Tests:** Review `tests/core_internal` for any redundant logic.
+2. **Expand Sentinel Tests:** Draft deep-dive tests for the "Essential 8" audit logic.
+3. **CI/CD Prep:** Use the new Python suite to replace old Bash-based CI steps.

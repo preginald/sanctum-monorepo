@@ -1,8 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
-import { Loader2, ArrowLeft, Save, Shield, Download, Play, Plus, Trash2, Globe, CheckCircle, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Shield, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, MinusCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export default function AuditDetail() {
@@ -11,294 +11,429 @@ export default function AuditDetail() {
   const accountId = searchParams.get('account');
   const navigate = useNavigate();
   const { addToast } = useToast();
-  const pollingRef = useRef(null);
 
   const [audit, setAudit] = useState(null);
-  const [items, setItems] = useState([]);
-  const [domain, setDomain] = useState('');
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [responses, setResponses] = useState({});
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [loading, setLoading] = useState(true);
-  const [scanning, setScanning] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-      if (id && id !== 'new') {
-          fetchAudit();
-      } else {
-          initNewAudit();
-      }
-      return () => stopPolling();
+    fetchTemplates();
+    if (id && id !== 'new') {
+      fetchAudit();
+    } else {
+      initNewAudit();
+    }
   }, [id, accountId]);
 
-  // If the audit is already 'running' or 'queued' on load, start polling
-  useEffect(() => {
-    if (audit?.scan_status === 'queued' || audit?.scan_status === 'running') {
-      startPolling();
-    } else if (audit?.scan_status === 'completed' || audit?.scan_status === 'failed') {
-      stopPolling();
-    }
-  }, [audit?.scan_status]);
-
   const initNewAudit = async () => {
-      setAudit({ account_id: accountId, status: 'draft', scan_status: 'idle', security_score: 0, infrastructure_score: 0 });
-      setLoading(false);
+    setAudit({ account_id: accountId, status: 'draft', security_score: 0 });
+    setLoading(false);
   };
 
-  const fetchAudit = async (quiet = false) => {
-      if (!quiet) setLoading(true);
-      try {
-          const res = await api.get(`/audits/${id}`);
-          setAudit(res.data);
-          setItems(res.data.content?.items || []);
-          
-          if (res.data.account_id && !domain) {
-              const acc = await api.get(`/accounts/${res.data.account_id}`);
-              if (acc.data.billing_email) setDomain(acc.data.billing_email.split('@')[1]);
-          }
-      } catch (e) { console.error(e); }
-      finally { if (!quiet) setLoading(false); }
-  };
-
-  // --- POLLING LOGIC ---
-
-  const startPolling = () => {
-    if (pollingRef.current) return;
-    setScanning(true);
-    pollingRef.current = setInterval(async () => {
-      try {
-        const res = await api.get(`/sentinel/status/${id}`);
-        if (res.data.scan_status === 'completed') {
-          addToast("The Sentinel has completed the Deep Scan", "success");
-          stopPolling();
-          fetchAudit(true); // Quietly refresh to get new items
-        } else if (res.data.scan_status === 'failed') {
-          addToast("Sentinel Scan failed. Check target URL.", "danger");
-          stopPolling();
-          fetchAudit(true);
-        }
-      } catch (e) { stopPolling(); }
-    }, 3000);
-  };
-
-  const stopPolling = () => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-      pollingRef.current = null;
+  const fetchTemplates = async () => {
+    try {
+      const res = await api.get('/sentinel/templates');
+      setTemplates(res.data);
+    } catch (e) {
+      console.error('Failed to fetch templates:', e);
     }
-    setScanning(false);
   };
 
-  // --- ACTIONS ---
-
-  const runScan = async (e) => {
-      e.preventDefault();
-      if (!id || id === 'new') return addToast("Save the draft before scanning", "warning");
-      if (!domain) return addToast("Enter a domain first", "warning");
+  const fetchAudit = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/sentinel/audits/${id}`);
+      setAudit(res.data);
       
-      setScanning(true);
-      try {
-          await api.post('/sentinel/scan', { audit_id: id, target_url: domain });
-          addToast("Scan queued. The Sentinel is initializing...", "info");
-          startPolling();
-      } catch(e) {
-          addToast("Failed to queue scan.", "danger");
-          setScanning(false);
+      if (res.data.template_id) {
+        const template = templates.find(t => t.id === res.data.template_id);
+        setSelectedTemplate(template || null);
       }
+      
+      if (res.data.responses) {
+        setResponses(res.data.responses);
+      }
+      
+      // Auto-expand first category
+      if (res.data.category_structure && res.data.category_structure.length > 0) {
+        setExpandedCategories({ [res.data.category_structure[0].category]: true });
+      }
+      
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to load audit', 'danger');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleTemplateChange = (templateId) => {
+    const template = templates.find(t => t.id === templateId);
+    setSelectedTemplate(template);
+    setResponses({}); // Clear responses when changing template
+    
+    // Auto-expand first category
+    if (template?.category_structure?.length > 0) {
+      setExpandedCategories({ [template.category_structure[0].category]: true });
+    }
+  };
+
+  const toggleCategory = (categoryName) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [categoryName]: !prev[categoryName]
+    }));
+  };
+
+  const updateResponse = (controlId, field, value) => {
+    setResponses(prev => ({
+      ...prev,
+      [controlId]: {
+        ...prev[controlId],
+        [field]: value
+      }
+    }));
+  };
+
+const calculateScore = () => {
+  if (!selectedTemplate || !selectedTemplate.category_structure) return 0;
+  
+  let totalWeight = 0;
+  let earnedWeight = 0;
+  
+  selectedTemplate.category_structure.forEach(category => {
+    if (!category.controls) return;
+    
+    category.controls.forEach(control => {
+      const weight = control.weight || 1;
+      const response = responses[control.id];
+      const status = response?.status || 'fail';
+      
+      if (status !== 'na') {
+        totalWeight += weight;
+        
+        if (status === 'pass') {
+          earnedWeight += weight;
+        } else if (status === 'partial') {
+          earnedWeight += weight * 0.5;
+        }
+      }
+    });
+  });
+  
+  return totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
+};
 
   const saveAudit = async () => {
-      setSaving(true);
-      try {
-          const payload = { content: { items } };
-          if (id && id !== 'new') {
-              await api.put(`/audits/${id}`, payload);
-              addToast("Audit saved", "success");
-              fetchAudit(true);
-          } else {
-              const res = await api.post('/audits', { account_id: accountId, ...payload });
-              addToast("Audit created", "success");
-              navigate(`/audit/${res.data.id}`);
-          }
-      } catch(e) { addToast("Save failed", "danger"); }
-      finally { setSaving(false); }
+    if (!selectedTemplate) {
+      addToast('Please select a template first', 'warning');
+      return;
+    }
+    
+    setSaving(true);
+    try {
+      const payload = {
+        template_id: selectedTemplate.id,
+        responses: responses
+      };
+      
+      if (id && id !== 'new') {
+        await api.post(`/sentinel/audits/${id}/submit`, payload);
+        addToast('Audit saved successfully', 'success');
+        fetchAudit();
+      } else {
+        // Create new audit first
+        const createRes = await api.post('/audits', {
+          account_id: accountId,
+          status: 'draft'
+        });
+        
+        // Then submit responses
+        await api.post(`/sentinel/audits/${createRes.data.id}/submit`, payload);
+        addToast('Audit created successfully', 'success');
+        navigate(`/audit/${createRes.data.id}`);
+      }
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to save audit', 'danger');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const finalizeAudit = async () => {
-      if(!confirm("Finalize and Lock? This will generate the PDF report.")) return;
-      setSaving(true);
-      try {
-          await api.post(`/audits/${id}/finalize`);
-          addToast("Report Generated", "success");
-          fetchAudit();
-      } catch(e) { addToast("Finalization failed", "danger"); }
-      finally { setSaving(false); }
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pass': return <CheckCircle2 className="text-green-500" size={16} />;
+      case 'fail': return <AlertCircle className="text-red-500" size={16} />;
+      case 'partial': return <MinusCircle className="text-yellow-500" size={16} />;
+      case 'na': return <MinusCircle className="text-slate-500" size={16} />;
+      default: return <AlertCircle className="text-slate-600" size={16} />;
+    }
   };
 
-  const addItem = () => setItems([...items, { category: 'General', item: 'New Observation', status: 'Amber', comment: '' }]);
-
-  const updateItem = (index, field, value) => {
-      const newItems = [...items];
-      newItems[index][field] = value;
-      setItems(newItems);
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 50) return 'text-yellow-500';
+    return 'text-red-500';
   };
 
-  const removeItem = (index) => {
-      const newItems = [...items];
-      newItems.splice(index, 1);
-      setItems(newItems);
-  };
+  if (loading) {
+    return (
+      <Layout title="Loading...">
+        <div className="flex justify-center p-20">
+          <Loader2 className="animate-spin text-sanctum-gold" size={48} />
+        </div>
+      </Layout>
+    );
+  }
 
-  if (loading) return <Layout title="Loading..."><div className="flex justify-center p-20"><Loader2 className="animate-spin text-sanctum-gold" size={48}/></div></Layout>;
+  const currentScore = calculateScore();
+  const categoryStructure = audit?.category_structure || selectedTemplate?.category_structure || [];
 
   return (
-    <Layout title={id ? "Security Audit" : "New Assessment"}>
+    <Layout title={id ? "Security Audit" : "New Compliance Assessment"}>
       
       {/* HEADER */}
       <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-              <button onClick={() => navigate(-1)} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20}/></button>
-              <div>
-                  <h1 className="text-2xl font-bold flex items-center gap-2">
-                      <Shield className={audit?.status === 'finalized' ? "text-green-500" : "text-slate-500"} />
-                      {audit?.status === 'finalized' ? 'Audit Report (Locked)' : 'Draft Assessment'}
-                  </h1>
-                  {audit?.status === 'finalized' && (
-                      <div className="flex gap-4 mt-2 text-sm font-mono opacity-70">
-                          <span>Sec Score: {audit.security_score}</span>
-                          <span>Infra Score: {audit.infrastructure_score}</span>
-                      </div>
-                  )}
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="p-2 rounded hover:bg-white/10 opacity-70"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <Shield className={audit?.status === 'finalized' ? "text-green-500" : "text-slate-500"} />
+              {audit?.status === 'finalized' ? 'Compliance Audit (Locked)' : 'Draft Compliance Assessment'}
+            </h1>
+            {selectedTemplate && (
+              <p className="text-sm text-slate-400 mt-1">
+                Framework: {selectedTemplate.name}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-4">
+          {/* SCORE DISPLAY */}
+          {selectedTemplate && (
+            <div className="px-6 py-3 bg-slate-900 border border-slate-700 rounded-lg">
+              <div className="text-xs text-slate-400 uppercase font-bold mb-1">Security Score</div>
+              <div className={`text-3xl font-bold ${getScoreColor(currentScore)}`}>
+                {currentScore}<span className="text-lg">/100</span>
               </div>
-          </div>
-          <div className="flex gap-2">
-              {audit?.status !== 'finalized' && (
-                  <>
-                      <button onClick={saveAudit} disabled={saving} className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded font-bold text-sm transition-colors">
-                          <Save size={16}/> Save Draft
-                      </button>
-                      <button onClick={finalizeAudit} disabled={saving || !id || id === 'new'} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95">
-                          {saving ? <Loader2 className="animate-spin" size={16}/> : <><Shield size={16}/> Finalize & PDF</>}
-                      </button>
-                  </>
-              )}
-          </div>
+            </div>
+          )}
+          
+          {/* ACTIONS */}
+          {audit?.status !== 'finalized' && (
+            <button 
+              onClick={saveAudit} 
+              disabled={saving || !selectedTemplate} 
+              className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+              Save Assessment
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        {/* SIDEBAR: TEMPLATE SELECTOR */}
+        <div className="space-y-6">
           
-          {/* LEFT: CONTROLS */}
-          <div className="space-y-6">
-              
-              {/* SENTINEL SCANNER */}
-              {audit?.status !== 'finalized' && (
-                  <div className={`p-6 bg-slate-900 border rounded-xl relative overflow-hidden transition-colors ${scanning ? 'border-blue-500/50 ring-1 ring-blue-500/20' : 'border-slate-700'}`}>
-                      <div className="absolute -right-6 -top-6 text-slate-800 opacity-50 pointer-events-none">
-                          <Globe size={100} className={scanning ? 'animate-pulse text-blue-900' : ''} />
-                      </div>
-                      
-                      <div className="relative z-10">
-                          <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <h3 className="font-bold text-sm uppercase tracking-widest text-blue-400">The Sentinel</h3>
-                                <p className="text-xs text-slate-400">Deep Scan Engine</p>
-                            </div>
-                            {audit?.scan_status === 'completed' && <CheckCircle className="text-green-500" size={16} />}
-                            {audit?.scan_status === 'failed' && <AlertCircle className="text-red-500" size={16} />}
-                          </div>
-                          
-                          <form onSubmit={runScan} className="flex flex-col gap-3 mt-4">
-                              <div className="relative">
-                                  <div className="absolute left-3 top-2.5 text-slate-500">
-                                      <Globe size={16} />
-                                  </div>
-                                  <input 
-                                    placeholder="example.com" 
-                                    className="w-full bg-black/40 border border-slate-600 rounded-lg pl-10 pr-4 h-10 text-sm font-mono text-white focus:border-blue-500 focus:outline-none"
-                                    value={domain}
-                                    onChange={e => setDomain(e.target.value)}
-                                    disabled={scanning}
-                                  />
-                              </div>
-                              <button 
-                                type="submit"
-                                disabled={scanning || !domain || !id || id === 'new'} 
-                                className="w-full h-10 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all disabled:opacity-50"
-                              >
-                                  {scanning ? <Loader2 className="animate-spin" size={14}/> : <Play size={14} className="fill-current"/>}
-                                  {scanning ? (audit?.scan_status === 'running' ? "Scanning..." : "In Queue") : "Execute Recon"}
-                              </button>
-                          </form>
-                      </div>
-                  </div>
+          {/* TEMPLATE PICKER */}
+          {audit?.status !== 'finalized' && (
+            <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+              <h3 className="font-bold text-sm uppercase text-slate-400 mb-4">Audit Framework</h3>
+              <select 
+                className="w-full bg-black/40 border border-slate-600 rounded-lg px-4 h-10 text-sm text-white focus:border-blue-500 focus:outline-none"
+                value={selectedTemplate?.id || ''}
+                onChange={(e) => handleTemplateChange(e.target.value)}
+              >
+                <option value="">Select Template...</option>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+              {selectedTemplate && (
+                <p className="mt-3 text-xs text-slate-400">
+                  {selectedTemplate.description}
+                </p>
               )}
-
-              {/* STATS */}
-              <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
-                  <h3 className="font-bold text-sm uppercase text-slate-500 mb-4">Integrity Breakdown</h3>
-                  <div className="space-y-2 text-sm">
-                      <div className="flex justify-between"><span className="text-green-500">Optimised</span><span>{items.filter(i => i.status === 'Green').length}</span></div>
-                      <div className="flex justify-between"><span className="text-yellow-500">Attention Required</span><span>{items.filter(i => i.status === 'Amber').length}</span></div>
-                      <div className="flex justify-between"><span className="text-red-500">Critical Failure</span><span>{items.filter(i => i.status === 'Red').length}</span></div>
-                  </div>
+            </div>
+          )}
+          
+          {/* STATS */}
+          {selectedTemplate && (
+            <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+              <h3 className="font-bold text-sm uppercase text-slate-400 mb-4">Compliance Status</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2">
+                    <CheckCircle2 className="text-green-500" size={14} />
+                    Pass
+                  </span>
+                  <span className="font-mono">
+                    {Object.values(responses).filter(r => r.status === 'pass').length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2">
+                    <MinusCircle className="text-yellow-500" size={14} />
+                    Partial
+                  </span>
+                  <span className="font-mono">
+                    {Object.values(responses).filter(r => r.status === 'partial').length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="flex items-center gap-2">
+                    <AlertCircle className="text-red-500" size={14} />
+                    Fail
+                  </span>
+                  <span className="font-mono">
+                    {Object.values(responses).filter(r => r.status === 'fail').length}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center opacity-50">
+                  <span className="flex items-center gap-2">
+                    <MinusCircle className="text-slate-500" size={14} />
+                    N/A
+                  </span>
+                  <span className="font-mono">
+                    {Object.values(responses).filter(r => r.status === 'na').length}
+                  </span>
+                </div>
               </div>
-          </div>
+            </div>
+          )}
+        </div>
 
-          {/* RIGHT: AUDIT ITEMS */}
-          <div className="lg:col-span-2">
-              <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden shadow-2xl">
-                  <table className="w-full text-left text-sm">
-                      <thead className="bg-black/40 text-slate-500 uppercase text-xs font-bold">
-                          <tr>
-                              <th className="p-4 w-32">Category</th>
-                              <th className="p-4 w-48">Observation</th>
-                              <th className="p-4 w-32">Status</th>
-                              <th className="p-4">Comment</th>
-                              <th className="p-4 w-10"></th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
-                          {items.map((item, idx) => (
-                            <tr key={`${item.category}-${item.item}-${idx}`} className="hover:bg-white/5 transition-colors group">
-                                  <td className="p-2">
-                                      <input className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none p-1" value={item.category} onChange={e => updateItem(idx, 'category', e.target.value)} disabled={audit?.status === 'finalized'}/>
-                                  </td>
-                                  <td className="p-2">
-                                      <input className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none p-1" value={item.item} onChange={e => updateItem(idx, 'item', e.target.value)} disabled={audit?.status === 'finalized'}/>
-                                  </td>
-                                  <td className="p-2">
-                                      <select 
-                                        className={`w-full bg-transparent border-none outline-none font-bold p-1 ${item.status === 'Red' ? 'text-red-500' : (item.status === 'Amber' ? 'text-yellow-500' : 'text-green-500')}`} 
-                                        value={item.status} 
-                                        onChange={e => updateItem(idx, 'status', e.target.value)}
-                                        disabled={audit?.status === 'finalized'}
-                                      >
-                                          <option value="Green">Green</option>
-                                          <option value="Amber">Amber</option>
-                                          <option value="Red">Red</option>
-                                      </select>
-                                  </td>
-                                  <td className="p-2">
-                                      <input className="w-full bg-transparent border-b border-transparent focus:border-blue-500 outline-none text-slate-400 p-1" value={item.comment} onChange={e => updateItem(idx, 'comment', e.target.value)} disabled={audit?.status === 'finalized'}/>
-                                  </td>
-                                  <td className="p-2 text-center">
-                                      {audit?.status !== 'finalized' && (
-                                          <button onClick={() => removeItem(idx)} className="text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <Trash2 size={16}/>
-                                          </button>
-                                      )}
-                                  </td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
-                  {audit?.status !== 'finalized' && (
-                      <div className="p-4 border-t border-slate-800 bg-black/20">
-                          <button onClick={addItem} className="flex items-center gap-2 text-xs font-bold text-blue-500 hover:text-blue-400 uppercase tracking-widest">
-                              <Plus size={14}/> Add Manual Observation
-                          </button>
+        {/* MAIN: COMPLIANCE CHECKLIST */}
+        <div className="lg:col-span-3">
+          {!selectedTemplate ? (
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-12 text-center">
+              <Shield className="mx-auto mb-4 text-slate-600" size={64} />
+              <p className="text-slate-400">
+                Select an audit framework to begin the assessment
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {categoryStructure.map((category, catIdx) => {
+                const isExpanded = expandedCategories[category.category];
+                
+                return (
+                  <div key={catIdx} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                    
+                    {/* CATEGORY HEADER */}
+                    <button 
+                      onClick={() => toggleCategory(category.category)}
+                      className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                        <h3 className="font-bold text-sm uppercase tracking-wide">
+                          {category.category}
+                        </h3>
                       </div>
-                  )}
-              </div>
-          </div>
+                      <span className="text-xs text-slate-400">
+                        {category.controls.length} controls
+                      </span>
+                    </button>
+                    
+                    {/* CONTROLS */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-800">
+                        {category.controls.map((control, ctrlIdx) => {
+                          const response = responses[control.id] || {};
+                          const status = response.status || '';
+                          
+                          return (
+                            <div 
+                              key={control.id} 
+                              className="p-4 border-b border-slate-800 last:border-b-0 hover:bg-white/5 transition-colors"
+                            >
+                              
+                              {/* CONTROL HEADER */}
+                              <div className="flex items-start gap-3 mb-3">
+                                {getStatusIcon(status)}
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{control.name}</p>
+                                  {control.weight > 1 && (
+                                    <span className="inline-block mt-1 px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">
+                                      Weight: {control.weight}x
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              {/* STATUS SELECTOR */}
+                              {audit?.status !== 'finalized' && (
+                                <div className="ml-7 space-y-3">
+                                  <div className="flex gap-3">
+                                    {['pass', 'partial', 'fail', 'na'].map(s => (
+                                      <label 
+                                        key={s}
+                                        className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                                          status === s 
+                                            ? 'bg-blue-500/20 border border-blue-500' 
+                                            : 'bg-slate-800 border border-slate-700 hover:border-slate-600'
+                                        }`}
+                                      >
+                                        <input 
+                                          type="radio" 
+                                          name={`control-${control.id}`}
+                                          value={s}
+                                          checked={status === s}
+                                          onChange={() => updateResponse(control.id, 'status', s)}
+                                          className="accent-blue-500"
+                                        />
+                                        <span className="text-xs font-bold uppercase">
+                                          {s === 'na' ? 'N/A' : s}
+                                        </span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                  
+                                  {/* NOTES FIELD */}
+                                  <textarea 
+                                    placeholder="Add notes or evidence..."
+                                    className="w-full bg-black/40 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-blue-500 focus:outline-none resize-none"
+                                    rows={2}
+                                    value={response.notes || ''}
+                                    onChange={(e) => updateResponse(control.id, 'notes', e.target.value)}
+                                  />
+                                </div>
+                              )}
+                              
+                              {/* READ-ONLY VIEW FOR FINALIZED */}
+                              {audit?.status === 'finalized' && (
+                                <div className="ml-7 text-sm text-slate-400">
+                                  {response.notes || 'No notes'}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
       </div>
     </Layout>
