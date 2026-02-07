@@ -43,33 +43,47 @@ export default function AuditDetail() {
     }
   };
 
-  const fetchAudit = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get(`/sentinel/audits/${id}`);
-      setAudit(res.data);
-      
-      if (res.data.template_id) {
-        const template = templates.find(t => t.id === res.data.template_id);
-        setSelectedTemplate(template || null);
-      }
-      
-      if (res.data.responses) {
-        setResponses(res.data.responses);
-      }
-      
-      // Auto-expand first category
-      if (res.data.category_structure && res.data.category_structure.length > 0) {
-        setExpandedCategories({ [res.data.category_structure[0].category]: true });
-      }
-      
-    } catch (e) {
-      console.error(e);
-      addToast('Failed to load audit', 'danger');
-    } finally {
-      setLoading(false);
+const fetchAudit = async () => {
+  setLoading(true);
+  try {
+    const res = await api.get(`/sentinel/audits/${id}`);
+    setAudit(res.data);
+    
+    // Wait for templates to load if they haven't yet
+    let templatesList = templates;
+    if (templates.length === 0) {
+      const templatesRes = await api.get('/sentinel/templates');
+      templatesList = templatesRes.data;
+      setTemplates(templatesRes.data);
     }
-  };
+    
+    if (res.data.template_id) {
+      const template = templatesList.find(t => t.id === res.data.template_id);
+      if (template) {
+        // Use the category_structure from the audit response (it's already hydrated)
+        setSelectedTemplate({
+          ...template,
+          category_structure: res.data.category_structure
+        });
+      }
+    }
+    
+    if (res.data.responses) {
+      setResponses(res.data.responses);
+    }
+    
+    // Auto-expand first category
+    if (res.data.category_structure && res.data.category_structure.length > 0) {
+      setExpandedCategories({ [res.data.category_structure[0].category]: true });
+    }
+    
+  } catch (e) {
+    console.error(e);
+    addToast('Failed to load audit', 'danger');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleTemplateChange = (templateId) => {
     const template = templates.find(t => t.id === templateId);

@@ -11,6 +11,7 @@ class TemplateListResponse(BaseModel):
     name: str
     framework: str
     description: Optional[str]
+    category_structure: Optional[List[Dict]]
     
     class Config:
         from_attributes = True
