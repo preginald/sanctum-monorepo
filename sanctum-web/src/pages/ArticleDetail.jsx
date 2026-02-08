@@ -1,18 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText } from 'lucide-react';
+// Added 'Copy' icon to imports
+import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText, Copy } from 'lucide-react';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
+// Added Toast Hook
+import { useToast } from '../context/ToastContext';
 
 export default function ArticleDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
+  const { addToast } = useToast(); // Initialize toast
    
   const [article, setArticle] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('content'); // 'content' | 'history'
+  const [activeTab, setActiveTab] = useState('content');
 
   useEffect(() => {
     fetchArticle();
@@ -22,7 +26,6 @@ export default function ArticleDetail() {
     try {
         const res = await api.get(`/articles/${slug}`);
         setArticle(res.data);
-        // Fetch history using the ID from the resolved article
         fetchHistory(res.data.id);
     } catch(e) { 
         console.error(e); 
@@ -39,10 +42,30 @@ export default function ArticleDetail() {
       } catch(e) { console.error("Failed to load history", e); }
   };
 
+  // NEW: Copy Logic
+  const handleCopyMarkdown = async () => {
+    try {
+      const metadata = [
+        '---',
+        `Title: ${article.title}`,
+        `Identifier: ${article.identifier || 'N/A'}`,
+        `Version: ${article.version || 'v1.0'}`,
+        `Category: ${article.category}`,
+        '---',
+        '',
+        article.content
+      ].join('\n');
+
+      await navigator.clipboard.writeText(metadata);
+      addToast('Markdown copied to clipboard!', 'success');
+    } catch (err) {
+      console.error('Failed to copy!', err);
+      addToast('Failed to copy markdown', 'error');
+    }
+  };
+
   if (loading || !article) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
-  // LOGIC FIX: Use the Identifier (e.g. SOP-001) as the Header Title, 
-  // mirroring the "Ticket #39" pattern. Fallback to "Wiki Entry".
   const layoutTitle = article.identifier || 'Wiki Entry';
 
   return (
@@ -61,7 +84,6 @@ export default function ArticleDetail() {
                     <span className="text-xs font-mono uppercase tracking-widest bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">
                     {article.category}
                     </span>
-                    {/* We keep the identifier here too for context, but it's small metadata now */}
                     {article.identifier && (
                     <span className="text-xs font-mono uppercase tracking-widest text-slate-500">
                         {article.identifier}
@@ -78,12 +100,23 @@ export default function ArticleDetail() {
                 </div>
                 </div>
             </div>
-            <button 
-                onClick={() => navigate(`/wiki/${article.id}/edit`)} 
-                className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
-            >
-                <Edit2 size={16} /> Edit Article
-            </button>
+            
+            {/* ACTION BUTTONS */}
+            <div className="flex items-center gap-3">
+                <button 
+                    onClick={handleCopyMarkdown} 
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white"
+                    title="Copy Markdown with Metadata"
+                >
+                    <Copy size={16} /> Copy Markdown
+                </button>
+                <button 
+                    onClick={() => navigate(`/wiki/${article.id}/edit`)} 
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
+                >
+                    <Edit2 size={16} /> Edit Article
+                </button>
+            </div>
           </div>
 
           {/* TABS */}
