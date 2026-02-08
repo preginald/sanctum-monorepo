@@ -4,13 +4,15 @@ from .crm import AccountResponse, ContactResponse
 from .operations import TicketResponse
 from .billing import InvoiceResponse
 from .strategy import ProjectResponse, DealResponse
-# NEW: Import AssetResponse
 from .assets import AssetResponse 
 
 class PortalDashboard(SanctumBase):
     account: AccountResponse
     security_score: int
     audit_id: Optional[str] = None
+    category_scores: Dict[str, int] = {}
+    category_audit_ids: Dict[str, str] = {}
+    category_statuses: Dict[str, str] = {}  # NEW: {"security": "finalized", "infrastructure": "draft", ...}
     open_tickets: List[TicketResponse]
     invoices: List[InvoiceResponse]
     projects: List[ProjectResponse]
@@ -23,6 +25,4 @@ class AccountDetail(AccountResponse):
     projects: List[ProjectResponse] = []
     audit_data: Optional[Dict] = None 
     invoices: List[InvoiceResponse] = []
-    
-    # NEW: Explicitly define assets to allow new fields through
     assets: List[AssetResponse] = []

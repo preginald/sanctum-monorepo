@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, or_, asc
 from uuid import UUID
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 import os
 from datetime import date
 
@@ -86,22 +87,142 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
     projects = db.query(models.Project).options(joinedload(models.Project.milestones))\
         .filter(models.Project.account_id == aid, models.Project.is_deleted == False).all()
     
-    # Get latest audit (draft or finalized) with actual submissions
-    last_audit = db.query(models.AuditReport).filter(
-    models.AuditReport.account_id == aid,
-    models.AuditReport.template_id.isnot(None)  # Must have a template selected
-    ).order_by(desc(models.AuditReport.created_at)).first();
+    # PHASE 60A: Get all audits grouped by category
+    audits = db.query(models.AuditReport)\
+        .options(joinedload(models.AuditReport.template))\
+        .filter(
+            models.AuditReport.account_id == aid,
+            models.AuditReport.template_id.isnot(None)
+        ).order_by(desc(models.AuditReport.created_at)).all()
     
-    score = last_audit.security_score if last_audit else 0
-    audit_id = str(last_audit.id) if last_audit else None
+    # Build category scores map (latest audit per category)
+    category_scores = {}
+    category_audit_ids = {}
+    category_statuses = {}  # NEW: Track audit status per category
+    
+    for audit in audits:
+        if audit.template and audit.template.category:
+            cat = audit.template.category
+            if cat not in category_scores:  # Only take most recent per category
+                if cat == 'security':
+                    category_scores[cat] = audit.security_score or 0
+                elif cat == 'infrastructure':
+                    category_scores[cat] = audit.infrastructure_score or 0
+                else:
+                    # For other categories, default to security_score field (Phase 60B will add dedicated fields)
+                    category_scores[cat] = audit.security_score or 0
+                
+                category_audit_ids[cat] = str(audit.id)
+                category_statuses[cat] = audit.status or 'draft'  # NEW: Include status
+    
+    # Legacy backward compatibility
+    security_score = category_scores.get('security', 0)
+    security_audit_id = category_audit_ids.get('security', None)
     
     return { 
-    "account": account, 
-    "security_score": score, 
-    "audit_id": audit_id,  # ADD THIS LINE
-    "open_tickets": tickets, 
-    "invoices": invoices, 
-    "projects": projects 
+        "account": account, 
+        "security_score": security_score,  # Legacy field
+        "audit_id": security_audit_id,  # Legacy field
+        "category_scores": category_scores,  # NEW: {security: 21, infrastructure: 0, ...}
+        "category_audit_ids": category_audit_ids,  # NEW: {security: uuid, infrastructure: uuid, ...}
+        "category_statuses": category_statuses,  # NEW: {security: "finalized", infrastructure: "draft", ...}
+        "open_tickets": tickets, 
+        "invoices": invoices, 
+        "projects": projects 
+    }
+
+# --- ASSESSMENT REQUEST (PHASE 60A.2) ---
+class AssessmentRequest(BaseModel):
+    template_id: UUID
+
+@router.post("/assessments/request")
+def request_assessment(
+    payload: AssessmentRequest,
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Client requests an assessment. Creates:
+    1. Draft audit report (status='draft')
+    2. Support ticket (type='assessment') 
+    """
+    if current_user.role != 'client' or not current_user.account_id:
+        raise HTTPException(status_code=403, detail="Portal access only.")
+    
+    # Get template details
+    template = db.query(models.AuditTemplate).filter(
+        models.AuditTemplate.id == payload.template_id
+    ).first()
+    
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found.")
+    
+    # Get contact
+    contact = db.query(Contact).filter(
+        Contact.account_id == current_user.account_id,
+        Contact.email == current_user.email
+    ).first()
+    
+    # Create draft audit
+    new_audit = models.AuditReport(
+        account_id=current_user.account_id,
+        template_id=template.id,
+        status='draft',  # Client requested, not started
+        security_score=0
+    )
+    db.add(new_audit)
+    db.flush()  # Get audit ID
+    
+    # Create tracking ticket
+    ticket_subject = f"Assessment Request: {template.name}"
+    ticket_description = f"""Client has requested a {template.name} assessment.
+
+Category: {template.category}
+Framework: {template.framework}
+
+Next Steps:
+1. Schedule initial consultation within 1-2 business days
+2. Complete assessment within timeline
+3. Deliver report and recommendations
+
+Audit ID: {new_audit.id}
+"""
+    
+    new_ticket = Ticket(
+        account_id=current_user.account_id,
+        contact_id=contact.id if contact else None,
+        subject=ticket_subject,
+        description=ticket_description,
+        ticket_type='assessment',
+        priority='normal',
+        status='new'
+    )
+    db.add(new_ticket)
+    db.flush()
+    
+    # Link ticket to contacts (M:N)
+    if contact:
+        db.execute(
+            ticket_contacts.insert().values(
+                ticket_id=new_ticket.id,
+                contact_id=contact.id
+            )
+        )
+    
+    db.commit()
+    db.refresh(new_audit)
+    db.refresh(new_ticket)
+    
+    # Fire event for notifications/emails
+    event_bus.emit("ticket_created", new_ticket, background_tasks)
+    
+    return {
+        "success": True,
+        "audit_id": str(new_audit.id),
+        "ticket_id": new_ticket.id,
+        "ticket_subject": ticket_subject,
+        "message": f"Assessment request submitted successfully. Track progress via Ticket #{new_ticket.id}"
     }
 
 # --- TICKET LIST ---

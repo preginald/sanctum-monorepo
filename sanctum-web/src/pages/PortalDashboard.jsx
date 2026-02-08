@@ -1,11 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight } from 'lucide-react';
+import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star } from 'lucide-react';
 import api from '../lib/api';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
+
+// PHASE 60A: Category Widget Configuration
+const CATEGORY_WIDGETS = [
+  { key: 'security', label: 'Security', icon: Shield, color: 'blue' },
+  { key: 'infrastructure', label: 'Infrastructure', icon: Server, color: 'purple' },
+  { key: 'digital', label: 'Digital Presence', icon: Globe, color: 'green' },
+  { key: 'efficiency', label: 'Efficiency', icon: Zap, color: 'yellow' },
+  { key: 'continuity', label: 'Resilience', icon: RotateCcw, color: 'orange' },
+  { key: 'ux', label: 'Support', icon: Star, color: 'pink' }
+];
 
 export default function PortalDashboard() {
   const navigate = useNavigate();
@@ -77,10 +87,31 @@ export default function PortalDashboard() {
     }
   };
 
+  const getScoreColor = (score) => {
+    if (score >= 80) return 'text-green-500';
+    if (score >= 50) return 'text-yellow-500';
+    return 'text-red-500';
+  };
+
+  const getCategoryColor = (colorKey) => {
+    const colors = {
+      blue: 'border-blue-500/50 hover:border-blue-500',
+      purple: 'border-purple-500/50 hover:border-purple-500',
+      green: 'border-green-500/50 hover:border-green-500',
+      yellow: 'border-yellow-500/50 hover:border-yellow-500',
+      orange: 'border-orange-500/50 hover:border-orange-500',
+      pink: 'border-pink-500/50 hover:border-pink-500'
+    };
+    return colors[colorKey] || 'border-slate-500/50';
+  };
+
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-white"><Loader2 className="animate-spin" /></div>;
   if (!data) return null;
 
-  const { account, security_score, open_tickets, invoices, projects } = data;
+  const { account, category_scores = {}, category_audit_ids = {}, category_statuses = {}, open_tickets, invoices, projects } = data;
+  
+  // Check if ANY audits exist
+  const hasAnyAudit = Object.keys(category_audit_ids).length > 0;
   
   // DYNAMIC BRANDING
   const isNaked = account.brand_affinity === 'nt';
@@ -118,71 +149,141 @@ export default function PortalDashboard() {
 
       <main className="p-8 max-w-7xl mx-auto space-y-8">
         
-        {/* TOP ROW: HEALTH & STATUS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-            
-            {/* SECURITY SCORE */}
-<div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between group cursor-pointer hover:border-blue-500/50 transition-all`}
-     onClick={() => data.audit_id && navigate('/portal/security')}>
-    <div className="flex justify-between items-start">
-        <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-            <Shield size={16} /> Security Posture
-        </h3>
-        {data.audit_id && (
-            <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all text-blue-400" />
-        )}
-    </div>
-    <div className="mt-4 flex items-end gap-2">
-        <span className={`text-5xl font-bold ${security_score < 50 ? 'text-red-500' : security_score < 80 ? 'text-yellow-500' : 'text-green-500'}`}>
-            {security_score}
-        </span>
-        <span className="text-xl opacity-30 mb-1">/ 100</span>
-    </div>
-    {data.audit_id && (
-        <div className="mt-2 text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
-            View Detailed Report →
-        </div>
-    )}
-</div>
-
-            {/* OPEN TICKETS COUNT + BUTTON */}
-            <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
-                <div className="flex justify-between items-start">
-                    <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                        <AlertCircle size={16} /> Active Requests
-                    </h3>
-                    <button onClick={() => setShowModal(true)} className={`p-2 rounded-lg ${theme.btn} shadow-lg transition-transform hover:-translate-y-1`}>
-                        <Plus size={20} />
-                    </button>
-                </div>
-                <div className="mt-4 text-5xl font-bold">
-                    {open_tickets.length}
-                </div>
-            </div>
-
-            {/* UNPAID INVOICES */}
-            <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
-                <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                    <Receipt size={16} /> Open Invoices
-                </h3>
-                <div className="mt-4 text-5xl font-bold">
-                    {invoices.filter(i => i.status === 'sent').length}
-                </div>
-            </div>
-
-            {/* NEW: ASSETS CARD */}
-            <div 
-                onClick={() => navigate('/portal/assets')}
-                className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between cursor-pointer hover:border-cyan-500/50 transition-colors group`}
+        {/* PHASE 60A: HEALTH SCORES - 6 CATEGORY GRID */}
+        {!hasAnyAudit && (
+          <div className={`p-6 rounded-xl border-2 border-dashed ${theme.card} text-center`}>
+            <TrendingUp className="mx-auto mb-3 opacity-30" size={48} />
+            <h3 className="text-lg font-bold mb-2">Unlock Your Health Scores</h3>
+            <p className={`text-sm ${theme.textSub} mb-4`}>
+              Complete your first assessment to see how your technology stack measures up across 6 key areas.
+            </p>
+            <button 
+              onClick={() => navigate('/portal/assessments')}
+              className={`px-6 py-2 rounded-lg ${theme.btn} font-bold`}
             >
-                <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                    <Server size={16} /> Asset Inventory
-                </h3>
-                <div className="mt-4 flex justify-between items-end">
-                    <span className="text-xl font-bold opacity-80 group-hover:text-cyan-400 transition-colors">View All</span>
-                    <ArrowRight size={24} className="opacity-50 group-hover:translate-x-1 group-hover:text-cyan-400 transition-all"/>
-                </div>
+              Get Started
+            </button>
+          </div>
+        )}
+
+        {hasAnyAudit && (
+          <div>
+            <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4">Health Scores</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {CATEGORY_WIDGETS.map(({ key, label, icon: Icon, color }) => {
+                const score = category_scores[key] || null;
+                const auditId = category_audit_ids[key];
+                const status = category_statuses[key];
+                const hasAudit = auditId !== undefined;
+
+                // Determine what to display based on status
+                let displayContent;
+                let isClickable = false;
+                
+                if (!hasAudit) {
+                  // No audit at all
+                  displayContent = <span className="text-2xl opacity-30">Not Assessed</span>;
+                } else if (status === 'draft') {
+                  // Client requested, not started
+                  displayContent = (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-bold text-yellow-500">Assessment Requested</span>
+                      <span className="text-xs opacity-50 mt-1">Our team will contact you soon</span>
+                    </div>
+                  );
+                } else if (status === 'in_progress') {
+                  // Admin working on it
+                  displayContent = (
+                    <div className="flex flex-col">
+                      <span className="text-2xl font-bold text-blue-500 flex items-center gap-2">
+                        In Progress <Loader2 size={20} className="animate-spin" />
+                      </span>
+                      <span className="text-xs opacity-50 mt-1">Assessment underway</span>
+                    </div>
+                  );
+                } else if (status === 'finalized') {
+                  // Completed - show score
+                  displayContent = (
+                    <>
+                      <span className={`text-5xl font-bold ${getScoreColor(score)}`}>{score}</span>
+                      <span className="text-xl opacity-30 mb-1">/ 100</span>
+                    </>
+                  );
+                  isClickable = true;
+                }
+
+                return (
+                  <div
+                    key={key}
+                    onClick={() => isClickable && navigate(`/portal/audit/${key}`)}
+                    className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between transition-all ${
+                      isClickable ? `cursor-pointer group ${getCategoryColor(color)}` : hasAudit ? '' : 'opacity-50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                        <Icon size={16} /> {label}
+                      </h3>
+                      {isClickable && (
+                        <ArrowRight size={16} className="opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                      )}
+                    </div>
+                    <div className="mt-4 flex items-end gap-2">
+                      {displayContent}
+                    </div>
+                    {isClickable && (
+                      <div className="mt-2 text-xs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                        View Report →
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
+          </div>
+        )}
+
+        {/* OPERATIONAL STATUS ROW */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+          {/* OPEN TICKETS COUNT + BUTTON */}
+          <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
+              <div className="flex justify-between items-start">
+                  <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                      <AlertCircle size={16} /> Active Requests
+                  </h3>
+                  <button onClick={() => setShowModal(true)} className={`p-2 rounded-lg ${theme.btn} shadow-lg transition-transform hover:-translate-y-1`}>
+                      <Plus size={20} />
+                  </button>
+              </div>
+              <div className="mt-4 text-5xl font-bold">
+                  {open_tickets.length}
+              </div>
+          </div>
+
+          {/* UNPAID INVOICES */}
+          <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
+              <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                  <Receipt size={16} /> Open Invoices
+              </h3>
+              <div className="mt-4 text-5xl font-bold">
+                  {invoices.filter(i => i.status === 'sent').length}
+              </div>
+          </div>
+
+          {/* ASSETS CARD */}
+          <div 
+              onClick={() => navigate('/portal/assets')}
+              className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between cursor-pointer hover:border-cyan-500/50 transition-colors group`}
+          >
+              <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
+                  <Server size={16} /> Asset Inventory
+              </h3>
+              <div className="mt-4 flex justify-between items-end">
+                  <span className="text-xl font-bold opacity-80 group-hover:text-cyan-400 transition-colors">View All</span>
+                  <ArrowRight size={24} className="opacity-50 group-hover:translate-x-1 group-hover:text-cyan-400 transition-all"/>
+              </div>
+          </div>
 
         </div>
 

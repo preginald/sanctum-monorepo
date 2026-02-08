@@ -11,9 +11,10 @@ import SetPassword from './pages/SetPassword';
 // --- PORTAL PAGES ---
 import PortalDashboard from './pages/PortalDashboard';
 import PortalTicketDetail from './pages/PortalTicketDetail'; 
-import PortalAssets from './pages/PortalAssets'; // NEW
-import PortalProjectDetail from './pages/PortalProjectDetail'; // NEW
-import PortalSecurityReport from './pages/PortalSecurityReport'; // ADD THIS LINE
+import PortalAssets from './pages/PortalAssets';
+import PortalProjectDetail from './pages/PortalProjectDetail';
+import PortalAuditReport from './pages/PortalAuditReport'; // PHASE 60A: Renamed & category-aware
+import PortalAssessments from './pages/PortalAssessments'; // PHASE 60A: Assessment catalog
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
@@ -98,7 +99,9 @@ function App() {
                   
                   {/* CLIENT PORTAL (Explicit) */}
                   <Route path="/portal" element={<PortalDashboard />} />
-                  <Route path="/portal/security" element={<PortalSecurityReport />} />  {/* ADD THIS LINE */}
+                  <Route path="/portal/assessments" element={<PortalAssessments />} /> {/* PHASE 60A: Assessment catalog */}
+                  <Route path="/portal/audit/:category" element={<PortalAuditReport />} /> {/* PHASE 60A: Category-aware */}
+                  <Route path="/portal/security" element={<Navigate to="/portal/audit/security" replace />} /> {/* Legacy redirect */}
                   <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
                   <Route path="/portal/assets" element={<PortalAssets />} />
                   <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />
