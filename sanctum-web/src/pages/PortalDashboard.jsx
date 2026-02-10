@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
+import { Card, StatWidget, StatusBadge, ScoreDisplay, usePortalTheme } from '../components/portal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
@@ -121,17 +122,8 @@ export default function PortalDashboard() {
     }));
   };
   
-  // DYNAMIC BRANDING
-  const isNaked = account.brand_affinity === 'nt';
-  const theme = {
-    bg: isNaked ? 'bg-slate-50' : 'bg-slate-900',
-    card: isNaked ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-800 border-slate-700',
-    textMain: isNaked ? 'text-slate-900' : 'text-white',
-    textSub: isNaked ? 'text-slate-500' : 'text-slate-400',
-    accent: isNaked ? 'text-naked-pink' : 'text-sanctum-gold',
-    navBg: isNaked ? 'bg-white border-b border-slate-200' : 'bg-slate-900 border-b border-slate-800',
-    btn: isNaked ? 'bg-naked-pink hover:bg-pink-600 text-white' : 'bg-sanctum-gold hover:bg-yellow-500 text-slate-900'
-  };
+  // THEME
+  const theme = usePortalTheme(account);
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
   const formatDate = (d) => new Date(d).toLocaleDateString();
@@ -143,7 +135,7 @@ export default function PortalDashboard() {
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div>
             <h1 className={`text-xl font-bold ${theme.accent}`}>
-                {isNaked ? 'Naked Tech' : 'SANCTUM'}
+                {theme.brandName}
             </h1>
             <p className={`text-xs uppercase tracking-widest opacity-50`}>Client Portal • {account.name}</p>
         </div>
@@ -159,7 +151,7 @@ export default function PortalDashboard() {
         
         {/* PHASE 60A: HEALTH SCORES - 6 CATEGORY GRID */}
         {!hasAnyAudit && (
-          <div className={`p-6 rounded-xl border-2 border-dashed ${theme.card} text-center`}>
+          <Card isNaked={theme.isNaked} dashed={true} className="text-center">
             <TrendingUp className="mx-auto mb-3 opacity-30" size={48} />
             <h3 className="text-lg font-bold mb-2">Unlock Your Health Scores</h3>
             <p className={`text-sm ${theme.textSub} mb-4`}>
@@ -171,7 +163,7 @@ export default function PortalDashboard() {
             >
               Get Started
             </button>
-          </div>
+          </Card>
         )}
 
         {hasAnyAudit && (
@@ -369,50 +361,44 @@ export default function PortalDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           
           {/* OPEN TICKETS COUNT + BUTTON */}
-          <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
-              <div className="flex justify-between items-start">
-                  <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                      <AlertCircle size={16} /> Active Requests
-                  </h3>
-                  <button onClick={() => setShowModal(true)} className={`p-2 rounded-lg ${theme.btn} shadow-lg transition-transform hover:-translate-y-1`}>
-                      <Plus size={20} />
-                  </button>
-              </div>
-              <div className="mt-4 text-5xl font-bold">
-                  {open_tickets.length}
-              </div>
-          </div>
+          <StatWidget
+            icon={AlertCircle}
+            label="Active Requests"
+            count={open_tickets.length}
+            actionButton={
+              <button 
+                onClick={() => setShowModal(true)} 
+                className={`p-2 rounded-lg ${theme.btn} shadow-lg transition-transform hover:-translate-y-1`}
+              >
+                <Plus size={20} />
+              </button>
+            }
+            isNaked={theme.isNaked}
+          />
 
           {/* UNPAID INVOICES */}
-          <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
-              <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                  <Receipt size={16} /> Open Invoices
-              </h3>
-              <div className="mt-4 text-5xl font-bold">
-                  {invoices.filter(i => i.status === 'sent').length}
-              </div>
-          </div>
+          <StatWidget
+            icon={Receipt}
+            label="Open Invoices"
+            count={invoices.filter(i => i.status === 'sent').length}
+            isNaked={theme.isNaked}
+          />
 
           {/* ASSETS CARD */}
-          <div 
-              onClick={() => navigate('/portal/assets')}
-              className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between cursor-pointer hover:border-cyan-500/50 transition-colors group`}
-          >
-              <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                  <Server size={16} /> Asset Inventory
-              </h3>
-              <div className="mt-4 flex justify-between items-end">
-                  <span className="text-xl font-bold opacity-80 group-hover:text-cyan-400 transition-colors">View All</span>
-                  <ArrowRight size={24} className="opacity-50 group-hover:translate-x-1 group-hover:text-cyan-400 transition-all"/>
-              </div>
-          </div>
+          <StatWidget
+            icon={Server}
+            label="Asset Inventory"
+            count="View All"
+            onClick={() => navigate('/portal/assets')}
+            isNaked={theme.isNaked}
+          />
 
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             
             {/* TICKET STREAM */}
-            <div className={`p-6 rounded-xl border ${theme.card}`}>
+            <Card isNaked={theme.isNaked}>
                 <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4">Recent Activity</h3>
                 <div className="space-y-3">
                     {open_tickets.length === 0 && <p className="text-sm opacity-50">No active tickets.</p>}
@@ -426,13 +412,11 @@ export default function PortalDashboard() {
                                 <div className="font-bold text-sm">{t.subject}</div>
                                 <div className="text-xs opacity-50">#{t.id} • {formatDate(t.created_at)}</div>
                             </div>
-                            <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${t.status === 'resolved' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-600'}`}>
-                                {t.status}
-                            </span>
+                            <StatusBadge status={t.status} size="sm" />
                         </div>
                     ))}
                 </div>
-            </div>
+            </Card>
 
             {/* INVOICE HISTORY */}
             <div className={`p-6 rounded-xl border ${theme.card}`}>
@@ -489,7 +473,7 @@ export default function PortalDashboard() {
                                 <div className="text-xs opacity-50 mb-2">Due: {p.due_date || 'TBD'}</div>
                                 
                                 <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
-                                    <div className={`h-full ${isNaked ? 'bg-naked-pink' : 'bg-sanctum-gold'}`} style={{ width: `${progress}%` }}></div>
+                                    <div className={`h-full ${theme.isNaked ? 'bg-naked-pink' : 'bg-sanctum-gold'}`} style={{ width: `${progress}%` }}></div>
                                 </div>
                                 <div className="flex justify-between mt-1 text-[10px] opacity-50">
                                     <span>Progress</span>
@@ -507,21 +491,21 @@ export default function PortalDashboard() {
       {/* CREATE TICKET MODAL */}
       {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className={`p-6 rounded-xl w-full max-w-md relative shadow-2xl ${theme.card} ${isNaked ? 'text-slate-900' : 'text-white'}`}>
+            <div className={`p-6 rounded-xl w-full max-w-md relative shadow-2xl ${theme.card} ${theme.isNaked ? 'text-slate-900' : 'text-white'}`}>
                 <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4">How can we help?</h2>
                 <form onSubmit={handleCreateTicket} className="space-y-4">
                     <Input 
                         label="Subject"
                         required 
-                        className={`bg-black/10 border-slate-500/30 ${isNaked ? 'text-slate-900' : 'text-white'}`}
+                        className={`bg-black/10 border-slate-500/30 ${theme.isNaked ? 'text-slate-900' : 'text-white'}`}
                         value={ticketForm.subject} 
                         onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} 
                         placeholder="e.g. Need new email account" 
                     />
                     <Select 
                         label="Urgency"
-                        className={`bg-black/10 border-slate-500/30 ${isNaked ? 'text-slate-900' : 'text-white'}`}
+                        className={`bg-black/10 border-slate-500/30 ${theme.isNaked ? 'text-slate-900' : 'text-white'}`}
                         value={ticketForm.priority} 
                         onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}
                     >
