@@ -1,361 +1,244 @@
-# SYSTEM CONTEXT INJECTION
-Generated: Sun 08 Feb 2026 13:42:00 AEDT
+# SESSION HANDOVER: Phase 60 Portal Refactoring Complete
 
-## 0. SESSION HANDOVER (CURRENT STATE)
-# SYSTEM CONTEXT INJECTION: PHASE 59 COMPLETE
-
-**Project:** Sanctum Core v2.2
-**Current Phase:** **Phase 59: The Sentinel (Security & Compliance) - COMPLETE**
-**Status:** Production Ready - NRR Engine Operational
-
-## 1. PHASE 59 COMPLETE VICTORIES ✅
-
-### **Phase 59A: Client Portal Integration**
-- **Portal Dashboard**: Real-time security score widget (21/100 live data)
-- **Security Report Card**: `/portal/security` with Essential 8 compliance breakdown
-- **Interactive UI**: Accordion categories, Pass/Fail/Partial/N/A status indicators
-- **Stats Grid**: Visual compliance metrics (4 Pass, 6 Partial, 5 Fail, 0 N/A)
-- **Dynamic Branding**: Sanctum + Naked Tech theme support
-- **Clickable Navigation**: Security score card → detailed report
-
-### **Phase 59B: Deal Auto-Generation (NRR Engine)**
-- **JSON Config System**: `config/control_product_mappings.json` (Essential 8 + NIST CSF)
-- **Remediation Catalog**: 13 Essential 8-specific products seeded
-- **Auto-Deal Endpoint**: `POST /sentinel/audits/:id/generate-deal`
-- **Smart Consolidation**: 20 failed controls → 11 unique products → $25,375 deal
-- **Duplicate Prevention**: Button state management + deal_id checking
-- **Client UX**: "Request Quote" → "✓ Quote Requested" workflow
-- **Admin View**: Full deal detail with line items, quantities, pricing
-
-### **Phase 59 Infrastructure**
-- **Seeders Organization**: `sanctum-core/seeders/` directory structure
-- **Master Seeder**: `seed_all.py` (automations → templates → products)
-- **Dev Utilities**: `scripts/dev/auth_test.sh` (2FA-aware), `api_test.sh`
-- **Config-Driven Logic**: No hardcoded mappings, fully extensible
-- **Category Support**: Future-ready for multi-category audits (security, infrastructure, digital)
-
-## 2. ALL ISSUES RESOLVED ✅
-
-### **Issue 1: Portal Security Page Broken (FIXED)**
-- **Root Cause**: Missing `auditId` state variable in PortalSecurityReport.jsx
-- **Resolution**: Added `const [auditId, setAuditId] = useState(null);`
-- **Status**: Portal now loads audit data correctly
-
-### **Issue 2: Deal Items Not Displaying (FIXED)**
-- **Root Cause**: `DealResponse` schema missing `items` field
-- **Resolution**: Added `DealItemResponse` schema + items array to response
-- **Backend Fix**: `get_deal_detail` endpoint with `joinedload(Deal.items)`
-- **Frontend Fix**: Added line items table to DealDetail.jsx
-- **Status**: All 11 products now visible with quantities and pricing
-
-### **Issue 3: Duplicate Deal Creation (FIXED)**
-- **Root Cause**: No duplicate prevention on "Request Quote" button
-- **Resolution**: 
-  - Added `generatingDeal` loading state
-  - Backend returns `deal_id` in audit response
-  - Frontend checks if `audit.deal_id` exists
-  - Button changes: "Request Quote" → "✓ Quote Requested"
-- **Status**: No duplicates possible after first request
-
-## 3. ARCHITECTURAL STATE
-
-### **Database Schema**
-```sql
-audit_templates (
-  id UUID PK,
-  name VARCHAR,
-  framework VARCHAR,
-  category VARCHAR DEFAULT 'security', -- NEW: supports multi-category
-  category_structure JSON,
-  is_active BOOLEAN
-)
-  ↓ (template_id FK)
-audit_submissions (
-  id UUID PK,
-  audit_report_id UUID FK,
-  template_id UUID FK,
-  responses JSON,
-  submitted_by_id UUID FK
-)
-  ↓ (audit_report_id FK)
-audit_reports (
-  id UUID PK,
-  account_id UUID FK,
-  template_id UUID FK,
-  deal_id UUID FK, -- NEW: links to auto-generated deal
-  security_score INT,
-  status VARCHAR
-)
-  ↓ (deal_id FK)
-deals (
-  id UUID PK,
-  account_id UUID FK,
-  title VARCHAR,
-  amount DECIMAL,
-  stage VARCHAR,
-  probability INT
-)
-  ↓ (deal_id FK)
-deal_items (
-  id UUID PK,
-  deal_id UUID FK,
-  product_id UUID FK,
-  quantity INT,
-  override_price DECIMAL NULL
-)
-```
-
-### **API Endpoints Added**
-```
-GET  /sentinel/templates
-  → Returns active audit templates (Essential 8, NIST CSF)
-
-GET  /sentinel/audits/:id
-  → Audit detail with template structure, responses, deal_id
-
-POST /sentinel/audits/:id/submit
-  → Submit/update responses, recalculate security_score
-
-POST /sentinel/audits/:id/generate-deal
-  → Auto-create deal from failed controls
-  → Returns: {deal_id, deal_amount, items_count, failed_controls_count}
-
-GET  /deals/:id (UPDATED)
-  → Now includes items array with product details
-```
-
-### **Control→Product Mapping Logic**
-```javascript
-// config/control_product_mappings.json structure:
-{
-  "essential8": {
-    "e8_mfa_03": [
-      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1},
-      {"product_name": "FIDO2 Security Key (YubiKey 5 NFC)", "quantity": 5}
-    ]
-  },
-  "nist-csf": {
-    "nist_pr_01": [
-      {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
-    ]
-  }
-}
-```
-
-### **Scoring Algorithm**
-```python
-# Weighted percentage calculation:
-score = (sum(passed_control_weights) + 0.5 * sum(partial_control_weights)) / sum(all_control_weights) * 100
-
-# Example (Essential 8):
-# 4 Pass (weight=1) + 6 Partial (weight=1) + 5 Fail (weight=1) = 21/100
-# Formula: (4 + 0.5*6) / (4+6+5) * 100 = 7/15 * 100 = 47% → rounds to 21/100
-```
-
-## 4. KEY FILES MODIFIED
-
-### **Backend**
-- `sanctum-core/app/models.py` - AuditTemplate (category), AuditSubmission
-- `sanctum-core/app/routers/sentinel.py` - 4 endpoints, deal generation logic
-- `sanctum-core/app/routers/portal.py` - Dashboard includes audit_id, security_score
-- `sanctum-core/app/routers/crm.py` - Deal detail with items joinedload
-- `sanctum-core/app/schemas/strategy.py` - DealItemResponse, items array
-- `sanctum-core/alembic/versions/452215b5d598_*.py` - Sentinel schema migration
-- `sanctum-core/alembic/versions/ec65c8baf023_*.py` - Category field migration
-
-### **Frontend**
-- `sanctum-web/src/pages/AuditDetail.jsx` - Template-based compliance checklist
-- `sanctum-web/src/pages/AuditIndex.jsx` - Shows template name + score
-- `sanctum-web/src/pages/PortalDashboard.jsx` - Real security score widget
-- `sanctum-web/src/pages/PortalSecurityReport.jsx` - Client-facing report card
-- `sanctum-web/src/pages/DealDetail.jsx` - Line items table added
-- `sanctum-web/src/App.jsx` - /portal/security route
-
-### **Configuration & Seeds**
-- `sanctum-core/config/control_product_mappings.json` - NEW
-- `sanctum-core/seeders/audit_templates.py` - Moved from root
-- `sanctum-core/seeders/automations.py` - Moved from root
-- `sanctum-core/seeders/remediation_products.py` - NEW (13 products)
-- `sanctum-core/seed_all.py` - NEW (master seeder)
-- `scripts/dev/auth_test.sh` - NEW (2FA authentication helper)
-- `scripts/dev/api_test.sh` - NEW (generic API tester)
-- `scripts/README.md` - NEW (dev scripts documentation)
-
-## 5. TESTING & VALIDATION
-
-### **Test Accounts**
-- **Admin**: peter@digitalsanctum.com.au (2FA enabled)
-- **Client**: Digital Sanctum HQ (account_id: dbc2c7b9-d8c2-493f-a6ed-527f7d191068)
-
-### **Test Data**
-- **Audit ID**: `1024add2-bb5f-4f1e-b5ca-d2071cca73ca` (21/100 score)
-- **Deal ID**: `e71896f6-f60f-4297-b771-cf30c029cabd` ($25,375, 11 items)
-- **Template**: Essential 8 Maturity Model (24 controls, 8 categories)
-
-### **Validated Workflows**
-1. ✅ Admin creates audit → selects template → fills responses → saves
-2. ✅ Client views security score on portal dashboard
-3. ✅ Client clicks score → sees detailed compliance breakdown
-4. ✅ Client clicks "Request Remediation Quote" → deal auto-generated
-5. ✅ Button changes to "✓ Quote Requested" (no duplicates)
-6. ✅ Admin views deal in pipeline with all 11 line items
-7. ✅ Deal total matches sum of product prices × quantities
-
-### **Performance Metrics**
-- **Deal Generation**: <2 seconds for 20 failed controls
-- **Audit Save**: <1 second for 24 control responses
-- **Portal Load**: <500ms for security report card
-- **Duplicate Prevention**: 100% effective (tested with rapid clicks)
-
-## 6. REMEDIATION PRODUCT CATALOG
-
-```
-Application Whitelisting Implementation       $2,500  (one-time)
-Patch Management Service (Monthly)            $350    (monthly)
-Emergency Patch Deployment                    $800    (one-time)
-Multi-Factor Authentication Setup             $1,500  (one-time)
-FIDO2 Security Key (YubiKey 5 NFC)           $95     (per unit)
-Microsoft Office Hardening Service            $600    (one-time)
-Browser Security Hardening                    $450    (one-time)
-Privileged Access Workstation (PAW) Setup     $3,500  (one-time)
-Just-In-Time (JIT) Admin Access              $2,000  (one-time)
-Immutable Backup Solution (Monthly)           $450    (monthly)
-Backup Restoration Testing Service            $900    (one-time)
-Security Awareness Training (per user/year)   $120    (yearly)
-Endpoint Detection & Response (EDR) License   $15     (per endpoint/month)
-```
-
-## 7. PHASE 60 ROADMAP
-
-### **Immediate Priorities**
-1. **Client Portal Deal View** - Show deal details within portal (not just admin)
-2. **Multi-Category Dashboards** - Security, Infrastructure, Digital Presence scores
-3. **Finalize Workflow (Phase 59C)** - Lock audit + PDF generation
-4. **Email Notifications** - Alert admins when clients request quotes
-
-### **Future Enhancements (Phase 65+)**
-1. **Template Builder UI** - Admin CRUD for custom audit templates
-2. **Automated Scanning** - Sentinel integration for infrastructure health checks
-3. **NIST Product Mappings** - Expand control_product_mappings.json
-4. **Deal Preview Modal** - Show proposed items before creating
-5. **Multi-Framework Support** - Allow clients to run multiple audits (E8 + NIST)
-6. **Compliance Trending** - Track score improvements over time
-
-## 8. DEPLOYMENT NOTES
-
-### **Environment Variables** (no changes required)
-- `SQLALCHEMY_DATABASE_URL` - Existing PostgreSQL connection
-- `JWT_SECRET_KEY` - Existing auth secret
-- Email service config - Existing (notifications ready)
-
-### **Database Migrations**
-```bash
-cd sanctum-core
-alembic upgrade head  # Applies both migrations (Sentinel + category field)
-```
-
-### **Seeding**
-```bash
-cd sanctum-core
-python seed_all.py  # Seeds automations, templates, products
-```
-
-### **API Restart**
-```bash
-sudo systemctl restart sanctum-api
-```
-
-### **Frontend Build** (production)
-```bash
-cd sanctum-web
-npm run build
-```
-
-## 9. KNOWN LIMITATIONS & WORKAROUNDS
-
-### **Limitation 1: Client Cannot View Deal Details**
-- **Issue**: Clicking "✓ Quote Requested" shows alert, not deal
-- **Workaround**: Alert includes deal ID for reference
-- **Fix in Phase 60**: Build `/portal/deals/:id` page
-
-### **Limitation 2: Single Framework Per Audit**
-- **Issue**: Cannot run Essential 8 + NIST CSF on same audit
-- **Workaround**: Create separate audits
-- **Fix in Phase 65**: Multi-framework support
-
-### **Limitation 3: Manual Product Mapping Updates**
-- **Issue**: Adding new controls requires JSON file edit + API restart
-- **Workaround**: SSH access + vim + systemctl restart
-- **Fix in Phase 65**: Template Builder UI with mapping editor
-
-## 10. BUSINESS IMPACT
-
-### **Revenue Generation**
-- **Average Deal Value**: $25,375 (from single 21/100 audit)
-- **Conversion Trigger**: Failed controls → auto-quote
-- **Sales Efficiency**: Zero manual quoting time
-- **Upsell Opportunity**: Clients see specific gaps, not generic "security needs work"
-
-### **Client Experience**
-- **Transparency**: Real-time compliance score vs industry standard
-- **Self-Service**: Clients request quotes without phone calls
-- **Trust Building**: Professional audit reports vs "we found some issues"
-- **Engagement**: Interactive checklist vs static PDF
-
-### **Operational Efficiency**
-- **Admin Time Saved**: ~2 hours per audit (manual analysis + quoting eliminated)
-- **Accuracy**: Config-driven mapping eliminates human error
-- **Scalability**: Can process 100 audits/day with zero bottleneck
-- **Consistency**: Every audit uses same methodology
-
-## 11. SECURITY & COMPLIANCE
-
-### **Data Privacy**
-- ✅ Client audit data isolated by `account_id`
-- ✅ Portal users cannot access admin endpoints
-- ✅ Audit responses stored encrypted in JSON (PostgreSQL native encryption)
-- ✅ Deal generation logs for audit trail
-
-### **Access Control**
-- ✅ Admin: Full audit CRUD, deal access
-- ✅ Client: Read-only security score, request quote button
-- ✅ API: JWT-based authentication with 2FA support
-
-## 12. GIT STATUS
-
-**Branch**: main
-**Status**: Clean (all changes committed)
-**Last Commit**: "Phase 59: The Sentinel - Compliance Engine & NRR Auto-Generation"
-
-**Files in Repo**:
-- ✅ All backend changes (routers, schemas, models, migrations)
-- ✅ All frontend changes (pages, components, routes)
-- ✅ Configuration files (control_product_mappings.json)
-- ✅ Seeders (organized structure)
-- ✅ Dev scripts (auth_test.sh, api_test.sh)
-- ✅ Session handover (this file)
-
-## 13. SESSION CONTEXT
-
-**Authentication**: `/tmp/sanctum_token.txt` (expires after session)
-**API Base**: `http://localhost:8000`
-**Frontend**: `http://localhost:5173`
-**Database**: PostgreSQL (local development)
-**Current User**: peter@digitalsanctum.com.au (admin, global scope)
+**Date:** February 10, 2026  
+**Session Duration:** Phase 60A (Multi-Assessment Support) + Phase 60B (Component Refactoring)  
+**Next Sprint:** The Discovery Audit / Client Onboarding Questionnaire
 
 ---
 
-# END OF PHASE 59 HANDOVER
+## WHAT WE ACCOMPLISHED
 
-**NEXT SESSION START CHECKLIST:**
-1. ✅ Read this handover document
-2. ✅ Pull latest from `main` branch
-3. ✅ Run `alembic upgrade head` if migrations pending
-4. ✅ Run `python seed_all.py` if fresh DB
-5. ✅ Test authentication: `./scripts/dev/auth_test.sh`
-6. ✅ Verify portal: http://localhost:5173/portal/security
-7. ✅ Ready for Phase 60 or client feedback
+### Phase 60A: Multi-Assessment Support System
+**Status:** ✅ DEPLOYED TO PRODUCTION
 
-**Phase 59 Status: COMPLETE ✅**
-**NRR Engine: OPERATIONAL 💰**
-**Client Portal: LIVE 🛡️**
+**Features Delivered:**
+1. **Assessment Catalog** (`/portal/assessments`)
+   - Grid layout showing all available frameworks
+   - Expandable cards with benefits/risks/timeline
+   - Request assessment workflow creates draft audit + ticket
+   - Email notification via event_bus
+
+2. **Multi-Assessment Dashboard**
+   - Support for multiple concurrent assessments per category
+   - Progressive disclosure UI (collapsed → expanded views)
+   - Badge counters for multiple assessments
+   - Intelligent primary assessment selection (finalized > in_progress > draft)
+   - Status-based rendering with icons and progress bars
+
+3. **Duplicate Prevention**
+   - Checks existing assessments before allowing requests
+   - Button states: Available, Already Requested, In Progress, Completed
+   - Framework-based matching (not name-based)
+
+4. **Backend Enhancements**
+   - `/portal/dashboard` returns `category_assessments` (all assessments per category)
+   - `/portal/assessments/request` creates draft audit + ticket
+   - Sorting: Status priority (finalized=3, in_progress=2, draft=1) + score
+
+**Files Modified:**
+- Backend: `sanctum-core/app/routers/portal.py`, `sanctum-core/app/schemas/portal.py`
+- Frontend: `sanctum-web/src/pages/PortalDashboard.jsx`, `PortalAssessments.jsx`, `PortalAuditReport.jsx`
+
+---
+
+### Phase 60B: Portal Component Library
+**Status:** ✅ DEPLOYED TO PRODUCTION
+
+**Components Created:** (`src/components/portal/`)
+1. **Card.jsx** - Universal card wrapper with theme support
+2. **StatWidget.jsx** - Counter/stat displays with icons & action buttons
+3. **StatusBadge.jsx** - Auto-styled status pills (draft/in_progress/finalized/new/open/pending/resolved)
+4. **ProgressBar.jsx + ScoreDisplay** - Score visualization with color coding
+5. **HealthScoreWidget.jsx** - Expandable multi-assessment health score widget (203 lines)
+6. **usePortalTheme.js** - Centralized theme hook (Sanctum vs Naked Tech branding)
+7. **index.js** - Component exports
+
+**Refactoring Results:**
+- **PortalDashboard.jsx:** 552 → 366 lines (-33.7% code reduction)
+- **Eliminated:** 200+ lines of duplicated code
+- **Centralized:** Theme logic (50+ lines → 1 hook)
+- **Improved:** Maintainability, consistency, readability
+
+**Before/After Example:**
+```jsx
+// BEFORE (180+ lines):
+{CATEGORY_WIDGETS.map(({ key, label, icon }) => {
+  // 30+ lines of display logic
+  // 50+ lines of collapsed view
+  // 80+ lines of expanded view
+})}
+
+// AFTER (13 lines):
+{CATEGORY_WIDGETS.map(widget => (
+  <HealthScoreWidget {...widget} assessments={category_assessments[widget.key]} />
+))}
+```
+
+---
+
+## CURRENT STATE
+
+### Production URLs
+- Portal Dashboard: https://core.digitalsanctum.com.au/portal
+- Assessments Catalog: https://core.digitalsanctum.com.au/portal/assessments
+- API: https://core.digitalsanctum.com.au/api
+
+### Database State
+**Test Account:** Digital Sanctum HQ (ID: `dbc2c7b9-d8c2-493f-a6ed-527f7d191068`)
+- **Security Category:** 2 assessments (Essential 8, NIST CSF)
+- **Other Categories:** Not assessed yet
+
+**Audit Templates:** 11 frameworks seeded
+- Security: Essential 8, NIST CSF, ISO 27001, CIS Controls
+- Infrastructure: ITIL, COBIT
+- Digital Presence: Google Business Profile Optimization
+- Efficiency: Lean IT
+- Resilience: Business Continuity Planning
+- Support: ITSM Best Practices, Help Desk Optimization
+
+### Git Status
+**Latest Commits:**
+1. Phase 60A.4: UX improvements & bug fixes (assessment detection, request button)
+2. Phase 60B: Portal component library - complete refactoring
+
+**Branch:** main  
+**All changes:** Committed and pushed to production
+
+---
+
+## KNOWN ISSUES / TECH DEBT
+
+### None Critical
+All features working as expected in production.
+
+### Future Enhancements (Optional)
+1. **PortalAssessments.jsx Refactoring**
+   - Currently: 560 lines
+   - Could use: `<Card>` and `<StatusBadge>` components
+   - Estimated savings: 150+ lines
+
+2. **Bundle Pricing**
+   - C-suite suggested 15% discount for multiple frameworks
+   - Not yet implemented in pricing logic
+
+3. **Timeline Estimation System**
+   - Show queue position for in_progress assessments
+   - Requires capacity planning integration
+
+---
+
+## NEXT SPRINT: THE DISCOVERY AUDIT / CLIENT ONBOARDING QUESTIONNAIRE
+
+### Context
+**User mentioned this earlier in session** - wants to create a comprehensive client onboarding flow.
+
+### Likely Requirements (to be confirmed in next session)
+1. **Questionnaire System**
+   - Multi-section forms capturing client tech environment
+   - Questions about infrastructure, security posture, current pain points
+   - Conditional questions based on previous answers
+
+2. **Discovery Audit Process**
+   - Automated audit template selection based on questionnaire responses
+   - Generate initial recommendations
+   - Create scoped assessment proposals
+
+3. **Integration Points**
+   - Tie into existing assessment request workflow
+   - Pre-populate audit_reports with questionnaire data
+   - Generate tickets for follow-up items
+
+### Suggested Approach
+1. **Phase 61A:** Design questionnaire schema
+   - Question types (text, radio, checkbox, dropdown, conditional)
+   - Section organization
+   - Response storage strategy
+
+2. **Phase 61B:** Build questionnaire UI
+   - Multi-step form component
+   - Progress tracking
+   - Save/resume functionality
+
+3. **Phase 61C:** Discovery logic
+   - Map responses → recommended frameworks
+   - Auto-generate assessment proposals
+   - Integration with portal dashboard
+
+### Files to Review
+- Look at existing form components in `sanctum-web/src/components/`
+- Check if there's a questionnaire table in database
+- Review how account onboarding currently works
+
+---
+
+## HANDOVER CHECKLIST
+
+✅ All Phase 60 features deployed to production  
+✅ Component library documented with usage examples  
+✅ Git repo up to date (all commits pushed)  
+✅ Database seeded with test data  
+✅ No blocking bugs or issues  
+✅ Next sprint clearly defined  
+
+---
+
+## IMPORTANT NOTES FOR NEXT AI SESSION
+
+1. **Portal Component Library is Ready**
+   - Use components from `src/components/portal/` for any new UI
+   - Don't reinvent card wrappers, stat widgets, or status badges
+   - Follow the patterns established in Phase 60B
+
+2. **Assessment System is Flexible**
+   - Can support unlimited concurrent assessments per category
+   - Easy to add new frameworks (just update seeders)
+   - Request workflow is fully automated (draft audit + ticket + email)
+
+3. **User Preferences**
+   - Likes iterative development with frequent testing
+   - Prefers component-based architecture
+   - Values code reduction and maintainability
+   - Often involves "C-suite consultations" for UX decisions
+
+4. **Testing Workflow**
+   - Local: http://localhost:5173/portal
+   - Uses test account: Digital Sanctum HQ
+   - PSQL commands for data manipulation
+   - Deploys to production after local testing
+
+---
+
+## COMMANDS FOR NEXT SESSION
+
+### Start Local Dev
+```bash
+# Backend
+cd ~/Dev/DigitalSanctum/sanctum-core
+source venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+
+# Frontend
+cd ~/Dev/DigitalSanctum/sanctum-web
+npm run dev
+```
+
+### Database Access
+```bash
+PGPASSWORD=local_dev_password psql -U sanctum_admin -h localhost -d sanctum_core
+```
+
+### Deploy to Production
+```bash
+ssh root@159.223.82.75
+cd /var/www/sanctum
+git pull origin main
+sudo systemctl restart sanctum-api
+```
+
+---
+
+**Session End:** Ready for Phase 61 - Discovery Audit / Client Onboarding Questionnaire
+
+**Prepared by:** Claude (Phase 60 Architect)  
+**Handover to:** Next AI Session  
+**Good luck with the Discovery Audit sprint! 🚀**
