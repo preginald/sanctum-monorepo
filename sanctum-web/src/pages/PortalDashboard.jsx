@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
-import { Card, StatWidget, StatusBadge, ScoreDisplay, usePortalTheme } from '../components/portal';
+import { Card, StatWidget, StatusBadge, ScoreDisplay, HealthScoreWidget, usePortalTheme } from '../components/portal';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
@@ -24,7 +24,6 @@ export default function PortalDashboard() {
   const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [expandedCategories, setExpandedCategories] = useState({}); // Track which category widgets are expanded
   
   // TICKET MODAL STATE
   const [showModal, setShowModal] = useState(false);
@@ -115,13 +114,6 @@ export default function PortalDashboard() {
   // Check if ANY audits exist
   const hasAnyAudit = Object.keys(category_assessments).length > 0;
   
-  const toggleCategory = (categoryKey) => {
-    setExpandedCategories(prev => ({
-      ...prev,
-      [categoryKey]: !prev[categoryKey]
-    }));
-  };
-  
   // THEME
   const theme = usePortalTheme(account);
 
@@ -179,180 +171,18 @@ export default function PortalDashboard() {
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {CATEGORY_WIDGETS.map(({ key, label, icon: Icon, color }) => {
-                const assessments = category_assessments[key] || [];
-                const hasAssessments = assessments.length > 0;
-                const isExpanded = expandedCategories[key];
-                
-                // Primary assessment (first in array - highest priority by status)
-                const primary = assessments[0];
-                const additionalCount = assessments.length - 1;
-
-                // Determine display content for primary assessment
-                let primaryDisplay = null;
-                let isClickable = false;
-                
-                if (!hasAssessments) {
-                  // No assessments at all
-                  primaryDisplay = <span className="text-2xl opacity-30">Not Assessed</span>;
-                } else if (primary.status === 'draft') {
-                  primaryDisplay = (
-                    <div className="flex flex-col">
-                      <span className="text-2xl font-bold text-yellow-500">Assessment Requested</span>
-                      <span className="text-xs opacity-50 mt-1">Our team will contact you soon</span>
-                    </div>
-                  );
-                } else if (primary.status === 'in_progress') {
-                  primaryDisplay = (
-                    <div className="flex flex-col">
-                      <span className="text-2xl font-bold text-blue-500 flex items-center gap-2">
-                        In Progress <Loader2 size={20} className="animate-spin" />
-                      </span>
-                      <span className="text-xs opacity-50 mt-1">Assessment underway</span>
-                    </div>
-                  );
-                } else if (primary.status === 'finalized') {
-                  primaryDisplay = (
-                    <>
-                      <span className={`text-5xl font-bold ${getScoreColor(primary.score)}`}>{primary.score}</span>
-                      <span className="text-xl opacity-30 mb-1">/ 100</span>
-                    </>
-                  );
-                  isClickable = true;
-                }
-
-                return (
-                  <div
-                    key={key}
-                    className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between transition-all ${
-                      hasAssessments ? '' : 'opacity-50'
-                    }`}
-                  >
-                    {/* WIDGET HEADER */}
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
-                        <Icon size={16} /> {label}
-                      </h3>
-                      {assessments.length > 1 && (
-                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded-full font-bold">
-                          {assessments.length}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* PRIMARY ASSESSMENT (Collapsed View) */}
-                    {!isExpanded && (
-                      <>
-                        <div 
-                          className={`flex items-end gap-2 mb-2 ${isClickable ? 'cursor-pointer' : ''}`}
-                          onClick={() => isClickable && navigate(`/portal/audit/${key}`)}
-                        >
-                          {primaryDisplay}
-                        </div>
-                        
-                        {hasAssessments && (
-                          <div className="flex items-center justify-between gap-2 mt-1">
-                            <div className="text-xs opacity-70 flex items-center gap-1">
-                              {primary.status === 'finalized' && <CheckCircle size={14} className="text-green-500" />}
-                              {primary.status === 'in_progress' && <Loader2 size={14} className="text-blue-500 animate-spin" />}
-                              {primary.status === 'draft' && <span className="text-yellow-500">📝</span>}
-                              {primary.template_name}
-                            </div>
-                            
-                            {isClickable && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/portal/audit/${key}`);
-                                }}
-                                className="text-xs text-blue-400 opacity-70 hover:opacity-100 transition-opacity whitespace-nowrap"
-                              >
-                                View Report →
-                              </button>
-                            )}
-                          </div>
-                        )}
-                        
-                        {additionalCount > 0 && (
-                          <button
-                            onClick={() => toggleCategory(key)}
-                            className="mt-3 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors"
-                          >
-                            <ChevronDown size={14} />
-                            + {additionalCount} more assessment{additionalCount > 1 ? 's' : ''}
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {/* EXPANDED VIEW - All Assessments */}
-                    {isExpanded && (
-                      <div className="space-y-3">
-                        <button
-                          onClick={() => toggleCategory(key)}
-                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 mb-2 transition-colors"
-                        >
-                          <ChevronUp size={14} />
-                          Collapse
-                        </button>
-                        
-                        {assessments.map((assessment, idx) => {
-                          const canView = assessment.status === 'finalized';
-                          
-                          return (
-                            <div
-                              key={assessment.id}
-                              className="p-3 rounded-lg bg-white/5 border border-white/10"
-                            >
-                              <div className="flex justify-between items-start mb-2">
-                                <div className="flex-1">
-                                  <div className="text-sm font-bold">{assessment.template_name}</div>
-                                  <div className="text-xs opacity-50 mt-1">
-                                    {assessment.status === 'draft' && '📝 Assessment Requested'}
-                                    {assessment.status === 'in_progress' && (
-                                      <span className="flex items-center gap-1">
-                                        <Loader2 size={12} className="animate-spin" /> In Progress
-                                      </span>
-                                    )}
-                                    {assessment.status === 'finalized' && (
-                                      <span className={`flex items-center gap-1 ${getScoreColor(assessment.score)}`}>
-                                        <CheckCircle size={12} /> Score: {assessment.score}/100
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                
-                                {canView && (
-                                  <button
-                                    onClick={() => navigate(`/portal/audit/${key}`)}
-                                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                                  >
-                                    View <ArrowRight size={12} />
-                                  </button>
-                                )}
-                              </div>
-                              
-                              {assessment.status === 'finalized' && (
-                                <div className="mt-2">
-                                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full ${
-                                        assessment.score >= 80 ? 'bg-green-500' :
-                                        assessment.score >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                                      }`}
-                                      style={{ width: `${assessment.score}%` }}
-                                    />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+              {CATEGORY_WIDGETS.map((widget) => (
+                <HealthScoreWidget
+                  key={widget.key}
+                  category={widget.key}
+                  label={widget.label}
+                  icon={widget.icon}
+                  color={widget.color}
+                  assessments={category_assessments[widget.key] || []}
+                  isNaked={theme.isNaked}
+                  onNavigate={navigate}
+                />
+              ))}
             </div>
           </div>
         )}
