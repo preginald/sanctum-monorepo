@@ -176,7 +176,16 @@ export default function PortalDashboard() {
 
         {hasAnyAudit && (
           <div>
-            <h2 className="text-sm font-bold uppercase tracking-widest opacity-50 mb-4">Health Scores</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-widest opacity-50">Health Scores</h2>
+              <button
+                onClick={() => navigate('/portal/assessments')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold ${theme.btn} flex items-center gap-2`}
+              >
+                <Plus size={16} />
+                Request Assessment
+              </button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {CATEGORY_WIDGETS.map(({ key, label, icon: Icon, color }) => {
                 const assessments = category_assessments[key] || [];

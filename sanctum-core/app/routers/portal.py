@@ -116,6 +116,7 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
             assessment_data = {
                 'id': str(audit.id),
                 'template_name': audit.template.name,
+                'framework': audit.template.framework,  # NEW: Include framework for matching
                 'status': audit.status or 'draft',
                 'score': score,
                 'created_at': audit.created_at.isoformat() if audit.created_at else None

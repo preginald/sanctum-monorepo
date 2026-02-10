@@ -251,6 +251,7 @@ export default function PortalAssessments() {
   const { user, logout } = useAuthStore();
   const [account, setAccount] = useState(null);
   const [templates, setTemplates] = useState([]); // Available audit templates
+  const [existingAssessments, setExistingAssessments] = useState({}); // {framework: {status, id}}
   const [expandedCards, setExpandedCards] = useState({});
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(null); // Track which assessment is being requested
@@ -267,6 +268,25 @@ export default function PortalAssessments() {
       ]);
       setAccount(dashRes.data.account);
       setTemplates(templatesRes.data);
+      
+      // Build map of existing assessments by framework
+      const assessmentMap = {};
+      const categoryAssessments = dashRes.data.category_assessments || {};
+      
+      Object.values(categoryAssessments).forEach(assessments => {
+        assessments.forEach(assessment => {
+          // Use framework directly from assessment data
+          if (assessment.framework) {
+            assessmentMap[assessment.framework] = {
+              status: assessment.status,
+              id: assessment.id,
+              template_name: assessment.template_name
+            };
+          }
+        });
+      });
+      
+      setExistingAssessments(assessmentMap);
     } catch (e) {
       console.error(e);
       if (e.response?.status === 403) logout();
@@ -393,6 +413,25 @@ export default function PortalAssessments() {
               <div className="space-y-3">
                 {assessments.map((assessment) => {
                   const isExpanded = expandedCards[assessment.id];
+                  const existing = existingAssessments[assessment.framework];
+                  const alreadyRequested = existing && (existing.status === 'draft' || existing.status === 'in_progress');
+                  const canRequest = !alreadyRequested && requesting !== assessment.id;
+                  
+                  let buttonText = 'Request Assessment';
+                  let buttonClass = theme.btn;
+                  
+                  if (alreadyRequested) {
+                    if (existing.status === 'draft') {
+                      buttonText = '✓ Already Requested';
+                      buttonClass = 'bg-yellow-500/20 text-yellow-500 cursor-not-allowed';
+                    } else if (existing.status === 'in_progress') {
+                      buttonText = '⏳ In Progress';
+                      buttonClass = 'bg-blue-500/20 text-blue-500 cursor-not-allowed';
+                    }
+                  } else if (requesting === assessment.id) {
+                    buttonText = 'Requesting...';
+                    buttonClass = `${theme.btn} opacity-50 cursor-not-allowed`;
+                  }
                   
                   return (
                     <div
@@ -417,14 +456,20 @@ export default function PortalAssessments() {
                           </button>
                           
                           <button
-                            onClick={() => handleRequestAssessment(assessment)}
-                            disabled={requesting === assessment.id}
-                            className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2 ${theme.btn} ${requesting === assessment.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            onClick={() => canRequest && handleRequestAssessment(assessment)}
+                            disabled={!canRequest}
+                            className={`px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap flex items-center gap-2 ${buttonClass}`}
                           >
                             {requesting === assessment.id && <Loader2 size={16} className="animate-spin" />}
-                            {requesting === assessment.id ? 'Requesting...' : 'Request Assessment'}
+                            {buttonText}
                           </button>
                         </div>
+                        
+                        {alreadyRequested && (
+                          <div className="mt-2 ml-7 text-xs text-blue-400">
+                            View progress on your dashboard →
+                          </div>
+                        )}
                       </div>
 
                       {/* EXPANDED CONTENT */}
