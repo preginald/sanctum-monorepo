@@ -64,23 +64,25 @@ export default function PortalAuditReport() {
 
   const fetchAuditReport = async () => {
     try {
-      // Get dashboard data to find category-specific audit_id
+      // Get dashboard data to find category-specific assessments
       const dashRes = await api.get('/portal/dashboard');
       setAccount(dashRes.data.account);
       
-      const categoryAuditIds = dashRes.data.category_audit_ids || {};
-      const targetAuditId = categoryAuditIds[category];
+      const categoryAssessments = dashRes.data.category_assessments || {};
+      const assessments = categoryAssessments[category] || [];
       
-      if (!targetAuditId) {
-        console.log(`No audit found for category: ${category}`);
+      if (assessments.length === 0) {
+        console.log(`No assessments found for category: ${category}`);
         setLoading(false);
         return;
       }
       
-      setAuditId(targetAuditId);
+      // Get primary assessment (first in array - highest priority)
+      const primaryAssessment = assessments[0];
+      setAuditId(primaryAssessment.id);
 
       // Fetch full audit details
-      const auditRes = await api.get(`/sentinel/audits/${targetAuditId}`);
+      const auditRes = await api.get(`/sentinel/audits/${primaryAssessment.id}`);
       setAudit(auditRes.data);
       
       // Auto-expand first category

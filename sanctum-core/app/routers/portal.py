@@ -95,37 +95,54 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
             models.AuditReport.template_id.isnot(None)
         ).order_by(desc(models.AuditReport.created_at)).all()
     
-    # Build category scores map (latest audit per category)
-    category_scores = {}
-    category_audit_ids = {}
-    category_statuses = {}  # NEW: Track audit status per category
+    # Build category assessments map (all assessments per category, not just latest)
+    category_assessments = {}  # {security: [{id, template_name, status, score, created_at}, ...]}
+    
+    # Status priority for sorting (finalized > in_progress > draft)
+    status_priority = {'finalized': 3, 'in_progress': 2, 'draft': 1}
     
     for audit in audits:
         if audit.template and audit.template.category:
             cat = audit.template.category
-            if cat not in category_scores:  # Only take most recent per category
-                if cat == 'security':
-                    category_scores[cat] = audit.security_score or 0
-                elif cat == 'infrastructure':
-                    category_scores[cat] = audit.infrastructure_score or 0
-                else:
-                    # For other categories, default to security_score field (Phase 60B will add dedicated fields)
-                    category_scores[cat] = audit.security_score or 0
-                
-                category_audit_ids[cat] = str(audit.id)
-                category_statuses[cat] = audit.status or 'draft'  # NEW: Include status
+            
+            # Determine score based on category
+            if cat == 'security':
+                score = audit.security_score or 0
+            elif cat == 'infrastructure':
+                score = audit.infrastructure_score or 0
+            else:
+                score = audit.security_score or 0
+            
+            assessment_data = {
+                'id': str(audit.id),
+                'template_name': audit.template.name,
+                'status': audit.status or 'draft',
+                'score': score,
+                'created_at': audit.created_at.isoformat() if audit.created_at else None
+            }
+            
+            if cat not in category_assessments:
+                category_assessments[cat] = []
+            
+            category_assessments[cat].append(assessment_data)
     
-    # Legacy backward compatibility
-    security_score = category_scores.get('security', 0)
-    security_audit_id = category_audit_ids.get('security', None)
+    # Sort each category's assessments by status priority (finalized first, then in_progress, then draft)
+    for cat in category_assessments:
+        category_assessments[cat].sort(
+            key=lambda x: (status_priority.get(x['status'], 0), x['score']),
+            reverse=True
+        )
+    
+    # Legacy fields: Use primary (first) assessment from security category
+    security_assessments = category_assessments.get('security', [])
+    security_score = security_assessments[0]['score'] if security_assessments else 0
+    security_audit_id = security_assessments[0]['id'] if security_assessments else None
     
     return { 
         "account": account, 
         "security_score": security_score,  # Legacy field
         "audit_id": security_audit_id,  # Legacy field
-        "category_scores": category_scores,  # NEW: {security: 21, infrastructure: 0, ...}
-        "category_audit_ids": category_audit_ids,  # NEW: {security: uuid, infrastructure: uuid, ...}
-        "category_statuses": category_statuses,  # NEW: {security: "finalized", infrastructure: "draft", ...}
+        "category_assessments": category_assessments,  # NEW: Full list per category
         "open_tickets": tickets, 
         "invoices": invoices, 
         "projects": projects 
