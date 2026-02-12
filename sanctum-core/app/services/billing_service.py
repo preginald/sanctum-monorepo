@@ -108,15 +108,12 @@ class BillingService:
 
         # 1. Check Billing Window (Past OR Future 30 days)
         today = date.today()
-        # If expiry is in the past OR within the next 30 days
         is_due = asset.expires_at <= (today + timedelta(days=30))
         
         if not is_due:
             return {"status": "skipped", "reason": "Not due for billing yet"}
 
         # 2. Duplicate Check
-        # Look for any invoice created in the last 45 days linked to this asset
-        # to prevent double-billing if you click 'Save' multiple times.
         recent_invoice = db.query(InvoiceItem).join(Invoice).filter(
             InvoiceItem.source_id == asset.id,
             InvoiceItem.source_type == 'asset_renewal',
@@ -127,24 +124,49 @@ class BillingService:
             return {"status": "skipped", "reason": "Invoice already exists"}
 
         # 3. Generate Invoice
-        # Create Header
         invoice = Invoice(
             account_id=asset.account_id,
             status='draft',
             payment_terms='Net 14 Days',
-            due_date=date.today(), # Due immediately since we are catching up
+            due_date=date.today(), 
             generated_at=datetime.now(timezone.utc)
         )
         db.add(invoice)
         db.flush()
 
-        # Create Line Item
+        # --- DESCRIPTION FORMATTING ---
         product = asset.linked_product
+        
+        # Calculate the "Registered Till" date (The NEW expiry)
+        # We assume the asset.expires_at is the OLD date (e.g., 2026), so we add the cycle to it.
+        new_expiry_date = asset.expires_at
+        
+        if product.billing_frequency == 'yearly':
+            try:
+                new_expiry_date = asset.expires_at.replace(year=asset.expires_at.year + 1)
+            except ValueError: # Handle leap year (Feb 29 -> Feb 28)
+                new_expiry_date = asset.expires_at.replace(year=asset.expires_at.year + 1, day=28)
+        elif product.billing_frequency == 'monthly':
+            # Simple month addition logic
+            next_month = asset.expires_at.month + 1 if asset.expires_at.month < 12 else 1
+            next_year = asset.expires_at.year if asset.expires_at.month < 12 else asset.expires_at.year + 1
+            try:
+                new_expiry_date = asset.expires_at.replace(year=next_year, month=next_month)
+            except ValueError:
+                # Handle cases like Jan 31 -> Feb 28
+                # For MVP, just capping at 28th is safe enough, or import calendar
+                new_expiry_date = asset.expires_at.replace(year=next_year, month=next_month, day=28)
+
+        formatted_date = new_expiry_date.strftime('%d/%m/%Y')
+        
+        # Format: "Renewal (Catch-up): domain.com registered till 27/01/2027 - Product Name"
+        desc_str = f"Renewal (Catch-up): {asset.name} registered till {formatted_date} - {product.name}"
+
         price = Decimal(str(product.unit_price))
         
         item = InvoiceItem(
             invoice_id=invoice.id,
-            description=f"Renewal (Catch-up): {asset.name} - {product.name}",
+            description=desc_str,
             quantity=1,
             unit_price=price,
             total=price,
@@ -153,7 +175,6 @@ class BillingService:
         )
         db.add(item)
 
-        # Update Totals
         invoice.subtotal_amount = price
         invoice.gst_amount = (price * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         invoice.total_amount = invoice.subtotal_amount + invoice.gst_amount
