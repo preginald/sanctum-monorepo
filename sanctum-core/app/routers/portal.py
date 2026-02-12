@@ -207,6 +207,18 @@ def submit_questionnaire(
     
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
+
+    # Helper to resolve UUID lists to Vendor Names for human-readable storage
+    def resolve_vendor_names(vendor_ids):
+        if not vendor_ids:
+            return []
+        vendors = db.query(models.Vendor).filter(models.Vendor.id.in_(vendor_ids)).all()
+        return [v.name for v in vendors]
+
+    # Resolve names from the catalog
+    hosting_names = resolve_vendor_names(payload.hosting_providers)
+    saas_names = resolve_vendor_names(payload.saas_platforms)
+    antivirus_names = resolve_vendor_names(payload.antivirus)
     
     # Store questionnaire responses
     scoping_responses = {
@@ -214,10 +226,10 @@ def submit_questionnaire(
         "company_size": payload.company_size,
         "assessment_interest": payload.assessment_interest,
         "domain_names": payload.domain_names,
-        "hosting_providers": payload.hosting_providers,  # PRIORITY 2: Renamed field
-        "saas_platforms": payload.saas_platforms,
+        "hosting_providers": hosting_names,  # Stores names for readability
+        "saas_platforms": saas_names,        # Stores names for readability
         # Security (conditional)
-        "antivirus": payload.antivirus,
+        "antivirus": antivirus_names,
         "firewall_type": payload.firewall_type,
         "password_management": payload.password_management,
         "mfa_enabled": payload.mfa_enabled,
@@ -239,7 +251,7 @@ def submit_questionnaire(
     # Parse and create draft assets
     draft_assets_created = []
     
-    # 1. Parse domain names
+    # 1. Parse domain names (Still uses newline split for the free-text tag input)
     if payload.domain_names:
         domains = [d.strip() for d in payload.domain_names.split('\n') if d.strip()]
         for domain_name in domains:
@@ -253,46 +265,42 @@ def submit_questionnaire(
             db.add(asset)
             draft_assets_created.append(f"Domain: {domain_name}")
     
-    # 2. Create hosting assets (PRIORITY 2: Multiple providers from tag input)
-    if payload.hosting_providers:
-        providers = [p.strip() for p in payload.hosting_providers.split('\n') if p.strip()]
-        for provider_name in providers:
-            asset = models.Asset(
-                account_id=account.id,
-                name=f"Hosting Service",
-                asset_type='hosting_web',
-                vendor=provider_name,
-                status='draft',
-                notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-            )
-            db.add(asset)
-            draft_assets_created.append(f"Hosting: {provider_name}")
-    
-    # 3. Parse SaaS platforms
-    if payload.saas_platforms:
-        platforms = [p.strip() for p in payload.saas_platforms.split('\n') if p.strip()]
-        for platform_name in platforms:
-            asset = models.Asset(
-                account_id=account.id,
-                name=platform_name,
-                asset_type='saas',
-                status='draft',
-                notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-            )
-            db.add(asset)
-            draft_assets_created.append(f"SaaS: {platform_name}")
-    
-    # TICKET #165: 4. Create security tool assets
-    if payload.antivirus and payload.antivirus not in ['None', 'Not sure']:
+    # 2. Create hosting assets (Iterate resolved list)
+    for provider_name in hosting_names:
         asset = models.Asset(
             account_id=account.id,
-            name=f"Antivirus: {payload.antivirus}",
+            name=f"Hosting Service",
+            asset_type='hosting_web',
+            vendor=provider_name,
+            status='draft',
+            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+        )
+        db.add(asset)
+        draft_assets_created.append(f"Hosting: {provider_name}")
+    
+    # 3. Create SaaS assets (Iterate resolved list)
+    for platform_name in saas_names:
+        asset = models.Asset(
+            account_id=account.id,
+            name=platform_name,
+            asset_type='saas',
+            status='draft',
+            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+        )
+        db.add(asset)
+        draft_assets_created.append(f"SaaS: {platform_name}")
+    
+    # 4. Create security tool assets
+    for av_name in antivirus_names:
+        asset = models.Asset(
+            account_id=account.id,
+            name=f"Antivirus: {av_name}",
             asset_type='security_software',
             status='draft',
             notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
         )
         db.add(asset)
-        draft_assets_created.append(f"Security: {payload.antivirus}")
+        draft_assets_created.append(f"Security: {av_name}")
     
     if payload.firewall_type and payload.firewall_type not in ['No', 'Not sure']:
         asset = models.Asset(
@@ -330,7 +338,7 @@ def submit_questionnaire(
 **Referral Source:** {payload.referral_source}
 
 **SECURITY POSTURE** (if provided):
-- Antivirus: {payload.antivirus or 'Not specified'}
+- Antivirus: {', '.join(antivirus_names) if antivirus_names else 'Not specified'}
 - Firewall: {payload.firewall_type or 'Not specified'}
 - Password Management: {payload.password_management or 'Not specified'}
 - MFA Enabled: {payload.mfa_enabled or 'Not specified'}
@@ -370,8 +378,6 @@ def submit_questionnaire(
             )
         )
     
-    # PRIORITY 2 TICKET #169: Auto-create follow-up tasks
-    
     # Task 1: Review & Approve Draft Assets (High priority)
     task1 = models.Ticket(
         account_id=account.id,
@@ -394,14 +400,13 @@ def submit_questionnaire(
     )
     db.add(task1)
     
-    # Task 2: Schedule Client Engagement (72 hours, Normal priority)
-    timeline_text = payload.timeline
+    # Task 2: Schedule Client Engagement
     task2 = models.Ticket(
         account_id=account.id,
         subject=f"Schedule Engagement - {account.name}",
         description=f"""Contact client to schedule audit engagement.
 
-**Client Timeline:** {timeline_text}
+**Client Timeline:** {payload.timeline}
 **Assessment Interest:** {payload.assessment_interest}
 
 **Actions Required:**
@@ -422,7 +427,7 @@ def submit_questionnaire(
     if primary_contact:
         db.execute(ticket_contacts.insert().values(ticket_id=task2.id, contact_id=primary_contact.id))
     
-    # Task 3: Prepare Audit Scope (1 week, Normal priority)
+    # Task 3: Prepare Audit Scope
     task3 = models.Ticket(
         account_id=account.id,
         subject=f"Prepare Audit Scope - {account.name}",
@@ -433,8 +438,8 @@ def submit_questionnaire(
 **Environment Overview:**
 - Company Size: {payload.company_size}
 - Domains: {len(payload.domain_names.split(chr(10))) if payload.domain_names else 0}
-- Hosting Providers: {len(payload.hosting_providers.split(chr(10))) if payload.hosting_providers else 0}
-- SaaS Platforms: {len(payload.saas_platforms.split(chr(10))) if payload.saas_platforms else 0}
+- Hosting Providers: {len(hosting_names)}
+- SaaS Platforms: {len(saas_names)}
 
 **Actions Required:**
 1. Review all questionnaire responses and draft assets

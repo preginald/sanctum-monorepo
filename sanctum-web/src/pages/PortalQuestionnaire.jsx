@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle2, ArrowRight, ArrowLeft, Loader2, Shield, HelpCircle } from 'lucide-react';
+import { CheckCircle2, ArrowRight, ArrowLeft, Loader2, Shield, HelpCircle, Cloud, Server } from 'lucide-react';
 import api from '../lib/api';
 import { Card } from '../components/portal';
 import TagInput from '../components/ui/TagInput';
+import SearchableSelect from '../components/ui/SearchableSelect';
 
-// PRIORITY 2: Restructured into 2 sections with clear purposes
+// PHASE 62: Questionnaire now uses vendor catalog for SaaS, hosting, antivirus
 
 const SECTION_1_QUESTIONS = [
   {
@@ -62,7 +63,6 @@ const SECTION_1_QUESTIONS = [
     required: false,
     helpText: 'List all domains your business owns. We\'ll verify ownership and check security.',
     validate: (value) => {
-      // Domain validation - accepts multi-part TLDs like .com.au, .co.uk
       const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{0,61}[a-zA-Z0-9]\.([a-zA-Z]{2,}\.)?[a-zA-Z]{2,}$/;
       if (!domainRegex.test(value)) {
         return 'Please enter a valid domain (e.g., example.com or example.com.au)';
@@ -73,18 +73,20 @@ const SECTION_1_QUESTIONS = [
   {
     id: 'hosting_providers',
     label: 'Who hosts your website, email, or other services?',
-    type: 'tags',
-    placeholder: 'Type provider and press Enter (e.g., VentraIP)',
+    type: 'vendor_select',
+    category: 'hosting',
+    icon: Server,
     required: false,
-    helpText: 'Add each hosting provider separately. Include web hosting, email hosting, cloud services, etc.'
+    helpText: 'Search from 40+ hosting providers (VentraIP, SiteGround, AWS...)'
   },
   {
     id: 'saas_platforms',
     label: 'What critical software/platforms do you rely on?',
-    type: 'tags',
-    placeholder: 'Type platform and press Enter (e.g., Microsoft 365)',
+    type: 'vendor_select',
+    category: 'saas',
+    icon: Cloud,
     required: false,
-    helpText: 'List essential SaaS platforms like Microsoft 365, Xero, Salesforce, Slack, etc.'
+    helpText: 'Search from 80+ platforms (Microsoft 365, Xero, Slack, Salesforce...)'
   }
 ];
 
@@ -92,10 +94,12 @@ const SECURITY_QUESTIONS = [
   {
     id: 'antivirus',
     label: 'What antivirus or endpoint protection do you use?',
-    type: 'select',
-    options: ['Windows Defender', 'Norton/Symantec', 'McAfee', 'Trend Micro', 'CrowdStrike', 'SentinelOne', 'Sophos', 'ESET', 'None', 'Not sure'],
+    type: 'vendor_select',
+    category: 'antivirus',
+    icon: Shield,
     required: false,
-    securityOnly: true
+    securityOnly: true,
+    helpText: 'Search from 30+ security solutions (CrowdStrike, Sophos, Trend Micro...)'
   },
   {
     id: 'firewall_type',
@@ -170,8 +174,39 @@ export default function PortalQuestionnaire() {
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  
+  const [vendors, setVendors] = useState({
+    hosting: [],
+    saas: [],
+    antivirus: []
+  });
+  const [loadingVendors, setLoadingVendors] = useState(false);
 
-  // Build dynamic question list
+  useEffect(() => {
+    const loadVendors = async () => {
+      setLoadingVendors(true);
+      try {
+        const [hosting, saas, antivirus] = await Promise.all([
+          api.get('/vendors/by-category/hosting'),
+          api.get('/vendors/by-category/saas'),
+          api.get('/vendors/by-category/antivirus')
+        ]);
+        
+        setVendors({
+          hosting: hosting.data,
+          saas: saas.data,
+          antivirus: antivirus.data
+        });
+      } catch (error) {
+        console.error('Failed to load vendors:', error);
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+    
+    loadVendors();
+  }, []);
+
   const showSecurityQuestions = 
     formData.assessment_interest === 'Security Assessment' || 
     formData.assessment_interest === 'Multiple Assessments' ||
@@ -184,10 +219,7 @@ export default function PortalQuestionnaire() {
   ];
 
   const currentQuestion = ALL_QUESTIONS[currentStep];
-  
-  // PRIORITY 2 FIX #175: Always calculate progress based on MAX possible questions
   const MAX_QUESTIONS = SECTION_1_QUESTIONS.length + SECURITY_QUESTIONS.length + SECTION_2_QUESTIONS.length;
-  const actualProgress = ((currentStep + 1) / ALL_QUESTIONS.length) * 100;
   const displayProgress = ((currentStep + 1) / MAX_QUESTIONS) * 100;
 
   const getProgressColor = () => {
@@ -206,7 +238,7 @@ export default function PortalQuestionnaire() {
     const question = ALL_QUESTIONS[currentStep];
     const value = formData[question.id];
 
-    if (question.required && (!value || value.trim() === '')) {
+    if (question.required && (!value || (Array.isArray(value) && value.length === 0) || (typeof value === 'string' && value.trim() === ''))) {
       setErrors({ [question.id]: 'This field is required' });
       return false;
     }
@@ -217,7 +249,6 @@ export default function PortalQuestionnaire() {
 
   const handleNext = () => {
     if (!validateCurrentStep()) return;
-
     localStorage.setItem('questionnaire_draft', JSON.stringify(formData));
 
     if (currentStep < ALL_QUESTIONS.length - 1) {
@@ -249,8 +280,24 @@ export default function PortalQuestionnaire() {
     }
   };
 
+  const handleVendorSelect = (questionId, vendor) => {
+    const currentVendors = formData[questionId] || [];
+    if (currentVendors.includes(vendor.id)) return;
+    setFormData({
+      ...formData,
+      [questionId]: [...currentVendors, vendor.id]
+    });
+  };
+
+  const handleVendorRemove = (questionId, vendorId) => {
+    const currentVendors = formData[questionId] || [];
+    setFormData({
+      ...formData,
+      [questionId]: currentVendors.filter(id => id !== vendorId)
+    });
+  };
+
   const renderSectionHeader = () => {
-    const isSection1 = currentStep < SECTION_1_QUESTIONS.length;
     const isSection2Start = currentStep === (SECTION_1_QUESTIONS.length + (showSecurityQuestions ? SECURITY_QUESTIONS.length : 0));
     const isSecurityStart = currentStep === SECTION_1_QUESTIONS.length && showSecurityQuestions;
 
@@ -259,7 +306,7 @@ export default function PortalQuestionnaire() {
         <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
           <h3 className="font-bold text-white text-lg mb-2">Section 1: Your Technology</h3>
           <p className="text-sm text-slate-300">
-            These questions help us prepare your environment ahead of time, reducing the time spent in discovery during your assessment.
+            These questions help us prepare your environment ahead of time.
           </p>
         </div>
       );
@@ -273,7 +320,7 @@ export default function PortalQuestionnaire() {
             <div>
               <h3 className="font-bold text-white">Security Questions</h3>
               <p className="text-sm text-slate-300">
-                These questions help us understand your current security posture.
+                Understanding your current security posture.
               </p>
             </div>
           </div>
@@ -286,7 +333,7 @@ export default function PortalQuestionnaire() {
         <div className="mb-6 p-4 bg-green-900/20 border border-green-500/30 rounded-lg">
           <h3 className="font-bold text-white text-lg mb-2">Section 2: Help Us Serve You Better</h3>
           <p className="text-sm text-slate-300">
-            These questions help us understand your needs and provide the best possible service.
+            Context to help us provide the best service.
           </p>
         </div>
       );
@@ -298,7 +345,56 @@ export default function PortalQuestionnaire() {
   const renderInput = () => {
     const value = formData[currentQuestion.id] || '';
 
-    // PRIORITY 2 TICKET #167, #168: Tag inputs
+    if (currentQuestion.type === 'vendor_select') {
+      const categoryVendors = vendors[currentQuestion.category] || [];
+      const selectedVendorIds = formData[currentQuestion.id] || [];
+      const selectedVendors = categoryVendors.filter(v => selectedVendorIds.includes(v.id));
+
+      return (
+        <div className="space-y-3">
+          {selectedVendors.length > 0 && (
+            <div className="flex flex-wrap gap-2 p-3 bg-slate-800/50 rounded-lg border border-slate-700">
+              {selectedVendors.map(vendor => (
+                <span
+                  key={vendor.id}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600/20 text-blue-300 border border-blue-500/50 rounded-lg text-sm font-medium"
+                >
+                  {currentQuestion.icon && <currentQuestion.icon size={14} />}
+                  {vendor.name}
+                  <button
+                    type="button"
+                    onClick={() => handleVendorRemove(currentQuestion.id, vendor.id)}
+                    className="hover:bg-blue-500/30 rounded px-1 transition-colors"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {loadingVendors ? (
+            <div className="text-center p-4 text-slate-400">
+              <Loader2 className="animate-spin mx-auto mb-2" size={20} />
+              Loading vendors...
+            </div>
+          ) : (
+            <SearchableSelect
+              key={currentStep} // Forces reset of search input on step change
+              items={categoryVendors}
+              selectedIds={selectedVendorIds}
+              onSelect={(vendor) => handleVendorSelect(currentQuestion.id, vendor)}
+              placeholder={`Search ${currentQuestion.category} providers...`}
+              labelKey="name"
+              subLabelKey="website"
+              valueKey="id"
+              icon={currentQuestion.icon}
+            />
+          )}
+        </div>
+      );
+    }
+
     if (currentQuestion.type === 'tags') {
       return (
         <TagInput
@@ -310,7 +406,6 @@ export default function PortalQuestionnaire() {
       );
     }
 
-    // PRIORITY 2 TICKET #176: Assessment type with descriptions
     if (currentQuestion.type === 'select_with_descriptions') {
       return (
         <div className="space-y-3">
@@ -336,7 +431,6 @@ export default function PortalQuestionnaire() {
       );
     }
 
-    // Button grid for select fields with ≤5 options
     if (currentQuestion.type === 'select' && currentQuestion.options.length <= 5) {
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -358,7 +452,6 @@ export default function PortalQuestionnaire() {
       );
     }
 
-    // Dropdown for select fields with >5 options
     if (currentQuestion.type === 'select') {
       return (
         <select
@@ -391,22 +484,12 @@ export default function PortalQuestionnaire() {
       );
     }
 
-    return (
-      <input
-        autoFocus
-        type="text"
-        className="w-full p-4 bg-slate-800 border border-slate-600 rounded-lg text-white text-lg focus:border-blue-500 outline-none"
-        value={value}
-        onChange={(e) => setFormData({ ...formData, [currentQuestion.id]: e.target.value })}
-        placeholder={currentQuestion.placeholder}
-      />
-    );
+    return null;
   };
 
   return (
     <div className="min-h-screen bg-slate-950 py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        {/* Progress Header */}
         <div className="mb-8">
           <div className="flex justify-between items-center mb-2">
             <h1 className="text-2xl font-bold text-white">Pre-Engagement Questionnaire</h1>
@@ -415,7 +498,6 @@ export default function PortalQuestionnaire() {
             </span>
           </div>
           
-          {/* Progress Bar - Fixed to max questions */}
           <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-500 ${getProgressColor()}`}
@@ -430,10 +512,8 @@ export default function PortalQuestionnaire() {
           </div>
         </div>
 
-        {/* Section Header */}
         {renderSectionHeader()}
 
-        {/* Question Card */}
         <Card>
           <div className="p-8">
             <h2 className="text-xl font-bold text-white mb-2">
@@ -463,7 +543,6 @@ export default function PortalQuestionnaire() {
             )}
           </div>
 
-          {/* Navigation */}
           <div className="flex justify-between items-center p-6 bg-slate-800/50 border-t border-slate-700">
             <button
               onClick={handleBack}
@@ -499,10 +578,9 @@ export default function PortalQuestionnaire() {
           </div>
         </Card>
 
-        {/* Help Text */}
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-500">
-            Your progress is automatically saved. You can close this and resume later.
+            Your progress is automatically saved.
           </p>
         </div>
 

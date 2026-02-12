@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, Boolean, ForeignKey, Integer, Date, Text, Table, Numeric
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
 from sqlalchemy import Enum as SAEnum 
 from sqlalchemy.orm import relationship, backref
@@ -8,6 +9,9 @@ from sqlalchemy.types import TIMESTAMP
 from .database import Base
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
+import uuid
+
+
 
 # 1. ASSOCIATION TABLES
 
@@ -545,3 +549,49 @@ class UserNotificationPreference(Base):
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
     user = relationship("User", backref=backref("notification_preferences", uselist=False))
+
+
+class Vendor(Base):
+    """
+    Comprehensive vendor/provider catalog for standardized data.
+    Used in questionnaire (SearchableSelect), asset management, and lifecycle tracking.
+    """
+    __tablename__ = "vendors"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False, unique=True)
+    
+    # Category determines where vendor appears in UI
+    # Values: 'saas', 'antivirus', 'registrar', 'hosting', 'backup', 
+    #         'password_manager', 'firewall', 'endpoint_security'
+    category = Column(ARRAY(String), nullable=False, index=True, server_default='{}')
+    
+    # Contact & reference info
+    website = Column(String(255))
+    support_email = Column(String(255))
+    support_phone = Column(String(100))
+    account_manager_contact = Column(String(255))
+    
+    # Lifecycle defaults
+    typical_renewal_cycle = Column(Integer)  # in months (12, 24, 36)
+    typical_pricing_model = Column(String(50))  # 'per_user', 'flat_rate', 'tiered', 'usage_based'
+    
+    # Future: Pricing intelligence (Phase 63)
+    base_price_aud = Column(Numeric(10, 2))  # Starting price in AUD
+    pricing_notes = Column(Text)
+    
+    # Visual & metadata
+    logo_url = Column(String(500))
+    description = Column(Text)
+    tags = Column(ARRAY(String))  # ['australian', 'enterprise', 'sme', etc.]
+    
+    # Admin
+    is_active = Column(Boolean, default=True, index=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    # assets = relationship("Asset", back_populates="vendor")  # Link to assets using this vendor
+
+    def __repr__(self):
+        return f"<Vendor {self.name} ({self.category})>"
