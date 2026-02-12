@@ -65,11 +65,16 @@ export const ASSET_TYPES = [
     "printer",
     "software",
     "license",
-    "domain",         // NEW
-    "hosting_web",    // NEW
-    "hosting_email",  // NEW
-    "saas",            // NEW
-    "security_software"
+    "domain",
+    "hosting web",
+    "hosting email",
+    "saas",
+    "security software",
+    // MOBILE DEVICES
+    "iphone",           // NEW
+    "android phone",    // NEW
+    "ipad",             // NEW
+    "android tablet"    // NEW
 ];
 
 export const ASSET_STATUSES = [
