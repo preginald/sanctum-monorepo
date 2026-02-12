@@ -4,6 +4,7 @@ import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
 import { Card, StatWidget, StatusBadge, ScoreDisplay, HealthScoreWidget, usePortalTheme } from '../components/portal';
+import QuestionnaireBanner from '../components/portal/QuestionnaireBanner';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
@@ -109,7 +110,7 @@ export default function PortalDashboard() {
   if (loading) return <div className="h-screen w-screen flex items-center justify-center bg-slate-900 text-white"><Loader2 className="animate-spin" /></div>;
   if (!data) return null;
 
-  const { account, category_assessments = {}, open_tickets, invoices, projects } = data;
+  const { account, category_assessments = {}, open_tickets, invoices, projects, needs_questionnaire, lifecycle_stage } = data;
   
   // Check if ANY audits exist
   const hasAnyAudit = Object.keys(category_assessments).length > 0;
@@ -141,6 +142,9 @@ export default function PortalDashboard() {
 
       <main className="p-8 max-w-7xl mx-auto space-y-8">
         
+        {/* PHASE 61A: QUESTIONNAIRE BANNER (State-Based) */}
+        <QuestionnaireBanner lifecycleStage={lifecycle_stage} />
+
         {/* PHASE 60A: HEALTH SCORES - 6 CATEGORY GRID */}
         {!hasAnyAudit && (
           <Card isNaked={theme.isNaked} dashed={true} className="text-center">

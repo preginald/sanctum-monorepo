@@ -43,9 +43,22 @@ def create_account(account: schemas.AccountCreate, current_user: models.User = D
 @router.put("/accounts/{account_id}", response_model=schemas.AccountResponse)
 def update_account(account_id: str, account_update: schemas.AccountUpdate, db: Session = Depends(get_db)):
     db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not db_account: raise HTTPException(status_code=404, detail="Account not found")
+    if not db_account: 
+        raise HTTPException(status_code=404, detail="Account not found")
+    
     update_data = account_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items(): setattr(db_account, key, value)
+    
+    # Logic Fix: Sync brand_affinity with type if type is being changed
+    # but brand_affinity wasn't explicitly provided in the payload.
+    if "type" in update_data and "brand_affinity" not in update_data:
+        if update_data["type"] == "business":
+            update_data["brand_affinity"] = "ds"
+        elif update_data["type"] == "residential":
+            update_data["brand_affinity"] = "nt"
+    
+    for key, value in update_data.items(): 
+        setattr(db_account, key, value)
+        
     db.commit()
     db.refresh(db_account)
     return db_account

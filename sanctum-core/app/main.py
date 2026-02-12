@@ -35,6 +35,7 @@ app.include_router(wiki.router)
 app.include_router(portal.router)
 app.include_router(comments.router)
 app.include_router(admin.router)
+app.include_router(admin.account_router)  # PHASE 61A: Account management
 app.include_router(search.router)
 app.include_router(sentinel.router)
 app.include_router(assets.router)

@@ -68,10 +68,12 @@ export const ASSET_TYPES = [
     "domain",         // NEW
     "hosting_web",    // NEW
     "hosting_email",  // NEW
-    "saas"            // NEW
+    "saas",            // NEW
+    "security_software"
 ];
 
 export const ASSET_STATUSES = [
+    "draft",
     "active",
     "maintenance",
     "storage",

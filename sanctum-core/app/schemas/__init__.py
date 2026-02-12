@@ -34,7 +34,7 @@ from .knowledge import (
 
 from .assets import AssetCreate, AssetUpdate, AssetResponse
 
-from .portal import PortalDashboard, AccountDetail
+from .portal import PortalDashboard, AccountDetail, QuestionnaireSubmit
 
 from .automation import (
     AutomationCreate, AutomationUpdate, AutomationResponse, AutomationLogResponse

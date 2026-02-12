@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified  # PHASE 61A: For JSONB updates
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
@@ -9,14 +10,12 @@ from datetime import datetime
 from fastapi.responses import FileResponse
 from fastapi import BackgroundTasks
 from pydantic import BaseModel
+from uuid import UUID
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
     # Add other fields as needed
-
-# PREFIX: /admin/users
-router = APIRouter(prefix="/admin/users", tags=["Admin"])
 
 # DEPENDENCY: Strict Admin Check
 def get_current_admin(current_user: models.User = Depends(auth.get_current_active_user)):
@@ -24,7 +23,13 @@ def get_current_admin(current_user: models.User = Depends(auth.get_current_activ
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return current_user
 
-@router.get("", response_model=List[schemas.UserResponse])
+# ============================================================================
+# USER MANAGEMENT ROUTER
+# ============================================================================
+
+user_router = APIRouter(prefix="/admin/users", tags=["Admin - Users"])
+
+@user_router.get("", response_model=List[schemas.UserResponse])
 def list_all_users(
     current_user: models.User = Depends(get_current_admin), # Guarded
     db: Session = Depends(get_db)
@@ -32,7 +37,7 @@ def list_all_users(
     # Return all users (Tech + Clients)
     return db.query(models.User).order_by(models.User.role, models.User.full_name).all()
 
-@router.post("", response_model=schemas.UserResponse)
+@user_router.post("", response_model=schemas.UserResponse)
 def create_user(
     user_data: schemas.ClientUserCreate, 
     role: str = "tech", # 'tech' or 'admin' (clients created via ClientDetail)
@@ -56,7 +61,7 @@ def create_user(
     db.refresh(new_user)
     return new_user
 
-@router.put("/{user_id}", response_model=schemas.UserResponse)
+@user_router.put("/{user_id}", response_model=schemas.UserResponse)
 def admin_update_user(
     user_id: str, 
     update: UserUpdate, # We define this simple schema locally or in schemas
@@ -73,7 +78,7 @@ def admin_update_user(
     db.refresh(user)
     return user
 
-@router.put("/{user_id}/reset_password")
+@user_router.put("/{user_id}/reset_password")
 def admin_reset_password(
     user_id: str, 
     payload: schemas.ClientUserCreate, # Reusing schema for convenience (just need password)
@@ -87,7 +92,7 @@ def admin_reset_password(
     db.commit()
     return {"status": "password_reset"}
 
-@router.delete("/{user_id}")
+@user_router.delete("/{user_id}")
 def admin_delete_user(
     user_id: str,
     current_user: models.User = Depends(get_current_admin),
@@ -104,7 +109,7 @@ def admin_delete_user(
     return {"status": "deleted"}
 
 # --- DATABASE BACKUP ---
-@router.get("/backup", response_class=FileResponse)
+@user_router.get("/backup", response_class=FileResponse)
 def download_database_backup(
     background_tasks: BackgroundTasks,
     current_user: models.User = Depends(get_current_admin)
@@ -172,3 +177,118 @@ def download_database_backup(
         filename=filename, 
         media_type='application/sql'
     )
+
+# ============================================================================
+# ACCOUNT MANAGEMENT ROUTER (PHASE 61A)
+# ============================================================================
+
+account_router = APIRouter(prefix="/admin/accounts", tags=["Admin - Accounts"])
+
+@account_router.get("/questionnaires")
+def list_questionnaire_responses(
+    current_user: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    List all accounts with questionnaire responses.
+    Returns summary data for admin dashboard.
+    """
+    accounts = db.query(models.Account).filter(
+        models.Account.audit_data['scoping_responses'].isnot(None)
+    ).all()
+    
+    result = []
+    for account in accounts:
+        scoping = account.audit_data.get('scoping_responses', {})
+        
+        # Count draft assets created from questionnaire
+        draft_count = db.query(models.Asset).filter(
+            models.Asset.account_id == account.id,
+            models.Asset.status == 'draft',
+            models.Asset.notes.like('%Pre-Engagement Questionnaire%')
+        ).count()
+        
+        result.append({
+            "account_id": str(account.id),
+            "account_name": account.name,
+            "submitted_at": scoping.get('submitted_at'),
+            "company_size": scoping.get('company_size'),
+            "assessment_interest": scoping.get('assessment_interest'),
+            "timeline": scoping.get('timeline'),
+            "referral_source": scoping.get('referral_source'),
+            "draft_assets_count": draft_count
+        })
+    
+    # Sort by submitted_at descending (most recent first)
+    result.sort(key=lambda x: x['submitted_at'] or '', reverse=True)
+    
+    return result
+
+@account_router.delete("/{account_id}/questionnaire")
+def reset_questionnaire(
+    account_id: UUID,
+    current_user: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db)
+):
+    """
+    Reset/delete questionnaire data for an account.
+    
+    This will:
+    1. Clear scoping_responses from audit_data
+    2. Delete draft assets created from questionnaire
+    3. Delete the [AUDIT INTAKE] ticket
+    
+    Returns summary of what was deleted.
+    """
+    
+    # Get account
+    account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    summary = {
+        "account_id": str(account_id),
+        "account_name": account.name,
+        "questionnaire_cleared": False,
+        "draft_assets_deleted": 0,
+        "intake_tickets_deleted": 0
+    }
+    
+    # 1. Clear questionnaire responses (FIXED: Proper JSONB handling)
+    if account.audit_data and account.audit_data.get('scoping_responses'):
+        account.audit_data.pop('scoping_responses', None)
+        flag_modified(account, 'audit_data')  # Tell SQLAlchemy the JSONB changed
+        summary["questionnaire_cleared"] = True
+    
+    # 2. Delete draft assets created from questionnaire
+    # (Identified by status='draft' and notes containing "Pre-Engagement Questionnaire")
+    draft_assets = db.query(models.Asset).filter(
+        models.Asset.account_id == account_id,
+        models.Asset.status == 'draft',
+        models.Asset.notes.like('%Pre-Engagement Questionnaire%')
+    ).all()
+    
+    for asset in draft_assets:
+        db.delete(asset)
+        summary["draft_assets_deleted"] += 1
+    
+    # 3. Delete intake tickets
+    intake_tickets = db.query(models.Ticket).filter(
+        models.Ticket.account_id == account_id,
+        models.Ticket.subject.like('%[AUDIT INTAKE]%')
+    ).all()
+    
+    for ticket in intake_tickets:
+        db.delete(ticket)
+        summary["intake_tickets_deleted"] += 1
+    
+    db.commit()
+    
+    return {
+        "status": "success",
+        "message": f"Questionnaire data reset for {account.name}",
+        "summary": summary
+    }
+
+# Export both routers (for backward compatibility, keep 'router' as user_router)
+router = user_router

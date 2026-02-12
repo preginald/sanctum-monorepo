@@ -15,6 +15,9 @@ import PortalAssets from './pages/PortalAssets';
 import PortalProjectDetail from './pages/PortalProjectDetail';
 import PortalAuditReport from './pages/PortalAuditReport'; // PHASE 60A: Renamed & category-aware
 import PortalAssessments from './pages/PortalAssessments'; // PHASE 60A: Assessment catalog
+import PortalQuestionnaire from './pages/PortalQuestionnaire';
+import PortalQuestionnaireComplete from './pages/PortalQuestionnaireComplete';
+import AdminQuestionnaireList from './pages/AdminQuestionnaireList';
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
@@ -105,7 +108,8 @@ function App() {
                   <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
                   <Route path="/portal/assets" element={<PortalAssets />} />
                   <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />
-
+                  <Route path="/portal/questionnaire" element={<PortalQuestionnaire />} />
+                  <Route path="/portal/questionnaire/complete" element={<PortalQuestionnaireComplete />} />
                   {/* ADMIN CITADEL */}
                   <Route path="*" element={
                       <AdminRoute>
@@ -113,7 +117,8 @@ function App() {
                               {/* DASHBOARD */}
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
-                              
+                              <Route path="/admin/questionnaires" element={<AdminQuestionnaireList />} />
+ 
                               {/* CRM */}
                               <Route path="/clients" element={<Clients />} />
                               <Route path="/clients/:id" element={<ClientDetail />} />

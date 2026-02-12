@@ -5,13 +5,14 @@ from uuid import UUID
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import os
-from datetime import date
+from datetime import date, datetime
 
 # STABLE IMPORTS
 from .. import models, schemas, auth
 from ..database import get_db
 from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact, Comment, Asset, Project, Milestone
 from ..services.event_bus import event_bus
+from ..services.account_service import account_needs_questionnaire, get_account_lifecycle_stage
 
 router = APIRouter(prefix="/portal", tags=["Portal"])
 
@@ -139,14 +140,327 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
     security_score = security_assessments[0]['score'] if security_assessments else 0
     security_audit_id = security_assessments[0]['id'] if security_assessments else None
     
+    # PHASE 61A: Account lifecycle detection
+    needs_questionnaire = account_needs_questionnaire(account, db)
+    lifecycle_stage = get_account_lifecycle_stage(account, db)
+    
     return { 
         "account": account, 
         "security_score": security_score,  # Legacy field
         "audit_id": security_audit_id,  # Legacy field
-        "category_assessments": category_assessments,  # NEW: Full list per category
+        "category_assessments": category_assessments,  # Phase 60A
+        "needs_questionnaire": needs_questionnaire,  # Phase 61A
+        "lifecycle_stage": lifecycle_stage,  # Phase 61A
         "open_tickets": tickets, 
         "invoices": invoices, 
         "projects": projects 
+    }
+
+# --- PHASE 61A: QUESTIONNAIRE ENDPOINTS ---
+
+@router.get("/questionnaire")
+def get_questionnaire_status(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Get questionnaire status and existing responses if completed"""
+    if current_user.role != 'client' or not current_user.account_id:
+        raise HTTPException(status_code=403, detail="Portal access only.")
+    
+    account = db.query(models.Account).filter(
+        models.Account.id == current_user.account_id
+    ).first()
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    needs_questionnaire = account_needs_questionnaire(account, db)
+    lifecycle_stage = get_account_lifecycle_stage(account, db)
+    
+    scoping_responses = None
+    if account.audit_data and account.audit_data.get('scoping_responses'):
+        scoping_responses = account.audit_data.get('scoping_responses')
+    
+    return {
+        "needs_questionnaire": needs_questionnaire,
+        "lifecycle_stage": lifecycle_stage,
+        "scoping_responses": scoping_responses
+    }
+
+@router.post("/questionnaire/submit")
+def submit_questionnaire(
+    payload: schemas.QuestionnaireSubmit,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """
+    Submit Pre-Engagement Questionnaire.
+    Stores responses, creates draft assets, and generates internal review ticket.
+    """
+    if current_user.role != 'client' or not current_user.account_id:
+        raise HTTPException(status_code=403, detail="Portal access only.")
+    
+    account = db.query(models.Account).filter(
+        models.Account.id == current_user.account_id
+    ).first()
+    
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    
+    # Store questionnaire responses
+    scoping_responses = {
+        # Section 1: Technology
+        "company_size": payload.company_size,
+        "assessment_interest": payload.assessment_interest,
+        "domain_names": payload.domain_names,
+        "hosting_providers": payload.hosting_providers,  # PRIORITY 2: Renamed field
+        "saas_platforms": payload.saas_platforms,
+        # Security (conditional)
+        "antivirus": payload.antivirus,
+        "firewall_type": payload.firewall_type,
+        "password_management": payload.password_management,
+        "mfa_enabled": payload.mfa_enabled,
+        "backup_solution": payload.backup_solution,
+        # Section 2: Context
+        "primary_pain_point": payload.primary_pain_point,
+        "current_it_support": payload.current_it_support,
+        "timeline": payload.timeline,
+        "referral_source": payload.referral_source,
+        "submitted_at": datetime.utcnow().isoformat(),
+        "submitted_by": str(current_user.id)
+    }
+    
+    if not account.audit_data:
+        account.audit_data = {}
+    
+    account.audit_data['scoping_responses'] = scoping_responses
+    
+    # Parse and create draft assets
+    draft_assets_created = []
+    
+    # 1. Parse domain names
+    if payload.domain_names:
+        domains = [d.strip() for d in payload.domain_names.split('\n') if d.strip()]
+        for domain_name in domains:
+            asset = models.Asset(
+                account_id=account.id,
+                name=domain_name,
+                asset_type='domain',
+                status='draft',
+                notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+            )
+            db.add(asset)
+            draft_assets_created.append(f"Domain: {domain_name}")
+    
+    # 2. Create hosting assets (PRIORITY 2: Multiple providers from tag input)
+    if payload.hosting_providers:
+        providers = [p.strip() for p in payload.hosting_providers.split('\n') if p.strip()]
+        for provider_name in providers:
+            asset = models.Asset(
+                account_id=account.id,
+                name=f"Hosting Service",
+                asset_type='hosting_web',
+                vendor=provider_name,
+                status='draft',
+                notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+            )
+            db.add(asset)
+            draft_assets_created.append(f"Hosting: {provider_name}")
+    
+    # 3. Parse SaaS platforms
+    if payload.saas_platforms:
+        platforms = [p.strip() for p in payload.saas_platforms.split('\n') if p.strip()]
+        for platform_name in platforms:
+            asset = models.Asset(
+                account_id=account.id,
+                name=platform_name,
+                asset_type='saas',
+                status='draft',
+                notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+            )
+            db.add(asset)
+            draft_assets_created.append(f"SaaS: {platform_name}")
+    
+    # TICKET #165: 4. Create security tool assets
+    if payload.antivirus and payload.antivirus not in ['None', 'Not sure']:
+        asset = models.Asset(
+            account_id=account.id,
+            name=f"Antivirus: {payload.antivirus}",
+            asset_type='security_software',
+            status='draft',
+            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+        )
+        db.add(asset)
+        draft_assets_created.append(f"Security: {payload.antivirus}")
+    
+    if payload.firewall_type and payload.firewall_type not in ['No', 'Not sure']:
+        asset = models.Asset(
+            account_id=account.id,
+            name=f"Firewall: {payload.firewall_type}",
+            asset_type='security_hardware',
+            status='draft',
+            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+        )
+        db.add(asset)
+        draft_assets_created.append(f"Firewall: {payload.firewall_type}")
+    
+    if payload.password_management and payload.password_management not in ['Not sure']:
+        asset = models.Asset(
+            account_id=account.id,
+            name=f"Password Management: {payload.password_management}",
+            asset_type='saas',
+            status='draft',
+            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
+        )
+        db.add(asset)
+        draft_assets_created.append(f"Password Mgmt: {payload.password_management}")
+    
+    # Create internal review ticket
+    ticket_description = f"""Pre-Engagement Questionnaire completed for {account.name}.
+
+**SECTION 1: TECHNOLOGY ENVIRONMENT**
+**Assessment Interest:** {payload.assessment_interest}
+**Company Size:** {payload.company_size}
+
+**SECTION 2: BUSINESS CONTEXT**
+**Primary Pain Point:** {payload.primary_pain_point}
+**Timeline:** {payload.timeline}
+**Current IT Support:** {payload.current_it_support or 'Not specified'}
+**Referral Source:** {payload.referral_source}
+
+**SECURITY POSTURE** (if provided):
+- Antivirus: {payload.antivirus or 'Not specified'}
+- Firewall: {payload.firewall_type or 'Not specified'}
+- Password Management: {payload.password_management or 'Not specified'}
+- MFA Enabled: {payload.mfa_enabled or 'Not specified'}
+- Backup Solution: {payload.backup_solution or 'Not specified'}
+
+**DRAFT ASSETS CREATED:** {len(draft_assets_created)}
+{chr(10).join(['- ' + asset for asset in draft_assets_created]) if draft_assets_created else '- None'}
+
+**NEXT STEPS:**
+1. Review draft assets and approve/edit
+2. Contact client to schedule audit engagement
+3. Prepare audit scope based on responses
+"""
+    
+    ticket = models.Ticket(
+        account_id=account.id,
+        subject=f"[AUDIT INTAKE] Review Pre-Engagement Questionnaire - {account.name}",
+        description=ticket_description,
+        status='new',
+        priority='normal',
+        ticket_type='task'
+    )
+    db.add(ticket)
+    db.flush()
+    
+    # Link primary contact to ticket
+    primary_contact = db.query(models.Contact).filter(
+        models.Contact.account_id == account.id,
+        models.Contact.is_primary_contact == True
+    ).first()
+    
+    if primary_contact:
+        db.execute(
+            ticket_contacts.insert().values(
+                ticket_id=ticket.id,
+                contact_id=primary_contact.id
+            )
+        )
+    
+    # PRIORITY 2 TICKET #169: Auto-create follow-up tasks
+    
+    # Task 1: Review & Approve Draft Assets (High priority)
+    task1 = models.Ticket(
+        account_id=account.id,
+        subject=f"Review & Approve Draft Assets - {account.name}",
+        description=f"""Review {len(draft_assets_created)} draft assets created from questionnaire.
+
+**Assets to Review:**
+{chr(10).join(['- ' + asset for asset in draft_assets_created])}
+
+**Actions Required:**
+1. Verify accuracy of captured information
+2. Approve assets or edit details as needed
+3. Check for duplicates
+4. Add any missing asset details (serial numbers, purchase dates, etc.)
+
+**Related Ticket:** #{ticket.id} - [AUDIT INTAKE] Review Pre-Engagement Questionnaire""",
+        status='new',
+        priority='high',
+        ticket_type='task'
+    )
+    db.add(task1)
+    
+    # Task 2: Schedule Client Engagement (72 hours, Normal priority)
+    timeline_text = payload.timeline
+    task2 = models.Ticket(
+        account_id=account.id,
+        subject=f"Schedule Engagement - {account.name}",
+        description=f"""Contact client to schedule audit engagement.
+
+**Client Timeline:** {timeline_text}
+**Assessment Interest:** {payload.assessment_interest}
+
+**Actions Required:**
+1. Call or email client within 48 hours
+2. Schedule initial consultation/kickoff meeting
+3. Discuss assessment scope and timeline
+4. Send calendar invite and confirmation
+
+**Primary Pain Point:** {payload.primary_pain_point}
+
+**Related Ticket:** #{ticket.id} - [AUDIT INTAKE] Review Pre-Engagement Questionnaire""",
+        status='new',
+        priority='normal',
+        ticket_type='task'
+    )
+    db.add(task2)
+    
+    if primary_contact:
+        db.execute(ticket_contacts.insert().values(ticket_id=task2.id, contact_id=primary_contact.id))
+    
+    # Task 3: Prepare Audit Scope (1 week, Normal priority)
+    task3 = models.Ticket(
+        account_id=account.id,
+        subject=f"Prepare Audit Scope - {account.name}",
+        description=f"""Based on questionnaire responses, prepare detailed audit scope document.
+
+**Assessment Type:** {payload.assessment_interest}
+
+**Environment Overview:**
+- Company Size: {payload.company_size}
+- Domains: {len(payload.domain_names.split(chr(10))) if payload.domain_names else 0}
+- Hosting Providers: {len(payload.hosting_providers.split(chr(10))) if payload.hosting_providers else 0}
+- SaaS Platforms: {len(payload.saas_platforms.split(chr(10))) if payload.saas_platforms else 0}
+
+**Actions Required:**
+1. Review all questionnaire responses and draft assets
+2. Prepare scope of work document
+3. Include pricing estimate based on environment size
+4. Define deliverables and timeline
+
+**Related Ticket:** #{ticket.id} - [AUDIT INTAKE] Review Pre-Engagement Questionnaire""",
+        status='new',
+        priority='normal',
+        ticket_type='task'
+    )
+    db.add(task3)
+    
+    db.commit()
+    
+    # Fire event for notifications
+    event_bus.emit("questionnaire_completed", ticket, background_tasks)
+    
+    return {
+        "status": "success",
+        "message": "Questionnaire submitted successfully",
+        "ticket_id": ticket.id,
+        "follow_up_tasks_created": 3,
+        "draft_assets_created": len(draft_assets_created),
+        "lifecycle_stage": "onboarding"
     }
 
 # --- ASSESSMENT REQUEST (PHASE 60A.2) ---

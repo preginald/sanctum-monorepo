@@ -240,7 +240,18 @@ export default function ClientDetail() {
                           <input className="text-3xl font-bold bg-black/40 border border-slate-600 rounded p-1 text-white w-full" value={account.name} onChange={e => setAccount({...account, name: e.target.value})} />
                           <div className="flex gap-2">
                               <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.status} onChange={e => setAccount({...account, status: e.target.value})}><option value="lead">Lead</option><option value="prospect">Prospect</option><option value="active">Active</option><option value="churned">Churned</option></select>
-                              <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.type} onChange={e => setAccount({...account, type: e.target.value})}><option value="business">Business</option><option value="residential">Residential</option></select>
+                              <select 
+    className="bg-black/40 border border-slate-600 rounded text-xs p-1" 
+    value={account.type} 
+    onChange={e => {
+        const newType = e.target.value;
+        const newBrand = newType === 'business' ? 'ds' : 'nt';
+        setAccount({ ...account, type: newType, brand_affinity: newBrand });
+    }}
+>
+    <option value="business">Business</option>
+    <option value="residential">Residential</option>
+</select>
                           </div>
                           <input placeholder="Billing Email" className="text-sm bg-black/40 border border-slate-600 rounded p-1 text-white w-full font-mono" value={account.billing_email || ''} onChange={e => setAccount({...account, billing_email: e.target.value})} />
                       </div>

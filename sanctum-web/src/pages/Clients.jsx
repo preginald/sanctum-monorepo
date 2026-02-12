@@ -118,23 +118,18 @@ export default function Clients() {
             onChange={e => setForm({...form, name: e.target.value})} 
           />
           <div className="grid grid-cols-2 gap-4">
-              <Select 
-                label="Type"
-                value={form.type} 
-                onChange={e => setForm({...form, type: e.target.value})}
-              >
-                  <option value="business">Business</option>
-                  <option value="residential">Residential</option>
-              </Select>
-              <Select 
-                label="Brand"
-                value={form.brand_affinity} 
-                onChange={e => setForm({...form, brand_affinity: e.target.value})}
-              >
-                  <option value="ds">Digital Sanctum</option>
-                  <option value="nt">Naked Tech</option>
-                  <option value="both">Shared</option>
-              </Select>
+            <Select 
+    label="Type"
+    value={form.type} 
+    onChange={e => {
+        const newType = e.target.value;
+        const newBrand = newType === 'business' ? 'ds' : 'nt';
+        setForm({ ...form, type: newType, brand_affinity: newBrand });
+    }}
+>
+    <option value="business">Business</option>
+    <option value="residential">Residential</option>
+</Select>
           </div>
           <div className="flex gap-2 pt-2">
             <Button variant="outline" onClick={() => setShowModal(false)} className="flex-1">Cancel</Button>
