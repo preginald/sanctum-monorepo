@@ -5,6 +5,8 @@ from uuid import UUID
 from .. import models, schemas, auth
 from ..database import get_db
 
+from ..services.billing_service import billing_service
+
 router = APIRouter(prefix="/assets", tags=["Assets"])
 
 @router.get("", response_model=List[schemas.AssetResponse])
@@ -26,6 +28,11 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), curr
     db.add(new_asset)
     db.commit()
     db.refresh(new_asset)
+
+    # NEW: Trigger Billing Check
+    if new_asset.auto_invoice and new_asset.linked_product_id:
+        billing_service.check_and_invoice_asset(db, new_asset.id)
+
     return new_asset
 
 @router.put("/{asset_id}", response_model=schemas.AssetResponse)
@@ -38,6 +45,11 @@ def update_asset(asset_id: UUID, update: schemas.AssetUpdate, db: Session = Depe
     
     db.commit()
     db.refresh(asset)
+
+    # NEW: Trigger Billing Check (in case they just turned on auto-invoice)
+    if asset.auto_invoice and asset.linked_product_id:
+        billing_service.check_and_invoice_asset(db, asset.id)
+
     return asset
 
 @router.delete("/{asset_id}")

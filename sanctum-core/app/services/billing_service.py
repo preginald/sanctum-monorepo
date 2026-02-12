@@ -39,6 +39,71 @@ class BillingService:
             "total": total
         }
 
+    def check_and_invoice_asset(self, db: Session, asset_id: UUID) -> dict:
+        """
+        Triggers an immediate check for a single asset.
+        If the asset is expired or expiring within 30 days AND has no recent invoice,
+        it generates one immediately.
+        """
+        asset = db.query(Asset).filter(Asset.id == asset_id).first()
+        if not asset or not asset.auto_invoice or not asset.linked_product_id:
+            return {"status": "skipped", "reason": "Not configured for auto-billing"}
+
+        # 1. Check Billing Window (Past OR Future 30 days)
+        today = date.today()
+        # If expiry is in the past OR within the next 30 days
+        is_due = asset.expires_at <= (today + timedelta(days=30))
+        
+        if not is_due:
+            return {"status": "skipped", "reason": "Not due for billing yet"}
+
+        # 2. Duplicate Check
+        # Look for any invoice created in the last 45 days linked to this asset
+        # to prevent double-billing if you click 'Save' multiple times.
+        recent_invoice = db.query(InvoiceItem).join(Invoice).filter(
+            InvoiceItem.source_id == asset.id,
+            InvoiceItem.source_type == 'asset_renewal',
+            Invoice.generated_at >= (today - timedelta(days=45))
+        ).first()
+
+        if recent_invoice:
+            return {"status": "skipped", "reason": "Invoice already exists"}
+
+        # 3. Generate Invoice
+        # Create Header
+        invoice = Invoice(
+            account_id=asset.account_id,
+            status='draft',
+            payment_terms='Net 14 Days',
+            due_date=date.today(), # Due immediately since we are catching up
+            generated_at=datetime.now(timezone.utc)
+        )
+        db.add(invoice)
+        db.flush()
+
+        # Create Line Item
+        product = asset.linked_product
+        price = Decimal(str(product.unit_price))
+        
+        item = InvoiceItem(
+            invoice_id=invoice.id,
+            description=f"Renewal (Catch-up): {asset.name} - {product.name}",
+            quantity=1,
+            unit_price=price,
+            total=price,
+            source_type='asset_renewal',
+            source_id=asset.id
+        )
+        db.add(item)
+
+        # Update Totals
+        invoice.subtotal_amount = price
+        invoice.gst_amount = (price * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        invoice.total_amount = invoice.subtotal_amount + invoice.gst_amount
+
+        db.commit()
+        return {"status": "generated", "invoice_id": invoice.id}
+
     def generate_renewals(self, db: Session):
         """
         Scans for assets expiring in exactly 30 days with auto_invoice=True.
