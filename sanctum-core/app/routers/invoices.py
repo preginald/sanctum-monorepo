@@ -201,7 +201,12 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
     return schemas.InvoiceResponse.model_validate(fresh_inv)
 
 @router.post("/{invoice_id}/send")
-def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+def send_invoice_email(
+    invoice_id: str, 
+    request: schemas.InvoiceSendRequest, # Ensure Schema is updated!
+    current_user: models.User = Depends(auth.get_current_active_user), 
+    db: Session = Depends(get_db)
+    ):
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.account)).filter(models.Invoice.id == invoice_id).first()
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
 
@@ -227,19 +232,29 @@ def send_invoice_email(invoice_id: str, request: schemas.InvoiceSendRequest, cur
     else:
         abs_path = os.path.join(cwd, "app", inv.pdf_path.lstrip("/"))
 
-    # NEW: Determine Greeting based on Contacts
-    greeting_name = "Team" # Default
-    if inv.account_id:
+    # NEW: Determine Greeting
+    greeting_name = "Team" # Default fallback
+    
+    # 1. Direct Contact Match (Highest Priority)
+    if request.recipient_contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == request.recipient_contact_id).first()
+        if contact:
+            greeting_name = contact.first_name
+            
+    # 2. Logic Fallback (If no specific contact ID was passed)
+    elif inv.account_id:
         contacts = db.query(models.Contact).filter(models.Contact.account_id == inv.account_id).all()
-        # 1. Try Billing Lead
-        billing_lead = next((c for c in contacts if c.persona == 'Billing Lead'), None)
-        if billing_lead:
-            greeting_name = billing_lead.first_name
+        
+        # Try finding contact by email string match
+        matched_contact = next((c for c in contacts if c.email == request.to_email), None)
+        
+        if matched_contact:
+            greeting_name = matched_contact.first_name
         else:
-            # 2. Try Primary Contact
-            primary = next((c for c in contacts if c.is_primary_contact), None)
-            if primary:
-                greeting_name = primary.first_name
+            # Fallback to Billing Lead
+            billing_lead = next((c for c in contacts if c.persona == 'Billing Lead'), None)
+            if billing_lead:
+                greeting_name = billing_lead.first_name
 
     display_due = "Due on Receipt"
     if inv.payment_terms and ("receipt" in inv.payment_terms.lower() or "immediate" in inv.payment_terms.lower()):

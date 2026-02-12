@@ -1,34 +1,43 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Loader2, ArrowLeft, Plus, Trash2, Save, Download, Send, CheckCircle, Mail, X, Ban } from 'lucide-react';
+import { Download, Loader2, ArrowLeft, Plus, Trash2, Send, CheckCircle, Mail, X, Ban, User } from 'lucide-react';
 import api from '../lib/api';
-import useAuthStore from '../store/authStore'; // Import Auth Store for Admin Check
-import ConfirmationModal from '../components/ui/ConfirmationModal'; // Import Confirm
-import { useToast } from '../context/ToastContext'; // <--- 1. ADD IMPORT
+import useAuthStore from '../store/authStore';
+import ConfirmationModal from '../components/ui/ConfirmationModal';
+import { useToast } from '../context/ToastContext';
+import SearchableSelect from '../components/ui/SearchableSelect'; // <--- NEW IMPORT
 
 export default function InvoiceDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore(); // Get User
-  const { addToast } = useToast(); // <--- 2. GET HOOK
+  const { user } = useAuthStore();
+  const { addToast } = useToast();
   
   // === STATE ===
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [confirmVoid, setConfirmVoid] = useState(false); // NEW STATE
+  const [accountContacts, setAccountContacts] = useState([]); // <--- Stores contacts
   
-  // Ad-Hoc Item Form
-  const [showAddItem, setShowAddItem] = useState(false);
-  const [newItem, setNewItem] = useState({ description: '', quantity: 1, unit_price: 0 });
-
-  // Send Modal
+  // MODAL STATES
   const [showSendModal, setShowSendModal] = useState(false);
-  const [sendForm, setSendForm] = useState({ to: '', cc: [], subject: '', message: '' });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmVoid, setConfirmVoid] = useState(false);
+
+  // SEND FORM
+  const [sendForm, setSendForm] = useState({ 
+      to: '', 
+      cc: [], 
+      subject: '', 
+      message: '', 
+      recipient_contact_id: null,
+      mode: 'search' // 'search' or 'manual'
+  });
   const [sending, setSending] = useState(false);
 
-  // NEW: Confirm Delete Modal
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  // ITEM FORM
+  const [showAddItem, setShowAddItem] = useState(false);
+  const [newItem, setNewItem] = useState({ description: '', quantity: 1, unit_price: 0 });
 
   // === INITIALIZATION ===
   useEffect(() => { fetchInvoice(); }, [id]);
@@ -38,25 +47,53 @@ export default function InvoiceDetail() {
       const res = await api.get(`/invoices/${id}`);
       setInvoice(res.data);
       
-      // PRE-FILL EMAIL FORM
-      setSendForm(prev => ({
-          ...prev,
-          subject: `Invoice #${res.data.id.slice(0,8)} from Digital Sanctum`
-      }));
+      // PRE-FILL SUBJECT
+      const subjectLine = `Invoice #${res.data.id.slice(0,8).toUpperCase()} from Digital Sanctum`;
       
-      // GET CLIENT EMAIL
+      // FETCH CLIENT CONTACTS & SET DEFAULTS
       if(res.data.account_id) {
           api.get(`/accounts/${res.data.account_id}`).then(accRes => {
-              if(accRes.data.billing_email) {
-                  setSendForm(prev => ({ ...prev, to: accRes.data.billing_email }));
+              // 1. Store contacts for the dropdown
+              const contacts = accRes.data.contacts || [];
+              setAccountContacts(contacts);
+
+              // 2. Determine Default Recipient
+              let defaultEmail = accRes.data.billing_email || '';
+              let defaultContactId = null;
+
+              // Priority: Billing Lead -> Primary Contact -> Billing Email
+              const billingLead = contacts.find(c => c.persona === 'Billing Lead');
+              const primary = contacts.find(c => c.is_primary_contact);
+
+              if (billingLead && billingLead.email) {
+                  defaultEmail = billingLead.email;
+                  defaultContactId = billingLead.id;
+              } else if (primary && primary.email) {
+                  defaultEmail = primary.email;
+                  defaultContactId = primary.id;
               }
+
+              // Update Form State
+              setSendForm(prev => ({ 
+                  ...prev, 
+                  subject: subjectLine,
+                  to: defaultEmail,
+                  recipient_contact_id: defaultContactId,
+                  // If we found a contact ID, default to search mode, else manual
+                  mode: defaultContactId ? 'search' : 'manual' 
+              }));
           });
+      } else {
+          setSendForm(prev => ({ ...prev, subject: subjectLine }));
       }
+
     } catch (e) { console.error(e); } 
     finally { setLoading(false); }
   };
 
-  // NEW HANDLER
+  // === HANDLERS ===
+
+  // --- VOID ---
   const handleVoid = async () => {
       try {
           await api.put(`/invoices/${id}/void`);
@@ -64,12 +101,11 @@ export default function InvoiceDetail() {
           fetchInvoice();
           setConfirmVoid(false);
       } catch (e) {
-          alert("Failed to void invoice: " + (e.response?.data?.detail || "Unknown error"));
+          addToast("Failed to void invoice: " + (e.response?.data?.detail || "Unknown error"), "danger");
       }
   };
 
-  // === ITEM HANDLERS (CRUD) ===
-  
+  // --- ITEMS CRUD ---
   const handleUpdateItem = async (itemId, field, value) => {
     // Optimistic UI Update
     const updatedItems = invoice.items.map(item => {
@@ -84,7 +120,6 @@ export default function InvoiceDetail() {
     });
     setInvoice({ ...invoice, items: updatedItems });
 
-    // API Call
     try {
         const payload = { [field]: value };
         const res = await api.put(`/invoices/items/${itemId}`, payload);
@@ -99,7 +134,7 @@ export default function InvoiceDetail() {
           setInvoice(res.data);
           setShowAddItem(false);
           setNewItem({ description: '', quantity: 1, unit_price: 0 });
-      } catch (e) { alert("Failed to add item"); }
+      } catch (e) { addToast("Failed to add item", "danger"); }
   };
 
   const handleDeleteItem = async (itemId) => {
@@ -107,25 +142,44 @@ export default function InvoiceDetail() {
       try {
           const res = await api.delete(`/invoices/items/${itemId}`);
           setInvoice(res.data);
-      } catch (e) { alert("Failed to delete item"); }
+      } catch (e) { addToast("Failed to delete item", "danger"); }
   };
 
   const updateStatus = async (newStatus) => {
       try {
           const res = await api.put(`/invoices/${id}`, { status: newStatus });
           setInvoice(res.data);
-      } catch (e) { alert("Status update failed"); }
+          addToast("Status Updated", "success");
+      } catch (e) { addToast("Status update failed", "danger"); }
   };
 
-  // --- UPDATE TERMS ---
   const handleUpdateTerms = async (val) => {
       setInvoice({ ...invoice, payment_terms: val });
       try {
           await api.put(`/invoices/${id}`, { payment_terms: val });
-      } catch(e) { alert("Failed to save terms"); }
+      } catch(e) { addToast("Failed to save terms", "danger"); }
   };
 
-  // === EMAIL HANDLERS ===
+  const handleDeleteInvoice = async () => {
+      try {
+          await api.delete(`/invoices/${id}`);
+          navigate(`/clients/${invoice.account_id}`); 
+          addToast("Invoice deleted", "info");
+      } catch (e) {
+          addToast("Failed to delete invoice", "danger");
+      }
+  };
+
+  // --- EMAIL LOGIC ---
+
+  const handleSelectContact = (contact) => {
+      setSendForm(prev => ({
+          ...prev,
+          to: contact.email,
+          recipient_contact_id: contact.id
+      }));
+  };
+
   const toggleCC = (email) => {
       const current = sendForm.cc;
       setSendForm({
@@ -142,26 +196,16 @@ export default function InvoiceDetail() {
               to_email: sendForm.to,
               cc_emails: sendForm.cc,
               subject: sendForm.subject,
-              message: sendForm.message
+              message: sendForm.message,
+              recipient_contact_id: sendForm.recipient_contact_id 
           });
-          alert("Invoice Sent Successfully");
+          addToast("Invoice Sent Successfully", "success");
           setShowSendModal(false);
           fetchInvoice(); // Reload logs
       } catch (e) {
-          alert("Failed to send email.");
+          addToast("Failed to send email.", "danger");
       } finally {
           setSending(false);
-      }
-  };
-
-  // NEW: DELETE INVOICE HANDLER
-  const handleDeleteInvoice = async () => {
-      try {
-          await api.delete(`/invoices/${id}`);
-          navigate(`/clients/${invoice.account_id}`); // Return to client page
-          // Or toast success
-      } catch (e) {
-          alert("Failed to delete invoice: " + (e.response?.data?.detail || "Unknown error"));
       }
   };
 
@@ -170,14 +214,11 @@ export default function InvoiceDetail() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString() : 'N/A';
   const formatDateTime = (d) => d ? new Date(d).toLocaleString() : 'N/A';
 
-  // PDF URL GENERATOR (Handles Local Dev vs Prod)
   const getPdfUrl = (path) => {
       if (!path) return '#';
-      // If we are in development (localhost:5173), we need to point to backend port 8000
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
           return `http://${window.location.hostname}:8000${path}`;
       }
-      // In production, the proxy/nginx handles the relative path
       return path;
   };
 
@@ -185,32 +226,34 @@ export default function InvoiceDetail() {
 
   const isLocked = invoice.status === 'paid';
   const isDraft = invoice.status === 'draft';
-  const isAdmin = user?.role === 'admin'; // Assume role check
+  const isAdmin = user?.role === 'admin';
+
+  // SEARCHABLE OPTIONS
+  const contactOptions = accountContacts.map(c => ({
+      id: c.id,
+      title: c.email,
+      identifier: `${c.first_name} ${c.last_name} (${c.persona || 'Contact'})`,
+      original: c
+  }));
+
+  // GREETING PREVIEW
+  const selectedContact = accountContacts.find(c => c.id === sendForm.recipient_contact_id);
+  const greetingName = selectedContact ? selectedContact.first_name : "Team";
 
   return (
     <Layout title={`Invoice #${invoice.id.slice(0,8)}`}>
 
-      {/* CONFIRMATION MODAL */}
+      {/* CONFIRMATION MODALS */}
       <ConfirmationModal 
-          isOpen={confirmDelete}
-          onClose={() => setConfirmDelete(false)}
-          onConfirm={handleDeleteInvoice}
-          title="Delete Draft Invoice?"
-          message="This cannot be undone. Associated tickets and milestones will be released back to the unbilled pool."
-          isDangerous={true}
+          isOpen={confirmDelete} onClose={() => setConfirmDelete(false)} onConfirm={handleDeleteInvoice}
+          title="Delete Draft?" message="Cannot be undone." isDangerous={true}
       />
-
-      {/* NEW VOID CONFIRM */}
       <ConfirmationModal 
-          isOpen={confirmVoid}
-          onClose={() => setConfirmVoid(false)}
-          onConfirm={handleVoid}
-          title="Void Invoice?"
-          message="This will set the amount to $0 and RELEASE all linked tickets back to the billable pool. This cannot be undone."
-          isDangerous={true}
+          isOpen={confirmVoid} onClose={() => setConfirmVoid(false)} onConfirm={handleVoid}
+          title="Void Invoice?" message="Release items back to pool?" isDangerous={true}
       />
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="flex justify-between items-start mb-8">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate(`/clients/${invoice.account_id}`)} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
@@ -226,52 +269,28 @@ export default function InvoiceDetail() {
         </div>
 
         <div className="flex gap-2">
-
-            {/* NEW: DELETE BUTTON (Only Draft + Admin) */}
             {isDraft && isAdmin && (
-                <button 
-                    onClick={() => setConfirmDelete(true)} 
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors"
-                >
+                <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors">
                     <Trash2 size={16} /> Delete Draft
                 </button>
             )}
-
-            {/* NEW: VOID (Sent Only) */}
             {invoice.status === 'sent' && isAdmin && (
-                <button 
-                    onClick={() => setConfirmVoid(true)} 
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors"
-                >
+                <button onClick={() => setConfirmVoid(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors">
                     <Ban size={16} /> Void
                 </button>
             )}
-            
-            {/* SEND BUTTON (Visible for Draft AND Sent) */}
             {invoice.status !== 'paid' && (
-                <button 
-                    onClick={() => setShowSendModal(true)} 
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg transition-transform hover:-translate-y-0.5"
-                >
+                <button onClick={() => setShowSendModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg transition-transform hover:-translate-y-0.5">
                     <Send size={16} /> {invoice.status === 'sent' ? 'Resend Email' : 'Send via Email'}
                 </button>
             )}
-
-            {/* MARK PAID (Visible if Sent) */}
             {invoice.status === 'sent' && (
                 <button onClick={() => updateStatus('paid')} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white font-bold text-sm">
                     <CheckCircle size={16} /> Mark Paid
                 </button>
             )}
-
-            {/* PDF DOWNLOAD (Now an Anchor Tag) */}
             {invoice.pdf_path ? (
-                <a 
-                    href={getPdfUrl(invoice.pdf_path)} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-sm transition-colors"
-                >
+                <a href={getPdfUrl(invoice.pdf_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">
                     <Download size={16} /> PDF
                 </a>
             ) : (
@@ -316,60 +335,49 @@ export default function InvoiceDetail() {
                           {invoice.items.map(item => (
                               <tr key={item.id} className="border-b border-slate-100 group hover:bg-slate-50">
                                   <td className="py-3 pr-4">
-                                      {/* TRACEABILITY BADGE */}
                                       {item.ticket_id && (
                                           <div className="mb-1">
-                                              <button 
-                                                onClick={() => navigate(`/tickets/${item.ticket_id}`)}
-                                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold uppercase hover:bg-blue-200 transition-colors"
-                                              >
-                                                Ref: Ticket #{item.ticket_id}
+                                              <button onClick={() => navigate(`/tickets/${item.ticket_id}`)} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold uppercase hover:bg-blue-200 transition-colors">
+                                                  Ref: Ticket #{item.ticket_id}
                                               </button>
                                           </div>
                                       )}
                                       {!isLocked ? (
-                                          <input 
-                                            className="w-full bg-transparent outline-none focus:border-b border-blue-500"
-                                            value={item.description}
-                                            onBlur={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
-                                            onChange={(e) => {
-                                                const updated = invoice.items.map(i => i.id === item.id ? {...i, description: e.target.value} : i);
-                                                setInvoice({...invoice, items: updated});
-                                            }}
+                                          <input className="w-full bg-transparent outline-none focus:border-b border-blue-500"
+                                              value={item.description}
+                                              onBlur={(e) => handleUpdateItem(item.id, 'description', e.target.value)}
+                                              onChange={(e) => {
+                                                  const updated = invoice.items.map(i => i.id === item.id ? {...i, description: e.target.value} : i);
+                                                  setInvoice({...invoice, items: updated});
+                                              }}
                                           />
                                       ) : item.description}
                                   </td>
                                   <td className="py-3 text-center">
                                       {!isLocked ? (
-                                          <input 
-                                            type="number"
-                                            className="w-full bg-transparent outline-none text-center focus:border-b border-blue-500"
-                                            value={item.quantity}
-                                            onBlur={(e) => handleUpdateItem(item.id, 'quantity', parseFloat(e.target.value))}
-                                            onChange={(e) => {
-                                                const updated = invoice.items.map(i => i.id === item.id ? {...i, quantity: e.target.value} : i);
-                                                setInvoice({...invoice, items: updated});
-                                            }}
+                                          <input type="number" className="w-full bg-transparent outline-none text-center focus:border-b border-blue-500"
+                                              value={item.quantity}
+                                              onBlur={(e) => handleUpdateItem(item.id, 'quantity', parseFloat(e.target.value))}
+                                              onChange={(e) => {
+                                                  const updated = invoice.items.map(i => i.id === item.id ? {...i, quantity: e.target.value} : i);
+                                                  setInvoice({...invoice, items: updated});
+                                              }}
                                           />
                                       ) : item.quantity}
                                   </td>
                                   <td className="py-3 text-right font-mono">
                                       {!isLocked ? (
-                                          <input 
-                                            type="number"
-                                            className="w-full bg-transparent outline-none text-right focus:border-b border-blue-500"
-                                            value={item.unit_price}
-                                            onBlur={(e) => handleUpdateItem(item.id, 'unit_price', parseFloat(e.target.value))}
-                                            onChange={(e) => {
-                                                const updated = invoice.items.map(i => i.id === item.id ? {...i, unit_price: e.target.value} : i);
-                                                setInvoice({...invoice, items: updated});
-                                            }}
+                                          <input type="number" className="w-full bg-transparent outline-none text-right focus:border-b border-blue-500"
+                                              value={item.unit_price}
+                                              onBlur={(e) => handleUpdateItem(item.id, 'unit_price', parseFloat(e.target.value))}
+                                              onChange={(e) => {
+                                                  const updated = invoice.items.map(i => i.id === item.id ? {...i, unit_price: e.target.value} : i);
+                                                  setInvoice({...invoice, items: updated});
+                                              }}
                                           />
                                       ) : `$${item.unit_price}`}
                                   </td>
-                                  <td className="py-3 text-right font-mono font-bold">
-                                      {formatCurrency(item.total)}
-                                  </td>
+                                  <td className="py-3 text-right font-mono font-bold">{formatCurrency(item.total)}</td>
                                   {!isLocked && (
                                       <td className="py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                                           <button onClick={() => handleDeleteItem(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
@@ -400,44 +408,25 @@ export default function InvoiceDetail() {
               {/* Footer Totals */}
               <div className="bg-slate-50 p-8 border-t border-slate-200">
                   <div className="flex justify-between items-end">
-                      
-                      {/* PAYMENT TERMS EDITOR */}
                       <div className="text-sm text-slate-500">
                           <p className="mb-1 font-bold">Payment Terms:</p>
                           {!isLocked ? (
-                              <select 
-                                className="bg-transparent border-b border-slate-300 outline-none font-mono"
-                                value={invoice.payment_terms || "Net 14 Days"}
-                                onChange={(e) => handleUpdateTerms(e.target.value)}
-                              >
+                              <select className="bg-transparent border-b border-slate-300 outline-none font-mono" value={invoice.payment_terms || "Net 14 Days"} onChange={(e) => handleUpdateTerms(e.target.value)}>
                                   <option value="Net 14 Days">Net 14 Days</option>
                                   <option value="Net 7 Days">Net 7 Days</option>
                                   <option value="Due on Receipt">Due on Receipt</option>
                               </select>
-                          ) : (
-                              <span>{invoice.payment_terms}</span>
-                          )}
+                          ) : <span>{invoice.payment_terms}</span>}
                           
                           <p className="mt-4 text-xs font-mono">
-                              Bank: Sanctum Bank<br/>
-                              BSB: 063 010<br/>
-                              ACC: 1149 9520
+                              Bank: Sanctum Bank<br/>BSB: 063 010<br/>ACC: 1149 9520
                           </p>
                       </div>
 
                       <div className="w-64 space-y-2">
-                          <div className="flex justify-between text-sm text-slate-600">
-                              <span>Subtotal</span>
-                              <span>{formatCurrency(invoice.subtotal_amount)}</span>
-                          </div>
-                          <div className="flex justify-between text-sm text-slate-600">
-                              <span>GST (10%)</span>
-                              <span>{formatCurrency(invoice.gst_amount)}</span>
-                          </div>
-                          <div className="flex justify-between text-xl font-bold text-slate-900 border-t border-slate-300 pt-2">
-                              <span>Total</span>
-                              <span>{formatCurrency(invoice.total_amount)}</span>
-                          </div>
+                          <div className="flex justify-between text-sm text-slate-600"><span>Subtotal</span><span>{formatCurrency(invoice.subtotal_amount)}</span></div>
+                          <div className="flex justify-between text-sm text-slate-600"><span>GST (10%)</span><span>{formatCurrency(invoice.gst_amount)}</span></div>
+                          <div className="flex justify-between text-xl font-bold text-slate-900 border-t border-slate-300 pt-2"><span>Total</span><span>{formatCurrency(invoice.total_amount)}</span></div>
                       </div>
                   </div>
               </div>
@@ -456,9 +445,7 @@ export default function InvoiceDetail() {
                                   <span>{formatDateTime(log.sent_at)}</span>
                                   <span className="text-xs uppercase bg-green-500/20 text-green-500 px-1 rounded">{log.status}</span>
                               </div>
-                              <div className="opacity-50 text-xs mt-1">
-                                  Sent by: {log.sender_name || 'System'}
-                              </div>
+                              <div className="opacity-50 text-xs mt-1">Sent by: {log.sender_name || 'System'}</div>
                               <div className="mt-1 bg-black/20 p-2 rounded text-xs font-mono break-all">
                                   To: {log.sent_to}
                                   {log.sent_cc && <><br/>CC: {log.sent_cc}</>}
@@ -474,30 +461,63 @@ export default function InvoiceDetail() {
       {/* --- SEND MODAL --- */}
       {showSendModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative">
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative animate-in fade-in zoom-in-95">
                 <button onClick={() => setShowSendModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Send size={20} className="text-blue-400"/> Send Invoice</h2>
                 
                 <form onSubmit={handleSendEmail} className="space-y-4">
+                    
+                    {/* RECIPIENT SELECTOR */}
                     <div>
-                        <label className="text-xs opacity-50 block mb-1">To (Billing Email)</label>
-                        <input 
-                            required type="email" 
-                            className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" 
-                            value={sendForm.to} 
-                            onChange={e => setSendForm({...sendForm, to: e.target.value})} 
-                        />
+                        <div className="flex justify-between items-end mb-1">
+                            <label className="text-xs opacity-50">To (Recipient)</label>
+                            <button 
+                                type="button" 
+                                onClick={() => setSendForm(prev => ({...prev, mode: prev.mode === 'search' ? 'manual' : 'search'}))}
+                                className="text-[10px] text-blue-400 hover:text-blue-300 underline"
+                            >
+                                {sendForm.mode === 'search' ? 'Enter Custom Email' : 'Search Contacts'}
+                            </button>
+                        </div>
+
+                        {sendForm.mode === 'search' ? (
+                            <SearchableSelect 
+                                items={contactOptions}
+                                labelKey="title"      // Show Email
+                                subLabelKey="identifier" // Show Name + Persona
+                                valueKey="id"
+                                icon={User}
+                                placeholder="Search contacts..."
+                                onSelect={(item) => handleSelectContact(item.original)}
+                                selectedIds={[sendForm.recipient_contact_id]}
+                            />
+                        ) : (
+                            <input 
+                                required type="email" autoFocus
+                                className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" 
+                                placeholder="client@example.com"
+                                value={sendForm.to} 
+                                onChange={e => setSendForm({...sendForm, to: e.target.value, recipient_contact_id: null})} 
+                            />
+                        )}
+                        
+                        {/* GREETING PREVIEW */}
+                        {sendForm.recipient_contact_id && sendForm.mode === 'search' && (
+                             <div className="mt-2 text-xs text-green-400 flex items-center gap-1 bg-green-900/10 p-2 rounded border border-green-500/20">
+                                <CheckCircle size={12} /> 
+                                Will greet as: <span className="font-bold">Hi {greetingName},</span>
+                             </div>
+                        )}
                     </div>
                     
+                    {/* CC SELECTOR */}
                     {invoice.suggested_cc?.length > 0 && (
                         <div>
-                            <label className="text-xs opacity-50 block mb-1">Smart CC (Contextual)</label>
+                            <label className="text-xs opacity-50 block mb-1">Smart CC</label>
                             <div className="flex flex-wrap gap-2">
                                 {invoice.suggested_cc.map(email => (
                                     <button
-                                        key={email}
-                                        type="button"
-                                        onClick={() => toggleCC(email)}
+                                        key={email} type="button" onClick={() => toggleCC(email)}
                                         className={`px-2 py-1 rounded text-xs border transition-colors ${sendForm.cc.includes(email) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-transparent border-slate-600 text-slate-400 hover:border-slate-400'}`}
                                     >
                                         {email}
@@ -513,7 +533,7 @@ export default function InvoiceDetail() {
                     </div>
                     
                     <div>
-                        <label className="text-xs opacity-50 block mb-1">Message (Optional)</label>
+                        <label className="text-xs opacity-50 block mb-1">Message</label>
                         <textarea className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm" value={sendForm.message} onChange={e => setSendForm({...sendForm, message: e.target.value})} placeholder="Add a personal note..." />
                     </div>
 

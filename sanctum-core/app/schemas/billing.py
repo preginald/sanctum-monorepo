@@ -59,6 +59,7 @@ class InvoiceSendRequest(SanctumBase):
     cc_emails: List[str] = []
     subject: Optional[str] = None
     message: Optional[str] = None
+    recipient_contact_id: Optional[UUID] = None # NEW FIELD
 
 class InvoiceUpdate(SanctumBase):
     status: Optional[str] = None
