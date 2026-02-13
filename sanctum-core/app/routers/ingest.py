@@ -5,7 +5,7 @@ from datetime import datetime
 from .. import models
 from ..database import get_db
 
-router = APIRouter(prefix="/ingest", tags=["Ingest Agent"])
+router = APIRouter(prefix="/api/ingest", tags=["Ingest Agent"])
 
 @router.post("/asset/{token}")
 def ingest_client_asset(token: UUID, payload: dict, db: Session = Depends(get_db)):
