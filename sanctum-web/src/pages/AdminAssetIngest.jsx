@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import api from '../lib/api';
-import { Terminal, Copy, Check, ShieldCheck, Monitor, Smartphone, Apple } from 'lucide-react';
+import { Terminal, Copy, Check, ShieldCheck, Monitor } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export default function AdminAssetIngest() {
@@ -19,14 +19,16 @@ export default function AdminAssetIngest() {
     }, []);
 
     const account = accounts.find(a => a.id === selectedAccount);
-    const apiBase = window.location.origin.replace('5173', '8000') + '/api/ingest/asset';
-    const token = account?.ingest_token || 'YOUR_TOKEN_HERE';
+    
+    // PRODUCTION LOGIC: Use current window origin + /api/ingest/asset
+    const apiBase = `${window.location.origin}/api/ingest/asset`;
+    const token = account?.ingest_token || 'SELECT_A_CLIENT';
 
     const copyToClipboard = (text, key) => {
         navigator.clipboard.writeText(text);
         setCopied(key);
         setTimeout(() => setCopied(null), 2000);
-        addToast("Script copied to clipboard", "success");
+        addToast("Agent script copied!", "success");
     };
 
     const scripts = {
@@ -36,14 +38,12 @@ $sys = Get-CimInstance Win32_ComputerSystem
 $os = Get-CimInstance Win32_OperatingSystem
 $cpu = Get-CimInstance Win32_Processor
 $bios = Get-CimInstance Win32_BIOS
-$chassis = (Get-CimInstance Win32_SystemEnclosure).ChassisTypes
-$type = if ($chassis -match "9|10|14") { "laptop" } else { "workstation" }
 $payload = @{
-    name = $sys.Name; asset_type = $type; serial_number = $bios.SerialNumber
+    name = $sys.Name; asset_type = "workstation"; serial_number = $bios.SerialNumber
     specs = @{ os = $os.Caption; cpu = $cpu.Name; ram = "$([math]::Round($sys.TotalPhysicalMemory / 1GB))GB"; model = "$($sys.Manufacturer) $($sys.Model)" }
 }
 Invoke-RestMethod -Uri $api -Method Post -Body ($payload | ConvertTo-Json) -ContentType "application/json"`,
-        
+
         linux: `TOKEN="${token}"
 API="${apiBase}/$TOKEN"
 PAYLOAD=$(cat <<EOF
@@ -62,19 +62,18 @@ curl -X POST "$API" -H "Content-Type: application/json" -d "$PAYLOAD"`
     };
 
     return (
-        <Layout title="Asset Ingest Agent">
+        <Layout title="The Ingest Agent">
             <div className="max-w-4xl mx-auto space-y-6">
-                <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl">
-                    <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-                        <ShieldCheck className="text-sanctum-blue" />
-                        1. Select Client Context
+                <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl">
+                    <h2 className="text-xl font-bold flex items-center gap-2 mb-4 text-sanctum-blue">
+                        <ShieldCheck /> 1. Select Client Context
                     </h2>
                     <select 
-                        className="w-full p-3 bg-black/40 border border-slate-600 rounded-lg text-white"
+                        className="w-full p-3 bg-black/40 border border-slate-600 rounded-lg text-white focus:border-sanctum-blue outline-none transition-all"
                         value={selectedAccount}
                         onChange={(e) => setSelectedAccount(e.target.value)}
                     >
-                        <option value="">-- Choose a Client --</option>
+                        <option value="">-- Choose a Client to Generate Tokenized Script --</option>
                         {accounts.map(a => (
                             <option key={a.id} value={a.id}>{a.name}</option>
                         ))}
@@ -82,34 +81,36 @@ curl -X POST "$API" -H "Content-Type: application/json" -d "$PAYLOAD"`
                 </div>
 
                 {selectedAccount && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-4">
-                        {/* WINDOWS CARD */}
+                    <div className="grid grid-cols-1 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        {/* LINUX/BASH */}
+                        <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
+                            <div className="p-4 bg-orange-600/10 border-b border-orange-500/20 flex justify-between items-center">
+                                <div className="flex items-center gap-2 font-bold text-orange-400">
+                                    <Terminal size={18} /> Linux / macOS (Bash)
+                                </div>
+                                <button onClick={() => copyToClipboard(scripts.linux, 'nix')} className="flex items-center gap-2 px-3 py-1 bg-orange-500/20 hover:bg-orange-500/40 rounded-lg text-xs transition-all">
+                                    {copied === 'nix' ? <Check size={14}/> : <Copy size={14}/>} 
+                                    {copied === 'nix' ? 'Copied' : 'Copy Script'}
+                                </button>
+                            </div>
+                            <pre className="p-6 text-[11px] font-mono text-slate-300 overflow-x-auto bg-black/40 leading-relaxed">
+                                {scripts.linux}
+                            </pre>
+                        </div>
+
+                        {/* WINDOWS/POWERSHELL */}
                         <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
                             <div className="p-4 bg-blue-600/10 border-b border-blue-500/20 flex justify-between items-center">
                                 <div className="flex items-center gap-2 font-bold text-blue-400">
                                     <Monitor size={18} /> Windows (PowerShell)
                                 </div>
-                                <button onClick={() => copyToClipboard(scripts.windows, 'win')} className="p-2 hover:bg-white/10 rounded">
-                                    {copied === 'win' ? <Check size={16} className="text-green-400"/> : <Copy size={16}/>}
+                                <button onClick={() => copyToClipboard(scripts.windows, 'win')} className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 hover:bg-blue-500/40 rounded-lg text-xs transition-all">
+                                    {copied === 'win' ? <Check size={14}/> : <Copy size={14}/>} 
+                                    {copied === 'win' ? 'Copied' : 'Copy Script'}
                                 </button>
                             </div>
-                            <pre className="p-4 text-xs font-mono text-slate-300 overflow-x-auto h-48 bg-black/20">
+                            <pre className="p-6 text-[11px] font-mono text-slate-300 overflow-x-auto bg-black/40 leading-relaxed">
                                 {scripts.windows}
-                            </pre>
-                        </div>
-
-                        {/* LINUX CARD */}
-                        <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-                            <div className="p-4 bg-orange-600/10 border-b border-orange-500/20 flex justify-between items-center">
-                                <div className="flex items-center gap-2 font-bold text-orange-400">
-                                    <Terminal size={18} /> Linux (Bash)
-                                </div>
-                                <button onClick={() => copyToClipboard(scripts.linux, 'nix')} className="p-2 hover:bg-white/10 rounded">
-                                    {copied === 'nix' ? <Check size={16} className="text-green-400"/> : <Copy size={16}/>}
-                                </button>
-                            </div>
-                            <pre className="p-4 text-xs font-mono text-slate-300 overflow-x-auto h-48 bg-black/20">
-                                {scripts.linux}
                             </pre>
                         </div>
                     </div>
