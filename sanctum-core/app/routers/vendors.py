@@ -65,7 +65,9 @@ def get_vendors_by_category(
             "website": v.website,
             "category": v.category, # This will now return a list
             "description": v.description,
-            "tags": v.tags or []
+            "tags": v.tags or [],
+            "risk_score": v.risk_score,     # NEW
+            "is_critical": v.is_critical    # NEW
         }
         for v in vendors
     ]
@@ -113,7 +115,9 @@ def search_vendors(
             "description": v.description,
             "tags": v.tags or [],
             "typical_renewal_cycle": v.typical_renewal_cycle,
-            "base_price_aud": float(v.base_price_aud) if v.base_price_aud else None
+            "base_price_aud": float(v.base_price_aud) if v.base_price_aud else None,
+            "risk_score": v.risk_score,     # NEW
+            "is_critical": v.is_critical    # NEW
         }
         for v in vendors
     ]
@@ -146,7 +150,9 @@ def get_vendor(
         "base_price_aud": float(vendor.base_price_aud) if vendor.base_price_aud else None,
         "pricing_notes": vendor.pricing_notes,
         "tags": vendor.tags or [],
-        "logo_url": vendor.logo_url
+        "logo_url": vendor.logo_url,
+        "risk_score": vendor.risk_score,     # NEW
+        "is_critical": vendor.is_critical    # NEW
     }
 
 
@@ -172,7 +178,9 @@ def get_popular_vendors(
             "id": str(v.id),
             "name": v.name,
             "website": v.website,
-            "description": v.description
+            "description": v.description,
+            "risk_score": v.risk_score,     # NEW
+            "is_critical": v.is_critical    # NEW
         }
         for v in vendors
     ]

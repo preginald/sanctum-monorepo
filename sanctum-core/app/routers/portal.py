@@ -12,7 +12,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact, Comment, Asset, Project, Milestone
 from ..services.event_bus import event_bus
-from ..services.account_service import account_needs_questionnaire, get_account_lifecycle_stage
+from ..services.account_service import account_needs_questionnaire, get_account_lifecycle_stage, process_questionnaire_submission
 
 router = APIRouter(prefix="/portal", tags=["Portal"])
 
@@ -208,265 +208,25 @@ def submit_questionnaire(
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
-    # Helper to resolve UUID lists to Vendor Names for human-readable storage
-    def resolve_vendor_names(vendor_ids):
-        if not vendor_ids:
-            return []
-        vendors = db.query(models.Vendor).filter(models.Vendor.id.in_(vendor_ids)).all()
-        return [v.name for v in vendors]
-
-    # Resolve names from the catalog
-    hosting_names = resolve_vendor_names(payload.hosting_providers)
-    saas_names = resolve_vendor_names(payload.saas_platforms)
-    antivirus_names = resolve_vendor_names(payload.antivirus)
-    
-    # Store questionnaire responses
-    scoping_responses = {
-        # Section 1: Technology
-        "company_size": payload.company_size,
-        "assessment_interest": payload.assessment_interest,
-        "domain_names": payload.domain_names,
-        "hosting_providers": hosting_names,  # Stores names for readability
-        "saas_platforms": saas_names,        # Stores names for readability
-        # Security (conditional)
-        "antivirus": antivirus_names,
-        "firewall_type": payload.firewall_type,
-        "password_management": payload.password_management,
-        "mfa_enabled": payload.mfa_enabled,
-        "backup_solution": payload.backup_solution,
-        # Section 2: Context
-        "primary_pain_point": payload.primary_pain_point,
-        "current_it_support": payload.current_it_support,
-        "timeline": payload.timeline,
-        "referral_source": payload.referral_source,
-        "submitted_at": datetime.utcnow().isoformat(),
-        "submitted_by": str(current_user.id)
-    }
-    
-    if not account.audit_data:
-        account.audit_data = {}
-    
-    account.audit_data['scoping_responses'] = scoping_responses
-    
-    # Parse and create draft assets
-    draft_assets_created = []
-    
-    # 1. Parse domain names
-    if payload.domain_names:
-        domains = [d.strip() for d in payload.domain_names.split('\n') if d.strip()]
-        for domain_name in domains:
-            asset = models.Asset(
-                account_id=account.id,
-                name=domain_name,
-                asset_type='domain',
-                status='draft',
-                notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-            )
-            db.add(asset)
-            draft_assets_created.append(f"Domain: {domain_name}")
-    
-    # 2. Create hosting assets (MATCHES: "hosting web")
-    for provider_name in hosting_names:
-        asset = models.Asset(
-            account_id=account.id,
-            name=f"Hosting Service",
-            asset_type='hosting web',
-            vendor=provider_name,
-            status='draft',
-            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-        )
-        db.add(asset)
-        draft_assets_created.append(f"Hosting: {provider_name}")
-    
-    # 3. Create SaaS assets (MATCHES: "saas")
-    for platform_name in saas_names:
-        asset = models.Asset(
-            account_id=account.id,
-            name=platform_name,
-            asset_type='saas',
-            status='draft',
-            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-        )
-        db.add(asset)
-        draft_assets_created.append(f"SaaS: {platform_name}")
-    
-    # 4. Create security tool assets (MATCHES: "security software")
-    for av_name in antivirus_names:
-        asset = models.Asset(
-            account_id=account.id,
-            name=f"Antivirus: {av_name}",
-            asset_type='security software',
-            status='draft',
-            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-        )
-        db.add(asset)
-        draft_assets_created.append(f"Security: {av_name}")
-    
-    # Firewall (MATCHES: "firewall")
-    if payload.firewall_type and payload.firewall_type not in ['No', 'Not sure']:
-        asset = models.Asset(
-            account_id=account.id,
-            name=f"Firewall: {payload.firewall_type}",
-            asset_type='firewall',
-            status='draft',
-            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-        )
-        db.add(asset)
-        draft_assets_created.append(f"Firewall: {payload.firewall_type}")
-    
-    # Password Mgmt (MATCHES: "saas")
-    if payload.password_management and payload.password_management not in ['Not sure']:
-        asset = models.Asset(
-            account_id=account.id,
-            name=f"Password Management: {payload.password_management}",
-            asset_type='saas',
-            status='draft',
-            notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
-        )
-        db.add(asset)
-        draft_assets_created.append(f"Password Mgmt: {payload.password_management}")
-    
-    # Create internal review ticket
-    ticket_description = f"""Pre-Engagement Questionnaire completed for {account.name}.
-
-**SECTION 1: TECHNOLOGY ENVIRONMENT**
-**Assessment Interest:** {payload.assessment_interest}
-**Company Size:** {payload.company_size}
-
-**SECTION 2: BUSINESS CONTEXT**
-**Primary Pain Point:** {payload.primary_pain_point}
-**Timeline:** {payload.timeline}
-**Current IT Support:** {payload.current_it_support or 'Not specified'}
-**Referral Source:** {payload.referral_source}
-
-**SECURITY POSTURE** (if provided):
-- Antivirus: {', '.join(antivirus_names) if antivirus_names else 'Not specified'}
-- Firewall: {payload.firewall_type or 'Not specified'}
-- Password Management: {payload.password_management or 'Not specified'}
-- MFA Enabled: {payload.mfa_enabled or 'Not specified'}
-- Backup Solution: {payload.backup_solution or 'Not specified'}
-
-**DRAFT ASSETS CREATED:** {len(draft_assets_created)}
-{chr(10).join(['- ' + asset for asset in draft_assets_created]) if draft_assets_created else '- None'}
-
-**NEXT STEPS:**
-1. Review draft assets and approve/edit
-2. Contact client to schedule audit engagement
-3. Prepare audit scope based on responses
-"""
-    
-    ticket = models.Ticket(
-        account_id=account.id,
-        subject=f"[AUDIT INTAKE] Review Pre-Engagement Questionnaire - {account.name}",
-        description=ticket_description,
-        status='new',
-        priority='normal',
-        ticket_type='task'
+    # REFACTORED: Use centralized service
+    result = process_questionnaire_submission(
+        db=db,
+        account=account,
+        payload=payload,
+        submitted_by_user_id=current_user.id,
+        create_tickets=True
     )
-    db.add(ticket)
-    db.flush()
-    
-    # Link primary contact to ticket
-    primary_contact = db.query(models.Contact).filter(
-        models.Contact.account_id == account.id,
-        models.Contact.is_primary_contact == True
-    ).first()
-    
-    if primary_contact:
-        db.execute(
-            ticket_contacts.insert().values(
-                ticket_id=ticket.id,
-                contact_id=primary_contact.id
-            )
-        )
-    
-    # Task 1: Review & Approve Draft Assets (High priority)
-    task1 = models.Ticket(
-        account_id=account.id,
-        subject=f"Review & Approve Draft Assets - {account.name}",
-        description=f"""Review {len(draft_assets_created)} draft assets created from questionnaire.
-
-**Assets to Review:**
-{chr(10).join(['- ' + asset for asset in draft_assets_created])}
-
-**Actions Required:**
-1. Verify accuracy of captured information
-2. Approve assets or edit details as needed
-3. Check for duplicates
-4. Add any missing asset details (serial numbers, purchase dates, etc.)
-
-**Related Ticket:** #{ticket.id} - [AUDIT INTAKE] Review Pre-Engagement Questionnaire""",
-        status='new',
-        priority='high',
-        ticket_type='task'
-    )
-    db.add(task1)
-    
-    # Task 2: Schedule Client Engagement
-    task2 = models.Ticket(
-        account_id=account.id,
-        subject=f"Schedule Engagement - {account.name}",
-        description=f"""Contact client to schedule audit engagement.
-
-**Client Timeline:** {payload.timeline}
-**Assessment Interest:** {payload.assessment_interest}
-
-**Actions Required:**
-1. Call or email client within 48 hours
-2. Schedule initial consultation/kickoff meeting
-3. Discuss assessment scope and timeline
-4. Send calendar invite and confirmation
-
-**Primary Pain Point:** {payload.primary_pain_point}
-
-**Related Ticket:** #{ticket.id} - [AUDIT INTAKE] Review Pre-Engagement Questionnaire""",
-        status='new',
-        priority='normal',
-        ticket_type='task'
-    )
-    db.add(task2)
-    
-    if primary_contact:
-        db.execute(ticket_contacts.insert().values(ticket_id=task2.id, contact_id=primary_contact.id))
-    
-    # Task 3: Prepare Audit Scope
-    task3 = models.Ticket(
-        account_id=account.id,
-        subject=f"Prepare Audit Scope - {account.name}",
-        description=f"""Based on questionnaire responses, prepare detailed audit scope document.
-
-**Assessment Type:** {payload.assessment_interest}
-
-**Environment Overview:**
-- Company Size: {payload.company_size}
-- Domains: {len(payload.domain_names.split(chr(10))) if payload.domain_names else 0}
-- Hosting Providers: {len(hosting_names)}
-- SaaS Platforms: {len(saas_names)}
-
-**Actions Required:**
-1. Review all questionnaire responses and draft assets
-2. Prepare scope of work document
-3. Include pricing estimate based on environment size
-4. Define deliverables and timeline
-
-**Related Ticket:** #{ticket.id} - [AUDIT INTAKE] Review Pre-Engagement Questionnaire""",
-        status='new',
-        priority='normal',
-        ticket_type='task'
-    )
-    db.add(task3)
-    
-    db.commit()
     
     # Fire event for notifications
-    event_bus.emit("questionnaire_completed", ticket, background_tasks)
+    if result.get('ticket'):
+        event_bus.emit("questionnaire_completed", result['ticket'], background_tasks)
     
     return {
         "status": "success",
         "message": "Questionnaire submitted successfully",
-        "ticket_id": ticket.id,
+        "ticket_id": result['ticket'].id if result.get('ticket') else None,
         "follow_up_tasks_created": 3,
-        "draft_assets_created": len(draft_assets_created),
+        "draft_assets_created": result['draft_assets_count'],
         "lifecycle_stage": "onboarding"
     }
 

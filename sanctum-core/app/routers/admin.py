@@ -12,6 +12,9 @@ from fastapi import BackgroundTasks
 from pydantic import BaseModel
 from uuid import UUID
 
+# PHASE 63: Import Service Logic
+from ..services.account_service import process_questionnaire_submission
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
@@ -205,7 +208,7 @@ def list_questionnaire_responses(
         draft_count = db.query(models.Asset).filter(
             models.Asset.account_id == account.id,
             models.Asset.status == 'draft',
-            models.Asset.notes.like('%Pre-Engagement Questionnaire%')
+            models.Asset.notes.like('%Captured from Questionnaire%')
         ).count()
         
         result.append({
@@ -232,13 +235,6 @@ def reset_questionnaire(
 ):
     """
     Reset/delete questionnaire data for an account.
-    
-    This will:
-    1. Clear scoping_responses from audit_data
-    2. Delete draft assets created from questionnaire
-    3. Delete the [AUDIT INTAKE] ticket
-    
-    Returns summary of what was deleted.
     """
     
     # Get account
@@ -256,16 +252,18 @@ def reset_questionnaire(
     
     # 1. Clear questionnaire responses (FIXED: Proper JSONB handling)
     if account.audit_data and account.audit_data.get('scoping_responses'):
-        account.audit_data.pop('scoping_responses', None)
-        flag_modified(account, 'audit_data')  # Tell SQLAlchemy the JSONB changed
+        # Copy, modify, reassign
+        new_data = account.audit_data.copy()
+        new_data.pop('scoping_responses', None)
+        account.audit_data = new_data
+        flag_modified(account, 'audit_data') # Tell SQLAlchemy the JSONB changed
         summary["questionnaire_cleared"] = True
     
     # 2. Delete draft assets created from questionnaire
-    # (Identified by status='draft' and notes containing "Pre-Engagement Questionnaire")
     draft_assets = db.query(models.Asset).filter(
         models.Asset.account_id == account_id,
         models.Asset.status == 'draft',
-        models.Asset.notes.like('%Pre-Engagement Questionnaire%')
+        models.Asset.notes.like('%Captured from Questionnaire%')
     ).all()
     
     for asset in draft_assets:
@@ -288,6 +286,36 @@ def reset_questionnaire(
         "status": "success",
         "message": f"Questionnaire data reset for {account.name}",
         "summary": summary
+    }
+
+# NEW ENDPOINT FOR ADMIN DISCOVERY
+@account_router.patch("/{account_id}/audit-data")
+def update_account_audit_data(
+    account_id: UUID,
+    payload: schemas.QuestionnaireSubmit, # We reuse the schema because the form is identical
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_admin)
+):
+    """
+    Admin: Submit Discovery Questionnaire on behalf of client.
+    Triggers asset creation and risk mapping.
+    """
+    account = db.query(models.Account).filter(models.Account.id == account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+        
+    result = process_questionnaire_submission(
+        db=db,
+        account=account,
+        payload=payload,
+        submitted_by_user_id=current_user.id,
+        create_tickets=False 
+    )
+    
+    return {
+        "status": "success",
+        "message": "Discovery data saved and assets created.",
+        "assets_created": result['draft_assets_count']
     }
 
 # Export both routers (for backward compatibility, keep 'router' as user_router)

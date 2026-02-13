@@ -1,13 +1,4 @@
 from typing import List, Optional, Dict, Any
-from .shared import SanctumBase
-from .crm import AccountResponse, ContactResponse
-from .operations import TicketResponse
-from .billing import InvoiceResponse
-from .strategy import ProjectResponse, DealResponse
-from .assets import AssetResponse 
-
-# PHASE 61A: Questionnaire Schemas
-from typing import List, Optional, Dict, Any
 from uuid import UUID
 from .shared import SanctumBase
 from .crm import AccountResponse, ContactResponse
@@ -20,8 +11,8 @@ from .assets import AssetResponse
 class QuestionnaireSubmit(SanctumBase):
     """Client submission of Pre-Engagement Questionnaire with vendor catalog"""
     # Section 1: Technology (creates assets)
-    company_size: str
-    assessment_interest: str
+    company_size: Optional[str] = None # Relaxed for Admin ease
+    assessment_interest: Optional[str] = None # Relaxed
     domain_names: Optional[str] = None  # Tag input (newline-separated)
     hosting_providers: Optional[List[UUID]] = None  # PHASE 62: Array of vendor IDs
     saas_platforms: Optional[List[UUID]] = None  # PHASE 62: Array of vendor IDs
@@ -34,10 +25,10 @@ class QuestionnaireSubmit(SanctumBase):
     backup_solution: Optional[str] = None  # Free text selection
     
     # Section 2: Context (helps us serve better)
-    primary_pain_point: str
+    primary_pain_point: Optional[str] = None # Relaxed: Legacy clients might not have a current pain point
     current_it_support: Optional[str] = None
-    timeline: str
-    referral_source: str
+    timeline: Optional[str] = None # Relaxed
+    referral_source: Optional[str] = None # Relaxed: Unknown for old clients
 
 # Portal Dashboard (Updated for Phase 61A)
 class PortalDashboard(SanctumBase):

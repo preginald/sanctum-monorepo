@@ -18,6 +18,7 @@ import PortalAssessments from './pages/PortalAssessments'; // PHASE 60A: Assessm
 import PortalQuestionnaire from './pages/PortalQuestionnaire';
 import PortalQuestionnaireComplete from './pages/PortalQuestionnaireComplete';
 import AdminQuestionnaireList from './pages/AdminQuestionnaireList';
+import AdminAssetIngest from './pages/AdminAssetIngest'; // ADD THIS
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
@@ -27,6 +28,7 @@ import Diagnostics from './pages/Diagnostics';
 // --- CRM MODULE ---
 import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
+import AdminClientDiscovery from './pages/AdminClientDiscovery'; // <--- IMPORT THIS
 
 // --- STRATEGY MODULE ---
 import ProjectIndex from './pages/ProjectIndex';
@@ -118,10 +120,11 @@ function App() {
                               <Route path="/" element={<Dashboard />} />
                               <Route path="/dashboard" element={<Dashboard />} />
                               <Route path="/admin/questionnaires" element={<AdminQuestionnaireList />} />
- 
+
                               {/* CRM */}
                               <Route path="/clients" element={<Clients />} />
                               <Route path="/clients/:id" element={<ClientDetail />} />
+                              <Route path="/clients/:id/discovery" element={<AdminClientDiscovery />} /> {/* <--- ADD ROUTE */}
                               
                               {/* STRATEGY */}
                               <Route path="/projects" element={<ProjectIndex />} />
@@ -152,6 +155,7 @@ function App() {
                               <Route path="/wiki/:id/edit" element={<ArticleEditor />} />
 
                               {/* INTELLIGENCE & AUTOMATION */}
+                              <Route path="/admin/ingest" element={<AdminAssetIngest />} />
                               <Route path="/admin/automations" element={<AdminAutomationList />} />
                               <Route path="/timesheets" element={<TimesheetView />} />
                               <Route path="/analytics" element={<Analytics />} />

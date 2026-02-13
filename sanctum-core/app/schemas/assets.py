@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime, date
 from .shared import SanctumBase
@@ -12,11 +12,14 @@ class AssetCreate(SanctumBase):
     ip_address: Optional[str] = None
     notes: Optional[str] = None
     
-    # NEW: Digital Lifecycle Fields (Must be present to save)
+    # Digital Lifecycle Fields
     expires_at: Optional[date] = None
     vendor: Optional[str] = None
     linked_product_id: Optional[UUID] = None
     auto_invoice: bool = False
+
+    # NEW: Asset Intelligence
+    specs: Optional[Dict[str, Any]] = {}
 
 class AssetUpdate(SanctumBase):
     name: Optional[str] = None
@@ -26,11 +29,13 @@ class AssetUpdate(SanctumBase):
     ip_address: Optional[str] = None
     notes: Optional[str] = None
     
-    # NEW: Digital Lifecycle Fields (Must be present to update)
     expires_at: Optional[date] = None
     vendor: Optional[str] = None
     linked_product_id: Optional[UUID] = None
     auto_invoice: Optional[bool] = None
+
+    # NEW: Asset Intelligence
+    specs: Optional[Dict[str, Any]] = None
 
 class AssetResponse(AssetCreate):
     id: UUID

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 # UPDATED IMPORTS: Added 'analytics'
-from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets, analytics, notifications, vendors
+from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets, analytics, notifications, vendors, ingest
 
 app = FastAPI(title="Sanctum Core", version="1.9.1")
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -36,6 +36,7 @@ app.include_router(portal.router)
 app.include_router(comments.router)
 app.include_router(admin.router)
 app.include_router(admin.account_router)  # PHASE 61A: Account management
+app.include_router(ingest.router, prefix="/api")
 app.include_router(search.router)
 app.include_router(sentinel.router)
 app.include_router(assets.router)

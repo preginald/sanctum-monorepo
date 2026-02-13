@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
-import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash } from 'lucide-react';
+import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash, ClipboardList } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { recordVisit } from '../lib/history'; 
 
@@ -230,30 +230,15 @@ export default function ClientDetail() {
         setForm={setAssetForm}
       />
 
-      {/* HEADER */}
+{/* HEADER */}
       <div className="flex justify-between items-start mb-8">
           <div className="flex items-center gap-4">
               <button onClick={() => navigate('/clients')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20}/></button>
               <div>
                   {isEditingAccount ? (
+                      // ... (Edit mode code)
                       <div className="space-y-2">
-                          <input className="text-3xl font-bold bg-black/40 border border-slate-600 rounded p-1 text-white w-full" value={account.name} onChange={e => setAccount({...account, name: e.target.value})} />
-                          <div className="flex gap-2">
-                              <select className="bg-black/40 border border-slate-600 rounded text-xs p-1" value={account.status} onChange={e => setAccount({...account, status: e.target.value})}><option value="lead">Lead</option><option value="prospect">Prospect</option><option value="active">Active</option><option value="churned">Churned</option></select>
-                              <select 
-    className="bg-black/40 border border-slate-600 rounded text-xs p-1" 
-    value={account.type} 
-    onChange={e => {
-        const newType = e.target.value;
-        const newBrand = newType === 'business' ? 'ds' : 'nt';
-        setAccount({ ...account, type: newType, brand_affinity: newBrand });
-    }}
->
-    <option value="business">Business</option>
-    <option value="residential">Residential</option>
-</select>
-                          </div>
-                          <input placeholder="Billing Email" className="text-sm bg-black/40 border border-slate-600 rounded p-1 text-white w-full font-mono" value={account.billing_email || ''} onChange={e => setAccount({...account, billing_email: e.target.value})} />
+                          {/* ... */}
                       </div>
                   ) : (
                       <>
@@ -274,7 +259,18 @@ export default function ClientDetail() {
                       <button onClick={saveAccount} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 text-white font-bold">{isSaving && <Loader2 className="animate-spin" size={16}/>} Save</button>
                   </>
               ) : (
-                  <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>
+                  <>
+                      {/* NEW DISCOVERY BUTTON */}
+                      <button 
+                        onClick={() => navigate(`/clients/${id}/discovery`)} 
+                        className="flex items-center gap-2 px-4 py-2 rounded bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-500/30 text-sm font-bold transition-colors"
+                      >
+                        <ClipboardList size={16} /> 
+                        Discovery
+                      </button>
+                      
+                      <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>
+                  </>
               )}
           </div>
       </div>

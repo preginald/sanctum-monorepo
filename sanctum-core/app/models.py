@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY
-from sqlalchemy.dialects.postgresql import UUID, ARRAY
+from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
 from sqlalchemy import Enum as SAEnum 
@@ -60,6 +60,10 @@ class Account(Base):
     status = Column(String)
     billing_email = Column(String, nullable=True) 
     audit_data = Column(JSON, default={}) 
+
+    # NEW: Asset Ingest Security
+    # Unique token for this client to run the 'Sanctum Agent' script
+    ingest_token = Column(UUID(as_uuid=True), server_default=text("gen_random_uuid()"), unique=True)
 
     deals = relationship("Deal", back_populates="account")
     tickets = relationship("Ticket", back_populates="account")
@@ -464,10 +468,17 @@ class Asset(Base):
     serial_number = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
+    
+    # Digital Lifecycle
     expires_at = Column(Date, nullable=True)
     vendor = Column(String, nullable=True) 
     linked_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
     auto_invoice = Column(Boolean, default=False)
+    
+    # NEW: Asset Intelligence (Big Data Ready)
+    # Stores flexible specs like {"os": "iOS 17", "cpu": "M1", "ram": "16GB"}
+    specs = Column(JSONB, server_default='{}', default={}) 
+
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
@@ -584,6 +595,10 @@ class Vendor(Base):
     logo_url = Column(String(500))
     description = Column(Text)
     tags = Column(ARRAY(String))  # ['australian', 'enterprise', 'sme', etc.]
+
+    # Risk & Audit Strategy (Phase 63)
+    risk_score = Column(Integer, default=0) # 0-10 Scale (0=Low, 10=Critical)
+    is_critical = Column(Boolean, default=False) # If True, outage = major incident
     
     # Admin
     is_active = Column(Boolean, default=True, index=True)
