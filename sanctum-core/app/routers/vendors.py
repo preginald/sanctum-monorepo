@@ -12,6 +12,8 @@ from app.database import get_db
 from app import models
 from app.auth import get_current_user
 
+from ..utils.risk import calculate_vendor_risk_score
+
 router = APIRouter(prefix="/vendors", tags=["Vendors"])
 
 
@@ -116,8 +118,13 @@ def search_vendors(
             "tags": v.tags or [],
             "typical_renewal_cycle": v.typical_renewal_cycle,
             "base_price_aud": float(v.base_price_aud) if v.base_price_aud else None,
-            "risk_score": v.risk_score,     # NEW
-            "is_critical": v.is_critical    # NEW
+            # DYNAMIC ORACLE CALCULATION
+            "risk_score": calculate_vendor_risk_score(
+                security_score=v.security_score or 100,
+                data_level=v.data_access_level or "none",
+                compliance=v.compliance_status or "pending"
+            ),
+            "is_critical": v.is_critical or False
         }
         for v in vendors
     ]
@@ -129,14 +136,22 @@ def get_vendor(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user)
 ):
-    """Get detailed vendor information"""
+    """Get detailed vendor information with Oracle Risk Calculation"""
     vendor = db.query(models.Vendor).filter(
         models.Vendor.id == vendor_id
     ).first()
     
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    
+
+    # DYNAMIC CALCULATION
+    # Note: We use the existing DB values to compute the weighted score
+    calculated_score = calculate_vendor_risk_score(
+        security_score=vendor.security_score or 100,
+        data_level=vendor.data_access_level or "none",
+        compliance=vendor.compliance_status or "pending"
+    )
+
     return {
         "id": str(vendor.id),
         "name": vendor.name,
@@ -151,10 +166,13 @@ def get_vendor(
         "pricing_notes": vendor.pricing_notes,
         "tags": vendor.tags or [],
         "logo_url": vendor.logo_url,
-        "risk_score": vendor.risk_score,     # NEW
-        "is_critical": vendor.is_critical    # NEW
+        "risk_score": calculated_score, # Oracle Calculated
+        "is_critical": vendor.is_critical or (calculated_score > 75),
+        # Extra fields for the Oracle UI
+        "compliance_status": vendor.compliance_status,
+        "data_access_level": vendor.data_access_level,
+        "security_score": vendor.security_score
     }
-
 
 @router.get("/popular/{category}")
 def get_popular_vendors(

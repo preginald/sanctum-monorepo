@@ -18,11 +18,13 @@ export default function AdminAssetIngest() {
         });
     }, []);
 
-    const account = accounts.find(a => a.id === selectedAccount);
+    // 1. Ensure we compare as strings to avoid type mismatches
+    const account = accounts.find(a => String(a.id) === String(selectedAccount));
     
-    // PRODUCTION LOGIC: Use current window origin + /api/ingest/asset
     const apiBase = `${window.location.origin}/api/ingest/asset`;
-    const token = account?.ingest_token || 'SELECT_A_CLIENT';
+    
+    // 2. Add a check to see if the token actually exists on the object
+    const token = account?.ingest_token || (selectedAccount ? 'TOKEN_NOT_FOUND_IN_DB' : 'SELECT_A_CLIENT');
 
     const copyToClipboard = (text, key) => {
         navigator.clipboard.writeText(text);

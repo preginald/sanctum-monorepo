@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY
+from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
@@ -599,6 +599,15 @@ class Vendor(Base):
     # Risk & Audit Strategy (Phase 63)
     risk_score = Column(Integer, default=0) # 0-10 Scale (0=Low, 10=Critical)
     is_critical = Column(Boolean, default=False) # If True, outage = major incident
+
+    # NEW RISK METRICS
+    risk_level = Column(String, default="low") # low, medium, high, critical
+    compliance_status = Column(String, default="pending") # compliant, non-compliant, pending
+    last_audit_date = Column(DateTime, nullable=True)
+    data_access_level = Column(String, default="none") # restricted, internal, confidential, restricted
+    
+    # For "The Oracle" calculation
+    security_score = Column(Integer, default=100) # 0-100 scale
     
     # Admin
     is_active = Column(Boolean, default=True, index=True)
