@@ -29,6 +29,9 @@ export default function TicketDetail() {
   const [resolveId, setResolveId] = useState(null); 
   const [techs, setTechs] = useState([]); 
 
+  const [showQuickMilestone, setShowQuickMilestone] = useState(false);
+  const [showQuickTech, setShowQuickTech] = useState(false);
+
   // ASSET LINKING STATE
   const [clientAssets, setClientAssets] = useState([]);
   const [showLinkAsset, setShowLinkAsset] = useState(false);
@@ -86,7 +89,6 @@ export default function TicketDetail() {
       const target = res.data.find(t => t.id === parseInt(id));
       if (target) {
         setTicket(target);
-        // Hydrate Form Data
         setFormData({
           status: target.status, 
           priority: target.priority, 
@@ -94,7 +96,6 @@ export default function TicketDetail() {
           resolution: target.resolution || '',
           created_at: target.created_at, 
           closed_at: target.closed_at,
-          // MULTI-SELECT INITIALIZATION
           contact_ids: target.contacts?.map(c => c.id) || [], 
           ticket_type: target.ticket_type || 'support', 
           milestone_id: target.milestone_id || '', 
@@ -111,28 +112,11 @@ export default function TicketDetail() {
   const fetchCatalog = async () => { try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { } };
   const fetchArticles = async () => { try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {} };
 
-  const toggleLayout = () => {
-      const newMode = layoutMode === 'split' ? 'stacked' : 'split';
-      setLayoutMode(newMode);
-      localStorage.setItem('sanctum_ticket_layout', newMode);
-  };
-
-  const triggerConfirm = (title, message, action, isDangerous = false) => {
-      setModal({ isOpen: true, title, message, action, isDangerous });
-  };
-
-  const handlePinComment = (text, commentId) => {
-      setResolveText(text);
-      setResolveId(commentId); 
-      setShowResolveModal(true);
-  };
-
   const handleSave = async () => {
     setIsSaving(true);
     const payload = { ...formData };
     if (!payload.closed_at) delete payload.closed_at;
     if (!payload.milestone_id) payload.milestone_id = null;
-    // We do NOT send contact_id (singular) anymore
     try { 
       await api.put(`/tickets/${id}`, payload); 
       await fetchTicket(); 
@@ -142,47 +126,44 @@ export default function TicketDetail() {
     finally { setIsSaving(false); }
   };
 
-  const handleGenerateInvoice = async () => {
-      const proceed = async () => {
-          setIsSaving(true);
-          try { 
-              const res = await api.post(`/invoices/from_ticket/${id}`); 
-              addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success"); 
-              navigate(`/clients/${ticket.account_id}`); 
-          } catch(e) { 
-              addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
-          } finally { setIsSaving(false); }
-      };
-
-      if (ticket.related_invoices && ticket.related_invoices.length > 0) {
-          triggerConfirm("Duplicate Invoice?", "This ticket is already billed. Create another?", proceed, false);
-      } else {
-          triggerConfirm("Generate Invoice?", "This will draft an invoice for all billable items.", proceed, false);
-      }
+  const handleUpdateMilestone = async (milestoneId) => {
+    try {
+      await api.put(`/tickets/${id}`, { milestone_id: milestoneId });
+      addToast("Milestone updated", "success");
+      fetchTicket();
+    } catch (e) { addToast("Failed to update milestone", "danger"); }
   };
 
-  const handleResolve = async (resolutionText) => {
-      setIsSaving(true);
+  const handleUpdateTech = async (techId) => {
+    try {
+      await api.put(`/tickets/${id}`, { assigned_tech_id: techId });
+      addToast("Assignee updated", "success");
+      fetchTicket();
+    } catch (e) { addToast("Failed to update assignee", "danger"); }
+  };
+
+  const handleLinkContact = async (contactId) => {
+    const currentContactIds = ticket.contacts?.map(c => c.id) || [];
+    if (currentContactIds.includes(contactId)) return;
+    try {
+      await api.put(`/tickets/${id}`, { contact_ids: [...currentContactIds, contactId] });
+      addToast("Contact linked", "success");
+      fetchTicket();
+    } catch (e) { addToast("Failed to link contact", "danger"); }
+  };
+
+  const handleUnlinkContact = async (e, contactId) => {
+    e.stopPropagation();
+    const newContactIds = ticket.contacts?.map(c => c.id).filter(cid => cid !== contactId);
+    triggerConfirm("Unlink Contact?", "Remove this person from the ticket?", async () => {
       try {
-          const payload = {
-              status: 'resolved',
-              resolution: resolutionText,
-              closed_at: new Date().toISOString(), 
-              resolution_comment_id: resolveId 
-          };
-          
-          await api.put(`/tickets/${id}`, payload);
-          await fetchTicket();
-          setShowResolveModal(false);
-          addToast("Ticket Resolved Successfully", "success");
-      } catch(e) {
-          addToast("Failed to resolve ticket", "danger");
-      } finally {
-          setIsSaving(false);
-      }
+        await api.put(`/tickets/${id}`, { contact_ids: newContactIds });
+        addToast("Contact removed", "info");
+        fetchTicket();
+      } catch (e) { addToast("Failed to unlink", "danger"); }
+    }, true);
   };
 
-  // --- LINKING HANDLERS ---
   const handleLinkAsset = async (assetId) => {
       try {
           await api.post(`/tickets/${id}/assets/${assetId}`);
@@ -224,6 +205,51 @@ export default function TicketDetail() {
       }, true);
   };
 
+  const handleGenerateInvoice = async () => {
+    const proceed = async () => {
+        setIsSaving(true);
+        try { 
+            const res = await api.post(`/invoices/from_ticket/${id}`); 
+            addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success"); 
+            navigate(`/clients/${ticket.account_id}`); 
+        } catch(e) { 
+            addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
+        } finally { setIsSaving(false); }
+    };
+    if (ticket.related_invoices?.length > 0) {
+        triggerConfirm("Duplicate Invoice?", "This ticket is already billed. Create another?", proceed, false);
+    } else {
+        triggerConfirm("Generate Invoice?", "This will draft an invoice for all billable items.", proceed, false);
+    }
+  };
+
+  const handleResolve = async (resolutionText) => {
+      setIsSaving(true);
+      try {
+          await api.put(`/tickets/${id}`, { status: 'resolved', resolution: resolutionText, closed_at: new Date().toISOString(), resolution_comment_id: resolveId });
+          await fetchTicket();
+          setShowResolveModal(false);
+          addToast("Ticket Resolved Successfully", "success");
+      } catch(e) { addToast("Failed to resolve ticket", "danger"); }
+      finally { setIsSaving(false); }
+  };
+
+  const toggleLayout = () => {
+    const newMode = layoutMode === 'split' ? 'stacked' : 'split';
+    setLayoutMode(newMode);
+    localStorage.setItem('sanctum_ticket_layout', newMode);
+  };
+
+  const triggerConfirm = (title, message, action, isDangerous = false) => {
+      setModal({ isOpen: true, title, message, action, isDangerous });
+  };
+
+  const handlePinComment = (text, commentId) => {
+      setResolveText(text);
+      setResolveId(commentId); 
+      setShowResolveModal(true);
+  };
+
   if (loading || !ticket) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
   return (
@@ -245,7 +271,6 @@ export default function TicketDetail() {
         initialValue={resolveText} 
       />
 
-      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
         <div className="flex items-start gap-4 flex-1">
           <button onClick={() => navigate('/tickets')} className="p-2 rounded hover:bg-white/10 opacity-70 mt-1"><ArrowLeft size={20} /></button>
@@ -260,38 +285,45 @@ export default function TicketDetail() {
             <h1 className="text-2xl font-bold leading-tight mb-2 break-words max-w-2xl">{ticket.subject}</h1>
             <div className="opacity-60 text-sm flex flex-wrap items-center gap-2">
               <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="hover:text-white hover:underline flex items-center gap-1 font-bold"><User size={12} /> {ticket.account_name}</button>
-              {ticket.project_id && (<><span>/</span><button onClick={() => navigate(`/projects/${ticket.project_id}`)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors"><Briefcase size={12} /> {ticket.project_name}</button><span>/</span><span className="text-sanctum-gold">{ticket.milestone_name}</span></>)}
+              <span>/</span>
+              {!showQuickMilestone ? (
+                <button onClick={() => setShowQuickMilestone(true)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors text-sanctum-gold">
+                  <Briefcase size={12} /> 
+                  {ticket.milestone_name ? (
+                    <span className="flex items-center gap-1">{ticket.project_name} / {ticket.milestone_name} <Plus size={10} /></span>
+                  ) : (
+                    <span className="flex items-center gap-1 italic opacity-70">Link to Milestone <Plus size={10} /></span>
+                  )}
+                </button>
+              ) : (
+                <div className="inline-block w-64 ml-2">
+                  <SearchableSelect 
+                    items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, name: `${p.name} - ${m.name}` })))}
+                    onSelect={(m) => { handleUpdateMilestone(m.id); setShowQuickMilestone(false); }}
+                    placeholder="Search Milestones..."
+                    labelKey="name"
+                    onClose={() => setShowQuickMilestone(false)}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* RIGHT SIDE BUTTONS */}
         <div className="flex gap-2">
-            <button 
-                onClick={toggleLayout}
-                className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors mr-2"
-                title={layoutMode === 'split' ? "Switch to Stacked View" : "Switch to Split View"}
-            >
+            <button onClick={toggleLayout} className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors mr-2">
                 {layoutMode === 'split' ? <Rows size={16} /> : <Columns size={16} />}
             </button>
-
             {!isEditing && (
                 <>
                     {ticket.status !== 'resolved' && (
-                        <button 
-                            onClick={() => setShowResolveModal(true)} 
-                            className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5"
-                        >
-                            <CheckCircle size={16} /> Resolve
-                        </button>
+                        <button onClick={() => setShowResolveModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5"><CheckCircle size={16} /> Resolve</button>
                     )}
-                    
-                    <button disabled={isSaving} onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                    <button disabled={isSaving} onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg disabled:opacity-50">
                         {isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Receipt size={16} /> Generate Invoice</>}
                     </button>
                 </>
             )}
-            
             {!isEditing ? (
                 <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit</button>
             ) : (
@@ -303,65 +335,24 @@ export default function TicketDetail() {
         </div>
       </div>
 
-        {/* MAIN GRID */}
         <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>
-        
-        {/* LEFT COLUMN */}
         <div className="xl:col-span-3 space-y-6 min-w-0">
-          
-          {ticket.related_invoices?.length > 0 && (
-              <div className="p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                      <Receipt className="text-blue-400" size={20} />
-                      <div>
-                          <h4 className="text-sm font-bold text-blue-100">Billed Logic Active</h4>
-                          <p className="text-xs text-blue-300">
-                              Linked to: {ticket.related_invoices.map(i => (
-                                  <span key={i.id} onClick={() => navigate(`/invoices/${i.id}`)} className="underline cursor-pointer ml-1">
-                                      #{i.id.slice(0,8)} ({i.status})
-                                  </span>
-                              ))}
-                          </p>
-                      </div>
-                  </div>
-              </div>
-          )}
-
           <TicketOverview 
-            ticket={ticket} 
-            isEditing={isEditing} 
-            formData={formData} 
-            setFormData={setFormData} 
-            contacts={contacts} 
-            accountProjects={accountProjects} 
-            techs={techs} 
+            ticket={ticket} isEditing={isEditing} formData={formData} setFormData={setFormData} contacts={contacts} accountProjects={accountProjects} techs={techs}
+            onLinkContact={handleLinkContact} onUnlinkContact={handleUnlinkContact} onUpdateTech={handleUpdateTech} showQuickTech={showQuickTech} setShowQuickTech={setShowQuickTech}
           />
-
-          {/* KNOWLEDGE BASE */}
+          {/* KB Section */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
               <div className="flex justify-between items-center mb-4">
                   <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><BookOpen className="w-4 h-4 text-purple-400" /> Linked Knowledge</h3>
                   {!showLinkArticle && <button onClick={() => setShowLinkArticle(true)} className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded flex items-center gap-1"><LinkIcon size={12}/> Link Article</button>}
               </div>
-              
               {showLinkArticle && (
                   <div className="mb-4 p-3 bg-black/30 rounded border border-purple-500/30">
-                      <div className="flex justify-end mb-2">
-                          <button onClick={() => setShowLinkArticle(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
-                      </div>
-                      
-                      <SearchableSelect 
-                          items={allArticles}
-                          onSelect={(item) => handleLinkArticle(item.id)}
-                          selectedIds={ticket.articles?.map(a => a.id) || []}
-                          placeholder="Search Knowledge Base..."
-                          labelKey="title"
-                          subLabelKey="identifier"
-                          icon={BookOpen}
-                      />
+                      <div className="flex justify-end mb-2"><button onClick={() => setShowLinkArticle(false)} className="text-slate-500 hover:text-white"><X size={16}/></button></div>
+                      <SearchableSelect items={allArticles} onSelect={(item) => handleLinkArticle(item.id)} selectedIds={ticket.articles?.map(a => a.id) || []} placeholder="Search Knowledge Base..." labelKey="title" subLabelKey="identifier" icon={BookOpen} />
                   </div>
               )}
-
               <div className="space-y-2">
                   {ticket.articles?.length > 0 ? ticket.articles.map(article => (
                       <div key={article.id} onClick={() => navigate(`/wiki/${article.slug}`)} className="flex items-center justify-between p-3 bg-purple-900/10 border border-purple-500/20 hover:bg-purple-900/20 rounded cursor-pointer transition-colors group relative pr-8">
@@ -369,43 +360,23 @@ export default function TicketDetail() {
                               <span className="text-xs font-mono text-purple-300 bg-purple-500/10 px-1.5 py-0.5 rounded">{article.identifier || 'WIKI'}</span>
                               <span className="text-sm font-bold text-white group-hover:text-purple-200">{article.title}</span>
                           </div>
-                          <button onClick={(e) => handleUnlinkArticle(e, article.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Unlink"><X size={14} /></button>
+                          <button onClick={(e) => handleUnlinkArticle(e, article.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
                       </div>
-                  )) : <p className="text-xs opacity-30 italic">No SOPs linked to this ticket.</p>}
+                  )) : <p className="text-xs opacity-30 italic">No SOPs linked.</p>}
               </div>
           </div>
-
-          {/* ASSETS */}
+          {/* Assets Section */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
               <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2">
-                      <Server className="w-4 h-4 text-cyan-400" /> Affected Assets
-                  </h3>
-                  {!showLinkAsset && (
-                      <button onClick={() => setShowLinkAsset(true)} className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded flex items-center gap-1">
-                          <LinkIcon size={12}/> Link Asset
-                      </button>
-                  )}
+                  <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Server className="w-4 h-4 text-cyan-400" /> Affected Assets</h3>
+                  {!showLinkAsset && <button onClick={() => setShowLinkAsset(true)} className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded flex items-center gap-1"><LinkIcon size={12}/> Link Asset</button>}
               </div>
-              
               {showLinkAsset && (
                   <div className="mb-4 p-3 bg-black/30 rounded border border-cyan-500/30">
-                      <div className="flex justify-end mb-2">
-                          <button onClick={() => setShowLinkAsset(false)} className="text-slate-500 hover:text-white"><X size={16}/></button>
-                      </div>
-
-                      <SearchableSelect 
-                          items={clientAssets}
-                          onSelect={(item) => handleLinkAsset(item.id)} 
-                          selectedIds={ticket.assets?.map(a => a.id) || []}
-                          placeholder="Search Assets by Name or IP..."
-                          labelKey="name"
-                          subLabelKey="ip_address"
-                          icon={Server}
-                      />
+                      <div className="flex justify-end mb-2"><button onClick={() => setShowLinkAsset(false)} className="text-slate-500 hover:text-white"><X size={16}/></button></div>
+                      <SearchableSelect items={clientAssets} onSelect={(item) => handleLinkAsset(item.id)} selectedIds={ticket.assets?.map(a => a.id) || []} placeholder="Search Assets..." labelKey="name" subLabelKey="ip_address" icon={Server} />
                   </div>
               )}
-
               <div className="space-y-2">
                   {ticket.assets?.length > 0 ? ticket.assets.map(asset => (
                       <div key={asset.id} className="flex items-center justify-between p-3 bg-cyan-900/10 border border-cyan-500/20 hover:bg-cyan-900/20 rounded cursor-pointer transition-colors group relative pr-8">
@@ -414,31 +385,15 @@ export default function TicketDetail() {
                               <span className="text-sm font-bold text-white">{asset.name}</span>
                               {asset.ip_address && <span className="text-xs opacity-50 font-mono">({asset.ip_address})</span>}
                           </div>
-                          <button onClick={(e) => handleUnlinkAsset(e, asset.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all" title="Unlink"><X size={14} /></button>
+                          <button onClick={(e) => handleUnlinkAsset(e, asset.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
                       </div>
-                  )) : (
-                      <p className="text-xs opacity-30 italic">No assets linked.</p>
-                  )}
+                  )) : <p className="text-xs opacity-30 italic">No assets linked.</p>}
               </div>
           </div>
-          
-          <TicketBilling 
-            ticket={ticket} 
-            products={products} 
-            onUpdate={fetchTicket} 
-            triggerConfirm={triggerConfirm} 
-          />
-
+          <TicketBilling ticket={ticket} products={products} onUpdate={fetchTicket} triggerConfirm={triggerConfirm} />
         </div>
-
-        {/* RIGHT COLUMN */}
         <div className="xl:col-span-2 h-[800px] xl:sticky xl:top-8">
-            <CommentStream 
-                resourceType="ticket" 
-                resourceId={ticket.id} 
-                onPromote={ticket.status !== 'resolved' ? handlePinComment : null}
-                highlightId={ticket.resolution_comment_id}
-            />
+            <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} />
         </div>
       </div>
     </Layout>
