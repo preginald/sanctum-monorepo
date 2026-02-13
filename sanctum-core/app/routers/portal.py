@@ -251,7 +251,7 @@ def submit_questionnaire(
     # Parse and create draft assets
     draft_assets_created = []
     
-    # 1. Parse domain names (Still uses newline split for the free-text tag input)
+    # 1. Parse domain names
     if payload.domain_names:
         domains = [d.strip() for d in payload.domain_names.split('\n') if d.strip()]
         for domain_name in domains:
@@ -265,12 +265,12 @@ def submit_questionnaire(
             db.add(asset)
             draft_assets_created.append(f"Domain: {domain_name}")
     
-    # 2. Create hosting assets (Iterate resolved list)
+    # 2. Create hosting assets (MATCHES: "hosting web")
     for provider_name in hosting_names:
         asset = models.Asset(
             account_id=account.id,
             name=f"Hosting Service",
-            asset_type='hosting_web',
+            asset_type='hosting web',
             vendor=provider_name,
             status='draft',
             notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
@@ -278,7 +278,7 @@ def submit_questionnaire(
         db.add(asset)
         draft_assets_created.append(f"Hosting: {provider_name}")
     
-    # 3. Create SaaS assets (Iterate resolved list)
+    # 3. Create SaaS assets (MATCHES: "saas")
     for platform_name in saas_names:
         asset = models.Asset(
             account_id=account.id,
@@ -290,29 +290,31 @@ def submit_questionnaire(
         db.add(asset)
         draft_assets_created.append(f"SaaS: {platform_name}")
     
-    # 4. Create security tool assets
+    # 4. Create security tool assets (MATCHES: "security software")
     for av_name in antivirus_names:
         asset = models.Asset(
             account_id=account.id,
             name=f"Antivirus: {av_name}",
-            asset_type='security_software',
+            asset_type='security software',
             status='draft',
             notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
         )
         db.add(asset)
         draft_assets_created.append(f"Security: {av_name}")
     
+    # Firewall (MATCHES: "firewall")
     if payload.firewall_type and payload.firewall_type not in ['No', 'Not sure']:
         asset = models.Asset(
             account_id=account.id,
             name=f"Firewall: {payload.firewall_type}",
-            asset_type='security_hardware',
+            asset_type='firewall',
             status='draft',
             notes=f"Captured from Pre-Engagement Questionnaire - {datetime.utcnow().strftime('%Y-%m-%d')}"
         )
         db.add(asset)
         draft_assets_created.append(f"Firewall: {payload.firewall_type}")
     
+    # Password Mgmt (MATCHES: "saas")
     if payload.password_management and payload.password_management not in ['Not sure']:
         asset = models.Asset(
             account_id=account.id,
