@@ -18,6 +18,10 @@ class AccountUpdate(SanctumBase):
 
 class AccountResponse(AccountCreate):
     id: UUID
+    ingest_token: Optional[UUID] = None  # Add this here
+
+    class Config:
+        from_attributes = True
 
 class ContactCreate(SanctumBase):
     account_id: UUID
