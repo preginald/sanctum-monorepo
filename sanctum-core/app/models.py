@@ -254,10 +254,14 @@ class TicketTimeEntry(Base):
     end_time = Column(TIMESTAMP(timezone=True), nullable=False)
     description = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    
+    # FINANCIAL LOCKING
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
 
     ticket = relationship("Ticket", back_populates="time_entries")
     user = relationship("User") 
     product = relationship("Product")
+    invoice = relationship("Invoice")
 
     @property
     def duration_minutes(self):
@@ -285,9 +289,13 @@ class TicketMaterial(Base):
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"))
     quantity = Column(Integer, default=1)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    
+    # FINANCIAL LOCKING
+    invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
 
     ticket = relationship("Ticket", back_populates="materials")
     product = relationship("Product")
+    invoice = relationship("Invoice")
 
     @property
     def product_name(self): return self.product.name if self.product else "Unknown Item"
@@ -381,6 +389,10 @@ class Invoice(Base):
     due_date = Column(Date, nullable=True)
     generated_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     pdf_path = Column(String, nullable=True)
+    
+    # PAYMENT TRACKING
+    paid_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    payment_method = Column(String, nullable=True)
 
     account = relationship("Account", back_populates="invoices")
     items = relationship("InvoiceItem", back_populates="invoice", cascade="all, delete-orphan")

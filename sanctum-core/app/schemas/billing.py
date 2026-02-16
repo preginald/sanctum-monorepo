@@ -66,6 +66,9 @@ class InvoiceUpdate(SanctumBase):
     due_date: Optional[date] = None
     generated_at: Optional[datetime] = None
     payment_terms: Optional[str] = None
+    # NEW: Payment Tracking
+    paid_at: Optional[datetime] = None
+    payment_method: Optional[str] = None
 
 class InvoiceResponse(SanctumBase):
     id: UUID
@@ -79,6 +82,10 @@ class InvoiceResponse(SanctumBase):
     due_date: Optional[date] = None
     generated_at: datetime
     pdf_path: Optional[str] = None
+    # NEW: Payment Tracking
+    paid_at: Optional[datetime] = None
+    payment_method: Optional[str] = None
+    
     items: List[InvoiceItemSchema] = []
     delivery_logs: List[InvoiceDeliveryLogResponse] = []
     suggested_cc: List[str] = []

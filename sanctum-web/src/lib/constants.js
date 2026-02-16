@@ -29,7 +29,7 @@ export const TICKET_STATUSES = [
     "new",
     "open",
     "pending",
-    "qa",       // Added QA status
+    "qa",       
     "resolved"
 ];
 
@@ -37,13 +37,13 @@ export const TICKET_TYPES = [
     "support",
     "bug",
     "feature",
-    "refactor",     // NEW
+    "refactor",     
     "task",
-    "access",       // New: Access Requests
-    "maintenance",  // New: Scheduled Work
-    "alert",         // New: Automated Alerts
+    "access",       
+    "maintenance",  
+    "alert",         
     "hotfix",
-    "test" // [cite: 11] Added new type
+    "test"
 ];
 
 // KNOWLEDGE BASE
@@ -51,11 +51,10 @@ export const ARTICLE_CATEGORIES = [
     "sop",
     "template",
     "wiki",
-    "troubleshooting" // NEW
+    "troubleshooting" 
 ];
 
 // ASSETS (CMDB)
-// UPDATED: Added Digital Asset Types
 export const ASSET_TYPES = [
     "server",
     "workstation",
@@ -70,11 +69,10 @@ export const ASSET_TYPES = [
     "hosting email",
     "saas",
     "security software",
-    // MOBILE DEVICES
-    "iphone",           // NEW
-    "android phone",    // NEW
-    "ipad",             // NEW
-    "android tablet"    // NEW
+    "iphone",           
+    "android phone",    
+    "ipad",             
+    "android tablet"    
 ];
 
 export const ASSET_STATUSES = [
@@ -90,8 +88,24 @@ export const ASSET_STATUSES = [
 export const PRODUCT_TYPES = [
     { value: "service", label: "Service (Labor)", color: "info" },
     { value: "hardware", label: "Hardware (Goods)", color: "warning" },
-    { value: "hosting", label: "Hosting / Cloud", color: "purple" }, // NEW
-    { value: "license", label: "Software License", color: "pink" }   // NEW
+    { value: "hosting", label: "Hosting / Cloud", color: "purple" }, 
+    { value: "license", label: "Software License", color: "pink" }   
+];
+
+// BILLING & FINANCE
+export const PAYMENT_METHODS = [
+    { value: "bank_transfer", label: "Bank Transfer / EFT" },
+    { value: "credit_card", label: "Credit Card (Stripe)" },
+    { value: "cash", label: "Cash" },
+    { value: "cheque", label: "Cheque" },
+    { value: "other", label: "Other" }
+];
+
+export const PAYMENT_TERMS = [
+    "Due on Receipt",
+    "Net 7 Days",
+    "Net 14 Days",
+    "Net 30 Days"
 ];
 
 // AUTOMATION

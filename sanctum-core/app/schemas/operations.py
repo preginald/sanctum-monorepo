@@ -30,6 +30,9 @@ class TimeEntryResponse(SanctumBase):
     service_name: Optional[str] = None
     calculated_value: Decimal = Decimal("0.00")
     created_at: datetime
+    
+    # NEW: Financial Lock
+    invoice_id: Optional[UUID] = None
 
 class TicketMaterialCreate(SanctumBase):
     product_id: UUID
@@ -45,6 +48,10 @@ class TicketMaterialResponse(SanctumBase):
     product_name: Optional[str] = None
     quantity: int
     unit_price: Decimal = Decimal("0.00")
+    calculated_value: Decimal = Decimal("0.00") # Added for consistency
+
+    # NEW: Financial Lock
+    invoice_id: Optional[UUID] = None
 
 class TicketCreate(SanctumBase):
     account_id: UUID

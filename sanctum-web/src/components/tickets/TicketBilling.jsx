@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { Clock, Package, Plus, Edit2, Copy, Trash2, CheckCircle, X, Loader2 } from 'lucide-react';
+import { Clock, Package, Plus, Edit2, Copy, Trash2, CheckCircle, X, Loader2, Lock, FileText } from 'lucide-react';
 import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import SearchableSelect from '../ui/SearchableSelect';
 import { Tag } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function TicketBilling({ ticket, products, onUpdate, triggerConfirm }) {
   const { addToast } = useToast();
+  const navigate = useNavigate();
   
   // --- TIME STATE ---
   const [showTimeForm, setShowTimeForm] = useState(false);
@@ -93,10 +95,17 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              
              <div className="space-y-3">
                  {ticket.time_entries?.map(entry => (
-                     <div key={entry.id} className="p-3 bg-white/5 rounded border border-white/5 text-sm group hover:border-sanctum-gold/30 transition-colors">
+                     <div key={entry.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${entry.invoice_id ? 'border-green-500/30 bg-green-900/10' : 'border-white/5 hover:border-sanctum-gold/30'}`}>
                          <div className="flex justify-between items-center">
                              <div>
-                                 <div className="font-mono text-xs opacity-50 mb-1">{formatDate(entry.start_time)} - {formatDate(entry.end_time)}</div>
+                                 <div className="font-mono text-xs opacity-50 mb-1 flex items-center gap-2">
+                                    {formatDate(entry.start_time)} - {formatDate(entry.end_time)}
+                                    {entry.invoice_id && (
+                                        <span className="flex items-center gap-1 text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                            <FileText size={10} /> Billed
+                                        </span>
+                                    )}
+                                 </div>
                                  <div className="font-bold flex items-center gap-2">
                                      {entry.description || "Work Session"}
                                      {entry.service_name && <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-[10px] uppercase">{entry.service_name}</span>}
@@ -108,9 +117,16 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                                      <span className="block font-mono font-bold">{formatDuration(entry.duration_minutes)}</span>
                                      <span className="block text-[10px] text-sanctum-gold opacity-70">{formatCurrency(entry.calculated_value)}</span>
                                  </div>
-                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                     <button onClick={() => triggerConfirm("Delete Entry?", "This cannot be undone.", () => deleteTime(entry.id), true)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={14}/></button>
-                                 </div>
+                                 
+                                 {entry.invoice_id ? (
+                                    <div className="flex items-center gap-1 opacity-50 cursor-not-allowed" title="Item is locked by an invoice">
+                                        <Lock size={14} className="text-slate-500"/>
+                                    </div>
+                                 ) : (
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => triggerConfirm("Delete Entry?", "This cannot be undone.", () => deleteTime(entry.id), true)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={14}/></button>
+                                    </div>
+                                 )}
                              </div>
                          </div>
                      </div>
@@ -135,6 +151,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                         labelKey="name"
                         subLabelKey="unit_price"
                         icon={Tag}
+                        displaySelected={true}
                      />
                  </div>
                      <div><label className="text-xs opacity-50 block mb-1">Description</label><input className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} /></div>
@@ -151,14 +168,31 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              <div className="flex justify-between items-center mb-4"><div className="flex items-center gap-4"><h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Package className="w-4 h-4 text-orange-400" /> Materials Used</h3><span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded text-xs font-bold border border-orange-500/20">{formatCurrency(totalMat)}</span></div></div>
              <div className="space-y-3">
                  {ticket.materials?.map(mat => (
-                     <div key={mat.id} className="p-3 bg-white/5 rounded border border-white/5 text-sm group hover:border-orange-500/30 transition-colors">
+                     <div key={mat.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${mat.invoice_id ? 'border-green-500/30 bg-green-900/10' : 'border-white/5 hover:border-orange-500/30'}`}>
                          <div className="flex justify-between items-center">
-                             <div><div className="font-bold">{mat.product_name}</div><div className="text-xs opacity-50">{formatCurrency(mat.unit_price)} x {mat.quantity}</div></div>
+                             <div>
+                                <div className="font-bold flex items-center gap-2">
+                                    {mat.product_name}
+                                    {mat.invoice_id && (
+                                        <span className="flex items-center gap-1 text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                                            <FileText size={10} /> Billed
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="text-xs opacity-50">{formatCurrency(mat.unit_price)} x {mat.quantity}</div>
+                            </div>
                              <div className="flex items-center gap-4">
                                  <span className="font-mono font-bold text-orange-400">{formatCurrency(mat.calculated_value)}</span>
-                                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                     <button onClick={() => triggerConfirm("Remove Item?", "Inventory will be adjusted.", () => deleteMat(mat.id), true)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={14}/></button>
-                                 </div>
+                                 
+                                 {mat.invoice_id ? (
+                                    <div className="flex items-center gap-1 opacity-50 cursor-not-allowed" title="Item is locked by an invoice">
+                                        <Lock size={14} className="text-slate-500"/>
+                                    </div>
+                                 ) : (
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={() => triggerConfirm("Remove Item?", "Inventory will be adjusted.", () => deleteMat(mat.id), true)} className="text-red-500 hover:text-red-400 p-1"><Trash2 size={14}/></button>
+                                    </div>
+                                 )}
                              </div>
                          </div>
                      </div>
@@ -178,6 +212,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                             labelKey="name"
                             subLabelKey="unit_price"
                             icon={Package}
+                            displaySelected={true}
                          />
                      </div>
                          <div><label className="text-xs opacity-50 block mb-1">Qty</label><input required type="number" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newMat.quantity} onChange={e => setNewMat({...newMat, quantity: e.target.value})} /></div>

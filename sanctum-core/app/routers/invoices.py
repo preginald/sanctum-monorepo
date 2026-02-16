@@ -31,15 +31,30 @@ def recalculate_invoice(invoice_id: str, db: Session):
 
 @router.post("/from_ticket/{ticket_id}", response_model=schemas.InvoiceResponse)
 def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    ticket = db.query(models.Ticket).options(
-            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
-            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product)
-        ).filter(models.Ticket.id == ticket_id).first()
+    # 1. Fetch Ticket
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
+
+    # 2. Fetch UNBILLED Items Only (Stateful Generation)
+    # We strictly filter for items that do not have an invoice_id yet.
+    
+    unbilled_time = db.query(models.TicketTimeEntry).options(joinedload(models.TicketTimeEntry.product)).filter(
+        models.TicketTimeEntry.ticket_id == ticket_id,
+        models.TicketTimeEntry.invoice_id == None 
+    ).all()
+
+    unbilled_materials = db.query(models.TicketMaterial).options(joinedload(models.TicketMaterial.product)).filter(
+        models.TicketMaterial.ticket_id == ticket_id,
+        models.TicketMaterial.invoice_id == None
+    ).all()
+
+    if not unbilled_time and not unbilled_materials:
+        raise HTTPException(status_code=400, detail="No unbilled items found for this ticket. Previous items may already be on an invoice.")
 
     items_buffer = []
 
-    for entry in ticket.time_entries:
+    # Process Time Entries
+    for entry in unbilled_time:
         hours = entry.duration_minutes / 60
         if hours <= 0: continue
         rate = entry.product.unit_price if entry.product else 0.0
@@ -47,26 +62,55 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         if entry.description: desc += f" - {entry.description}"
         desc += f" [Ref: Ticket #{ticket.id}]"
         line_total = hours * float(rate)
-        items_buffer.append({"description": desc, "quantity": round(hours, 2), "unit_price": rate, "total": round(line_total, 2), "ticket_id": ticket.id, "source_type": "time", "source_id": entry.id})
+        
+        items_buffer.append({
+            "description": desc, 
+            "quantity": round(hours, 2), 
+            "unit_price": rate, 
+            "total": round(line_total, 2), 
+            "ticket_id": ticket.id, 
+            "source_type": "time", 
+            "source_id": entry.id
+        })
 
-    for mat in ticket.materials:
+    # Process Materials
+    for mat in unbilled_materials:
         price = mat.product.unit_price if mat.product else 0.0
         name = f"Hardware: {mat.product.name}" if mat.product else "Hardware: Unidentified"
         name += f" [Ref: Ticket #{ticket.id}]"
         line_total = mat.quantity * float(price)
-        items_buffer.append({"description": name, "quantity": float(mat.quantity), "unit_price": price, "total": round(line_total, 2), "ticket_id": ticket.id, "source_type": "material", "source_id": mat.id})
+        
+        items_buffer.append({
+            "description": name, 
+            "quantity": float(mat.quantity), 
+            "unit_price": price, 
+            "total": round(line_total, 2), 
+            "ticket_id": ticket.id, 
+            "source_type": "material", 
+            "source_id": mat.id
+        })
 
-    if not items_buffer: raise HTTPException(status_code=400, detail="No billable items.")
+    if not items_buffer: 
+         raise HTTPException(status_code=400, detail="Items found but calculated value is 0 (check durations or prices).")
 
+    # 3. Create Invoice Header
     new_invoice = models.Invoice(
         account_id=ticket.account_id, status="draft", 
         due_date=datetime.now() + timedelta(days=14), generated_at=func.now()
     )
     db.add(new_invoice)
-    db.flush()
+    db.flush() # Get ID
 
+    # 4. Create Invoice Items
     for item in items_buffer:
         db.add(models.InvoiceItem(invoice_id=new_invoice.id, **item))
+    
+    # 5. LOCKING: Update the source rows with the invoice_id
+    for entry in unbilled_time:
+        entry.invoice_id = new_invoice.id
+        
+    for mat in unbilled_materials:
+        mat.invoice_id = new_invoice.id
 
     db.commit()
     
@@ -95,11 +139,19 @@ def get_invoice_detail(invoice_id: str, db: Session = Depends(get_db)):
 def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Session = Depends(get_db)):
     inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
+    
     if update.status: inv.status = update.status
     if update.due_date: inv.due_date = update.due_date
     if update.payment_terms: inv.payment_terms = update.payment_terms
     if update.generated_at: inv.generated_at = update.generated_at
+    
+    # NEW: Payment Tracking
+    if update.paid_at is not None: inv.paid_at = update.paid_at
+    if update.payment_method: inv.payment_method = update.payment_method
+    
+    # Invalidate PDF if core data changes
     if update.due_date or update.generated_at or update.payment_terms: inv.pdf_path = None
+    
     db.commit()
     db.refresh(inv)
     inv.account_name = inv.account.name
@@ -119,6 +171,11 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
             status_code=400, 
             detail=f"Cannot delete invoice in '{inv.status}' status. Only drafts can be deleted."
         )
+
+    # UNLOCKING: Release the source items back to the pool
+    # We find all TimeEntries and Materials linked to this invoice and set invoice_id = None
+    db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.invoice_id == invoice_id).update({"invoice_id": None})
+    db.query(models.TicketMaterial).filter(models.TicketMaterial.invoice_id == invoice_id).update({"invoice_id": None})
 
     db.delete(inv)
     db.commit()
@@ -150,6 +207,13 @@ def delete_invoice_item(item_id: str, db: Session = Depends(get_db)):
     item = db.query(models.InvoiceItem).filter(models.InvoiceItem.id == item_id).first()
     if not item: raise HTTPException(status_code=404, detail="Item not found")
     pid = item.invoice_id
+    
+    # IF this item came from a Ticket Source, we must unlock that source
+    if item.source_type == 'time' and item.source_id:
+        db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == item.source_id).update({"invoice_id": None})
+    elif item.source_type == 'material' and item.source_id:
+        db.query(models.TicketMaterial).filter(models.TicketMaterial.id == item.source_id).update({"invoice_id": None})
+        
     db.delete(item)
     db.commit()
     return recalculate_invoice(pid, db)
@@ -168,6 +232,11 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
         raise HTTPException(status_code=400, detail="Cannot void a Paid invoice.")
 
     if inv.status != 'void':
+        # UNLOCKING: Release the source items back to the pool
+        db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.invoice_id == invoice_id).update({"invoice_id": None})
+        db.query(models.TicketMaterial).filter(models.TicketMaterial.invoice_id == invoice_id).update({"invoice_id": None})
+
+        # Clear links on the invoice items themselves (Legacy/Audit trail)
         for item in inv.items:
             item.source_id = None
             item.source_type = None
@@ -203,7 +272,7 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
 @router.post("/{invoice_id}/send")
 def send_invoice_email(
     invoice_id: str, 
-    request: schemas.InvoiceSendRequest, # Ensure Schema is updated!
+    request: schemas.InvoiceSendRequest, 
     current_user: models.User = Depends(auth.get_current_active_user), 
     db: Session = Depends(get_db)
     ):
@@ -235,23 +304,18 @@ def send_invoice_email(
     # NEW: Determine Greeting
     greeting_name = "Team" # Default fallback
     
-    # 1. Direct Contact Match (Highest Priority)
     if request.recipient_contact_id:
         contact = db.query(models.Contact).filter(models.Contact.id == request.recipient_contact_id).first()
         if contact:
             greeting_name = contact.first_name
             
-    # 2. Logic Fallback (If no specific contact ID was passed)
     elif inv.account_id:
         contacts = db.query(models.Contact).filter(models.Contact.account_id == inv.account_id).all()
-        
-        # Try finding contact by email string match
         matched_contact = next((c for c in contacts if c.email == request.to_email), None)
         
         if matched_contact:
             greeting_name = matched_contact.first_name
         else:
-            # Fallback to Billing Lead
             billing_lead = next((c for c in contacts if c.persona == 'Billing Lead'), None)
             if billing_lead:
                 greeting_name = billing_lead.first_name
@@ -263,7 +327,7 @@ def send_invoice_email(
         display_due = inv.due_date.strftime("%d %b %Y") if inv.due_date else "Due on Receipt"
 
     context = {
-        "client_name": greeting_name, # Overriding generic Account Name with Greeting Name
+        "client_name": greeting_name, 
         "invoice_number": str(inv.id)[:8].upper(),
         "issue_date": inv.generated_at.strftime("%d %b %Y") if inv.generated_at else "N/A",
         "due_date": display_due,

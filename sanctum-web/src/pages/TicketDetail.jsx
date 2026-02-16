@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus, Check } from 'lucide-react';
 import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -205,7 +205,13 @@ export default function TicketDetail() {
       }, true);
   };
 
+  // --- NEW: Smart Invoice Generation Logic ---
   const handleGenerateInvoice = async () => {
+    const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
+    
+    // Safety check (button should be disabled anyway)
+    if (unbilledCount === 0) return;
+
     const proceed = async () => {
         setIsSaving(true);
         try { 
@@ -216,11 +222,12 @@ export default function TicketDetail() {
             addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
         } finally { setIsSaving(false); }
     };
-    if (ticket.related_invoices?.length > 0) {
-        triggerConfirm("Duplicate Invoice?", "This ticket is already billed. Create another?", proceed, false);
-    } else {
-        triggerConfirm("Generate Invoice?", "This will draft an invoice for all billable items.", proceed, false);
-    }
+
+    // Determine message based on state
+    const title = "Generate Invoice?";
+    const message = `Ready to draft an invoice for ${unbilledCount} unbilled item(s)?`;
+
+    triggerConfirm(title, message, proceed, false);
   };
 
   const handleResolve = async (resolutionText) => {
@@ -251,6 +258,9 @@ export default function TicketDetail() {
   };
 
   if (loading || !ticket) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
+
+  // --- CALCULATE UNBILLED ITEMS ---
+  const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
 
   return (
     <Layout title={`Ticket #${ticket.id}`}>
@@ -319,8 +329,24 @@ export default function TicketDetail() {
                     {ticket.status !== 'resolved' && (
                         <button onClick={() => setShowResolveModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5"><CheckCircle size={16} /> Resolve</button>
                     )}
-                    <button disabled={isSaving} onClick={handleGenerateInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold shadow-lg disabled:opacity-50">
-                        {isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Receipt size={16} /> Generate Invoice</>}
+                    
+                    {/* SMART INVOICE BUTTON */}
+                    <button 
+                        disabled={isSaving || unbilledCount === 0} 
+                        onClick={handleGenerateInvoice} 
+                        className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-bold shadow-lg transition-all ${
+                            unbilledCount === 0 
+                                ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-transparent' 
+                                : 'bg-blue-600 hover:bg-blue-500 text-white'
+                        }`}
+                    >
+                        {isSaving ? (
+                            <Loader2 size={16} className="animate-spin"/>
+                        ) : unbilledCount === 0 ? (
+                            <><Check size={16} /> Fully Billed</>
+                        ) : (
+                            <><Receipt size={16} /> Invoice ({unbilledCount})</>
+                        )}
                     </button>
                 </>
             )}
