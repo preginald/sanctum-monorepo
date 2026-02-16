@@ -13,6 +13,7 @@ import TicketBilling from '../components/tickets/TicketBilling';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import ResolveModal from '../components/tickets/ResolveModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import InvoiceList from '../components/invoices/InvoiceList'; // NEW IMPORT
 
 export default function TicketDetail() {
   const { id } = useParams();
@@ -205,11 +206,9 @@ export default function TicketDetail() {
       }, true);
   };
 
-  // --- NEW: Smart Invoice Generation Logic ---
   const handleGenerateInvoice = async () => {
     const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
     
-    // Safety check (button should be disabled anyway)
     if (unbilledCount === 0) return;
 
     const proceed = async () => {
@@ -223,10 +222,8 @@ export default function TicketDetail() {
         } finally { setIsSaving(false); }
     };
 
-    // Determine message based on state
     const title = "Generate Invoice?";
     const message = `Ready to draft an invoice for ${unbilledCount} unbilled item(s)?`;
-
     triggerConfirm(title, message, proceed, false);
   };
 
@@ -417,6 +414,10 @@ export default function TicketDetail() {
               </div>
           </div>
           <TicketBilling ticket={ticket} products={products} onUpdate={fetchTicket} triggerConfirm={triggerConfirm} />
+          
+          {/* NEW: Related Invoices Section */}
+          <InvoiceList invoices={ticket.related_invoices || []} title="Related Invoices" />
+          
         </div>
         <div className="xl:col-span-2 h-[800px] xl:sticky xl:top-8">
             <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} />
