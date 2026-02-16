@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Clock, Package, Plus, Edit2, Copy, Trash2, CheckCircle, X, Loader2, Lock, FileText } from 'lucide-react';
+import { Clock, Package, Plus, Edit2, Copy, Trash2, CheckCircle, X, Loader2, Lock, FileText, Send, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { useToast } from '../../context/ToastContext';
 import SearchableSelect from '../ui/SearchableSelect';
@@ -25,12 +25,35 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
   const formatDuration = (m) => `${Math.floor(m/60)}h ${m%60}m`;
 
+  // --- BADGE RENDERER ---
+  const renderStatusBadge = (status, invoiceId) => {
+      if (!status || !invoiceId) return null;
+      
+      const config = {
+          'paid': { color: 'bg-green-500/20 text-green-400', icon: CheckCircle, label: 'PAID' },
+          'sent': { color: 'bg-blue-500/20 text-blue-400', icon: Send, label: 'SENT' },
+          'draft': { color: 'bg-yellow-500/20 text-yellow-500', icon: FileText, label: 'DRAFT' },
+          'void': { color: 'bg-red-500/20 text-red-400', icon: AlertCircle, label: 'VOID' }
+      };
+
+      const style = config[status.toLowerCase()] || config['draft'];
+      const Icon = style.icon;
+
+      return (
+          <button 
+            onClick={() => navigate(`/invoices/${invoiceId}`)}
+            className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider hover:opacity-80 transition-opacity ${style.color}`}
+          >
+              <Icon size={10} /> {style.label}
+          </button>
+      );
+  };
+
   // --- ACTIONS (TIME) ---
   const handleAddTime = async (e) => {
       e.preventDefault();
       setLoadingAction(true);
       try {
-          // TIMEZONE FIX: Convert Local Input to UTC ISO String
           const payload = { ...newEntry };
           if (payload.start_time) payload.start_time = new Date(payload.start_time).toISOString();
           if (payload.end_time) payload.end_time = new Date(payload.end_time).toISOString();
@@ -41,7 +64,6 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
           onUpdate(); 
           addToast("Time logged", "success");
       } catch(e) { 
-          console.error(e);
           addToast("Failed to log time", "danger"); 
       } finally { 
           setLoadingAction(false); 
@@ -95,16 +117,12 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              
              <div className="space-y-3">
                  {ticket.time_entries?.map(entry => (
-                     <div key={entry.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${entry.invoice_id ? 'border-green-500/30 bg-green-900/10' : 'border-white/5 hover:border-sanctum-gold/30'}`}>
+                     <div key={entry.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${entry.invoice_id ? 'border-green-500/10 bg-green-900/5' : 'border-white/5 hover:border-sanctum-gold/30'}`}>
                          <div className="flex justify-between items-center">
                              <div>
                                  <div className="font-mono text-xs opacity-50 mb-1 flex items-center gap-2">
                                     {formatDate(entry.start_time)} - {formatDate(entry.end_time)}
-                                    {entry.invoice_id && (
-                                        <span className="flex items-center gap-1 text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                                            <FileText size={10} /> Billed
-                                        </span>
-                                    )}
+                                    {renderStatusBadge(entry.invoice_status, entry.invoice_id)}
                                  </div>
                                  <div className="font-bold flex items-center gap-2">
                                      {entry.description || "Work Session"}
@@ -168,16 +186,12 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
              <div className="flex justify-between items-center mb-4"><div className="flex items-center gap-4"><h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><Package className="w-4 h-4 text-orange-400" /> Materials Used</h3><span className="bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded text-xs font-bold border border-orange-500/20">{formatCurrency(totalMat)}</span></div></div>
              <div className="space-y-3">
                  {ticket.materials?.map(mat => (
-                     <div key={mat.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${mat.invoice_id ? 'border-green-500/30 bg-green-900/10' : 'border-white/5 hover:border-orange-500/30'}`}>
+                     <div key={mat.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${mat.invoice_id ? 'border-green-500/10 bg-green-900/5' : 'border-white/5 hover:border-orange-500/30'}`}>
                          <div className="flex justify-between items-center">
                              <div>
                                 <div className="font-bold flex items-center gap-2">
                                     {mat.product_name}
-                                    {mat.invoice_id && (
-                                        <span className="flex items-center gap-1 text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
-                                            <FileText size={10} /> Billed
-                                        </span>
-                                    )}
+                                    {renderStatusBadge(mat.invoice_status, mat.invoice_id)}
                                 </div>
                                 <div className="text-xs opacity-50">{formatCurrency(mat.unit_price)} x {mat.quantity}</div>
                             </div>

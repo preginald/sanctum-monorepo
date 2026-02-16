@@ -16,7 +16,9 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         .options(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
+            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.invoice), # NEW: Load Invoice
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
+            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.invoice), # NEW: Load Invoice
             joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
             joinedload(models.Ticket.contacts),
             joinedload(models.Ticket.articles),
@@ -41,10 +43,27 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         t_dict['account_name'] = t.account.name
         t_dict['contacts'] = t.contacts 
         t_dict['total_hours'] = t.total_hours
-        t_dict['time_entries'] = t.time_entries 
-        t_dict['materials'] = t.materials 
         t_dict['articles'] = t.articles
         t_dict['assets'] = t.assets 
+        
+        # Manually map invoice status to time/materials
+        # We must convert SQLAlchemy objects to dicts to inject the new field
+        enriched_time = []
+        for te in t.time_entries:
+            # Note: Do not use __dict__ directly if possible, but here we need to inject a field
+            # Pydantic from_attributes usually handles object attributes, 
+            # but 'invoice_status' isn't on the model. We'll set it on the object dynamically.
+            if te.invoice:
+                setattr(te, 'invoice_status', te.invoice.status)
+            enriched_time.append(te)
+        t_dict['time_entries'] = enriched_time
+
+        enriched_materials = []
+        for tm in t.materials:
+            if tm.invoice:
+                setattr(tm, 'invoice_status', tm.invoice.status)
+            enriched_materials.append(tm)
+        t_dict['materials'] = enriched_materials
         
         if t.milestone:
             t_dict['milestone_name'] = t.milestone.name
@@ -127,8 +146,7 @@ def update_ticket(
 
     # 1. HANDLE MANY-TO-MANY CONTACTS
     if 'contact_ids' in update_data:
-        ids = update_data.pop('contact_ids') # Remove from dict so setattr doesn't crash
-        # Replace the entire collection with new list
+        ids = update_data.pop('contact_ids') 
         if ids:
             ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
         else:
@@ -161,8 +179,6 @@ def update_ticket(
     # 5. NOTIFY: RESOLUTION
     if ticket.status == 'resolved' and not was_resolved:
         event_bus.emit("ticket_resolved", ticket, background_tasks)
-        # Note: The NotificationRouter in EventBus will now handle notifying ALL contacts
-        # so we don't need manual notification logic here anymore.
 
     return ticket
 
