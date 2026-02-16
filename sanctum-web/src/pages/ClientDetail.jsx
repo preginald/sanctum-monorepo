@@ -7,7 +7,6 @@ import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash, ClipboardList 
 import { useToast } from '../context/ToastContext';
 import { recordVisit } from '../lib/history'; 
 
-
 // COMPONENTS
 import HumanSection from '../components/clients/HumanSection';
 import FinancialSection from '../components/clients/FinancialSection';
@@ -16,7 +15,6 @@ import ClientModals from '../components/clients/ClientModals';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import TicketCreateModal from '../components/tickets/TicketCreateModal';
 import TicketList from '../components/tickets/TicketList';
-// NEW ASSET COMPONENTS
 import AssetList from '../components/clients/AssetList';
 import AssetModal from '../components/clients/AssetModal';
 
@@ -38,7 +36,7 @@ export default function ClientDetail() {
   const [users, setUsers] = useState([]);
   const [audits, setAudits] = useState([]);
   const [tickets, setTickets] = useState([]);
-  const [assets, setAssets] = useState([]); // CMDB State
+  const [assets, setAssets] = useState([]); 
 
   const [loading, setLoading] = useState(true);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
@@ -53,7 +51,6 @@ export default function ClientDetail() {
       user: { email: '', password: '', full_name: '' }
   });
 
-  // ASSET FORM
   const [showAssetModal, setShowAssetModal] = useState(false);
   const [assetForm, setAssetForm] = useState({ name: '', asset_type: 'server', status: 'active', ip_address: '', serial_number: '', notes: '' });
 
@@ -62,7 +59,6 @@ export default function ClientDetail() {
 
   useEffect(() => { fetchAll(); }, [id]);
 
-    // NEW: Record Visit Side Effect
   useEffect(() => {
       if (account?.id) {
           recordVisit('clients', { 
@@ -71,17 +67,15 @@ export default function ClientDetail() {
               type: account.type 
           });
       }
-  }, [account]); // Runs when account data loads
-
+  }, [account]);
 
   const fetchAll = async () => {
       try {
-          // Promise.all ensures we get everything before rendering
           const [accRes, auditRes, userRes, assetRes] = await Promise.all([
               api.get(`/accounts/${id}`),
               api.get(`/audits?account_id=${id}`),
               api.get(`/accounts/${id}/users`),
-              api.get(`/assets?account_id=${id}`) // Fetch Assets
+              api.get(`/assets?account_id=${id}`) 
           ]);
           setAccount(accRes.data);
           setAudits(auditRes.data);
@@ -139,20 +133,14 @@ export default function ClientDetail() {
           console.error("Modal Submit Error:", e);
           let errorMsg = "Action failed";
           if (e.response?.data?.detail) {
-              const detail = e.response.data.detail;
-              if (Array.isArray(detail)) {
-                  errorMsg = detail.map(err => `${err.loc.join('.')}: ${err.msg}`).join(', ');
-              } else if (typeof detail === 'object') {
-                  errorMsg = JSON.stringify(detail);
-              } else {
-                  errorMsg = detail;
-              }
+              errorMsg = typeof e.response.data.detail === 'object' 
+                  ? JSON.stringify(e.response.data.detail) 
+                  : e.response.data.detail;
           }
           addToast(errorMsg, "danger"); 
       } finally { setIsSaving(false); }
   };
 
-  // --- ASSET HANDLERS ---
   const handleAssetSubmit = async (e) => {
       e.preventDefault();
       setIsSaving(true);
@@ -223,22 +211,70 @@ export default function ClientDetail() {
 
       <AssetModal 
         isOpen={showAssetModal} 
-        onClose={() => setShowAssetModal(false)}
+        onClose={() => setShowAssetModal(false)} 
         onSubmit={handleAssetSubmit}
         loading={isSaving}
         form={assetForm}
         setForm={setAssetForm}
       />
 
-{/* HEADER */}
       <div className="flex justify-between items-start mb-8">
           <div className="flex items-center gap-4">
               <button onClick={() => navigate('/clients')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20}/></button>
-              <div>
+              <div className="w-full">
                   {isEditingAccount ? (
-                      // ... (Edit mode code)
-                      <div className="space-y-2">
-                          {/* ... */}
+                      <div className="space-y-3 bg-black/20 p-4 rounded border border-white/10 min-w-[400px]">
+                          <input 
+                              className="text-2xl font-bold bg-transparent border-b border-white/20 w-full focus:outline-none focus:border-sanctum-gold"
+                              value={account.name}
+                              onChange={e => setAccount({...account, name: e.target.value})}
+                          />
+                          <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                  <label className="text-xs uppercase opacity-50 block mb-1">Status</label>
+                                  <select 
+                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
+                                      value={account.status}
+                                      onChange={e => setAccount({...account, status: e.target.value})}
+                                  >
+                                      <option value="prospect">Prospect</option>
+                                      <option value="active">Active</option>
+                                      <option value="churned">Churned</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="text-xs uppercase opacity-50 block mb-1">Type</label>
+                                  <select 
+                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
+                                      value={account.type}
+                                      onChange={e => setAccount({...account, type: e.target.value})}
+                                  >
+                                      <option value="Client">Client</option>
+                                      <option value="Partner">Partner</option>
+                                      <option value="Vendor">Vendor</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="text-xs uppercase opacity-50 block mb-1">Brand</label>
+                                  <select 
+                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
+                                      value={account.brand_affinity}
+                                      onChange={e => setAccount({...account, brand_affinity: e.target.value})}
+                                  >
+                                      <option value="ds">Digital Sanctum</option>
+                                      <option value="nt">Naked Technology</option>
+                                      <option value="both">Both</option>
+                                  </select>
+                              </div>
+                              <div>
+                                  <label className="text-xs uppercase opacity-50 block mb-1">Billing Email</label>
+                                  <input 
+                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
+                                      value={account.billing_email || ''}
+                                      onChange={e => setAccount({...account, billing_email: e.target.value})}
+                                  />
+                              </div>
+                          </div>
                       </div>
                   ) : (
                       <>
@@ -260,7 +296,6 @@ export default function ClientDetail() {
                   </>
               ) : (
                   <>
-                      {/* NEW DISCOVERY BUTTON */}
                       <button 
                         onClick={() => navigate(`/clients/${id}/discovery`)} 
                         className="flex items-center gap-2 px-4 py-2 rounded bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-500/30 text-sm font-bold transition-colors"
@@ -276,11 +311,7 @@ export default function ClientDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* LEFT: FINANCIALS & PROJECTS */}
           <div className="lg:col-span-2 space-y-6">
-              
-              {/* METADATA */}
               <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
                       <h4 className="text-xs text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Mail size={12}/> Billing Email</h4>
@@ -301,7 +332,6 @@ export default function ClientDetail() {
                   onAddProject={() => { setForms({...forms, project: { name: '', budget: 0, due_date: '' }}); setActiveModal('project'); }}
               />
               
-              {/* TICKETS */}
               <TicketList 
                 tickets={tickets}
                 onAdd={() => setShowTicketModal(true)}
@@ -309,7 +339,6 @@ export default function ClientDetail() {
                 title="Recent Tickets"
               />
 
-              {/* ASSETS (CMDB) */}
               <AssetList 
                 assets={assets} 
                 onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active' }); setShowAssetModal(true); }}
@@ -317,14 +346,12 @@ export default function ClientDetail() {
                 onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
               />
 
-            {/* AUDITS */}
               <AuditList 
                   audits={audits}
                   onAdd={() => navigate(`/audit/new?account=${id}`)}
               />
           </div>
 
-          {/* RIGHT: HUMANS */}
           <div>
               <HumanSection 
                   contacts={account.contacts || []} 
@@ -337,7 +364,6 @@ export default function ClientDetail() {
                   onRevokeUser={(uid) => confirmAction("Revoke Access?", "User will no longer be able to login.", () => revokeUser(uid))}
               />
           </div>
-
       </div>
     </Layout>
   );
