@@ -192,3 +192,66 @@ def download_article_pdf(article_id: str, db: Session = Depends(get_db)):
     
     from fastapi.responses import FileResponse
     return FileResponse(filepath, media_type='application/pdf', filename=f"{article.identifier or article.title}.pdf")
+
+@router.post("/articles/{article_id}/email")
+def email_article(
+    article_id: str,
+    request: schemas.ArticleEmailRequest,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    from ..services.pdf_engine import pdf_engine
+    from ..services.email_service import email_service
+
+    query = db.query(models.Article).options(joinedload(models.Article.author))
+    try:
+        uid = UUID(article_id)
+        article = query.filter(models.Article.id == uid).first()
+    except ValueError:
+        article = query.filter(models.Article.slug == article_id).first()
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Generate PDF
+    data = {
+        "title": article.title,
+        "identifier": article.identifier,
+        "version": article.version,
+        "category": article.category,
+        "content": article.content or "",
+        "author_name": article.author.full_name if article.author else "Unknown",
+        "updated_at": article.updated_at.strftime("%d %b %Y") if article.updated_at else
+                      article.created_at.strftime("%d %b %Y") if article.created_at else ""
+    }
+    filepath = pdf_engine.generate_article_pdf(data)
+
+    # Resolve greeting
+    greeting = "Team"
+    if request.recipient_contact_id:
+        contact = db.query(models.Contact).filter(models.Contact.id == request.recipient_contact_id).first()
+        if contact:
+            greeting = contact.first_name
+
+    context = {
+        "client_name": greeting,
+        "article_title": article.title,
+        "article_ref": article.identifier or "",
+        "custom_message": request.message or f"Please find attached the knowledge article: {article.title}."
+    }
+
+    subject = request.subject or f"{article.identifier or 'Article'}: {article.title} - Digital Sanctum"
+
+    success = email_service.send_template(
+        to_email=request.to_email.strip(),
+        subject=subject,
+        template_name="article_delivery.html",
+        context=context,
+        cc_emails=[e.strip() for e in request.cc_emails if e.strip()],
+        attachments=[filepath]
+    )
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Email failed")
+
+    return {"status": "sent", "to": request.to_email}

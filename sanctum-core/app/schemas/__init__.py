@@ -29,7 +29,7 @@ from .operations import (
 )
 from .knowledge import (
     CommentCreate, CommentResponse,
-    ArticleCreate, ArticleUpdate, ArticleResponse, ArticleHistoryResponse
+    ArticleCreate, ArticleUpdate, ArticleResponse, ArticleHistoryResponse, ArticleEmailRequest
 )
 
 from .assets import AssetCreate, AssetUpdate, AssetResponse

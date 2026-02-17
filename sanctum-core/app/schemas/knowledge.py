@@ -51,3 +51,10 @@ class ArticleResponse(ArticleCreate):
     history: list[ArticleHistoryResponse] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+class ArticleEmailRequest(SanctumBase):
+    to_email: str
+    cc_emails: list[str] = []
+    subject: Optional[str] = None
+    message: Optional[str] = None
+    recipient_contact_id: Optional[UUID] = None

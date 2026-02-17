@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText, Copy, Download } from 'lucide-react';
+import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X } from 'lucide-react';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
@@ -17,6 +17,27 @@ export default function ArticleDetail() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('content');
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailForm, setEmailForm] = useState({ to_email: '', cc_emails: '', subject: '', message: '' });
+  const [sendingEmail, setSendingEmail] = useState(false);
+
+  const handleEmailArticle = async () => {
+    if (!emailForm.to_email.trim()) return addToast("Recipient email required", "danger");
+    setSendingEmail(true);
+    try {
+      await api.post(`/articles/${article.id}/email`, {
+        to_email: emailForm.to_email,
+        cc_emails: emailForm.cc_emails ? emailForm.cc_emails.split(',').map(e => e.trim()) : [],
+        subject: emailForm.subject || undefined,
+        message: emailForm.message || undefined
+      });
+      addToast(`Article sent to ${emailForm.to_email}`, "success");
+      setShowEmailModal(false);
+      setEmailForm({ to_email: '', cc_emails: '', subject: '', message: '' });
+    } catch (e) {
+      addToast("Failed to send article", "danger");
+    } finally { setSendingEmail(false); }
+  };
 
   useEffect(() => {
     fetchArticle();
@@ -138,6 +159,13 @@ export default function ArticleDetail() {
                     <Download size={16} /> PDF
                 </button>
                 <button 
+                    onClick={() => setShowEmailModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-gold/20 hover:bg-sanctum-gold/30 text-sm font-bold transition-colors text-sanctum-gold"
+                    title="Email article to client"
+                >
+                    <Send size={16} /> Email
+                </button>
+                <button 
                     onClick={() => navigate(`/wiki/${article.id}/edit`)} 
                     className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
                 >
@@ -200,6 +228,49 @@ export default function ArticleDetail() {
             </div>
         )}
       </div>
+      {/* EMAIL MODAL */}
+      {showEmailModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center" onClick={() => setShowEmailModal(false)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-6 w-full max-w-lg space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold">Email Article to Client</h3>
+              <button onClick={() => setShowEmailModal(false)} className="p-1 hover:bg-white/10 rounded"><X size={18} /></button>
+            </div>
+            <div className="text-xs text-slate-400 bg-white/5 p-3 rounded">
+              <strong className="text-sanctum-gold">{article.identifier}</strong> — {article.title}
+            </div>
+            <div className="space-y-3">
+              <input 
+                type="email" placeholder="Recipient email *" value={emailForm.to_email}
+                onChange={e => setEmailForm({...emailForm, to_email: e.target.value})}
+                className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold"
+              />
+              <input 
+                type="text" placeholder="CC emails (comma separated)" value={emailForm.cc_emails}
+                onChange={e => setEmailForm({...emailForm, cc_emails: e.target.value})}
+                className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold"
+              />
+              <input 
+                type="text" placeholder="Subject (optional)" value={emailForm.subject}
+                onChange={e => setEmailForm({...emailForm, subject: e.target.value})}
+                className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold"
+              />
+              <textarea 
+                placeholder="Personal message (optional)" value={emailForm.message}
+                onChange={e => setEmailForm({...emailForm, message: e.target.value})}
+                className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold min-h-[80px]"
+              />
+            </div>
+            <button 
+              onClick={handleEmailArticle} disabled={sendingEmail}
+              className="w-full py-3 rounded font-bold bg-sanctum-gold text-slate-900 hover:bg-yellow-500 disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {sendingEmail ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+              {sendingEmail ? 'Sending...' : 'Send Article'}
+            </button>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

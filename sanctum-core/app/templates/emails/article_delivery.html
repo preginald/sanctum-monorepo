@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<p>Hi {{ client_name }},</p>
+
+<p>{{ custom_message }}</p>
+
+{% if article_ref %}
+<div style="background-color: #f8f6f0; border-left: 3px solid #d4af37; padding: 15px 20px; margin: 25px 0; border-radius: 4px;">
+    <p style="margin: 0; font-size: 14px; color: #666;">
+        <strong style="color: #1a1a1a;">{{ article_title }}</strong><br>
+        Ref: {{ article_ref }}
+    </p>
+</div>
+{% endif %}
+
+<p style="font-size: 14px; color: #666;">The full article is attached as a PDF for your reference.</p>
+
+<p>Kind regards,<br><strong>Digital Sanctum</strong></p>
+{% endblock %}
