@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
-import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash, ClipboardList } from 'lucide-react';
+import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash, ClipboardList, Eye } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { recordVisit } from '../lib/history'; 
 
@@ -302,6 +302,14 @@ export default function ClientDetail() {
                       >
                         <ClipboardList size={16} /> 
                         Discovery
+                      </button>
+
+                      <button 
+                        onClick={() => window.open(`/portal/?impersonate=${id}`, '_blank')}
+                        className="flex items-center gap-2 px-4 py-2 rounded bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 border border-cyan-500/30 text-sm font-bold transition-colors"
+                      >
+                        <Eye size={16} /> 
+                        View as Client
                       </button>
                       
                       <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>

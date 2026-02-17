@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
 import api from '../lib/api';
@@ -23,8 +23,11 @@ export default function PortalDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const { addToast } = useToast();
+  const [searchParams] = useSearchParams();
+  const impersonateId = searchParams.get('impersonate');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
   
   // TICKET MODAL STATE
   const [showModal, setShowModal] = useState(false);
@@ -34,9 +37,12 @@ export default function PortalDashboard() {
 
   useEffect(() => { fetchPortal(); }, []);
 
-  const fetchPortal = async () => {
+const fetchPortal = async () => {
     try {
-      const res = await api.get('/portal/dashboard');
+      const url = impersonateId 
+        ? `/portal/dashboard?impersonate=${impersonateId}` 
+        : '/portal/dashboard';
+      const res = await api.get(url);
       setData(res.data);
     } catch (e) { 
       console.error(e);
@@ -142,6 +148,19 @@ export default function PortalDashboard() {
 
       <main className="p-8 max-w-7xl mx-auto space-y-8">
         
+        {/* ADMIN IMPERSONATION BANNER */}
+        {impersonateId && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-cyan-500/20 border border-cyan-500/50 text-cyan-300">
+            <span className="text-sm font-bold">👁 Viewing as: {account.name}</span>
+            <button 
+              onClick={() => window.close()} 
+              className="text-xs px-3 py-1 rounded bg-cyan-500/30 hover:bg-cyan-500/50 font-bold"
+            >
+              Exit Preview
+            </button>
+          </div>
+        )}
+
         {/* PHASE 61A: QUESTIONNAIRE BANNER (State-Based) */}
         <QuestionnaireBanner lifecycleStage={lifecycle_stage} />
 

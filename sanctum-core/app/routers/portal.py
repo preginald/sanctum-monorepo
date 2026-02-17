@@ -17,12 +17,33 @@ from ..services.account_service import account_needs_questionnaire, get_account_
 router = APIRouter(prefix="/portal", tags=["Portal"])
 
 # --- HELPER ---
-def get_current_contact(user: models.User, db: Session):
-    if user.role != 'client' or not user.account_id:
+def resolve_portal_account_id(user: models.User, impersonate: UUID = None) -> UUID:
+    """
+    Returns the account_id to use for portal queries.
+    - Admin + impersonate param → use impersonated account
+    - Client → use their own account_id
+    - Otherwise → 403
+    """
+    if user.role == 'admin' and impersonate:
+        return impersonate
+    if user.role == 'client' and user.account_id:
+        return user.account_id
+    raise HTTPException(status_code=403, detail="Portal access only.")
+
+def is_impersonating(user: models.User, impersonate: UUID = None) -> bool:
+    return user.role == 'admin' and impersonate is not None
+
+def get_current_contact(user: models.User, db: Session, account_id: UUID = None):
+    """Get contact for the current user. Returns None for admin impersonation."""
+    aid = account_id or user.account_id
+    if user.role != 'client':
+        return None  # Admin impersonating — no contact match needed
+    
+    if not aid:
         raise HTTPException(status_code=403, detail="Portal access only.")
     
     contact = db.query(Contact).filter(
-        Contact.account_id == user.account_id,
+        Contact.account_id == aid,
         Contact.email == user.email
     ).first()
 
@@ -30,6 +51,7 @@ def get_current_contact(user: models.User, db: Session):
         raise HTTPException(status_code=403, detail="No Contact profile found.")
     
     return contact
+
 
 def verify_ticket_access(ticket_id: int, user: models.User, db: Session):
     """
@@ -55,17 +77,18 @@ def verify_ticket_access(ticket_id: int, user: models.User, db: Session):
 
 # --- DASHBOARD ---
 @router.get("/dashboard", response_model=schemas.PortalDashboard)
-def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    if current_user.role != 'client' or not current_user.account_id: 
-        raise HTTPException(status_code=403, detail="Portal access only.")
-    
-    aid = current_user.account_id
+def get_portal_dashboard(
+    impersonate: UUID = None,
+    current_user: models.User = Depends(auth.get_current_active_user), 
+    db: Session = Depends(get_db)
+):
+    aid = resolve_portal_account_id(current_user, impersonate)
     account = db.query(models.Account).filter(models.Account.id == aid).first()
     
-    contact = db.query(Contact).filter(
-        Contact.account_id == aid,
-        Contact.email == current_user.email
-    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    
+    contact = get_current_contact(current_user, db, aid)
     
     if contact:
         tickets = db.query(models.Ticket).outerjoin(ticket_contacts)\
@@ -80,7 +103,13 @@ def get_portal_dashboard(current_user: models.User = Depends(auth.get_current_ac
             )\
             .distinct().order_by(desc(models.Ticket.created_at)).all()
     else:
-        tickets = []
+        # Admin impersonating — show ALL account tickets
+        tickets = db.query(models.Ticket)\
+            .options(joinedload(models.Ticket.time_entries), joinedload(models.Ticket.materials))\
+            .filter(
+                models.Ticket.account_id == aid,
+                models.Ticket.is_deleted == False
+            ).order_by(desc(models.Ticket.created_at)).all()
 
     invoices = db.query(models.Invoice).options(joinedload(models.Invoice.items))\
         .filter(models.Invoice.account_id == aid).order_by(desc(models.Invoice.generated_at)).all()
