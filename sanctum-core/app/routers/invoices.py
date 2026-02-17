@@ -11,6 +11,18 @@ from ..services.billing_service import billing_service
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
+def calculate_due_date(generated_at, payment_terms):
+    """Calculate due_date from generated_at and payment_terms."""
+    mapping = {
+        'Due on Receipt': 0,
+        'Net 7 Days': 7,
+        'Net 14 Days': 14,
+        'Net 30 Days': 30,
+    }
+    days = mapping.get(payment_terms, 14)
+    base = generated_at.date() if isinstance(generated_at, datetime) else generated_at or datetime.now().date()
+    return base + timedelta(days=days)
+
 def recalculate_invoice(invoice_id: str, db: Session):
     invoice = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
     if not invoice: return
@@ -160,7 +172,8 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
     # 3. Create Invoice Header
     new_invoice = models.Invoice(
         account_id=ticket.account_id, status="draft", 
-        due_date=datetime.now() + timedelta(days=14), generated_at=func.now()
+        due_date=calculate_due_date(datetime.now(), 'Net 14 Days'),
+        generated_at=func.now()
     )
     db.add(new_invoice)
     db.flush() # Get ID
@@ -210,7 +223,10 @@ def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Sess
     
     if update.status: inv.status = update.status
     if update.due_date: inv.due_date = update.due_date
-    if update.payment_terms: inv.payment_terms = update.payment_terms
+    if update.payment_terms:
+        inv.payment_terms = update.payment_terms
+        if not update.due_date:  # Only auto-calc if due_date wasn't explicitly set
+            inv.due_date = calculate_due_date(inv.generated_at, update.payment_terms)
     if update.generated_at: inv.generated_at = update.generated_at
     
     if update.paid_at is not None: inv.paid_at = update.paid_at
