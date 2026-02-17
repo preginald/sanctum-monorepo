@@ -73,6 +73,9 @@ import NotificationCenter from './pages/NotificationCenter';
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
 
+import AssetLifecycle from './pages/AssetLifecycle';
+
+
 
 // 1. BASIC AUTH GUARD
 const ProtectedRoute = ({ children }) => {
@@ -143,6 +146,7 @@ function App() {
                               <Route path="/audit/:id" element={<AuditDetail />} />
                               
                               <Route path="/catalog" element={<Catalog />} />
+                              <Route path="/assets/lifecycle" element={<AssetLifecycle />} />
                               <Route path="/invoices/unpaid" element={<UnpaidInvoices />} />
                               <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
