@@ -126,6 +126,64 @@ def get_expiring_assets(
         "assets": result
     }
 
+@router.get("/{asset_id}")
+def get_asset_detail(
+    asset_id: UUID,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    from sqlalchemy.orm import joinedload
+
+    asset = db.query(models.Asset).options(
+        joinedload(models.Asset.account),
+        joinedload(models.Asset.linked_product)
+    ).filter(models.Asset.id == asset_id).first()
+
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    if current_user.role == 'client' and asset.account_id != current_user.account_id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Get linked tickets
+    linked_tickets = db.query(models.Ticket).join(
+        models.ticket_assets
+    ).filter(
+        models.ticket_assets.c.asset_id == asset_id
+    ).order_by(models.Ticket.created_at.desc()).all()
+
+    today = date.today()
+    days_until = (asset.expires_at - today).days if asset.expires_at else None
+
+    return {
+        "id": str(asset.id),
+        "account_id": str(asset.account_id),
+        "account_name": asset.account.name if asset.account else "Unknown",
+        "name": asset.name,
+        "asset_type": asset.asset_type,
+        "status": asset.status,
+        "serial_number": asset.serial_number,
+        "ip_address": asset.ip_address,
+        "notes": asset.notes,
+        "vendor": asset.vendor,
+        "expires_at": asset.expires_at.isoformat() if asset.expires_at else None,
+        "days_until_expiry": days_until,
+        "auto_invoice": asset.auto_invoice,
+        "linked_product": asset.linked_product.name if asset.linked_product else None,
+        "specs": asset.specs or {},
+        "created_at": asset.created_at.isoformat() if asset.created_at else None,
+        "updated_at": asset.updated_at.isoformat() if asset.updated_at else None,
+        "tickets": [
+            {
+                "id": t.id,
+                "subject": t.subject,
+                "status": t.status,
+                "priority": t.priority,
+                "created_at": t.created_at.isoformat() if t.created_at else None
+            } for t in linked_tickets
+        ]
+    }
+
 @router.post("/{asset_id}/renewal-ticket")
 def create_renewal_ticket(
     asset_id: UUID,

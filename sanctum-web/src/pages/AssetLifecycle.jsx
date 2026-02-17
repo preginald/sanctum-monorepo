@@ -129,8 +129,10 @@ export default function AssetLifecycle() {
                   key={asset.id}
                   className={`border-b border-slate-800 hover:bg-white/5 transition-colors ${asset.is_expired ? 'bg-red-500/5' : ''}`}
                 >
-                  <td className="p-4">
-                    <div className="font-bold">{asset.name}</div>
+                <td className="p-4">
+                    <button onClick={() => navigate(`/assets/${asset.id}`)} className="font-bold hover:text-sanctum-gold transition-colors text-left">
+                      {asset.name}
+                    </button>
                   </td>
                   <td className="p-4">
                     <button

@@ -74,6 +74,8 @@ import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
 
 import AssetLifecycle from './pages/AssetLifecycle';
+import AssetDetail from './pages/AssetDetail';
+
 
 
 
@@ -147,6 +149,7 @@ function App() {
                               
                               <Route path="/catalog" element={<Catalog />} />
                               <Route path="/assets/lifecycle" element={<AssetLifecycle />} />
+                              <Route path="/assets/:assetId" element={<AssetDetail />} />
                               <Route path="/invoices/unpaid" element={<UnpaidInvoices />} />
                               <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
