@@ -54,6 +54,47 @@ def regenerate_pdf_file(inv, db: Session):
         inv.pdf_path = f"/static/reports/{filename}"
         db.commit()
 
+@router.get("/unpaid", tags=["Invoices"])
+def get_unpaid_invoices(
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Returns all non-paid, non-draft, non-void invoices with account context and overdue calculation."""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin only.")
+
+    invoices = db.query(models.Invoice).options(
+        joinedload(models.Invoice.account),
+        joinedload(models.Invoice.items)
+    ).filter(
+        models.Invoice.status.in_(['sent'])
+    ).order_by(models.Invoice.due_date.asc().nullsfirst()).all()
+
+    today = datetime.now().date()
+    result = []
+    for inv in invoices:
+        days_overdue = (today - inv.due_date).days if inv.due_date and today > inv.due_date else 0
+        result.append({
+            "id": str(inv.id),
+            "account_id": str(inv.account_id),
+            "account_name": inv.account.name if inv.account else "Unknown",
+            "billing_email": inv.account.billing_email if inv.account else None,
+            "total_amount": float(inv.total_amount or 0),
+            "status": inv.status,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "generated_at": inv.generated_at.isoformat() if inv.generated_at else None,
+            "days_overdue": days_overdue,
+            "is_overdue": days_overdue > 0,
+            "has_pdf": bool(inv.pdf_path)
+        })
+
+    return {
+        "total_count": len(result),
+        "total_outstanding": sum(r["total_amount"] for r in result),
+        "overdue_count": sum(1 for r in result if r["is_overdue"]),
+        "invoices": result
+    }
+
 @router.post("/from_ticket/{ticket_id}", response_model=schemas.InvoiceResponse)
 def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     # 1. Fetch Ticket

@@ -130,6 +130,7 @@ export default function Layout({ children, title }) {
                 <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
                 <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
                 <NavItem icon={<Wifi size={20} />} label="Tickets" path="/tickets" />
+                <NavItem icon={<DollarSign size={20} />} label="Receivables" path="/invoices/unpaid" />
                 {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
                 {!isNaked && <NavItem icon={<Briefcase size={20} />} label="Projects" path="/projects" />}
                 <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-4">Resources</div>

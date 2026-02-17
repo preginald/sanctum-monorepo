@@ -44,6 +44,7 @@ import AuditDetail from './pages/AuditDetail';
 
 // --- FINANCE MODULE ---
 import InvoiceDetail from './pages/InvoiceDetail';
+import UnpaidInvoices from './pages/UnpaidInvoices';
 
 // --- CAMPAIGN MODULE ---
 import Campaigns from './pages/Campaigns';
@@ -142,6 +143,7 @@ function App() {
                               <Route path="/audit/:id" element={<AuditDetail />} />
                               
                               <Route path="/catalog" element={<Catalog />} />
+                              <Route path="/invoices/unpaid" element={<UnpaidInvoices />} />
                               <Route path="/invoices/:id" element={<InvoiceDetail />} />
 
                               {/* MARKETING */}
