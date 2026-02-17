@@ -1,0 +1,205 @@
+@page {
+    size: A4;
+    margin: 20mm 20mm 25mm 20mm;
+
+    @bottom-center {
+        content: "Digital Sanctum  |  Knowledge Base  |  Page " counter(page) " of " counter(pages);
+        font-size: 8px;
+        color: #999;
+        font-family: Helvetica, Arial, sans-serif;
+    }
+}
+
+@page :first {
+    margin-top: 0;
+}
+
+body {
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.6;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 0;
+}
+
+/* HEADER BANNER — full width, no negative margin tricks */
+.header-banner {
+    background-color: #0a1930;
+    color: white;
+    padding: 25px 30px;
+    margin: 0 -20mm;
+    padding-left: calc(20mm + 10px);
+    padding-right: calc(20mm + 10px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.header-banner .brand h1 {
+    font-size: 20pt;
+    margin: 0;
+    padding: 0;
+    letter-spacing: 2px;
+    border: none;
+    color: white;
+}
+
+.header-banner .brand .abn {
+    font-size: 8pt;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.header-banner .doc-type {
+    font-size: 10pt;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-align: right;
+    min-width: 160px;
+}
+
+/* CONTENT AREA — padded inside */
+.content {
+    padding: 25px 0 0 0;
+}
+
+/* TITLE BLOCK */
+.title-block {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #d4af37;
+}
+
+.title-block h2 {
+    font-size: 18pt;
+    color: #0a1930;
+    margin: 0 0 8px 0;
+}
+
+.title-block .meta {
+    font-size: 8pt;
+    color: #666;
+}
+
+/* HEADINGS */
+h1 {
+    font-size: 16pt;
+    color: #0a1930;
+    margin-top: 25px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 5px;
+}
+
+h2 {
+    font-size: 14pt;
+    color: #0a1930;
+    margin-top: 22px;
+    margin-bottom: 8px;
+}
+
+h3 {
+    font-size: 12pt;
+    color: #0a1930;
+    margin-top: 18px;
+    margin-bottom: 6px;
+}
+
+h4 {
+    font-size: 10pt;
+    color: #333;
+    margin-top: 15px;
+    margin-bottom: 5px;
+}
+
+/* BODY TEXT */
+p {
+    margin: 6px 0;
+}
+
+ul, ol {
+    margin: 8px 0;
+    padding-left: 25px;
+}
+
+li {
+    margin: 3px 0;
+}
+
+/* BLOCKQUOTES */
+blockquote {
+    border-left: 3px solid #d4af37;
+    margin: 12px 0;
+    padding: 8px 15px;
+    background-color: #f8f6f0;
+    color: #333;
+    font-size: 9.5pt;
+}
+
+/* CODE */
+code {
+    font-family: 'Courier New', Courier, monospace;
+    background-color: #f0f0f0;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 9pt;
+}
+
+pre {
+    background-color: #1a1a2e;
+    color: #e0e0e0;
+    padding: 12px 15px;
+    border-radius: 5px;
+    font-size: 8.5pt;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+}
+
+/* TABLES */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9pt;
+}
+
+th {
+    background-color: #0a1930;
+    color: white;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: bold;
+}
+
+td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+tr:nth-child(even) td {
+    background-color: #f8f8f8;
+}
+
+/* MISC */
+strong {
+    color: #0a1930;
+}
+
+hr {
+    border: none;
+    border-top: 1px solid #d4af37;
+    margin: 20px 0;
+}
+
+em {
+    color: #444;
+}

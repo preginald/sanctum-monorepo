@@ -410,6 +410,14 @@ def get_portal_ticket(
         "status": a.status
     } for a in ticket.assets]
 
+    formatted_articles = [{
+        "id": str(a.id),
+        "title": a.title,
+        "slug": a.slug,
+        "identifier": a.identifier,
+        "category": a.category
+    } for a in ticket.articles]
+
     return {
         "id": ticket.id,
         "subject": ticket.subject,
@@ -421,7 +429,8 @@ def get_portal_ticket(
         "milestone": ticket.milestone.name if ticket.milestone else None,
         "brand_affinity": ticket.account.brand_affinity if ticket.account else 'ds',
         "comments": formatted_comments,
-        "assets": formatted_assets
+        "assets": formatted_assets,
+        "articles": formatted_articles
     }
 
 @router.post("/tickets/{ticket_id}/comments")

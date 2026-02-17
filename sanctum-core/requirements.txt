@@ -51,4 +51,5 @@ pyotp
 qrcode
 jinja2==3.1.3
 playwright==1.49.1
-beautifulsoup4==4.12.3
+beautifulsoup4==4.12.3markdown
+weasyprint

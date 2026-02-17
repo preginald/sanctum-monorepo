@@ -6,6 +6,7 @@ from ..models import Article, ArticleHistory
 from ..database import get_db
 from uuid import UUID
 import re
+import os
 
 router = APIRouter(tags=["Wiki"])
 
@@ -161,3 +162,33 @@ def get_article_history(article_id: str, db: Session = Depends(get_db)):
         if h.author: h.author_name = h.author.full_name
         
     return history
+
+@router.get("/articles/{article_id}/pdf")
+def download_article_pdf(article_id: str, db: Session = Depends(get_db)):
+    from ..services.pdf_engine import pdf_engine
+    
+    query = db.query(models.Article).options(joinedload(models.Article.author))
+    try:
+        uid = UUID(article_id)
+        article = query.filter(models.Article.id == uid).first()
+    except ValueError:
+        article = query.filter(models.Article.slug == article_id).first()
+    
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    data = {
+        "title": article.title,
+        "identifier": article.identifier,
+        "version": article.version,
+        "category": article.category,
+        "content": article.content or "",
+        "author_name": article.author.full_name if article.author else "Unknown",
+        "updated_at": article.updated_at.strftime("%d %b %Y") if article.updated_at else 
+                      article.created_at.strftime("%d %b %Y") if article.created_at else ""
+    }
+    
+    filepath = pdf_engine.generate_article_pdf(data)
+    
+    from fastapi.responses import FileResponse
+    return FileResponse(filepath, media_type='application/pdf', filename=f"{article.identifier or article.title}.pdf")

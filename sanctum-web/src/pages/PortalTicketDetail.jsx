@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api'; 
 import { formatDate, formatCurrency } from '../lib/formatters';
-import { ArrowLeft, FileText, Download, CheckCircle, AlertCircle, Loader2, Server, MessageSquare, Send, User } from 'lucide-react';
+import { ArrowLeft, FileText, Download, CheckCircle, AlertCircle, Loader2, Server, MessageSquare, Send, BookOpen } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 const PortalTicketDetail = () => {
@@ -291,6 +291,37 @@ const PortalTicketDetail = () => {
                 </div>
               )}
             </div>
+
+            {/* LINKED ARTICLES CARD */}
+            {ticket.articles?.length > 0 && (
+              <div className={`rounded-xl border ${theme.card} overflow-hidden`}>
+                <div className={`p-4 border-b ${isNaked ? 'border-slate-200' : 'border-slate-700'} flex items-center justify-between`}>
+                  <h3 className="font-bold text-sm uppercase tracking-widest opacity-70 flex items-center gap-2">
+                    <BookOpen className="w-4 h-4" />
+                    Knowledge Articles
+                  </h3>
+                </div>
+                <div className={`divide-y ${isNaked ? 'divide-slate-200' : 'divide-slate-700'}`}>
+                  {ticket.articles.map(article => (
+                    <a 
+                      key={article.id}
+                      href={`/wiki/${article.slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-4 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors block"
+                    >
+                      <div className={`p-2 rounded ${isNaked ? 'bg-slate-100' : 'bg-white/5'}`}>
+                        <BookOpen size={16} className="opacity-50"/>
+                      </div>
+                      <div>
+                        <div className="font-bold text-sm">{article.title}</div>
+                        <div className="text-xs opacity-50 uppercase">{article.identifier || article.category}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* ASSETS CARD */}
             <div className={`rounded-xl border ${theme.card} overflow-hidden`}>

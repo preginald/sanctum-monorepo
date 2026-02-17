@@ -179,5 +179,53 @@ class PDFService:
 
         return pdf
 
+    def generate_article_pdf(self, article_data):
+        """Generate a branded PDF from a wiki article using markdown -> HTML -> PDF."""
+        import markdown
+        from weasyprint import HTML
+        
+        self.ensure_directory()
+        
+        # Resolve template paths
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        template_dir = os.path.join(base_dir, 'templates', 'pdf')
+        
+        with open(os.path.join(template_dir, 'article.css'), 'r') as f:
+            css = f.read()
+        
+        with open(os.path.join(template_dir, 'article.html'), 'r') as f:
+            html_template = f.read()
+        
+        # Convert markdown to HTML
+        md_content = article_data.get('content', '')
+        html_body = markdown.markdown(md_content, extensions=['tables', 'fenced_code', 'codehilite', 'toc'])
+        
+        # Build meta line
+        meta_parts = []
+        if article_data.get('identifier'):
+            meta_parts.append(f"Ref: {article_data['identifier']}")
+        if article_data.get('version'):
+            meta_parts.append(f"Version: {article_data['version']}")
+        if article_data.get('author_name'):
+            meta_parts.append(f"Author: {article_data['author_name']}")
+        if article_data.get('updated_at'):
+            meta_parts.append(f"Updated: {article_data['updated_at']}")
+        
+        meta_line = "  |  ".join(meta_parts)
+        
+        # Assemble
+        full_html = html_template.replace('{{css}}', css)\
+            .replace('{{title}}', article_data['title'])\
+            .replace('{{meta}}', meta_line)\
+            .replace('{{body}}', html_body)
+        
+        # Generate PDF
+        static_dir = self.ensure_directory()
+        identifier = article_data.get('identifier', 'doc').replace(' ', '_')
+        filepath = os.path.join(static_dir, f"article_{identifier}.pdf")
+        HTML(string=full_html).write_pdf(filepath)
+        
+        return filepath
+
 # Instantiate as pdf_engine to match main.py imports
 pdf_engine = PDFService()

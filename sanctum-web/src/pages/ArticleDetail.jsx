@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText, Copy } from 'lucide-react';
+import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText, Copy, Download } from 'lucide-react';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
@@ -64,6 +64,26 @@ export default function ArticleDetail() {
     }
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      const response = await api.get(`/articles/${article.id}/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${article.identifier || article.title}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      addToast("PDF downloaded", "success");
+    } catch (err) {
+      console.error("PDF download failed", err);
+      addToast("Failed to download PDF", "error");
+    }
+  };
+
   if (loading || !article) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   const layoutTitle = article.identifier || 'Wiki Entry';
@@ -109,6 +129,13 @@ export default function ArticleDetail() {
                     title="Copy Markdown with Metadata"
                 >
                     <Copy size={16} /> Copy Markdown
+                </button>
+                <button 
+                    onClick={handleDownloadPdf}
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white"
+                    title="Download as PDF"
+                >
+                    <Download size={16} /> PDF
                 </button>
                 <button 
                     onClick={() => navigate(`/wiki/${article.id}/edit`)} 
