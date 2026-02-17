@@ -10,20 +10,21 @@ export default function AssetLifecycle() {
   const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [days, setDays] = useState(90);
   const [creatingTicket, setCreatingTicket] = useState(null);
 
   useEffect(() => { fetchData(); }, [days]);
 
   const fetchData = async () => {
-    setLoading(true);
+    if (data) setRefreshing(true); else setLoading(true);
     try {
       const res = await api.get(`/assets/lifecycle/expiring?days=${days}`);
       setData(res.data);
     } catch (e) {
       console.error(e);
       addToast("Failed to load asset lifecycle data", "danger");
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setRefreshing(false); }
   };
 
   const handleCreateTicket = async (asset) => {
@@ -47,7 +48,7 @@ export default function AssetLifecycle() {
     return <span className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-yellow-500/20 text-yellow-400">{asset.days_until_expiry}d left</span>;
   };
 
-  if (loading) return <Layout title="Asset Lifecycle"><Loader2 className="animate-spin" /></Layout>;
+  if (loading && !data) return <Layout title="Asset Lifecycle"><div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div></Layout>;
 
   const { total, expired_count, expiring_count, assets } = data || { total: 0, expired_count: 0, expiring_count: 0, assets: [] };
 
@@ -98,7 +99,7 @@ export default function AssetLifecycle() {
           </button>
         ))}
         <button onClick={fetchData} className="ml-auto p-2 hover:bg-white/10 rounded transition-colors" title="Refresh">
-          <RefreshCw size={16} />
+          <RefreshCw size={16} className={refreshing ? 'animate-spin text-sanctum-gold' : ''} />
         </button>
       </div>
 
