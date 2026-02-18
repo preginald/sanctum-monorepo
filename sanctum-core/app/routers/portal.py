@@ -529,15 +529,15 @@ def get_portal_assets(
 @router.get("/projects/{project_id}")
 def get_portal_project(
     project_id: UUID,
+    impersonate: UUID = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    if not current_user.account_id:
-        raise HTTPException(status_code=403, detail="No account context.")
+    aid = resolve_portal_account_id(current_user, impersonate)
 
     project = db.query(Project).options(joinedload(Project.milestones)).filter(
         Project.id == project_id,
-        Project.account_id == current_user.account_id
+        Project.account_id == aid
     ).first()
 
     if not project:
@@ -657,3 +657,53 @@ def get_portal_article(
         "updated_at": article.updated_at.isoformat() if article.updated_at else
                       article.created_at.isoformat() if article.created_at else None
     }
+
+@router.get("/articles")
+def get_portal_articles(
+    search: str = None,
+    impersonate: UUID = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user)
+):
+    """Returns all articles linked to any ticket belonging to this account."""
+    from sqlalchemy.orm import joinedload
+    from sqlalchemy import distinct
+
+    aid = resolve_portal_account_id(current_user, impersonate)
+
+    # Get distinct article IDs linked to this account's tickets
+    article_ids = db.query(distinct(models.ticket_articles.c.article_id)).join(
+        models.Ticket, models.ticket_articles.c.ticket_id == models.Ticket.id
+    ).filter(
+        models.Ticket.account_id == aid
+    ).all()
+
+    ids = [a[0] for a in article_ids]
+
+    if not ids:
+        return []
+
+    query = db.query(models.Article).options(
+        joinedload(models.Article.author)
+    ).filter(models.Article.id.in_(ids))
+
+    if search:
+        query = query.filter(
+            models.Article.title.ilike(f"%{search}%") |
+            models.Article.identifier.ilike(f"%{search}%") |
+            models.Article.content.ilike(f"%{search}%")
+        )
+
+    articles = query.order_by(models.Article.updated_at.desc()).all()
+
+    return [{
+        "id": str(a.id),
+        "title": a.title,
+        "slug": a.slug,
+        "identifier": a.identifier,
+        "version": a.version,
+        "category": a.category,
+        "author_name": a.author.full_name if a.author else "Unknown",
+        "updated_at": a.updated_at.isoformat() if a.updated_at else
+                      a.created_at.isoformat() if a.created_at else None
+    } for a in articles]

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
+import { Loader2, LogOut, Shield, AlertCircle, Receipt, Download, Briefcase, Plus, X, Server, ArrowRight, TrendingUp, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronUp, CheckCircle, BookOpen } from 'lucide-react';
 import api from '../lib/api';
 import { Card, StatWidget, StatusBadge, ScoreDisplay, HealthScoreWidget, usePortalTheme } from '../components/portal';
 import QuestionnaireBanner from '../components/portal/QuestionnaireBanner';
@@ -245,6 +245,15 @@ const fetchPortal = async () => {
             label="Asset Inventory"
             count="View All"
             onClick={() => portalNav('/portal/assets')}
+            isNaked={theme.isNaked}
+          />
+
+          {/* KNOWLEDGE BASE CARD */}
+          <StatWidget
+            icon={BookOpen}
+            label="Knowledge Base"
+            count="View All"
+            onClick={() => portalNav('/portal/wiki')}
             isNaked={theme.isNaked}
           />
 

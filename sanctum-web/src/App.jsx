@@ -20,6 +20,7 @@ import PortalQuestionnaireComplete from './pages/PortalQuestionnaireComplete';
 import AdminQuestionnaireList from './pages/AdminQuestionnaireList';
 import AdminAssetIngest from './pages/AdminAssetIngest'; // ADD THIS
 import PortalArticleView from './pages/PortalArticleView';
+import PortalKnowledgeBase from './pages/PortalKnowledgeBase';
 
 
 // --- CORE MODULES ---
@@ -121,6 +122,7 @@ function App() {
                   <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />
                   <Route path="/portal/questionnaire" element={<PortalQuestionnaire />} />
                   <Route path="/portal/questionnaire/complete" element={<PortalQuestionnaireComplete />} />
+                  <Route path="/portal/wiki" element={<PortalKnowledgeBase />} />
                   {/* ADMIN CITADEL */}
                   <Route path="*" element={
                       <AdminRoute>

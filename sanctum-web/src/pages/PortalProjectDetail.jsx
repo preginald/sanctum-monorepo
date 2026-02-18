@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import usePortalNav from '../hooks/usePortalNav';
 import api from '../lib/api';
 import { ArrowLeft, Briefcase, Calendar, CheckCircle, Clock, Circle, Loader2 } from 'lucide-react';
 
 export default function PortalProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -15,12 +17,13 @@ export default function PortalProjectDetail() {
 
   const fetchProject = async () => {
     try {
-      const res = await api.get(`/portal/projects/${id}`);
+      const imp = impersonateId ? `?impersonate=${impersonateId}` : '';
+      const res = await api.get(`/portal/projects/${id}${imp}`);
       setProject(res.data);
     } catch (e) {
       console.error("Failed to load project", e);
       if (e.response?.status === 403 || e.response?.status === 404) {
-          navigate('/portal');
+          portalNav('/portal');
       }
     } finally {
       setLoading(false);
@@ -39,7 +42,7 @@ export default function PortalProjectDetail() {
         {/* HEADER */}
         <div>
             <button 
-                onClick={() => navigate('/portal')}
+                onClick={() => portalNav('/portal')}
                 className="flex items-center text-slate-400 hover:text-white transition-colors mb-6 text-sm"
             >
                 <ArrowLeft className="w-4 h-4 mr-2" />
