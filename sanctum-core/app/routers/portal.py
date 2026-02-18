@@ -502,14 +502,14 @@ def get_portal_ticket_invoices(
 # --- ASSETS ---
 @router.get("/assets")
 def get_portal_assets(
+    impersonate: UUID = None,
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    if not current_user.account_id:
-        raise HTTPException(status_code=403, detail="No account context.")
+    aid = resolve_portal_account_id(current_user, impersonate)
 
     assets = db.query(Asset).filter(
-        Asset.account_id == current_user.account_id,
+        Asset.account_id == aid,
         Asset.status != 'retired'
     ).order_by(Asset.asset_type, Asset.name).all()
 

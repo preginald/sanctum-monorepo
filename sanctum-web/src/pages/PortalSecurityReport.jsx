@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import usePortalNav from '../hooks/usePortalNav';
 import useAuthStore from '../store/authStore';
 import { Loader2, ArrowLeft, Shield, CheckCircle2, AlertCircle, MinusCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import api from '../lib/api';
 
 export default function PortalSecurityReport() {
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
   const { user, logout } = useAuthStore();
   const [audit, setAudit] = useState(null);
   const [generatingDeal, setGeneratingDeal] = useState(false);
@@ -46,7 +48,7 @@ const handleRequestRemediation = async () => {
 const fetchSecurityReport = async () => {
   try {
     // Get dashboard data to find audit_id
-    const dashRes = await api.get('/portal/dashboard');
+    const dashRes = await api.get(`/portal/dashboard${impersonateId ? '?impersonate=' + impersonateId : ''}`);
     console.log('Dashboard response:', dashRes.data);
     
     setAccount(dashRes.data.account);
@@ -148,7 +150,7 @@ const fetchSecurityReport = async () => {
               Your security audit is currently being prepared. Check back soon.
             </p>
             <button
-              onClick={() => navigate('/portal/dashboard')}
+              onClick={() => portalNav('/portal')}
               className="mt-6 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold transition-colors"
             >
               Back to Dashboard
@@ -166,7 +168,7 @@ const fetchSecurityReport = async () => {
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/portal/dashboard')}
+            onClick={() => portalNav('/portal')}
             className="p-2 rounded hover:bg-white/10 opacity-70"
           >
             <ArrowLeft size={20} />

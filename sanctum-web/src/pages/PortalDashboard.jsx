@@ -77,7 +77,7 @@ const fetchPortal = async () => {
   const handleDownloadInvoice = async (invoiceId) => {
     setDownloadingInv(invoiceId);
     try {
-      const response = await api.get(`/portal/invoices/${invoiceId}/download`, {
+      const response = await api.get(`/portal/invoices/${invoiceId}/download${impersonateId ? '?impersonate=' + impersonateId : ''}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));

@@ -58,7 +58,7 @@ const PortalTicketDetail = () => {
   const handleDownloadInvoice = async (invoiceId) => {
     setDownloading(invoiceId);
     try {
-      const response = await api.get(`/portal/invoices/${invoiceId}/download`, {
+      const response = await api.get(`/portal/invoices/${invoiceId}/download${impersonateId ? '?impersonate=' + impersonateId : ''}`, {
         responseType: 'blob'
       });
       const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -84,7 +84,7 @@ const PortalTicketDetail = () => {
       
       setSending(true);
       try {
-          await api.post(`/portal/tickets/${id}/comments`, { body: replyText });
+          await api.post(`/portal/tickets/${id}/comments${impersonateId ? '?impersonate=' + impersonateId : ''}`, { body: replyText });
           setReplyText('');
           fetchData(); // Reload to see new message
           addToast("Reply sent", "success");

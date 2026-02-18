@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import usePortalNav from '../hooks/usePortalNav';
 import QuestionnaireForm from '../components/audits/QuestionnaireForm';
 import api from '../lib/api';
 
 export default function PortalQuestionnaire() {
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
 
   // Load drafts if they exist
   const savedDraft = localStorage.getItem('questionnaire_draft');
@@ -12,7 +14,7 @@ export default function PortalQuestionnaire() {
 
   const handleSubmit = async (formData) => {
     // Client submission to their own account
-    await api.post('/portal/questionnaire/submit', formData);
+    await api.post(`/portal/questionnaire/submit${impersonateId ? '?impersonate=' + impersonateId : ''}`, formData);
     
     // Clear draft on success
     localStorage.removeItem('questionnaire_draft');

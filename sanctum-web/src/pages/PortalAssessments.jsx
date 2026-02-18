@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { ArrowLeft, Shield, Server, Globe, Zap, RotateCcw, Star, ChevronDown, ChevronRight, CheckCircle, AlertTriangle, Clock, Loader2 } from 'lucide-react';
 import api from '../lib/api';
+import usePortalNav from '../hooks/usePortalNav';
 
 // Assessment data structure (will eventually come from API)
 const ASSESSMENTS_BY_CATEGORY = {
@@ -248,6 +249,7 @@ const CATEGORY_CONFIG = {
 
 export default function PortalAssessments() {
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
   const { user, logout } = useAuthStore();
   const [account, setAccount] = useState(null);
   const [templates, setTemplates] = useState([]); // Available audit templates
@@ -263,7 +265,7 @@ export default function PortalAssessments() {
   const fetchData = async () => {
     try {
       const [dashRes, templatesRes] = await Promise.all([
-        api.get('/portal/dashboard'),
+        api.get(`/portal/dashboard${impersonateId ? '?impersonate=' + impersonateId : ''}`),
         api.get('/sentinel/templates')
       ]);
       setAccount(dashRes.data.account);
@@ -320,13 +322,13 @@ export default function PortalAssessments() {
     setRequesting(assessment.id);
     
     try {
-      const res = await api.post('/portal/assessments/request', {
+      const res = await api.post(`/portal/assessments/request${impersonateId ? '?impersonate=' + impersonateId : ''}`, {
         template_id: template.id
       });
       
       // Success - navigate back to dashboard
       alert(`✓ Assessment Requested!\n\n${res.data.message}\n\nYou'll receive an email confirmation shortly.`);
-      navigate('/portal/dashboard');
+      portalNav('/portal');
       
     } catch (e) {
       console.error('Assessment request failed:', e);
@@ -367,7 +369,7 @@ export default function PortalAssessments() {
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/portal/dashboard')}
+            onClick={() => portalNav('/portal')}
             className="p-2 rounded hover:bg-white/10 opacity-70"
           >
             <ArrowLeft size={20} />

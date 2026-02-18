@@ -2,9 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 import { ArrowLeft, Server, Search, Wifi, HardDrive, Globe, AlertCircle, Loader2 } from 'lucide-react';
+import usePortalNav from '../hooks/usePortalNav';
+
 
 export default function PortalAssets() {
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -15,7 +18,8 @@ export default function PortalAssets() {
 
   const fetchAssets = async () => {
     try {
-      const res = await api.get('/portal/assets');
+      const imp = impersonateId ? `?impersonate=${impersonateId}` : '';
+      const res = await api.get(`/portal/assets${imp}`);
       setAssets(res.data);
     } catch (e) {
       console.error("Failed to load assets", e);
@@ -56,7 +60,7 @@ export default function PortalAssets() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
                 <button 
-                    onClick={() => navigate('/portal')}
+                    onClick={() => portalNav('/portal')}
                     className="flex items-center text-slate-400 hover:text-white transition-colors mb-4 text-sm"
                 >
                     <ArrowLeft className="w-4 h-4 mr-2" />

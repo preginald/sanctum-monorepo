@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import usePortalNav from '../hooks/usePortalNav';
 import useAuthStore from '../store/authStore';
 import { Loader2, ArrowLeft, Shield, CheckCircle2, AlertCircle, MinusCircle, ChevronDown, ChevronRight, Server, Globe, Zap, RotateCcw, Star } from 'lucide-react';
 import api from '../lib/api';
@@ -25,6 +26,7 @@ const CATEGORY_LABELS = {
 
 export default function PortalAuditReport() {
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
   const { category } = useParams(); // PHASE 60A: Category from URL
   const { user, logout } = useAuthStore();
   const [audit, setAudit] = useState(null);
@@ -65,7 +67,7 @@ export default function PortalAuditReport() {
   const fetchAuditReport = async () => {
     try {
       // Get dashboard data to find category-specific assessments
-      const dashRes = await api.get('/portal/dashboard');
+      const dashRes = await api.get(`/portal/dashboard${impersonateId ? '?impersonate=' + impersonateId : ''}`);
       setAccount(dashRes.data.account);
       
       const categoryAssessments = dashRes.data.category_assessments || {};
@@ -170,7 +172,7 @@ export default function PortalAuditReport() {
               Your {categoryLabel.toLowerCase()} audit is currently being prepared. Check back soon.
             </p>
             <button
-              onClick={() => navigate('/portal/dashboard')}
+              onClick={() => portalNav('/portal')}
               className="mt-6 px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold transition-colors"
             >
               Back to Dashboard
@@ -188,7 +190,7 @@ export default function PortalAuditReport() {
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div className="flex items-center gap-4">
           <button
-            onClick={() => navigate('/portal/dashboard')}
+            onClick={() => portalNav('/portal')}
             className="p-2 rounded hover:bg-white/10 opacity-70"
           >
             <ArrowLeft size={20} />
