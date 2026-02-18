@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, ArrowLeft, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X } from 'lucide-react';
+import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X } from 'lucide-react';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
@@ -105,90 +105,47 @@ export default function ArticleDetail() {
     }
   };
 
+  const categoryColor = (c) => {
+    const map = { sop: 'bg-blue-500/20 text-blue-400', wiki: 'bg-green-500/20 text-green-400', template: 'bg-purple-500/20 text-purple-400', troubleshooting: 'bg-orange-500/20 text-orange-400' };
+    return map[c] || 'bg-white/10 text-slate-300';
+  };
+
   if (loading || !article) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
-  const layoutTitle = article.identifier || 'Wiki Entry';
 
   return (
-    <Layout title={layoutTitle}> 
+    <Layout
+      title={article.title}
+      subtitle={<>{article.identifier && <span className="font-mono opacity-70">{article.identifier}</span>} • {article.category} • <span className="font-mono">{article.version}</span> • <span className="flex inline-flex items-center gap-1"><User size={12}/> {article.author_name || 'Unknown'}</span></>}
+      badge={{ label: article.category, className: categoryColor(article.category) }}
+      backPath="/wiki"
+      actions={
+        <div className="flex items-center gap-2">
+          <button onClick={handleCopyMarkdown} className="flex items-center gap-2 px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white" title="Copy Markdown with Metadata">
+            <Copy size={16} /> Copy
+          </button>
+          <button onClick={handleDownloadPdf} className="flex items-center gap-2 px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white" title="Download as PDF">
+            <Download size={16} /> PDF
+          </button>
+          <button onClick={() => setShowEmailModal(true)} className="flex items-center gap-2 px-3 py-2 rounded bg-sanctum-gold/20 hover:bg-sanctum-gold/30 text-sm font-bold transition-colors text-sanctum-gold" title="Email article to client">
+            <Send size={16} /> Email
+          </button>
+          <button onClick={() => navigate(`/wiki/${article.id}/edit`)} className="flex items-center gap-2 px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors">
+            <Edit2 size={16} /> Edit
+          </button>
+        </div>
+      }
+    >
       <div className="max-w-5xl mx-auto">
-        
-        {/* HEADER */}
-        <div className="mb-8 border-b border-slate-800 pb-6">
-          <div className="flex justify-between items-start mb-6">
-            <div className="flex items-start gap-4">
-                <button onClick={() => navigate('/wiki')} className="p-2 rounded hover:bg-white/10 opacity-70 mt-1">
-                <ArrowLeft size={20} />
-                </button>
-                <div>
-                <div className="flex items-center gap-3 mb-2">
-                    <span className="text-xs font-mono uppercase tracking-widest bg-blue-500/10 text-blue-400 px-2 py-0.5 rounded border border-blue-500/20">
-                    {article.category}
-                    </span>
-                    {article.identifier && (
-                    <span className="text-xs font-mono uppercase tracking-widest text-slate-500">
-                        {article.identifier}
-                    </span>
-                    )}
-                    <span className="text-xs font-mono bg-white/5 px-2 py-0.5 rounded text-slate-400">
-                    {article.version}
-                    </span>
-                </div>
-                <h1 className="text-4xl font-bold text-white mb-4 leading-tight">{article.title}</h1>
-                <div className="flex items-center gap-6 text-sm text-slate-500">
-                    <span className="flex items-center gap-2"><User size={14}/> Author: {article.author_name || 'Unknown'}</span>
-                    <span className="flex items-center gap-2"><Calendar size={14}/> Updated: {new Date(article.updated_at || article.created_at).toLocaleDateString()}</span>
-                </div>
-                </div>
-            </div>
-            
-            {/* ACTION BUTTONS */}
-            <div className="flex items-center gap-3">
-                <button 
-                    onClick={handleCopyMarkdown} 
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white"
-                    title="Copy Markdown with Metadata"
-                >
-                    <Copy size={16} /> Copy Markdown
-                </button>
-                <button 
-                    onClick={handleDownloadPdf}
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white"
-                    title="Download as PDF"
-                >
-                    <Download size={16} /> PDF
-                </button>
-                <button 
-                    onClick={() => setShowEmailModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-gold/20 hover:bg-sanctum-gold/30 text-sm font-bold transition-colors text-sanctum-gold"
-                    title="Email article to client"
-                >
-                    <Send size={16} /> Email
-                </button>
-                <button 
-                    onClick={() => navigate(`/wiki/${article.id}/edit`)} 
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
-                >
-                    <Edit2 size={16} /> Edit Article
-                </button>
-            </div>
-          </div>
 
-          {/* TABS */}
-          <div className="flex gap-6 mt-4">
-              <button 
-                onClick={() => setActiveTab('content')} 
-                className={`pb-2 text-sm font-bold uppercase tracking-widest border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'content' ? 'border-sanctum-gold text-sanctum-gold' : 'border-transparent text-slate-500 hover:text-white'}`}
-              >
-                  <FileText size={14} /> Content
-              </button>
-              <button 
-                onClick={() => setActiveTab('history')} 
-                className={`pb-2 text-sm font-bold uppercase tracking-widest border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-sanctum-gold text-sanctum-gold' : 'border-transparent text-slate-500 hover:text-white'}`}
-              >
-                  <History size={14} /> History ({history.length})
-              </button>
-          </div>
+        {/* TABS */}
+        <div className="flex gap-6 mb-8 border-b border-slate-800 pb-0">
+          <button onClick={() => setActiveTab('content')} className={`pb-3 text-sm font-bold uppercase tracking-widest border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'content' ? 'border-sanctum-gold text-sanctum-gold' : 'border-transparent text-slate-500 hover:text-white'}`}>
+            <FileText size={14} /> Content
+          </button>
+          <button onClick={() => setActiveTab('history')} className={`pb-3 text-sm font-bold uppercase tracking-widest border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-sanctum-gold text-sanctum-gold' : 'border-transparent text-slate-500 hover:text-white'}`}>
+            <History size={14} /> History ({history.length})
+          </button>
         </div>
 
         {/* CONTENT TAB */}

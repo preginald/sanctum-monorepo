@@ -3,11 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { handleSmartWrap } from '../lib/textUtils';
 // FIX: Added 'Flag' to imports
-import { Loader2, ArrowLeft, Plus, CheckCircle, Circle, Receipt, Calendar, Flag, Activity, Bug, Zap, Clipboard, X, Edit2, ChevronUp, ChevronDown, Briefcase } from 'lucide-react';
+import { Loader2, Plus, CheckCircle, Circle, Receipt, Calendar, Flag, Activity, Bug, Zap, Clipboard, X, Edit2, ChevronUp, ChevronDown } from 'lucide-react';
 import api from '../lib/api';
 
 // COMPONENTS
-import ProjectHeader from '../components/projects/ProjectHeader';
 import ProjectStats from '../components/projects/ProjectStats';
 import TicketList from '../components/tickets/TicketList';
 
@@ -93,6 +92,11 @@ const toggleShowCompleted = (e) => {
   // --- HELPERS ---
   const getTicketsForMilestone = (msId) => tickets.filter(t => t.milestone_id === msId);
 
+  const statusColor = (s) => {
+    const map = { planning: 'bg-blue-500/20 text-blue-400', active: 'bg-green-500/20 text-green-400', completed: 'bg-slate-500/20 text-slate-400', on_hold: 'bg-orange-500/20 text-orange-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   if (loading || !project) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
   const completedCount = project?.milestones?.filter(m => m.status === 'completed').length || 0;
@@ -102,8 +106,17 @@ const toggleShowCompleted = (e) => {
   ) || [];
 
   return (
-    <Layout title="Project">
-      <ProjectHeader project={project} onAddMilestone={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} />
+    <Layout
+      title={project.name}
+      subtitle={<>Project • <button onClick={() => navigate(`/clients/${project.account_id}`)} className="text-sanctum-gold hover:underline">{project.account_name}</button></>}
+      badge={{ label: project.status, className: statusColor(project.status) }}
+      backPath="/projects"
+      actions={
+        <button onClick={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 rounded font-bold text-sm">
+          <Plus size={16}/> Add Milestone
+        </button>
+      }
+    >
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="space-y-6">

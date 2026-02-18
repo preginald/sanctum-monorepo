@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus, Check } from 'lucide-react';
+import { Loader2, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus, Check } from 'lucide-react';
 import api from '../lib/api';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -256,11 +256,46 @@ export default function TicketDetail() {
 
   if (loading || !ticket) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
+  const ticketStatusColor = (s) => {
+    const map = { new: 'bg-blue-500/20 text-blue-400', open: 'bg-yellow-500/20 text-yellow-400', pending: 'bg-orange-500/20 text-orange-400', qa: 'bg-purple-500/20 text-purple-400', resolved: 'bg-green-500/20 text-green-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   // --- CALCULATE UNBILLED ITEMS ---
   const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
 
   return (
-    <Layout title={`Ticket #${ticket.id}`}>
+    <Layout
+      title={ticket.subject}
+      subtitle={<><span className="opacity-60">#{ticket.id}</span> • <span className="inline-flex items-center gap-1"><TicketTypeIcon type={ticket.ticket_type} /> {ticket.ticket_type}</span> • <PriorityBadge priority={ticket.priority} /> • <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="text-sanctum-gold hover:underline">{ticket.account_name}</button></>}
+      badge={{ label: ticket.status, className: ticketStatusColor(ticket.status) }}
+      backPath="/tickets"
+      actions={
+        <div className="flex gap-2 items-center">
+          <button onClick={toggleLayout} className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
+            {layoutMode === 'split' ? <Rows size={16} /> : <Columns size={16} />}
+          </button>
+          {!isEditing && (
+            <>
+              {ticket.status !== 'resolved' && (
+                <button onClick={() => setShowResolveModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5"><CheckCircle size={16} /> Resolve</button>
+              )}
+              <button disabled={isSaving || unbilledCount === 0} onClick={handleGenerateInvoice} className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-bold shadow-lg transition-all ${unbilledCount === 0 ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-transparent' : 'bg-blue-600 hover:bg-blue-500 text-white'}`}>
+                {isSaving ? <Loader2 size={16} className="animate-spin"/> : unbilledCount === 0 ? <><Check size={16} /> Fully Billed</> : <><Receipt size={16} /> Invoice ({unbilledCount})</>}
+              </button>
+            </>
+          )}
+          {!isEditing ? (
+            <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit</button>
+          ) : (
+            <div className="flex gap-2">
+              <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
+              <button disabled={isSaving} onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-blue text-white text-sm font-bold disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Save size={16} /> Save</>}</button>
+            </div>
+          )}
+        </div>
+      }
+    >
       <ConfirmationModal 
         isOpen={modal.isOpen} 
         onClose={() => setModal({...modal, isOpen: false})} 
@@ -278,84 +313,28 @@ export default function TicketDetail() {
         initialValue={resolveText} 
       />
 
-      <div className="flex flex-col md:flex-row justify-between items-start mb-6 gap-4">
-        <div className="flex items-start gap-4 flex-1">
-          <button onClick={() => navigate('/tickets')} className="p-2 rounded hover:bg-white/10 opacity-70 mt-1"><ArrowLeft size={20} /></button>
-          
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-                <div className="p-1.5 bg-white/5 rounded border border-white/10 flex items-center justify-center"><TicketTypeIcon type={ticket.ticket_type} /></div>
-                <StatusBadge status={ticket.status} />
-                <PriorityBadge priority={ticket.priority} />
-            </div>
-
-            <h1 className="text-2xl font-bold leading-tight mb-2 break-words max-w-2xl">{ticket.subject}</h1>
-            <div className="opacity-60 text-sm flex flex-wrap items-center gap-2">
-              <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="hover:text-white hover:underline flex items-center gap-1 font-bold"><User size={12} /> {ticket.account_name}</button>
-              <span>/</span>
-              {!showQuickMilestone ? (
-                <button onClick={() => setShowQuickMilestone(true)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors text-sanctum-gold">
-                  <Briefcase size={12} /> 
-                  {ticket.milestone_name ? (
-                    <span className="flex items-center gap-1">{ticket.project_name} / {ticket.milestone_name} <Plus size={10} /></span>
-                  ) : (
-                    <span className="flex items-center gap-1 italic opacity-70">Link to Milestone <Plus size={10} /></span>
-                  )}
-                </button>
-              ) : (
-                <div className="inline-block w-64 ml-2">
-                  <SearchableSelect 
-                    items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, name: `${p.name} - ${m.name}` })))}
-                    onSelect={(m) => { handleUpdateMilestone(m.id); setShowQuickMilestone(false); }}
-                    placeholder="Search Milestones..."
-                    labelKey="name"
-                    onClose={() => setShowQuickMilestone(false)}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-            <button onClick={toggleLayout} className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors mr-2">
-                {layoutMode === 'split' ? <Rows size={16} /> : <Columns size={16} />}
-            </button>
-            {!isEditing && (
-                <>
-                    {ticket.status !== 'resolved' && (
-                        <button onClick={() => setShowResolveModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold shadow-lg transition-transform hover:-translate-y-0.5"><CheckCircle size={16} /> Resolve</button>
-                    )}
-                    
-                    {/* SMART INVOICE BUTTON */}
-                    <button 
-                        disabled={isSaving || unbilledCount === 0} 
-                        onClick={handleGenerateInvoice} 
-                        className={`flex items-center gap-2 px-4 py-2 rounded text-sm font-bold shadow-lg transition-all ${
-                            unbilledCount === 0 
-                                ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed border border-transparent' 
-                                : 'bg-blue-600 hover:bg-blue-500 text-white'
-                        }`}
-                    >
-                        {isSaving ? (
-                            <Loader2 size={16} className="animate-spin"/>
-                        ) : unbilledCount === 0 ? (
-                            <><Check size={16} /> Fully Billed</>
-                        ) : (
-                            <><Receipt size={16} /> Invoice ({unbilledCount})</>
-                        )}
-                    </button>
-                </>
-            )}
-            {!isEditing ? (
-                <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit</button>
+      {/* MILESTONE CONTEXT BAR */}
+      <div className="flex items-center gap-2 text-sm opacity-60 mb-6">
+        <Briefcase size={14} className="text-sanctum-gold" />
+        {!showQuickMilestone ? (
+          <button onClick={() => setShowQuickMilestone(true)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors text-sanctum-gold">
+            {ticket.milestone_name ? (
+              <span className="flex items-center gap-1">{ticket.project_name} / {ticket.milestone_name} <Plus size={10} /></span>
             ) : (
-                <div className="flex gap-2">
-                    <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded bg-slate-700 text-sm">Cancel</button>
-                    <button disabled={isSaving} onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-sanctum-blue text-white text-sm font-bold disabled:opacity-50">{isSaving ? <Loader2 size={16} className="animate-spin"/> : <><Save size={16} /> Save</>}</button>
-                </div>
+              <span className="flex items-center gap-1 italic opacity-70">Link to Milestone <Plus size={10} /></span>
             )}
-        </div>
+          </button>
+        ) : (
+          <div className="inline-block w-72">
+            <SearchableSelect 
+              items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, name: `${p.name} - ${m.name}` })))}
+              onSelect={(m) => { handleUpdateMilestone(m.id); setShowQuickMilestone(false); }}
+              placeholder="Search Milestones..."
+              labelKey="name"
+              onClose={() => setShowQuickMilestone(false)}
+            />
+          </div>
+        )}
       </div>
 
         <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>

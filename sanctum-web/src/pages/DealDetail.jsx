@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
-import { Loader2, ArrowLeft, Save, Edit2, DollarSign, Calendar, BarChart3, Building } from 'lucide-react';
+import { Loader2, Save, Edit2, DollarSign, Calendar, BarChart3 } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
 
@@ -49,37 +49,32 @@ export default function DealDetail() {
 
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
 
+  const stageColor = (s) => {
+    const map = { 'Infiltration': 'bg-blue-500/20 text-blue-400', 'Accession': 'bg-purple-500/20 text-purple-400', 'Negotiation': 'bg-orange-500/20 text-orange-400', 'Closed Won': 'bg-green-500/20 text-green-400', 'Lost': 'bg-red-500/20 text-red-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   if (loading || !deal) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
 
   return (
-    <Layout title="Deal">
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/deals')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
-          <div>
-            <h1 className="text-2xl font-bold">{deal.title}</h1>
-            <p className="opacity-50 text-sm flex items-center gap-2">
-              <Building size={12} /> {deal.account_name}
-            </p>
-          </div>
-        </div>
-
-        {!isEditing ? (
-          <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors">
-            <Edit2 size={16} /> Edit Deal
+    <Layout
+      title={deal.title}
+      subtitle={<>Deal • <button onClick={() => navigate(`/clients/${deal.account_id}`)} className="text-sanctum-gold hover:underline">{deal.account_name}</button></>}
+      badge={{ label: deal.stage, className: stageColor(deal.stage) }}
+      backPath="/deals"
+      actions={!isEditing ? (
+        <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors">
+          <Edit2 size={16} /> Edit Deal
+        </button>
+      ) : (
+        <div className="flex gap-2">
+          <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
+          <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold">
+            <Save size={16} /> Save Changes
           </button>
-        ) : (
-          <div className="flex gap-2">
-            <button onClick={() => setIsEditing(false)} className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
-            <button onClick={handleSave} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white text-sm font-bold">
-              <Save size={16} /> Save Changes
-            </button>
-          </div>
-        )}
-      </div>
-
+        </div>
+      )}
+    >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* LEFT COLUMN: DEAL DATA */}

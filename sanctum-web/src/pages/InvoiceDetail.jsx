@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Download, Loader2, ArrowLeft, Plus, Trash2, Send, CheckCircle, Mail, X, Ban, User, Calendar, CreditCard, Edit2 } from 'lucide-react';
+import { Download, Loader2, Plus, Trash2, Send, CheckCircle, Mail, X, Ban, User, Calendar, CreditCard, Edit2 } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
@@ -276,6 +276,11 @@ export default function InvoiceDetail() {
 
   if (loading || !invoice) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
+  const invoiceStatusColor = (s) => {
+    const map = { draft: 'bg-yellow-500/20 text-yellow-400', sent: 'bg-blue-500/20 text-blue-400', paid: 'bg-green-500/20 text-green-400', void: 'bg-red-500/20 text-red-400', overdue: 'bg-orange-500/20 text-orange-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   const isLocked = invoice.status === 'paid';
   const isDraft = invoice.status === 'draft';
   const isAdmin = user?.role === 'admin';
@@ -297,73 +302,52 @@ export default function InvoiceDetail() {
   };
 
   return (
-    <Layout title={`Invoice #${invoice.id.slice(0,8)}`}>
-
+    <Layout
+      title={`Invoice #${invoice.id.slice(0,8).toUpperCase()}`}
+      subtitle={<><button onClick={() => navigate(`/clients/${invoice.account_id}`)} className="text-sanctum-gold hover:underline">{invoice.account_name}</button> • {invoice.status === 'paid' && invoice.paid_at ? <span className="text-green-400">Paid {formatDate(invoice.paid_at)}</span> : <span>Due {formatDate(invoice.due_date)}</span>}</>}
+      badge={{ label: invoice.status, className: invoiceStatusColor(invoice.status) }}
+      backPath={`/clients/${invoice.account_id}`}
+      actions={
+        <div className="flex gap-2 items-center">
+          {isDraft && isAdmin && (
+            <button onClick={handleDeleteInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors">
+              <Trash2 size={16} /> Delete Draft
+            </button>
+          )}
+          {invoice.status === 'sent' && isAdmin && (
+            <button onClick={() => setConfirmVoid(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors">
+              <Ban size={16} /> Void
+            </button>
+          )}
+          <button onClick={() => setShowSendModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg transition-transform hover:-translate-y-0.5">
+            <Send size={16} /> {getSendLabel()}
+          </button>
+          {invoice.status === 'sent' && (
+            <button onClick={openPaymentModal} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition-transform hover:-translate-y-0.5 shadow-lg">
+              <CheckCircle size={16} /> Mark Paid
+            </button>
+          )}
+          {invoice.status === 'paid' && (
+            <button onClick={handleEditPayment} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors border border-white/10">
+              <Edit2 size={16} /> Edit Payment
+            </button>
+          )}
+          {invoice.pdf_path ? (
+            <a href={getPdfUrl(invoice.pdf_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">
+              <Download size={16} /> PDF
+            </a>
+          ) : (
+            <button disabled className="flex items-center gap-2 px-4 py-2 rounded bg-white/5 text-white/30 text-sm cursor-not-allowed">
+              <Loader2 size={16} className="animate-spin" /> Generating...
+            </button>
+          )}
+        </div>
+      }
+    >
       <ConfirmationModal 
           isOpen={confirmVoid} onClose={() => setConfirmVoid(false)} onConfirm={handleVoid}
           title="Void Invoice?" message="Release items back to pool?" isDangerous={true}
       />
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-start mb-8">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate(`/clients/${invoice.account_id}`)} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20} /></button>
-          <div>
-            <h1 className="text-3xl font-bold">{invoice.account_name}</h1>
-            <div className="flex items-center gap-4 mt-2">
-                <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${invoice.status === 'paid' ? 'bg-green-500 text-slate-900' : 'bg-yellow-500 text-slate-900'}`}>
-                    {invoice.status}
-                </span>
-                {invoice.status === 'paid' && invoice.paid_at ? (
-                    <span className="text-sm font-mono text-green-400 font-bold flex items-center gap-2">
-                        <CheckCircle size={14} /> Paid on {formatDate(invoice.paid_at)}
-                    </span>
-                ) : (
-                    <span className="text-sm opacity-50 font-mono">Due: {formatDate(invoice.due_date)}</span>
-                )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-            {isDraft && isAdmin && (
-                // UPDATED: Using direct handler with window.confirm
-                <button onClick={handleDeleteInvoice} className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors">
-                    <Trash2 size={16} /> Delete Draft
-                </button>
-            )}
-            {invoice.status === 'sent' && isAdmin && (
-                <button onClick={() => setConfirmVoid(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 hover:text-red-300 font-bold text-sm border border-red-500/30 transition-colors">
-                    <Ban size={16} /> Void
-                </button>
-            )}
-            
-            <button onClick={() => setShowSendModal(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm shadow-lg transition-transform hover:-translate-y-0.5">
-                <Send size={16} /> {getSendLabel()}
-            </button>
-            
-            {invoice.status === 'sent' && (
-                <button onClick={openPaymentModal} className="flex items-center gap-2 px-4 py-2 rounded bg-green-600 hover:bg-green-500 text-white font-bold text-sm transition-transform hover:-translate-y-0.5 shadow-lg">
-                    <CheckCircle size={16} /> Mark Paid
-                </button>
-            )}
-            {invoice.status === 'paid' && (
-                <button onClick={handleEditPayment} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-white font-bold text-sm transition-colors border border-white/10">
-                    <Edit2 size={16} /> Edit Payment
-                </button>
-            )}
-            
-            {invoice.pdf_path ? (
-                <a href={getPdfUrl(invoice.pdf_path)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-sm transition-colors">
-                    <Download size={16} /> PDF
-                </a>
-            ) : (
-                <button disabled className="flex items-center gap-2 px-4 py-2 rounded bg-white/5 text-white/30 text-sm cursor-not-allowed">
-                    <Loader2 size={16} className="animate-spin" /> Generating...
-                </button>
-            )}
-        </div>
-      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 max-w-4xl mx-auto bg-white text-slate-900 rounded-lg shadow-2xl overflow-hidden min-h-[600px] flex flex-col">

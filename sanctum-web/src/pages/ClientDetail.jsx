@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
-import { Loader2, Edit2, ArrowLeft, Activity, Ticket, Mail, Hash, ClipboardList, Eye } from 'lucide-react';
+import { Loader2, Edit2, Activity, Ticket, Mail, Hash, ClipboardList, Eye } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { recordVisit } from '../lib/history'; 
 
@@ -179,11 +179,36 @@ export default function ClientDetail() {
       catch(e) { addToast("Failed to revoke", "danger"); }
   };
 
+  const statusColor = (s) => {
+    const map = { active: 'bg-green-500/20 text-green-400', prospect: 'bg-blue-500/20 text-blue-400', churned: 'bg-red-500/20 text-red-400', lead: 'bg-purple-500/20 text-purple-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   if (loading || !account) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title="Client">
-      
+    <Layout
+      title={account.name}
+      subtitle={<>{account.type} • {account.brand_affinity === 'ds' ? 'Digital Sanctum' : account.brand_affinity === 'nt' ? 'Naked Technology' : 'Both'}</>}
+      badge={{ label: account.status, className: statusColor(account.status) }}
+      backPath="/clients"
+      actions={isEditingAccount ? (
+        <div className="flex gap-2">
+          <button onClick={() => setIsEditingAccount(false)} className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
+          <button onClick={saveAccount} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">{isSaving && <Loader2 className="animate-spin" size={16}/>} Save</button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <button onClick={() => navigate(`/clients/${id}/discovery`)} className="flex items-center gap-2 px-4 py-2 rounded bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-500/30 text-sm font-bold transition-colors">
+            <ClipboardList size={16} /> Discovery
+          </button>
+          <button onClick={() => window.open(`/portal/?impersonate=${id}`, '_blank')} className="flex items-center gap-2 px-4 py-2 rounded bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 border border-cyan-500/30 text-sm font-bold transition-colors">
+            <Eye size={16} /> View as Client
+          </button>
+          <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>
+        </div>
+      )}
+    >
       <ConfirmationModal 
         isOpen={confirmModal.isOpen} 
         onClose={() => setConfirmModal({...confirmModal, isOpen: false})} 
@@ -218,105 +243,47 @@ export default function ClientDetail() {
         setForm={setAssetForm}
       />
 
-      <div className="flex justify-between items-start mb-8">
-          <div className="flex items-center gap-4">
-              <button onClick={() => navigate('/clients')} className="p-2 rounded hover:bg-white/10 opacity-70"><ArrowLeft size={20}/></button>
-              <div className="w-full">
-                  {isEditingAccount ? (
-                      <div className="space-y-3 bg-black/20 p-4 rounded border border-white/10 min-w-[400px]">
-                          <input 
-                              className="text-2xl font-bold bg-transparent border-b border-white/20 w-full focus:outline-none focus:border-sanctum-gold"
-                              value={account.name}
-                              onChange={e => setAccount({...account, name: e.target.value})}
-                          />
-                          <div className="grid grid-cols-2 gap-4">
-                              <div>
-                                  <label className="text-xs uppercase opacity-50 block mb-1">Status</label>
-                                  <select 
-                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
-                                      value={account.status}
-                                      onChange={e => setAccount({...account, status: e.target.value})}
-                                  >
-                                      <option value="prospect">Prospect</option>
-                                      <option value="active">Active</option>
-                                      <option value="churned">Churned</option>
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="text-xs uppercase opacity-50 block mb-1">Type</label>
-                                  <select 
-                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
-                                      value={account.type}
-                                      onChange={e => setAccount({...account, type: e.target.value})}
-                                  >
-                                      <option value="Client">Client</option>
-                                      <option value="Partner">Partner</option>
-                                      <option value="Vendor">Vendor</option>
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="text-xs uppercase opacity-50 block mb-1">Brand</label>
-                                  <select 
-                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
-                                      value={account.brand_affinity}
-                                      onChange={e => setAccount({...account, brand_affinity: e.target.value})}
-                                  >
-                                      <option value="ds">Digital Sanctum</option>
-                                      <option value="nt">Naked Technology</option>
-                                      <option value="both">Both</option>
-                                  </select>
-                              </div>
-                              <div>
-                                  <label className="text-xs uppercase opacity-50 block mb-1">Billing Email</label>
-                                  <input 
-                                      className="w-full bg-slate-800 border border-slate-600 rounded p-1 text-sm text-white"
-                                      value={account.billing_email || ''}
-                                      onChange={e => setAccount({...account, billing_email: e.target.value})}
-                                  />
-                              </div>
-                          </div>
-                      </div>
-                  ) : (
-                      <>
-                        <h1 className="text-3xl font-bold">{account.name}</h1>
-                        <div className="flex gap-2 mt-2">
-                            <Badge color="bg-blue-600 text-white">{account.status}</Badge>
-                            <Badge color="bg-slate-700 text-slate-300">{account.type}</Badge>
-                            <Badge color={account.brand_affinity === 'ds' ? 'bg-sanctum-gold text-slate-900' : 'bg-naked-pink text-slate-900'}>{account.brand_affinity}</Badge>
-                        </div>
-                      </>
-                  )}
-              </div>
+      {/* INLINE EDIT CARD */}
+      {isEditingAccount && (
+        <div className="mb-6 p-5 bg-slate-900 border border-sanctum-gold/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+          <h3 className="text-sm font-bold uppercase tracking-wider opacity-70">Edit Account</h3>
+          <input 
+            className="text-xl font-bold bg-transparent border-b border-white/20 w-full focus:outline-none focus:border-sanctum-gold pb-1"
+            value={account.name}
+            onChange={e => setAccount({...account, name: e.target.value})}
+          />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <label className="text-xs uppercase opacity-50 block mb-1">Status</label>
+              <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm text-white" value={account.status} onChange={e => setAccount({...account, status: e.target.value})}>
+                <option value="prospect">Prospect</option>
+                <option value="active">Active</option>
+                <option value="churned">Churned</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs uppercase opacity-50 block mb-1">Type</label>
+              <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm text-white" value={account.type} onChange={e => setAccount({...account, type: e.target.value})}>
+                <option value="Client">Client</option>
+                <option value="Partner">Partner</option>
+                <option value="Vendor">Vendor</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs uppercase opacity-50 block mb-1">Brand</label>
+              <select className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm text-white" value={account.brand_affinity} onChange={e => setAccount({...account, brand_affinity: e.target.value})}>
+                <option value="ds">Digital Sanctum</option>
+                <option value="nt">Naked Technology</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs uppercase opacity-50 block mb-1">Billing Email</label>
+              <input className="w-full bg-slate-800 border border-slate-600 rounded p-2 text-sm text-white" value={account.billing_email || ''} onChange={e => setAccount({...account, billing_email: e.target.value})} />
+            </div>
           </div>
-          <div className="flex gap-2">
-              {isEditingAccount ? (
-                  <>
-                      <button onClick={() => setIsEditingAccount(false)} className="px-4 py-2 rounded bg-slate-700 text-sm">Cancel</button>
-                      <button onClick={saveAccount} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 text-white font-bold">{isSaving && <Loader2 className="animate-spin" size={16}/>} Save</button>
-                  </>
-              ) : (
-                  <>
-                      <button 
-                        onClick={() => navigate(`/clients/${id}/discovery`)} 
-                        className="flex items-center gap-2 px-4 py-2 rounded bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-500/30 text-sm font-bold transition-colors"
-                      >
-                        <ClipboardList size={16} /> 
-                        Discovery
-                      </button>
-
-                      <button 
-                        onClick={() => window.open(`/portal/?impersonate=${id}`, '_blank')}
-                        className="flex items-center gap-2 px-4 py-2 rounded bg-cyan-600/20 text-cyan-400 hover:bg-cyan-600/30 border border-cyan-500/30 text-sm font-bold transition-colors"
-                      >
-                        <Eye size={16} /> 
-                        View as Client
-                      </button>
-                      
-                      <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>
-                  </>
-              )}
-          </div>
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">

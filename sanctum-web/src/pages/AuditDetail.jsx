@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
-import { Loader2, ArrowLeft, Save, Shield, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, MinusCircle } from 'lucide-react';
+import { Loader2, Save, Shield, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, MinusCircle } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export default function AuditDetail() {
@@ -179,6 +179,11 @@ const calculateScore = () => {
     }
   };
 
+  const auditStatusColor = (s) => {
+    const map = { draft: 'bg-yellow-500/20 text-yellow-400', finalized: 'bg-green-500/20 text-green-400', 'in_progress': 'bg-blue-500/20 text-blue-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   const getStatusIcon = (status) => {
     switch (status) {
       case 'pass': return <CheckCircle2 className="text-green-500" size={16} />;
@@ -209,55 +214,30 @@ const calculateScore = () => {
   const categoryStructure = audit?.category_structure || selectedTemplate?.category_structure || [];
 
   return (
-    <Layout title={id ? "Security Audit" : "New Compliance Assessment"}>
-      
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
+    <Layout
+      title={audit?.status === 'finalized' ? 'Compliance Audit' : id && id !== 'new' ? 'Draft Assessment' : 'New Assessment'}
+      subtitle={selectedTemplate ? <>{selectedTemplate.name} {audit?.account_name && <>• <button onClick={() => navigate(`/clients/${audit.account_id}`)} className="text-sanctum-gold hover:underline">{audit.account_name}</button></>}</> : 'Select a framework to begin'}
+      badge={audit?.status ? { label: audit.status === 'finalized' ? 'Locked' : audit.status, className: auditStatusColor(audit.status) } : null}
+      backPath={-1}
+      actions={
         <div className="flex items-center gap-4">
-          <button 
-            onClick={() => navigate(-1)} 
-            className="p-2 rounded hover:bg-white/10 opacity-70"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Shield className={audit?.status === 'finalized' ? "text-green-500" : "text-slate-500"} />
-              {audit?.status === 'finalized' ? 'Compliance Audit (Locked)' : 'Draft Compliance Assessment'}
-            </h1>
-            {selectedTemplate && (
-              <p className="text-sm text-slate-400 mt-1">
-                Framework: {selectedTemplate.name}
-              </p>
-            )}
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-4">
-          {/* SCORE DISPLAY */}
           {selectedTemplate && (
-            <div className="px-6 py-3 bg-slate-900 border border-slate-700 rounded-lg">
-              <div className="text-xs text-slate-400 uppercase font-bold mb-1">Security Score</div>
-              <div className={`text-3xl font-bold ${getScoreColor(currentScore)}`}>
-                {currentScore}<span className="text-lg">/100</span>
-              </div>
+            <div className="px-4 py-2 bg-slate-900 border border-slate-700 rounded-lg flex items-center gap-3">
+              <span className="text-xs text-slate-400 uppercase font-bold">Score</span>
+              <span className={`text-2xl font-bold ${getScoreColor(currentScore)}`}>
+                {currentScore}<span className="text-sm">/100</span>
+              </span>
             </div>
           )}
-          
-          {/* ACTIONS */}
           {audit?.status !== 'finalized' && (
-            <button 
-              onClick={saveAudit} 
-              disabled={saving || !selectedTemplate} 
-              className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
-            >
+            <button onClick={saveAudit} disabled={saving || !selectedTemplate} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50">
               {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
               Save Assessment
             </button>
           )}
         </div>
-      </div>
-
+      }
+    >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         {/* SIDEBAR: TEMPLATE SELECTOR */}

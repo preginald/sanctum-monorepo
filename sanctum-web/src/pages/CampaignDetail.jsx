@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { 
-  Loader2, ArrowLeft, Users, Filter, CheckCircle, Save, Mail, Rocket, 
+  Loader2, Users, Filter, CheckCircle, Save, Mail, Rocket, 
   RefreshCw, DollarSign, Target, TrendingUp 
 } from 'lucide-react';
 import api from '../lib/api';
@@ -102,27 +102,23 @@ export default function CampaignDetail() {
 
   if (loading || !campaign) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
+  const campaignStatusColor = (s) => {
+    const map = { draft: 'bg-slate-500/20 text-slate-400', active: 'bg-green-500/20 text-green-400', completed: 'bg-blue-500/20 text-blue-400', paused: 'bg-orange-500/20 text-orange-400' };
+    return map[s] || 'bg-white/10 text-slate-300';
+  };
+
   // ROI Calculation
   const roi = campaign.budget_cost > 0 
     ? ((campaign.total_deal_value - campaign.budget_cost) / campaign.budget_cost) * 100 
     : (campaign.total_deal_value > 0 ? 100 : 0);
 
   return (
-    <Layout title="Campaign Command">
-      {/* HEADER */}
-      <div className="flex justify-between items-start mb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" icon={ArrowLeft} onClick={() => navigate('/campaigns')} />
-          <div>
-            <h1 className="text-3xl font-bold">{campaign.name}</h1>
-            <div className="flex items-center gap-2 mt-1">
-                <Badge variant={campaign.status === 'active' ? 'success' : 'default'}>{campaign.status}</Badge>
-                <span className="text-xs opacity-50 uppercase tracking-widest">{campaign.type} • {campaign.brand_affinity}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <Layout
+      title={campaign.name}
+      subtitle={<>{campaign.type} • {campaign.brand_affinity}</>}
+      badge={{ label: campaign.status, className: campaignStatusColor(campaign.status) }}
+      backPath="/campaigns"
+    >
       {/* SCOREBOARD (ROI DASHBOARD) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           
