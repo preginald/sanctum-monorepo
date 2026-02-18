@@ -55,10 +55,13 @@ export default function Campaigns() {
   }
 
   return (
-    <Layout title="The War Room">
-      <div className="flex justify-end mb-6">
+    <Layout
+      title="The War Room"
+      subtitle="Campaign management and outreach operations"
+      actions={
         <Button variant="gold" icon={Plus} onClick={() => setShowModal(true)}>New Campaign</Button>
-      </div>
+      }
+    >
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaigns.map(c => (

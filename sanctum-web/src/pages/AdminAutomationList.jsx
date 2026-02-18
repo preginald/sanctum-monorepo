@@ -85,7 +85,15 @@ export default function AdminAutomationList() {
   if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title="The Weaver">
+    <Layout
+      title="The Weaver"
+      subtitle="Event-driven workflows and triggers"
+      actions={activeTab === 'rules' ? (
+        <button onClick={() => { setForm({ name: '', event_type: 'ticket_created', action_type: 'send_email', config: {}, is_active: true }); setShowModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 font-bold rounded shadow-lg hover:bg-yellow-500 transition-colors text-sm">
+          <Plus size={18} /> New Rule
+        </button>
+      ) : null}
+    >
       <ConfirmationModal isOpen={confirm.isOpen} onClose={() => setConfirm({...confirm, isOpen: false})} title={confirm.title} message={confirm.message} onConfirm={confirm.action} isDangerous={true} />
       
       <AutomationModal 
@@ -96,30 +104,6 @@ export default function AdminAutomationList() {
         form={form} 
         setForm={setForm}
       />
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-900/20 rounded-full text-purple-400 border border-purple-500/30">
-                  <Zap size={24} />
-              </div>
-              <div>
-                  <h1 className="text-2xl font-bold">Automation Engine</h1>
-                  <p className="text-slate-500 text-sm">Event-driven workflows and triggers.</p>
-              </div>
-          </div>
-          
-          <div className="flex gap-2">
-            {activeTab === 'rules' && (
-                <button 
-                    onClick={() => { setForm({ name: '', event_type: 'ticket_created', action_type: 'send_email', config: {}, is_active: true }); setShowModal(true); }} 
-                    className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 font-bold rounded shadow-lg hover:bg-yellow-500 transition-colors"
-                >
-                    <Plus size={18} /> New Rule
-                </button>
-            )}
-          </div>
-      </div>
 
       {/* TABS */}
       <div className="flex gap-4 border-b border-slate-700 mb-6">

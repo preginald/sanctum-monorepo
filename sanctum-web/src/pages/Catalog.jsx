@@ -111,18 +111,15 @@ export default function Catalog() {
   }
 
   return (
-    <Layout title="Service & Hardware Catalog">
-      <div className="flex justify-end mb-6">
-        {isAdmin && !editMode && (
-            <Button 
-              onClick={handleNewClick} 
-              icon={Plus}
-              className="bg-sanctum-gold text-slate-900 hover:bg-yellow-500 border-none"
-            >
-                Add Item
-            </Button>
-        )}
-      </div>
+    <Layout
+      title="Service & Hardware Catalog"
+      subtitle="Products, services, and recurring billing items"
+      actions={isAdmin && !editMode ? (
+        <Button onClick={handleNewClick} icon={Plus} className="bg-sanctum-gold text-slate-900 hover:bg-yellow-500 border-none">
+          Add Item
+        </Button>
+      ) : null}
+    >
 
       {editMode && (
           <div className="mb-6 bg-slate-800 border border-slate-700 p-6 rounded-xl animate-in fade-in slide-in-from-top-4">

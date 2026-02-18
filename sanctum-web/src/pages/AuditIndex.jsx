@@ -53,21 +53,19 @@ const fetchData = async () => {
 };
 
   return (
-    <Layout title="Audit Registry">
-      <div className="flex justify-end mb-6">
-        {isAdmin && (
-        <button 
-        onClick={() => {
-  const accountId = prompt('Enter Account ID (or leave blank to select from clients):');
-  if (accountId === null) return; // Cancelled
-  navigate(`/audit/new${accountId ? `?account=${accountId}` : ''}`);
-}}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold bg-sanctum-gold text-slate-900 hover:bg-yellow-500 shadow-lg transition-transform hover:-translate-y-1"
-        >
+    <Layout
+      title="Audit Registry"
+      subtitle="Compliance assessments and security audits"
+      actions={isAdmin ? (
+        <button onClick={() => {
+          const accountId = prompt('Enter Account ID (or leave blank to select from clients):');
+          if (accountId === null) return;
+          navigate(`/audit/new${accountId ? `?account=${accountId}` : ''}`);
+        }} className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold bg-sanctum-gold text-slate-900 hover:bg-yellow-500 shadow-lg transition-transform hover:-translate-y-1 text-sm">
           <Plus size={18} /> Initialize Audit
         </button>
-        )}
-      </div>
+      ) : null}
+    >
 
       <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
         <table className="w-full text-left">

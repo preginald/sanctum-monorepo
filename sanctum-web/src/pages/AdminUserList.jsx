@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import api from '../lib/api';
-import { Loader2, UserPlus, Edit2, User, Trash2, Key, Users } from 'lucide-react';
+import { Loader2, UserPlus, Edit2, User, Trash2, Key } from 'lucide-react';
 import Modal from '../components/ui/Modal';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
@@ -68,27 +68,19 @@ export default function AdminUserList() {
   if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title="Staff Roster">
+    <Layout
+      title="Staff Roster"
+      subtitle="Manage access and roles"
+      actions={
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 font-bold rounded shadow-lg hover:bg-yellow-500 transition-colors text-sm">
+          <UserPlus size={18} /> Add User
+        </button>
+      }
+    >
       <ConfirmationModal 
         isOpen={confirm.isOpen} onClose={() => setConfirm({...confirm, isOpen: false})} 
         title={confirm.title} message={confirm.message} onConfirm={confirm.action} isDangerous={true} 
       />
-
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-4">
-              <div className="p-3 bg-purple-900/20 rounded-full text-purple-400 border border-purple-500/30">
-                  <Users size={24} />
-              </div>
-              <div>
-                  <h1 className="text-2xl font-bold">User Administration</h1>
-                  <p className="text-slate-500 text-sm">Manage access and roles.</p>
-              </div>
-          </div>
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 font-bold rounded shadow-lg hover:bg-yellow-500 transition-colors">
-              <UserPlus size={18} /> Add User
-          </button>
-      </div>
 
       {/* TABLE */}
       <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
