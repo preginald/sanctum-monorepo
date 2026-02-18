@@ -58,18 +58,15 @@ export default function Clients() {
   }
 
   return (
-    <Layout title="Client Registry">
-      <div className="flex justify-end mb-6">
-        {isAdmin && (
-            <Button 
-              onClick={() => setShowModal(true)} 
-              icon={Plus}
-              variant="gold"
-            >
-              New Client
-            </Button>
-        )}
-      </div>
+    <Layout
+      title="Client Registry"
+      subtitle="Accounts, contacts, and relationship management"
+      actions={isAdmin ? (
+        <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">
+          New Client
+        </Button>
+      ) : null}
+    >
 
       <Card className="overflow-hidden p-0">
         <table className="w-full text-left">

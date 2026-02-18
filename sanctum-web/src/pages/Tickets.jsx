@@ -131,7 +131,14 @@ export default function Tickets({ autoCreate = false }) {
   }
 
   return (
-    <Layout title="Service Desk">
+    <Layout
+      title="Service Desk"
+      subtitle="Ticket management and operations"
+      actions={isAdmin ? (
+        <Button variant="primary" icon={Plus} onClick={handleOpenModal}>New Ticket</Button>
+      ) : null}
+    >
+      {/* VIEW TOGGLE + FILTERS */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
             <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
@@ -155,10 +162,6 @@ export default function Tickets({ autoCreate = false }) {
                 </select>
             </div>
         </div>
-        
-        {isAdmin && (
-            <Button variant="primary" icon={Plus} onClick={handleOpenModal}>New Ticket</Button>
-        )}
       </div>
 
       {viewMode === 'list' ? (
