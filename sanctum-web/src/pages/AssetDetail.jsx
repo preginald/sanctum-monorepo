@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
-import { Loader2, ArrowLeft, Server, Calendar, Clock, Shield, MapPin, Hash, Cpu, Globe, Ticket, Package, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, Server, Clock, Shield, MapPin, Hash, Cpu, Globe, Ticket, Package, RefreshCw } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export default function AssetDetail() {
@@ -58,35 +58,22 @@ export default function AssetDetail() {
   const specs = asset.specs && Object.keys(asset.specs).length > 0 ? asset.specs : null;
 
   return (
-    <Layout title={asset.name}>
-
-      {/* BACK + HEADER */}
-      <div className="flex items-center gap-4 mb-8">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded transition-colors">
-          <ArrowLeft size={20} />
+    <Layout 
+      title={asset.name}
+      subtitle={<>{asset.asset_type} • <button onClick={() => navigate(`/clients/${asset.account_id}`)} className="text-sanctum-gold hover:underline">{asset.account_name}</button></>}
+      badge={{ label: asset.status, className: statusColor(asset.status) }}
+      backPath={-1}
+      actions={['expiring', 'expired'].includes(asset.status) ? (
+        <button
+          onClick={handleRenewalTicket}
+          disabled={creatingTicket}
+          className="flex items-center gap-2 px-4 py-2 rounded font-bold text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-30 transition-colors"
+        >
+          {creatingTicket ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          Create Renewal Ticket
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">{asset.name}</h1>
-            <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase ${statusColor(asset.status)}`}>
-              {asset.status}
-            </span>
-          </div>
-          <p className="text-sm opacity-50 mt-1">
-            {asset.asset_type} • {asset.account_name}
-          </p>
-        </div>
-        {['expiring', 'expired'].includes(asset.status) && (
-          <button
-            onClick={handleRenewalTicket}
-            disabled={creatingTicket}
-            className="flex items-center gap-2 px-4 py-2 rounded font-bold text-sm bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 disabled:opacity-30 transition-colors"
-          >
-            {creatingTicket ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Create Renewal Ticket
-          </button>
-        )}
-      </div>
+      ) : null}
+    >
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

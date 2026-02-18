@@ -8,6 +8,7 @@ import QuestionnaireBanner from '../components/portal/QuestionnaireBanner';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { useToast } from '../context/ToastContext';
+import usePortalNav from '../hooks/usePortalNav';
 
 // PHASE 60A: Category Widget Configuration
 const CATEGORY_WIDGETS = [
@@ -21,10 +22,11 @@ const CATEGORY_WIDGETS = [
 
 export default function PortalDashboard() {
   const navigate = useNavigate();
+  const { portalNav, impersonateId: impId } = usePortalNav();
   const { user, logout } = useAuthStore();
   const { addToast } = useToast();
   const [searchParams] = useSearchParams();
-  const impersonateId = searchParams.get('impersonate');
+  const impersonateId = impId;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -173,7 +175,7 @@ const fetchPortal = async () => {
               Complete your first assessment to see how your technology stack measures up across 6 key areas.
             </p>
             <button 
-              onClick={() => navigate('/portal/assessments')}
+              onClick={() => portalNav('/portal/assessments')}
               className={`px-6 py-2 rounded-lg ${theme.btn} font-bold`}
             >
               Get Started
@@ -186,7 +188,7 @@ const fetchPortal = async () => {
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-sm font-bold uppercase tracking-widest opacity-50">Health Scores</h2>
               <button
-                onClick={() => navigate('/portal/assessments')}
+                onClick={() => portalNav('/portal/assessments')}
                 className={`px-4 py-2 rounded-lg text-sm font-bold ${theme.btn} flex items-center gap-2`}
               >
                 <Plus size={16} />
@@ -242,7 +244,7 @@ const fetchPortal = async () => {
             icon={Server}
             label="Asset Inventory"
             count="View All"
-            onClick={() => navigate('/portal/assets')}
+            onClick={() => portalNav('/portal/assets')}
             isNaked={theme.isNaked}
           />
 
@@ -258,7 +260,7 @@ const fetchPortal = async () => {
                     {open_tickets.slice(0, 5).map(t => (
                         <div 
                             key={t.id} 
-                            onClick={() => navigate(`/portal/tickets/${t.id}`)}
+                            onClick={() => portalNav(`/portal/tickets/${t.id}`)}
                             className="p-3 rounded bg-black/5 dark:bg-white/5 flex justify-between items-center cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         >
                             <div>
@@ -316,7 +318,7 @@ const fetchPortal = async () => {
                         return (
                             <div 
                                 key={p.id} 
-                                onClick={() => navigate(`/portal/projects/${p.id}`)}
+                                onClick={() => portalNav(`/portal/projects/${p.id}`)}
                                 className="p-4 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                             >
                                 <div className="flex justify-between items-start mb-2">

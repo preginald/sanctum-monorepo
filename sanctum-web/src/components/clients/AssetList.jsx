@@ -1,10 +1,12 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
     Server, Laptop, Router, Printer, Key, Box, Plus, Trash2, Edit2, 
     Globe, Cloud, Layers, Calendar, Receipt 
 } from 'lucide-react';
 
 export default function AssetList({ assets, onAdd, onEdit, onDelete }) {
+  const navigate = useNavigate();
   
   const getIcon = (type) => {
       if (!type) return <Box size={16} className="text-slate-400" />;
@@ -59,7 +61,7 @@ export default function AssetList({ assets, onAdd, onEdit, onDelete }) {
                             <div className="p-2 bg-slate-800 rounded">{getIcon(a.asset_type)}</div>
                             <div>
                                 <div className="font-bold text-white text-sm flex items-center gap-2">
-                                    {a.name}
+                                    <button onClick={() => navigate(`/assets/${a.id}`)} className="hover:text-sanctum-gold transition-colors text-left">{a.name}</button>
                                     {/* Auto-Invoice Badge */}
                                     {a.auto_invoice && (
                                         <span className="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded border border-purple-500/30 flex items-center gap-1" title="Auto-Billing Active">

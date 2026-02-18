@@ -53,11 +53,19 @@ def get_current_contact(user: models.User, db: Session, account_id: UUID = None)
     return contact
 
 
-def verify_ticket_access(ticket_id: int, user: models.User, db: Session):
+def verify_ticket_access(ticket_id: int, user: models.User, db: Session, impersonate: UUID = None):
     """
-    Ensures the user is a Contact on the ticket OR the ticket belongs to their account 
-    (depending on strictness, usually M:N match is safer).
+    Ensures the user is a Contact on the ticket OR the ticket belongs to their account.
+    Admins with impersonate bypass contact check.
     """
+    # Admin impersonating — just verify ticket belongs to impersonated account
+    if user.role == 'admin' and impersonate:
+        ticket = db.query(Ticket).options(joinedload(Ticket.account))\
+            .filter(Ticket.id == ticket_id, Ticket.account_id == impersonate).first()
+        if not ticket:
+            raise HTTPException(status_code=404, detail="Ticket not found or access denied.")
+        return ticket, None
+
     contact = get_current_contact(user, db)
     
     ticket = db.query(Ticket).options(joinedload(Ticket.account))\
@@ -384,10 +392,11 @@ def get_portal_tickets(
 @router.get("/tickets/{ticket_id}")
 def get_portal_ticket(
     ticket_id: int, 
+    impersonate: UUID = None,
     db: Session = Depends(get_db), 
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    ticket, contact = verify_ticket_access(ticket_id, current_user, db)
+    ticket, contact = verify_ticket_access(ticket_id, current_user, db, impersonate)
 
     comments = db.query(Comment).options(joinedload(Comment.author))\
         .filter(
@@ -438,10 +447,11 @@ def create_portal_comment(
     ticket_id: int,
     payload: schemas.CommentCreate, 
     background_tasks: BackgroundTasks,
+    impersonate: UUID = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    ticket, contact = verify_ticket_access(ticket_id, current_user, db)
+    ticket, contact = verify_ticket_access(ticket_id, current_user, db, impersonate)
     
     new_comment = Comment(
         ticket_id=ticket.id,
@@ -466,10 +476,11 @@ def create_portal_comment(
 @router.get("/tickets/{ticket_id}/invoices")
 def get_portal_ticket_invoices(
     ticket_id: int,
+    impersonate: UUID = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
-    ticket, _ = verify_ticket_access(ticket_id, current_user, db)
+    ticket, _ = verify_ticket_access(ticket_id, current_user, db, impersonate)
 
     invoices = db.query(Invoice).join(InvoiceItem).filter(
         InvoiceItem.ticket_id == ticket.id,
@@ -602,3 +613,47 @@ def download_portal_invoice(
         media_type='application/pdf',
         filename=f"Invoice_{invoice.id}.pdf"
     )
+
+@router.get("/articles/{slug}")
+def get_portal_article(
+    slug: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+    impersonate: UUID = None
+):
+    """Portal-facing article view. Access if article is linked to any ticket the user can see."""
+    from sqlalchemy.orm import joinedload
+
+    aid = resolve_portal_account_id(current_user, impersonate)
+
+    article = db.query(models.Article).options(
+        joinedload(models.Article.author)
+    ).filter(models.Article.slug == slug).first()
+
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Verify access: article must be linked to at least one ticket belonging to this account
+    if not is_impersonating(current_user, impersonate):
+        linked = db.query(models.ticket_articles).join(
+            models.Ticket, models.ticket_articles.c.ticket_id == models.Ticket.id
+        ).filter(
+            models.ticket_articles.c.article_id == article.id,
+            models.Ticket.account_id == aid
+        ).first()
+
+        if not linked:
+            raise HTTPException(status_code=403, detail="You do not have access to this article")
+
+    return {
+        "id": str(article.id),
+        "title": article.title,
+        "slug": article.slug,
+        "identifier": article.identifier,
+        "version": article.version,
+        "category": article.category,
+        "content": article.content,
+        "author_name": article.author.full_name if article.author else "Unknown",
+        "updated_at": article.updated_at.isoformat() if article.updated_at else
+                      article.created_at.isoformat() if article.created_at else None
+    }

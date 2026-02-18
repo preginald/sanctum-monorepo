@@ -3,15 +3,15 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
-    Activity, ChevronLeft, ChevronRight, Briefcase, Megaphone, 
-    BookOpen, Zap, Clock, User, PieChart, Menu, X, Terminal
+    Activity, Briefcase, Megaphone, 
+    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 import GlobalSearch from './ui/GlobalSearch';
 import NotificationBell from './ui/NotificationBell';
 
-export default function Layout({ children, title }) {
+export default function Layout({ children, title, subtitle, badge, backPath, actions }) {
   const { user, token, setToken, logout } = useAuthStore();
   
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -165,8 +165,27 @@ export default function Layout({ children, title }) {
             )}
             <div className="p-8 max-w-[1920px] mx-auto">
                 <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <h2 className="text-3xl font-bold">{title}</h2>
-                    <p className="opacity-60 text-sm mt-1">Sovereign Architecture</p>
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                            {backPath && (
+                                <button onClick={() => backPath === -1 ? navigate(-1) : navigate(backPath)} className="p-2 hover:bg-white/10 rounded-lg transition-colors -ml-2">
+                                    <ArrowLeft size={20} />
+                                </button>
+                            )}
+                            <div>
+                                <div className="flex items-center gap-3">
+                                    <h2 className="text-3xl font-bold">{title}</h2>
+                                    {badge && (
+                                        <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase ${badge.className || 'bg-white/10'}`}>
+                                            {badge.label}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="opacity-60 text-sm mt-1">{subtitle || 'Sovereign Architecture'}</p>
+                            </div>
+                        </div>
+                        {actions && <div className="flex items-center gap-3">{actions}</div>}
+                    </div>
                 </div>
                 {children}
             </div>

@@ -4,10 +4,13 @@ import api from '../lib/api';
 import { formatDate, formatCurrency } from '../lib/formatters';
 import { ArrowLeft, FileText, Download, CheckCircle, AlertCircle, Loader2, Server, MessageSquare, Send, BookOpen } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import usePortalNav from '../hooks/usePortalNav';
+
 
 const PortalTicketDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { portalNav, impersonateId } = usePortalNav();
   const { addToast } = useToast();
   
   const [ticket, setTicket] = useState(null);
@@ -35,16 +38,17 @@ const PortalTicketDetail = () => {
 
   const fetchData = async () => {
     try {
+      const imp = impersonateId ? `?impersonate=${impersonateId}` : '';
       const [ticketRes, invoiceRes] = await Promise.all([
-        api.get(`/portal/tickets/${id}`),
-        api.get(`/portal/tickets/${id}/invoices`)
+        api.get(`/portal/tickets/${id}${imp}`),
+        api.get(`/portal/tickets/${id}/invoices${imp}`)
       ]);
       setTicket(ticketRes.data);
       setInvoices(invoiceRes.data);
     } catch (error) {
       console.error("Failed to fetch portal data", error);
       if (error.response && (error.response.status === 403 || error.response.status === 404)) {
-        navigate('/portal');
+        portalNav('/portal');
       }
     } finally {
       setLoading(false);
@@ -119,7 +123,7 @@ const PortalTicketDetail = () => {
         
         {/* Header / Nav */}
         <button 
-          onClick={() => navigate('/portal')}
+          onClick={() => portalNav('/portal')}
           className={`flex items-center ${theme.textSub} hover:${theme.textMain} transition-colors`}
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -305,7 +309,8 @@ const PortalTicketDetail = () => {
                   {ticket.articles.map(article => (
                     <a 
                       key={article.id}
-                      href={`/wiki/${article.slug}`}
+                      href="#"
+                      onClick={(e) => { e.preventDefault(); portalNav(`/portal/wiki/${article.slug}`); }}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="p-4 flex items-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors block"

@@ -19,6 +19,8 @@ import PortalQuestionnaire from './pages/PortalQuestionnaire';
 import PortalQuestionnaireComplete from './pages/PortalQuestionnaireComplete';
 import AdminQuestionnaireList from './pages/AdminQuestionnaireList';
 import AdminAssetIngest from './pages/AdminAssetIngest'; // ADD THIS
+import PortalArticleView from './pages/PortalArticleView';
+
 
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
@@ -114,6 +116,7 @@ function App() {
                   <Route path="/portal/audit/:category" element={<PortalAuditReport />} /> {/* PHASE 60A: Category-aware */}
                   <Route path="/portal/security" element={<Navigate to="/portal/audit/security" replace />} /> {/* Legacy redirect */}
                   <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
+                  <Route path="/portal/wiki/:slug" element={<PortalArticleView />} />
                   <Route path="/portal/assets" element={<PortalAssets />} />
                   <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />
                   <Route path="/portal/questionnaire" element={<PortalQuestionnaire />} />
