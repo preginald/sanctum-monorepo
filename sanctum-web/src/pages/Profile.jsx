@@ -132,7 +132,7 @@ export default function Profile() {
   if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title="My Profile">
+    <Layout title="My Profile" onRefresh={() => { fetchProfile(); fetchPrefs(); fetchTokens(); }}>
       <div className="max-w-3xl mx-auto space-y-8">
           
           {/* IDENTITY CARD */}
