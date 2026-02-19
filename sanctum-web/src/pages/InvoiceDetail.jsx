@@ -44,6 +44,7 @@ export default function InvoiceDetail() {
   // PAYMENT FORM
   const [paymentForm, setPaymentForm] = useState({
       paid_at: '',
+      send_receipt: true,
       payment_method: 'bank_transfer'
   });
 
@@ -211,6 +212,7 @@ export default function InvoiceDetail() {
           addToast("Payment Details Updated", "success");
           
           setSendForm(prev => ({...prev, subject: `Receipt: Invoice #${res.data.id.slice(0,8).toUpperCase()} - PAID`}));
+          if (paymentForm.send_receipt) setShowSendModal(true);
       } catch (e) { 
           addToast("Payment update failed", "danger"); 
       }
@@ -539,6 +541,14 @@ export default function InvoiceDetail() {
                             </select>
                         </div>
                     </div>
+
+                    <label className="flex items-center gap-3 p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg cursor-pointer hover:bg-blue-500/10 transition-colors">
+                        <input type="checkbox" checked={paymentForm.send_receipt} onChange={e => setPaymentForm({...paymentForm, send_receipt: e.target.checked})} className="accent-blue-500 w-4 h-4" />
+                        <div>
+                            <span className="text-sm font-semibold text-blue-200">Send receipt email</span>
+                            <p className="text-[10px] opacity-50 mt-0.5">Opens email dialog with receipt subject pre-filled</p>
+                        </div>
+                    </label>
 
                     <button type="submit" className="w-full py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded flex justify-center items-center gap-2 mt-4">
                         {invoice.status === 'paid' ? 'Update Payment' : 'Confirm Payment'}

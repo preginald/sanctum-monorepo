@@ -1,142 +1,242 @@
-# SESSION HANDOVER: Phase 62 — Wiki Client Delivery + Asset Lifecycle + Portal Infrastructure
+# Digital Sanctum — Session Handover
+## Date: 2026-02-19 | Completed: Ticket #182 — Sovereign Architecture
 
-**Date:** 2026-02-18
-**Session Duration:** Tickets #180, #181, plus portal infrastructure and design standards
-**Next Sprint:** Intelligence Dossier — Site-wide Layout Refactoring
+---
 
-## WHAT WE ACCOMPLISHED
+## SESSION SUMMARY
 
-### Ticket #180 — Wiki Client Delivery ✅
-- ✅ Feature A: Portal ticket sidebar shows linked articles
-- ✅ Feature B: PDF export with WeasyPrint (branded header, `@page :first` full-bleed, 10pt header text)
-- ✅ Feature C: Email article to client with PDF attachment (`POST /articles/{id}/email`)
-- ✅ Portal article viewer (`/portal/wiki/:slug`) using SanctumMarkdown component
-- ✅ Portal Knowledge Base page (`/portal/wiki`) with search across all client-linked articles
-- ✅ Backend endpoint `GET /portal/articles` (aggregates articles linked to account's tickets)
-- ✅ Backend endpoint `GET /portal/articles/{slug}` (access-controlled by ticket linkage)
+Completed **Ticket #182** — refactored **16 pages** to the Intelligence Dossier design pattern (DS-UX-001). Every admin-facing page now delegates title, subtitle, badge, back navigation, and action buttons to the Layout component via props. Zero duplicate `<h1>` tags remain. Zero orphaned `ArrowLeft` imports.
 
-### Ticket #181 — Asset Lifecycle MVP ✅
-- ✅ Expiring assets dashboard (`GET /assets/lifecycle/expiring?days=90`)
-- ✅ Auto-status updates: active → expiring → expired
-- ✅ 30/60/90/180 day window filter with non-jarring refresh
-- ✅ One-click renewal ticket creation (`POST /assets/{asset_id}/renewal-ticket`)
-- ✅ Duplicate prevention (checks for existing open renewal tickets)
-- ✅ Asset detail page — canonical Intelligence Dossier implementation
-- ✅ Clickable asset names from Client Detail's AssetList component
-- ✅ Navigation link in Layout sidebar
+### Pages Refactored
 
-### Portal Infrastructure ✅
-- ✅ `usePortalNav` hook — preserves `?impersonate=` across all portal navigation
-- ✅ Admin impersonation fixed across ALL portal pages (PortalDashboard, PortalTicketDetail, PortalProjectDetail, PortalAssets, PortalAssessments, PortalAuditReport, PortalSecurityReport, PortalQuestionnaire)
-- ✅ `verify_ticket_access` — admin bypass for impersonated views
-- ✅ Backend `impersonate` param added to: tickets, ticket detail, ticket comments, ticket invoices, assets, projects, articles
+**Detail pages (8):** DealDetail, ProjectDetail, CampaignDetail, ClientDetail, TicketDetail, InvoiceDetail, AuditDetail, ArticleDetail
 
-### Layout Enhancement ✅
-- ✅ Layout component accepts: `title`, `subtitle`, `badge`, `backPath`, `actions`
-- ✅ AssetDetail refactored as reference implementation (no in-page header)
-- ✅ `backPath` supports `-1` (browser back) or explicit path string
-- ✅ Subtitle supports JSX (clickable parent entity links in gold)
+**Index/list pages (8):** Catalog, AuditIndex, Campaigns, LibraryIndex, AdminUserList, AdminAutomationList, Clients, Tickets
 
-### Documentation ✅
-- ✅ DS-UX-001 Intelligence Dossier v1.1 — full UI design standard
-- ✅ SOP-099 v2.18 — Surgical Reconnaissance delivery doctrine, Intelligence Dossier reference, self-contained Super Prompt
+### Technical Pattern Established
 
-## CURRENT STATE
+```jsx
+<Layout
+  title={entity.name}
+  subtitle={<>Type • <Link className="text-sanctum-gold">{parent}</Link></>}
+  badge={{ label: entity.status, className: statusColor(entity.status) }}
+  backPath="/parent-list"
+  actions={<button>Action</button>}
+>
+```
 
-### Production URLs
-- Core: https://core.digitalsanctum.com.au
-- Portal: https://core.digitalsanctum.com.au/portal
-- API: https://core.digitalsanctum.com.au/api
+Each detail page has a `statusColor` (or equivalent) helper mapping statuses to Tailwind classes like `'bg-green-500/20 text-green-400'`.
 
-### Database State
-- Assets have `expires_at`, `status` (active/expiring/expired/decommissioned), `specs` (JSONB)
-- `ticket_articles` association table links articles to tickets
-- `ticket_assets` association table links assets to tickets
+### Cleanup Done
+- Removed orphaned `ProjectHeader.jsx` component
+- All `.bak` files and `patch_*.sh` scripts cleaned before each commit
 
-### Git Status
-- Branch: main
-- All changes committed and pushed
-- Last commits:
-  - `#180 Portal impersonation sweep`
-  - `#180 Portal article delivery`
-  - `#181 Asset Detail page`
-  - `#181 Asset Lifecycle UX`
-  - `#181 Asset Lifecycle MVP`
+### Out of Scope (by design)
+- Portal pages (`PortalTicketDetail`, `PortalProjectDetail`) use different layout system
+- `TicketDetail.test.jsx` — test file, no Layout props
 
-### WeasyPrint Dependencies (Production)
-- Required: `libpango-1.0-0`, `libpangoft2-1.0-0`, `libpangocairo-1.0-0`, `libgdk-pixbuf2.0-0`, `libffi-dev`, `libcairo2`
-- Install: `apt-get install -y [packages] && systemctl restart sanctum-api`
+---
 
-## KNOWN ISSUES / TECH DEBT
+## NEXT SESSION PRIORITIES
 
-- PortalAssessments and PortalAuditReport now pass `impersonate` to `/portal/dashboard` but the backend `/portal/assessments/request` endpoint may need `impersonate` support if admin tries to request an assessment while impersonating
-- Portal invoice download (`/portal/invoices/{id}/download`) — impersonate param added to frontend but backend endpoint not verified
-- Article PDF download from portal (`/articles/{id}/pdf`) uses admin endpoint — may need a portal-scoped PDF endpoint for proper access control
-- Layout `backPath={-1}` uses browser back — could be fragile if user navigates directly to a detail URL
+The user selected the following for the next session:
 
-## NEXT SPRINT: Intelligence Dossier — Site-wide Layout Refactoring
+### Priority 1: Bug Fixes 🐛
 
-### Context
-The Layout component now supports enhanced header props (`title`, `subtitle`, `badge`, `backPath`, `actions`). AssetDetail is the canonical reference. Every other detail view still has duplicate in-page headers and doesn't use these props.
+#### Bug #1 — Ticket premature save on contact link
+- **Location:** `TicketDetail.jsx` or `TicketOverview.jsx`
+- **Symptom:** When creating a new ticket in edit mode, linking a contact instantly saves the ticket
+- **Likely cause:** `handleLinkContact` calls `api.put(/tickets/${id})` directly instead of updating local `formData.contact_ids` when `isEditing` is true
+- **Fix approach:** Check `isEditing` state — if true, update `formData` only; if false (view mode quick-link), hit the API
 
-### Likely Requirements
-1. Refactor ClientDetail to use Layout props (remove in-page header, add clickable breadcrumbs)
-2. Refactor TicketDetail to use Layout props (status badge, client link in subtitle)
-3. Refactor other detail views: ProjectDetail, DealDetail, InvoiceDetail, ArticleDetail
-4. Audit for duplicate data display (e.g., "type" appearing in both header and properties card)
-5. Ensure all entity references are clickable (graph navigation principle)
+#### Bug #2 — Tech roster shows portal clients
+- **Location:** `TicketDetail.jsx` → `fetchTechs()` or `TicketOverview.jsx` assignee dropdown
+- **Symptom:** Assignee dropdown shows all users including portal clients
+- **Likely cause:** `fetchTechs` calls `/admin/users` without role filter
+- **Fix approach:** Filter response by `role !== 'client'` or add backend param `?role=tech,admin`
 
-### Suggested Approach
-1. **Recon:** `grep -rn "Layout title=" src/pages/*Detail*.jsx` to map all detail pages
-2. **Pattern:** For each page: remove in-page header block, pass title/subtitle/badge/backPath/actions to Layout
-3. **Verify:** Each page should show entity name + status once (in Layout header), not twice
-4. **Reference:** Follow AssetDetail.jsx and DS-UX-001 checklist
+### Priority 2: Quick Wins Batch ⚡
 
-## HANDOVER CHECKLIST
-✅ Both tickets (#180, #181) deployed to production
-✅ DS-UX-001 Intelligence Dossier documented
-✅ SOP-099 updated to v2.18 with Surgical Reconnaissance
-✅ Super Prompt is self-contained (no broken cross-references)
-✅ All portal pages support admin impersonation
-✅ usePortalNav hook created and deployed
+#### Global Refresh Button
+- Add a refresh icon button to `Layout.jsx` sticky header
+- Layout accepts an optional `onRefresh` prop (callback)
+- Each page passes its fetch function: `<Layout onRefresh={fetchTicket}>`
+- Button only renders when `onRefresh` is provided
+- Subtle spin animation on click
 
-## IMPORTANT NOTES FOR NEXT AI SESSION
+#### Receipt Email on Payment
+- **Location:** `InvoiceDetail.jsx` → `handleMarkPaid` flow
+- After marking paid, show option to email receipt
+- Use existing `showSendModal` pattern but pre-set subject to receipt format
+- Default to billing contact, allow override via `SearchableSelect`
+- Could be a checkbox in the payment modal: "Send receipt email after payment"
 
-### Patterns Established
-- **Surgical Reconnaissance** is the default delivery method — grep/sed first, find/replace pairs for changes, sweep scripts for systemic bugs
-- **Intelligence Dossier** (DS-UX-001) is the standard for all detail views
-- **usePortalNav** hook must be used for all portal navigation (preserves impersonate param)
-- **Layout props** — all detail pages should use title/subtitle/badge/backPath/actions instead of building their own headers
-- **SanctumMarkdown** component for all markdown rendering (not ReactMarkdown directly)
-- Gold (`text-sanctum-gold`) reserved for navigation links; purple for automation actions
+#### Asset Type SearchableSelect
+- **Location:** Asset creation form (likely in `ClientDetail.jsx` or asset form component)
+- Replace `<select>` dropdown with `SearchableSelect` for asset type field
+- Source items from a constant or from existing asset types in the DB
 
-### User Preferences
-- Prefers consultative approach — propose before coding
-- Likes one-step-at-a-time delivery (not walls of code)
-- Values non-jarring UX (skeleton on first load, spinner on refresh)
-- Australian English throughout
+#### Vendor Field Standardisation
+- **Location:** Asset form
+- Replace free-text vendor input with `SearchableSelect` that:
+  - Fetches distinct vendor names from existing assets (`/assets/vendors` or client-side dedupe)
+  - Allows typing a new value if no match (creatable mode)
+  - This prevents "Synergy Wholesale" vs "Synnergy wholesale" drift
 
-### Gotchas
-- Layout route ordering matters: `/lifecycle/expiring` must come before `/{asset_id}` to avoid UUID parse errors
-- Portal pages need BOTH frontend (usePortalNav + API params) AND backend (impersonate param) changes
-- WeasyPrint needs system-level packages on production server
+#### Copy Metadata Button
+- Add a "Copy" icon button to Layout actions area (or a dedicated Layout prop)
+- When clicked, copies structured metadata to clipboard:
+  - Detail pages: entity name, ID, status, key fields
+  - Index pages: page title, item count
+- Format: plain text or markdown
 
-## COMMANDS FOR NEXT SESSION
+### Priority 3: CLI Ticket Creator Script 🖥️
+
+- Create a bash/Python script in the project's `scripts/` directory
+- Usage: `./create_ticket.sh --project "Project Name" --milestone "Milestone Name" --subject "Ticket subject" --priority normal`
+- Hits production API (uses existing auth token or service account)
+- Steps: resolve project → resolve milestone → create ticket → assign to milestone
+- Reference existing helper scripts in the repo for patterns
+
+### Priority 4: Table UX Standardisation 📊
+
+- Audit all index pages for row interaction patterns:
+  - Some use row click → navigate
+  - Some use text link in a column
+  - Some use arrow button at end of row
+- Establish standard: **Row click navigates to detail** (full row is clickable)
+- Ensure consistent hover states (`hover:bg-white/5`)
+- Consistent action column pattern (icon buttons, opacity-0 → group-hover:opacity-100)
+- Pages to audit: Clients, Tickets, Catalog, AuditIndex, Campaigns, LibraryIndex, AdminUserList, AdminAutomationList
+
+---
+
+## STRATEGIC FEATURE: Project Templates (#16)
+
+The user is most excited about this feature for near-term development.
+
+### Vision
+Reusable project blueprints with pre-defined milestones and ticket templates. When creating a new project, select a template and it auto-generates the full structure.
+
+### Use Case Example
+Client has a Wix website, wants an 11ty rebuild:
+1. Select template: "Website Development — Static Site Migration"
+2. Template creates project with milestones: Discovery → Design → Build → QA → Launch
+3. Each milestone has pre-defined tickets: "Audit existing site", "Create wireframes", "Set up 11ty scaffold", etc.
+
+### Data Model Sketch
+```
+ProjectTemplate
+  - id, name, description, category
+  - milestones: [{ name, position, tickets: [{ subject, description, ticket_type, priority }] }]
+```
+
+### Relates To
+- **#15 Deal → Project pipeline** — templates define WHAT gets created; the pipeline defines WHEN (on deal close)
+- **Audit onboarding flow** — closing an accession deal could auto-create a compliance project from template
+
+---
+
+## FULL BACKLOG (Prioritised)
+
+### Bugs
+| # | Item | Complexity |
+|---|------|-----------|
+| 1 | Ticket premature save on contact link | Quick fix |
+| 2 | Tech roster shows portal clients in assignee | Quick fix |
+
+### Quick Wins
+| # | Item | Complexity |
+|---|------|-----------|
+| 3 | Global refresh button in Layout header | < 1hr |
+| 4 | Receipt email option on mark-paid | 1-2hr |
+| 5 | Asset type SearchableSelect | < 1hr |
+| 6 | Vendor field autocomplete/standardisation | 1-2hr |
+| 7 | Copy metadata button | 1-2hr |
+| 8 | CLI ticket creator script | 1-2hr |
+| 9 | KB table/list view with bulk edit | 2-3hr |
+
+### Medium Features
+| # | Item | Complexity |
+|---|------|-----------|
+| 10 | Table UX standardisation across all index pages | Half session |
+| 11 | Domain expiry management + email templates | 1 session |
+| 12 | Portal project view (attractive milestone display) | 1 session |
+| 13 | Screenshot/screen capture with download options | 1 session |
+| 14 | Financial planning dashboard from invoice data | 1-2 sessions |
+
+### Strategic
+| # | Item | Complexity |
+|---|------|-----------|
+| 15 | Deal → Project → Milestone → Ticket pipeline | 2-3 sessions |
+| 16 | Project templates (reusable blueprints) | 2 sessions |
+| 17 | Internal idea tracker (dogfooding Core's PM) | 0 code — use existing features |
+| 18 | Screen capture integration | See #13 |
+
+---
+
+## ARCHITECTURAL NOTES
+
+### Layout Component Props (Reference)
+```jsx
+// Current props supported:
+title        // String or JSX — page title
+subtitle     // String or JSX — descriptive line below title
+badge        // { label, className } — status badge
+backPath     // String path or -1 for browser back
+actions      // JSX — action buttons in header
+
+// Proposed new props (next session):
+onRefresh    // Callback — shows refresh button when provided
+```
+
+### Design System Constants
+- Gold accent: `text-sanctum-gold`, `bg-sanctum-gold`
+- Status colors follow pattern: `bg-{color}-500/20 text-{color}-400`
+- Cards: `bg-slate-900 border border-slate-700 rounded-xl`
+- Table headers: `bg-black/20 text-xs uppercase text-slate-500 font-bold`
+
+### Key Files Modified in This Session
+```
+sanctum-web/src/pages/DealDetail.jsx
+sanctum-web/src/pages/ProjectDetail.jsx
+sanctum-web/src/pages/CampaignDetail.jsx
+sanctum-web/src/pages/ClientDetail.jsx
+sanctum-web/src/pages/TicketDetail.jsx
+sanctum-web/src/pages/InvoiceDetail.jsx
+sanctum-web/src/pages/AuditDetail.jsx
+sanctum-web/src/pages/ArticleDetail.jsx
+sanctum-web/src/pages/Catalog.jsx
+sanctum-web/src/pages/AuditIndex.jsx
+sanctum-web/src/pages/Campaigns.jsx
+sanctum-web/src/pages/LibraryIndex.jsx
+sanctum-web/src/pages/AdminUserList.jsx
+sanctum-web/src/pages/AdminAutomationList.jsx
+sanctum-web/src/pages/Clients.jsx
+sanctum-web/src/pages/Tickets.jsx
+```
+
+### Deleted
+```
+sanctum-web/src/components/projects/ProjectHeader.jsx  (orphaned)
+```
+
+---
+
+## QUICKSTART FOR NEXT SESSION
 
 ```bash
-# Start dev environment
-cd ~/Dev/DigitalSanctum
-cd sanctum-core && source venv/bin/activate && uvicorn app.main:app --reload --port 8000 &
-cd ../sanctum-web && npm run dev &
+cd ~/Dev/DigitalSanctum/sanctum-web
 
-# Deploy to production
-cd ~/Dev/DigitalSanctum && git add . && git commit -m "message" && git push origin main
+# Verify current state
+grep -rn "actions=" src/pages/*.jsx | wc -l  # Should be 16+
 
-# Check portal impersonation
-# Use: /portal?impersonate=ACCOUNT_UUID
+# Start dev server
+npm run dev
 
-# Reference files for dossier refactoring
-# Layout: sanctum-web/src/components/Layout.jsx
-# Reference: sanctum-web/src/pages/AssetDetail.jsx
-# Standard: DS-UX-001 Intelligence Dossier
+# Bug #1 — find the premature save
+grep -n "handleLinkContact\|contact_ids" src/pages/TicketDetail.jsx src/components/tickets/TicketOverview.jsx
+
+# Bug #2 — find the unfiltered tech list
+grep -n "fetchTechs\|admin/users" src/pages/TicketDetail.jsx
 ```

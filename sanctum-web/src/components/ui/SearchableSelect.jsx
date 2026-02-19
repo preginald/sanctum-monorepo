@@ -11,7 +11,8 @@ export default function SearchableSelect({
     valueKey = "id",       
     icon: Icon,
     onClose,
-    displaySelected = true // NEW: Defaults to true to show selection in input
+    displaySelected = true, // NEW: Defaults to true to show selection in input
+    allowCreate = false // When true, shows "Create: {query}" option if no exact match
 }) {
     const [query, setQuery] = useState('');
     const [filtered, setFiltered] = useState([]);
@@ -167,10 +168,30 @@ export default function SearchableSelect({
                                 </button>
                             );
                         })
-                    ) : query.length > 0 ? (
-                        <div className="text-center p-4 bg-slate-900/30 rounded-lg border border-dashed border-slate-800">
-                            <p className="text-[10px] text-slate-500 italic">No matches found for "{query}"</p>
-                        </div>
+                    ) : null}
+                    {allowCreate && query.length > 0 && filtered.length > 0 && !filtered.some(i => String(i[labelKey]).toLowerCase() === query.toLowerCase()) && (
+                        <button
+                            onClick={() => handleSelect({ [valueKey]: query, [labelKey]: query, _isNew: true })}
+                            className="w-full text-left flex items-center gap-2 p-2 rounded transition-all duration-150 border bg-green-500/5 border-green-500/20 hover:bg-green-500/10 hover:border-green-400/40 mt-1"
+                        >
+                            <Plus size={14} className="text-green-400" />
+                            <span className="text-xs font-medium text-green-300">Create: "{query}"</span>
+                        </button>
+                    )}
+                    {filtered.length === 0 && query.length > 0 ? (
+                        allowCreate ? (
+                            <button
+                                onClick={() => handleSelect({ [valueKey]: query, [labelKey]: query, _isNew: true })}
+                                className="w-full text-left flex items-center gap-2 p-2 rounded transition-all duration-150 border bg-green-500/5 border-green-500/20 hover:bg-green-500/10 hover:border-green-400/40"
+                            >
+                                <Plus size={14} className="text-green-400" />
+                                <span className="text-xs font-medium text-green-300">Create: "{query}"</span>
+                            </button>
+                        ) : (
+                            <div className="text-center p-4 bg-slate-900/30 rounded-lg border border-dashed border-slate-800">
+                                <p className="text-[10px] text-slate-500 italic">No matches found for "{query}"</p>
+                            </div>
+                        )
                     ) : null}
                 </div>
             )}

@@ -4,14 +4,14 @@ import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
     Activity, Briefcase, Megaphone, 
-    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft
+    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 import GlobalSearch from './ui/GlobalSearch';
 import NotificationBell from './ui/NotificationBell';
 
-export default function Layout({ children, title, subtitle, badge, backPath, actions }) {
+export default function Layout({ children, title, subtitle, badge, backPath, actions, onRefresh, onCopyMeta }) {
   const { user, token, setToken, logout } = useAuthStore();
   
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -184,7 +184,7 @@ export default function Layout({ children, title, subtitle, badge, backPath, act
                                 <p className="opacity-60 text-sm mt-1">{subtitle || 'Sovereign Architecture'}</p>
                             </div>
                         </div>
-                        {actions && <div className="flex items-center gap-3">{actions}</div>}
+                        <div className="flex items-center gap-3">{onCopyMeta && (<button onClick={() => { const text = onCopyMeta(); navigator.clipboard.writeText(text).then(() => { const btn = event.currentTarget; btn.dataset.copied = "true"; setTimeout(() => delete btn.dataset.copied, 1500); }); }} className="group p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold relative" title="Copy metadata"><Copy size={18} /></button>)}{onRefresh && (<button onClick={() => { const btn = document.activeElement; btn?.classList.add('animate-spin'); onRefresh(); setTimeout(() => btn?.classList.remove('animate-spin'), 600); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Refresh"><RefreshCw size={18} /></button>)}{actions}</div>
                     </div>
                 </div>
                 {children}

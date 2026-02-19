@@ -17,6 +17,22 @@ from ..utils.risk import calculate_vendor_risk_score
 router = APIRouter(prefix="/vendors", tags=["Vendors"])
 
 
+@router.get("")
+def list_vendors(
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
+):
+    """Return all active vendors for SearchableSelect dropdowns."""
+    vendors = db.query(models.Vendor).filter(
+        models.Vendor.is_active == True
+    ).order_by(models.Vendor.name).all()
+    
+    return [
+        {"id": str(v.id), "name": v.name, "website": v.website, "category": v.category, "tags": v.tags or []}
+        for v in vendors
+    ]
+
+
 @router.get("/categories")
 def list_vendor_categories(
     db: Session = Depends(get_db),

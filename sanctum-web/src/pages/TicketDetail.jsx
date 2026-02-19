@@ -77,7 +77,7 @@ export default function TicketDetail() {
     const fetchTechs = async () => {
       try {
           const res = await api.get('/admin/users'); 
-          setTechs(res.data);
+          setTechs(res.data.filter(u => u.role !== 'client'));
       } catch (e) { 
           console.warn("Could not load tech roster", e);
       }
@@ -144,6 +144,13 @@ export default function TicketDetail() {
   };
 
   const handleLinkContact = async (contactId) => {
+    if (isEditing) {
+      const current = formData.contact_ids || [];
+      if (!current.includes(contactId)) {
+        setFormData({ ...formData, contact_ids: [...current, contactId] });
+      }
+      return;
+    }
     const currentContactIds = ticket.contacts?.map(c => c.id) || [];
     if (currentContactIds.includes(contactId)) return;
     try {
@@ -155,6 +162,11 @@ export default function TicketDetail() {
 
   const handleUnlinkContact = async (e, contactId) => {
     e.stopPropagation();
+    if (isEditing) {
+      const current = formData.contact_ids || [];
+      setFormData({ ...formData, contact_ids: current.filter(cid => cid !== contactId) });
+      return;
+    }
     const newContactIds = ticket.contacts?.map(c => c.id).filter(cid => cid !== contactId);
     triggerConfirm("Unlink Contact?", "Remove this person from the ticket?", async () => {
       try {

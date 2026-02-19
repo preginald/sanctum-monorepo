@@ -10,9 +10,11 @@ import {
     isLifecycleAsset 
 } from '../../lib/assetUtils';
 import api from '../../lib/api';
+import SearchableSelect from '../ui/SearchableSelect';
 
 export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, setForm }) {
   const [catalog, setCatalog] = useState([]);
+  const [vendors, setVendors] = useState([]);
   
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   
@@ -70,14 +72,13 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Asset Type</label>
-                        <select 
-                            autoFocus
-                            className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white capitalize focus:border-sanctum-blue focus:ring-1 focus:ring-sanctum-blue outline-none transition-all" 
-                            value={form.asset_type} 
-                            onChange={e => setForm({...form, asset_type: e.target.value, specs: {}})} 
-                        >
-                            {ASSET_TYPES.map(t => <option key={t} value={t}>{capitalize(t)}</option>)}
-                        </select>
+                        <SearchableSelect
+                            items={ASSET_TYPES.map(t => ({ id: t, title: capitalize(t) }))}
+                            selectedIds={[form.asset_type]}
+                            onSelect={(item) => setForm({...form, asset_type: item.id, specs: {}})}
+                            placeholder="Search asset type..."
+                            displaySelected
+                        />
                     </div>
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Status</label>
@@ -157,11 +158,15 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                             </div>
                             <div>
                                 <label className="text-xs text-slate-400 block mb-1">{getVendorLabel(form.asset_type)}</label>
-                                <input 
-                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm" 
-                                    value={form.vendor || ''} 
-                                    onChange={e => setForm({...form, vendor: e.target.value})} 
-                                    placeholder={getVendorPlaceholder(form.asset_type)} 
+                                <SearchableSelect
+                                    items={vendors}
+                                    selectedIds={form.vendor ? [form.vendor] : []}
+                                    onSelect={(item) => setForm({...form, vendor: item ? item.id : ''})}
+                                    placeholder={getVendorPlaceholder(form.asset_type)}
+                                    labelKey="title"
+                                    subLabelKey="subtitle"
+                                    displaySelected
+                                    allowCreate
                                 />
                             </div>
                         </div>
