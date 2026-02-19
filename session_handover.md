@@ -2,57 +2,145 @@
 
 ## 0. WHAT WE ACCOMPLISHED
 
-### Ticket #186 — KB List View & Bulk Actions ✅
-- **View Toggle:** Added Grid/List toggle to `LibraryIndex.jsx` with `localStorage` persistence.
-- **Unified Table:** Created `src/components/ui/Table.jsx` (Header, Body, Row, Cell) matching Sanctum Dark Mode.
-- **Bulk Actions:** Implemented `Checkbox` component and "Bulk Category Move" logic (Client-side iteration).
-- **Outcome:** Users can now manage large KB libraries efficiently.
+### Ticket #183 — Quality of Life Improvements ✅
+- ✅ Bug #1: Ticket premature save on contact link (TicketDetail.jsx)
+- ✅ Bug #2: Tech roster shows portal clients — filtered by role !== 'client' (TicketDetail.jsx)
+- ✅ Item #3: Global refresh button in Layout (`onRefresh` prop) + wired 7 pages
+- ✅ Item #4: Receipt email on payment + test mode toggle + CC SearchableSelect
+- ✅ Item #5: Asset type SearchableSelect (AssetModal.jsx)
+- ✅ Item #6: Vendor field standardisation (backend endpoint + SearchableSelect `allowCreate` + AssetModal wiring)
+- ✅ Item #7: Copy metadata button in Layout (`onCopyMeta` prop) + wired 6 detail pages
+- ✅ Item #8: CLI ticket creator v2.0 with shared library and env selector
 
-### Ticket #187 — Global Table Standardisation ✅
-- **Refactor:** Replaced ad-hoc HTML `<table>` tags in **14 pages** with the new `Table` component.
-- **Methodology:** Used `scripts/dev/refactor_safe.py` (Literal String Replacement) to ensure zero code corruption.
-- **Pages Updated:** Tickets, Clients, Invoices, Assets, Admin Lists, Audits, etc.
+### Ticket #185 — The Keymaster (API Token Authentication) ✅
+- ✅ ApiToken model + migration (api_tokens table)
+- ✅ Auth middleware — detects `sntm_` prefix, bcrypt verify, expiry check, updates last_used_at
+- ✅ API endpoints — `POST/GET/DELETE /api-tokens`
+- ✅ Shared script library (`scripts/lib/sanctum_common.sh`)
+- ✅ Profile page token management UI — create, list, copy-once, revoke
+- ✅ Profile avatar with initials in header → links to /profile
+- ✅ `onRefresh` wired to Profile page
 
-### Infrastructure
-- **New Scripts:**
-  - `scripts/dev/setup_kb_milestone.py`: Automates Milestone/Ticket creation via API.
-  - `scripts/dev/refactor_safe.py`: Robust tool for HTML->React component refactoring without Regex risks.
+### Infrastructure & Documentation ✅
+- ✅ SOP-099 updated to v2.21 via API token (dogfooding The Keymaster)
+- ✅ Phoenix script updated to v2.9.7 (shared lib + API spec URLs)
+- ✅ Swagger/OpenAPI docs fixed for prod (env-aware `root_path`)
+- ✅ 116 endpoints documented at https://core.digitalsanctum.com.au/api/docs
+
+### Table Standardisation Recovery ✅
+- ✅ Fixed 13 mangled Table/Layout imports from failed sweep
+- ✅ Committed Table.jsx and Checkbox.jsx components
+- ✅ LibraryIndex table view + localStorage toggle confirmed working
+- ✅ All 13 pages actively using Table components — clean build
 
 ## 1. CURRENT STATE
 
 ### Production
 - **App:** https://app.digitalsanctum.com.au
 - **API:** https://core.digitalsanctum.com.au/api
-- **Database:** Production DB updated with Ticket #186, #187 and Milestone "Knowledge Base 2.0".
+- **Swagger:** https://core.digitalsanctum.com.au/api/docs
+- **OpenAPI JSON:** https://core.digitalsanctum.com.au/api/openapi.json
 
 ### Git
 - **Branch:** main
-- **Latest Component:** `src/components/ui/Table.jsx` (The new standard).
+- **Clean working tree** (after final commit)
+
+### Database
+- **New table:** api_tokens (migration: 10e97455ae95_add_api_tokens)
+- **Prod API token active:** "Claude AI" (sntm_e775c5e..., expires 2026-03-21)
+- **Test tickets to clean up:** #184 "CLI test — delete me"
+
+### Files Modified This Session
+```
+# Backend
+sanctum-core/app/models.py                          (ApiToken model)
+sanctum-core/app/auth.py                            (sntm_ token support)
+sanctum-core/app/main.py                            (api_tokens router, root_path)
+sanctum-core/app/routers/api_tokens.py              (NEW — CRUD endpoints)
+sanctum-core/app/routers/vendors.py                 (GET /vendors endpoint)
+sanctum-core/alembic/versions/10e97455ae95_*.py     (NEW — migration)
+
+# Frontend
+sanctum-web/src/pages/TicketDetail.jsx              (bugs 1 & 2, onRefresh, onCopyMeta)
+sanctum-web/src/pages/InvoiceDetail.jsx             (receipt email, test mode, CC, Table fix)
+sanctum-web/src/pages/Profile.jsx                   (token management UI, refresh)
+sanctum-web/src/pages/ClientDetail.jsx              (onRefresh + onCopyMeta)
+sanctum-web/src/pages/ProjectDetail.jsx             (onRefresh + onCopyMeta)
+sanctum-web/src/pages/DealDetail.jsx                (onRefresh + onCopyMeta)
+sanctum-web/src/pages/AuditDetail.jsx               (onRefresh + onCopyMeta)
+sanctum-web/src/pages/LibraryIndex.jsx              (table view + localStorage)
+sanctum-web/src/components/Layout.jsx               (refresh, copy meta, avatar)
+sanctum-web/src/components/ui/SearchableSelect.jsx  (allowCreate mode)
+sanctum-web/src/components/ui/Table.jsx             (NEW — standardised table)
+sanctum-web/src/components/ui/Checkbox.jsx          (NEW — checkbox component)
+sanctum-web/src/components/clients/AssetModal.jsx   (asset type + vendor)
+
+# 13 pages — fixed mangled Table/Layout imports:
+AdminAutomationList, AdminQuestionnaireList, AdminUserList,
+AssetLifecycle, AuditIndex, CampaignDetail, Catalog, Clients,
+Diagnostics, InvoiceDetail, SystemHealth, Tickets, UnpaidInvoices
+
+# Scripts & Docs
+scripts/lib/sanctum_common.sh                       (NEW — shared library)
+scripts/dev/create_ticket.sh                        (NEW — CLI ticket creator v2.0)
+phoenix_context.sh                                  (v2.9.7)
+session_handover.md                                 (this file)
+```
 
 ## 2. KNOWN ISSUES / TECH DEBT
 
-- **Bulk API:** Bulk operations (e.g., Move Category) currently loop through IDs on the client side (`Promise.all` or sequential). Future optimization should add a bulk endpoint to the backend (`PUT /articles/bulk`).
-- **Date Formatting:** Some tables use `new Date().toLocaleDateString()` which depends on the user's browser locale. Should standardize to `date-fns` or a shared formatter.
+- **onCopyMeta:** Uses `event.currentTarget` — should use React ref. Works but not idiomatic.
+- **SearchableSelect allowCreate:** Two code paths for create option (empty results vs appended). Could simplify.
+- **Vendor fetch errors:** Silently caught in AssetModal. Should surface to user.
+- **Test mode className:** Fixed template literal but worth visual QA on send modal.
+- **SOP-099 content field:** Was `null` in DB — confirmed PUT works to set content.
 
-## 3. NEXT SPRINT: Project Templates (Ticket #16)
+## 3. NEXT SPRINT
 
-**Objective:** Create a reusable "Project Template" system to standardize service delivery (e.g., "Standard Audit", "Onboarding").
+### Priority 1: Table Standardisation QA
+- 13 pages now use Table components — visual QA recommended
+- Verify no regressions in: Tickets, Clients, Invoices, Audits, Catalog, etc.
+- LibraryIndex grid/list toggle — confirm localStorage persists correctly
 
-**Requirements:**
-1.  **Database:**
-    - `ProjectTemplate` (name, description, default_budget)
-    - `MilestoneTemplate` (name, offset_days, billable_percentage)
-2.  **API:**
-    - CRUD for Templates.
-    - `POST /projects/from-template` (Instantiator logic).
-3.  **UI:**
-    - Template Manager (Settings/Admin).
-    - "Create from Template" modal in Projects view.
+### Priority 2: Strategic Features
+- **#16 Project Templates** (most excited) — reusable blueprints with milestones + ticket templates
+- **#11 Domain expiry management + email templates**
+- **#12 Portal project view (milestone display)**
+- **#14 Financial planning dashboard**
 
-**Strategic Question:** How do we handle dates? (Relative offsets vs fixed).
+### Suggested approach:
+Quick visual QA of the table standardisation, then pivot to #16 Project Templates as the headline feature.
 
 ## 4. IMPORTANT NOTES FOR NEXT AI SESSION
 
-- **Auth:** `export SANCTUM_API_TOKEN=$(cat ~/.sanctum/tokens/prod.txt)`
-- **Table Component:** Always use `import { Table, TableHeader... } from '../components/ui/Table'` for any new tabular views. Do not write raw HTML tables.
-- **Refactoring:** If further refactoring is needed, avoid Regex for HTML tags. Use `refactor_safe.py` as a reference implementation (Explicit String Replacement).
+- **Auth:** `export SANCTUM_API_TOKEN=sntm_...` for zero-friction script auth
+- **Delivery:** Surgical recon (grep/sed → cat -A → Python for JSX). Never sed for multi-line JSX.
+- **Layout props:** `onRefresh` and `onCopyMeta` are opt-in via callbacks
+- **SearchableSelect:** `allowCreate` enables "Create: {query}" for new entries
+- **Table components:** `Table.jsx` and `Checkbox.jsx` in `components/ui/` — used across 13+ pages
+- **Prod API:** `https://core.digitalsanctum.com.au/api` (note `/api` prefix)
+- **Swagger:** `https://core.digitalsanctum.com.au/api/docs` — 116 endpoints
+- **Shared library:** `scripts/lib/sanctum_common.sh` — source in all new scripts
+- **User prefers:** Consultative workflow. Propose → Approve → Deliver → Verify.
+
+## 5. COMMANDS FOR NEXT SESSION
+
+```bash
+# Start local dev
+cd ~/Dev/DigitalSanctum/sanctum-core && source ../venv/bin/activate && uvicorn app.main:app --reload
+cd ~/Dev/DigitalSanctum/sanctum-web && npm run dev
+
+# API token
+export SANCTUM_API_TOKEN=sntm_your_token
+
+# Visual QA — check table pages
+# Open in browser: /tickets, /clients, /library, /audits, /catalog
+
+# Recon for #16 Project Templates
+cd ~/Dev/DigitalSanctum/sanctum-web
+grep -n "milestone\|template\|blueprint" src/pages/Project*.jsx | head -20
+grep -n "class Project\|class Milestone" ~/Dev/DigitalSanctum/sanctum-core/app/models.py
+
+# Create tickets
+./scripts/dev/create_ticket.sh -e prod -s "Subject" -p "Sanctum Core" --type feature
+```
