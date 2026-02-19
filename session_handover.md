@@ -1,242 +1,109 @@
-# Digital Sanctum — Session Handover
-## Date: 2026-02-19 | Completed: Ticket #182 — Sovereign Architecture
+# SESSION HANDOVER — 2026-02-19
 
----
+## 0. WHAT WE ACCOMPLISHED
 
-## SESSION SUMMARY
+### Ticket #183 — Quality of Life Improvements
+- ✅ Bug #1: Ticket premature save on contact link (TicketDetail.jsx)
+- ✅ Bug #2: Tech roster shows portal clients (TicketDetail.jsx)
+- ✅ Item #3: Global refresh button in Layout + wired 6 detail pages
+- ✅ Item #4: Receipt email on payment + test mode + CC SearchableSelect
+- ✅ Item #5: Asset type SearchableSelect (AssetModal.jsx)
+- ✅ Item #6: Vendor field standardisation (backend endpoint + SearchableSelect creatable mode + AssetModal wiring)
+- ✅ Item #7: Copy metadata button in Layout + wired 6 detail pages
+- ✅ Item #8: CLI ticket creator v2.0 with shared library
 
-Completed **Ticket #182** — refactored **16 pages** to the Intelligence Dossier design pattern (DS-UX-001). Every admin-facing page now delegates title, subtitle, badge, back navigation, and action buttons to the Layout component via props. Zero duplicate `<h1>` tags remain. Zero orphaned `ArrowLeft` imports.
+### Ticket #185 — The Keymaster (API Token Authentication)
+- ✅ Step 1: ApiToken model + migration (api_tokens table)
+- ✅ Step 2: Auth middleware (sntm_ prefix detection, bcrypt verify, expiry check)
+- ✅ Step 3: API endpoints (POST/GET/DELETE /api-tokens)
+- ✅ Step 4: Shared script library (scripts/lib/sanctum_common.sh)
+- ✅ Step 5: Profile page token management UI (create, list, copy, revoke)
+- ✅ Step 6: Profile avatar in header (initials circle → /profile)
+- ✅ Step 7: SOP-099 updated to v2.21 via API token (dogfooding)
 
-### Pages Refactored
+## 1. CURRENT STATE
 
-**Detail pages (8):** DealDetail, ProjectDetail, CampaignDetail, ClientDetail, TicketDetail, InvoiceDetail, AuditDetail, ArticleDetail
+### Production
+- **App:** https://app.digitalsanctum.com.au
+- **API:** https://core.digitalsanctum.com.au/api
+- **All changes deployed** via GitHub Actions
+- **API tokens operational** on prod (tested: create, authenticate, last_used tracking)
+- **SOP-099:** v2.21 live on prod KB
 
-**Index/list pages (8):** Catalog, AuditIndex, Campaigns, LibraryIndex, AdminUserList, AdminAutomationList, Clients, Tickets
+### Git
+- **Branch:** main
+- **Latest commits:** #183 QoL batch, #185 Keymaster (model, middleware, endpoints, UI, scripts)
+- **Clean working tree** (all committed and pushed)
 
-### Technical Pattern Established
+### Database
+- **New table:** api_tokens (migration: 10e97455ae95_add_api_tokens)
+- **Test data on prod:** 1 API token ("Claude AI", sntm_e775c5e..., expires 2026-03-21)
+- **Test tickets to delete:** #184 "CLI test — delete me", any other test tickets
 
-```jsx
-<Layout
-  title={entity.name}
-  subtitle={<>Type • <Link className="text-sanctum-gold">{parent}</Link></>}
-  badge={{ label: entity.status, className: statusColor(entity.status) }}
-  backPath="/parent-list"
-  actions={<button>Action</button>}
->
-```
+## 2. KNOWN ISSUES / TECH DEBT
 
-Each detail page has a `statusColor` (or equivalent) helper mapping statuses to Tailwind classes like `'bg-green-500/20 text-green-400'`.
+- **Test mode className:** Fixed template literal in InvoiceDetail send modal, but worth visual QA
+- **onCopyMeta event reference:** Uses `event.currentTarget` — should use React ref instead of DOM event. Works but not idiomatic React.
+- **SearchableSelect allowCreate:** Two code paths for create option (empty results vs. appended to results). Could be simplified.
+- **Vendor fetch in AssetModal:** Silently catches errors. Should surface failure to user.
+- **Prod API tokens:** auth_test.sh auto-TOTP sometimes fails due to timing. Manual TOTP entry is reliable.
 
-### Cleanup Done
-- Removed orphaned `ProjectHeader.jsx` component
-- All `.bak` files and `patch_*.sh` scripts cleaned before each commit
+## 3. NEXT SPRINT
 
-### Out of Scope (by design)
-- Portal pages (`PortalTicketDetail`, `PortalProjectDetail`) use different layout system
-- `TicketDetail.test.jsx` — test file, no Layout props
+### Option A: #9 KB Table/List View with Bulk Edit (2-3hr)
+- Add table view toggle to Knowledge Base index
+- Bulk select + edit (category, status)
+- Likely involves: WikiIndex.jsx, new BulkEditBar component
 
----
+### Option B: #10 Table UX Standardisation (half session)
+- Audit all index pages for consistent table patterns
+- Extract shared TableHeader, TableRow, Pagination components
+- Apply across: Tickets, Clients, Invoices, Projects, Deals, Wiki
 
-## NEXT SESSION PRIORITIES
+### Option C: Strategic Features (multi-session)
+- **#16 Project Templates** (most excited about) — reusable blueprints with milestones + ticket templates
+- **#11 Domain expiry management**
+- **#12 Portal project view**
+- **#14 Financial planning dashboard**
 
-The user selected the following for the next session:
+### Suggested approach:
+Start next session with #9 and #10 (quick wins, improves UX consistency), then pivot to #16 Project Templates.
 
-### Priority 1: Bug Fixes 🐛
+## 4. HANDOVER CHECKLIST
 
-#### Bug #1 — Ticket premature save on contact link
-- **Location:** `TicketDetail.jsx` or `TicketOverview.jsx`
-- **Symptom:** When creating a new ticket in edit mode, linking a contact instantly saves the ticket
-- **Likely cause:** `handleLinkContact` calls `api.put(/tickets/${id})` directly instead of updating local `formData.contact_ids` when `isEditing` is true
-- **Fix approach:** Check `isEditing` state — if true, update `formData` only; if false (view mode quick-link), hit the API
+- [x] All changes committed and pushed
+- [x] Production deployed (GitHub Actions)
+- [x] API tokens working on prod
+- [x] SOP-099 updated to v2.21
+- [x] Test tickets flagged for cleanup
+- [x] Session handover generated
 
-#### Bug #2 — Tech roster shows portal clients
-- **Location:** `TicketDetail.jsx` → `fetchTechs()` or `TicketOverview.jsx` assignee dropdown
-- **Symptom:** Assignee dropdown shows all users including portal clients
-- **Likely cause:** `fetchTechs` calls `/admin/users` without role filter
-- **Fix approach:** Filter response by `role !== 'client'` or add backend param `?role=tech,admin`
+## 5. IMPORTANT NOTES FOR NEXT AI SESSION
 
-### Priority 2: Quick Wins Batch ⚡
+- **Delivery Doctrine:** Surgical recon (grep/sed) before all edits. Python for multi-line JSX patches. `cat -A` for whitespace.
+- **Auth:** `export SANCTUM_API_TOKEN=sntm_...` for zero-friction script auth. Profile page for token management.
+- **Shared library:** All scripts source `scripts/lib/sanctum_common.sh`. Don't reinvent auth.
+- **Layout props:** `onRefresh` and `onCopyMeta` are opt-in. Pages pass callbacks.
+- **SearchableSelect:** Supports `allowCreate` for creatable dropdowns.
+- **Prod API base:** `https://core.digitalsanctum.com.au/api` (note `/api` prefix).
+- **User prefers:** Consultative workflow. Propose → Approve → Deliver → Verify.
 
-#### Global Refresh Button
-- Add a refresh icon button to `Layout.jsx` sticky header
-- Layout accepts an optional `onRefresh` prop (callback)
-- Each page passes its fetch function: `<Layout onRefresh={fetchTicket}>`
-- Button only renders when `onRefresh` is provided
-- Subtle spin animation on click
-
-#### Receipt Email on Payment
-- **Location:** `InvoiceDetail.jsx` → `handleMarkPaid` flow
-- After marking paid, show option to email receipt
-- Use existing `showSendModal` pattern but pre-set subject to receipt format
-- Default to billing contact, allow override via `SearchableSelect`
-- Could be a checkbox in the payment modal: "Send receipt email after payment"
-
-#### Asset Type SearchableSelect
-- **Location:** Asset creation form (likely in `ClientDetail.jsx` or asset form component)
-- Replace `<select>` dropdown with `SearchableSelect` for asset type field
-- Source items from a constant or from existing asset types in the DB
-
-#### Vendor Field Standardisation
-- **Location:** Asset form
-- Replace free-text vendor input with `SearchableSelect` that:
-  - Fetches distinct vendor names from existing assets (`/assets/vendors` or client-side dedupe)
-  - Allows typing a new value if no match (creatable mode)
-  - This prevents "Synergy Wholesale" vs "Synnergy wholesale" drift
-
-#### Copy Metadata Button
-- Add a "Copy" icon button to Layout actions area (or a dedicated Layout prop)
-- When clicked, copies structured metadata to clipboard:
-  - Detail pages: entity name, ID, status, key fields
-  - Index pages: page title, item count
-- Format: plain text or markdown
-
-### Priority 3: CLI Ticket Creator Script 🖥️
-
-- Create a bash/Python script in the project's `scripts/` directory
-- Usage: `./create_ticket.sh --project "Project Name" --milestone "Milestone Name" --subject "Ticket subject" --priority normal`
-- Hits production API (uses existing auth token or service account)
-- Steps: resolve project → resolve milestone → create ticket → assign to milestone
-- Reference existing helper scripts in the repo for patterns
-
-### Priority 4: Table UX Standardisation 📊
-
-- Audit all index pages for row interaction patterns:
-  - Some use row click → navigate
-  - Some use text link in a column
-  - Some use arrow button at end of row
-- Establish standard: **Row click navigates to detail** (full row is clickable)
-- Ensure consistent hover states (`hover:bg-white/5`)
-- Consistent action column pattern (icon buttons, opacity-0 → group-hover:opacity-100)
-- Pages to audit: Clients, Tickets, Catalog, AuditIndex, Campaigns, LibraryIndex, AdminUserList, AdminAutomationList
-
----
-
-## STRATEGIC FEATURE: Project Templates (#16)
-
-The user is most excited about this feature for near-term development.
-
-### Vision
-Reusable project blueprints with pre-defined milestones and ticket templates. When creating a new project, select a template and it auto-generates the full structure.
-
-### Use Case Example
-Client has a Wix website, wants an 11ty rebuild:
-1. Select template: "Website Development — Static Site Migration"
-2. Template creates project with milestones: Discovery → Design → Build → QA → Launch
-3. Each milestone has pre-defined tickets: "Audit existing site", "Create wireframes", "Set up 11ty scaffold", etc.
-
-### Data Model Sketch
-```
-ProjectTemplate
-  - id, name, description, category
-  - milestones: [{ name, position, tickets: [{ subject, description, ticket_type, priority }] }]
-```
-
-### Relates To
-- **#15 Deal → Project pipeline** — templates define WHAT gets created; the pipeline defines WHEN (on deal close)
-- **Audit onboarding flow** — closing an accession deal could auto-create a compliance project from template
-
----
-
-## FULL BACKLOG (Prioritised)
-
-### Bugs
-| # | Item | Complexity |
-|---|------|-----------|
-| 1 | Ticket premature save on contact link | Quick fix |
-| 2 | Tech roster shows portal clients in assignee | Quick fix |
-
-### Quick Wins
-| # | Item | Complexity |
-|---|------|-----------|
-| 3 | Global refresh button in Layout header | < 1hr |
-| 4 | Receipt email option on mark-paid | 1-2hr |
-| 5 | Asset type SearchableSelect | < 1hr |
-| 6 | Vendor field autocomplete/standardisation | 1-2hr |
-| 7 | Copy metadata button | 1-2hr |
-| 8 | CLI ticket creator script | 1-2hr |
-| 9 | KB table/list view with bulk edit | 2-3hr |
-
-### Medium Features
-| # | Item | Complexity |
-|---|------|-----------|
-| 10 | Table UX standardisation across all index pages | Half session |
-| 11 | Domain expiry management + email templates | 1 session |
-| 12 | Portal project view (attractive milestone display) | 1 session |
-| 13 | Screenshot/screen capture with download options | 1 session |
-| 14 | Financial planning dashboard from invoice data | 1-2 sessions |
-
-### Strategic
-| # | Item | Complexity |
-|---|------|-----------|
-| 15 | Deal → Project → Milestone → Ticket pipeline | 2-3 sessions |
-| 16 | Project templates (reusable blueprints) | 2 sessions |
-| 17 | Internal idea tracker (dogfooding Core's PM) | 0 code — use existing features |
-| 18 | Screen capture integration | See #13 |
-
----
-
-## ARCHITECTURAL NOTES
-
-### Layout Component Props (Reference)
-```jsx
-// Current props supported:
-title        // String or JSX — page title
-subtitle     // String or JSX — descriptive line below title
-badge        // { label, className } — status badge
-backPath     // String path or -1 for browser back
-actions      // JSX — action buttons in header
-
-// Proposed new props (next session):
-onRefresh    // Callback — shows refresh button when provided
-```
-
-### Design System Constants
-- Gold accent: `text-sanctum-gold`, `bg-sanctum-gold`
-- Status colors follow pattern: `bg-{color}-500/20 text-{color}-400`
-- Cards: `bg-slate-900 border border-slate-700 rounded-xl`
-- Table headers: `bg-black/20 text-xs uppercase text-slate-500 font-bold`
-
-### Key Files Modified in This Session
-```
-sanctum-web/src/pages/DealDetail.jsx
-sanctum-web/src/pages/ProjectDetail.jsx
-sanctum-web/src/pages/CampaignDetail.jsx
-sanctum-web/src/pages/ClientDetail.jsx
-sanctum-web/src/pages/TicketDetail.jsx
-sanctum-web/src/pages/InvoiceDetail.jsx
-sanctum-web/src/pages/AuditDetail.jsx
-sanctum-web/src/pages/ArticleDetail.jsx
-sanctum-web/src/pages/Catalog.jsx
-sanctum-web/src/pages/AuditIndex.jsx
-sanctum-web/src/pages/Campaigns.jsx
-sanctum-web/src/pages/LibraryIndex.jsx
-sanctum-web/src/pages/AdminUserList.jsx
-sanctum-web/src/pages/AdminAutomationList.jsx
-sanctum-web/src/pages/Clients.jsx
-sanctum-web/src/pages/Tickets.jsx
-```
-
-### Deleted
-```
-sanctum-web/src/components/projects/ProjectHeader.jsx  (orphaned)
-```
-
----
-
-## QUICKSTART FOR NEXT SESSION
-
+## 6. COMMANDS FOR NEXT SESSION
 ```bash
-cd ~/Dev/DigitalSanctum/sanctum-web
+# Start local dev
+cd ~/Dev/DigitalSanctum/sanctum-core && source ../venv/bin/activate && uvicorn app.main:app --reload
+cd ~/Dev/DigitalSanctum/sanctum-web && npm run dev
 
-# Verify current state
-grep -rn "actions=" src/pages/*.jsx | wc -l  # Should be 16+
+# API token auth
+export SANCTUM_API_TOKEN=sntm_your_token
 
-# Start dev server
-npm run dev
+# Create tickets
+./scripts/dev/create_ticket.sh -e prod -s "Subject" -p "Sanctum Core" -m "Milestone" --type feature
 
-# Bug #1 — find the premature save
-grep -n "handleLinkContact\|contact_ids" src/pages/TicketDetail.jsx src/components/tickets/TicketOverview.jsx
+# Test API
+./scripts/dev/api_test.sh GET /api-tokens
 
-# Bug #2 — find the unfiltered tech list
-grep -n "fetchTechs\|admin/users" src/pages/TicketDetail.jsx
+# Recon commands for #9 KB
+grep -n "WikiIndex\|ArticleList\|table\|grid" ~/Dev/DigitalSanctum/sanctum-web/src/pages/Wiki*.jsx
+wc -l ~/Dev/DigitalSanctum/sanctum-web/src/pages/Wiki*.jsx
 ```
