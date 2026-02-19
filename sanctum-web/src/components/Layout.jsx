@@ -105,6 +105,11 @@ export default function Layout({ children, title, subtitle, badge, backPath, act
             <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${buttonClass} text-white`}>
                 {scope}
             </div>
+            <button onClick={() => navigate('/profile')} className="flex items-center gap-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors group" title="Profile">
+                <div className="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:border-sanctum-gold group-hover:text-sanctum-gold transition-colors">
+                    {user?.full_name?.split(' ').map(n => n[0]).join('').slice(0,2) || '?'}
+                </div>
+            </button>
             <button onClick={logout} className="p-2 hover:bg-white/10 rounded-full text-red-400 opacity-70 hover:opacity-100">
                 <LogOut size={18} />
             </button>
