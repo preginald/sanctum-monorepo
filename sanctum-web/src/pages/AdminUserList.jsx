@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
+import Layout from '../components/Layout';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import api from '../lib/api';
 import { Loader2, UserPlus, Edit2, User, Trash2, Key } from 'lucide-react';
 import Modal from '../components/ui/Modal';

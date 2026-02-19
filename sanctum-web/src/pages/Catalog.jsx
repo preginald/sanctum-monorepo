@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
+import Layout from '../components/Layout';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Trash2, Plus, Calendar, Edit2, X } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';

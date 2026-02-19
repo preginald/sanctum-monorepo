@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
+import Layout from '../components/Layout';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Download, Loader2, Plus, Trash2, Send, CheckCircle, Mail, X, Ban, User, Calendar, CreditCard, Edit2 } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';

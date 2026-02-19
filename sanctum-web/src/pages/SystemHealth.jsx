@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
+import Layout from '../components/Layout';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import { Loader2, Activity, Database, HardDrive, Cpu, GitBranch, RefreshCw, Server, AlertTriangle, CheckCircle, Download, Shield } from 'lucide-react';
 import api from '../lib/api';
 

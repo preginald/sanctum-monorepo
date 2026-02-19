@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
+import Layout from '../components/Layout';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import api from '../lib/api';
 import { Loader2, Plus, Zap, PlayCircle, PauseCircle, Edit2, Trash2, Activity, FileText, LayoutGrid } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
