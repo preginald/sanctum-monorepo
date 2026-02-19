@@ -1,3 +1,4 @@
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api';
@@ -88,39 +89,39 @@ export default function PortalAssets() {
         {/* TABLE */}
         <div className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-950 text-slate-500 uppercase text-xs font-bold">
-                        <tr>
-                            <th className="p-4">Asset Name</th>
-                            <th className="p-4">Type</th>
-                            <th className="p-4">Details (IP/Serial)</th>
-                            <th className="p-4">Expiry</th>
-                            <th className="p-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700/50">
+                <Table className="w-full text-left text-sm">
+                    <TableHeader className="bg-slate-950 text-slate-500 uppercase text-xs font-bold">
+                        <TableRow>
+                            <TableHead className="p-4">Asset Name</TableHead>
+                            <TableHead className="p-4">Type</TableHead>
+                            <TableHead className="p-4">Details (IP/Serial)</TableHead>
+                            <TableHead className="p-4">Expiry</TableHead>
+                            <TableHead className="p-4">Status</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody className="divide-y divide-slate-700/50">
                         {filtered.length > 0 ? filtered.map(asset => (
-                            <tr key={asset.id} className="hover:bg-white/5 transition-colors group">
-                                <td className="p-4 font-bold text-white flex items-center gap-3">
+                            <TableRow key={asset.id} className="hover:bg-white/5 transition-colors group">
+                                <TableCell className="p-4 font-bold text-white flex items-center gap-3">
                                     <div className="p-2 bg-slate-900 rounded border border-slate-700 group-hover:border-slate-500 transition-colors">
                                         {getIcon(asset.asset_type)}
                                     </div>
                                     {asset.name}
-                                </td>
-                                <td className="p-4 text-slate-400 capitalize">{asset.asset_type}</td>
-                                <td className="p-4 font-mono text-xs text-slate-400">
+                                </TableCell>
+                                <TableCell className="p-4 text-slate-400 capitalize">{asset.asset_type}</TableCell>
+                                <TableCell className="p-4 font-mono text-xs text-slate-400">
                                     {asset.ip_address && <div className="mb-1">IP: {asset.ip_address}</div>}
                                     {asset.serial_number && <div>SN: {asset.serial_number}</div>}
                                     {!asset.ip_address && !asset.serial_number && <span className="opacity-30">-</span>}
-                                </td>
-                                <td className="p-4 text-slate-400">
+                                </TableCell>
+                                <TableCell className="p-4 text-slate-400">
                                     {asset.expires_at ? (
                                         <span className={new Date(asset.expires_at) < new Date() ? "text-red-400 font-bold" : ""}>
                                             {formatDate(asset.expires_at)}
                                         </span>
                                     ) : '-'}
-                                </td>
-                                <td className="p-4">
+                                </TableCell>
+                                <TableCell className="p-4">
                                     <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${
                                         asset.status === 'active' ? 'bg-green-500/20 text-green-500' : 
                                         asset.status === 'maintenance' ? 'bg-yellow-500/20 text-yellow-500' : 
@@ -128,18 +129,18 @@ export default function PortalAssets() {
                                     }`}>
                                         {asset.status}
                                     </span>
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         )) : (
-                            <tr>
-                                <td colSpan="5" className="p-12 text-center text-slate-500">
+                            <TableRow>
+                                <TableCell colSpan="5" className="p-12 text-center text-slate-500">
                                     <AlertCircle className="mx-auto mb-2 opacity-50" size={24} />
                                     <p>No assets found.</p>
-                                </td>
-                            </tr>
+                                </TableCell>
+                            </TableRow>
                         )}
-                    </tbody>
-                </table>
+                    </TableBody>
+                </Table>
             </div>
         </div>
 

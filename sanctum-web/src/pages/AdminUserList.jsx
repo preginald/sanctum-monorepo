@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import api from '../lib/api';
 import { Loader2, UserPlus, Edit2, User, Trash2, Key } from 'lucide-react';
 import Modal from '../components/ui/Modal';
@@ -84,40 +85,40 @@ export default function AdminUserList() {
 
       {/* TABLE */}
       <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-          <table className="w-full text-left text-sm">
-              <thead className="bg-black/20 text-slate-500 uppercase text-xs font-bold">
-                  <tr>
-                      <th className="px-6 py-4">User</th>
-                      <th className="px-6 py-4">Role</th>
-                      <th className="px-6 py-4">Scope</th>
-                      <th className="px-6 py-4 text-right">Actions</th>
-                  </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800">
+          <Table className="w-full text-left text-sm">
+              <TableHeader className="bg-black/20 text-slate-500 uppercase text-xs font-bold">
+                  <TableRow>
+                      <TableHead className="px-6 py-4">User</TableHead>
+                      <TableHead className="px-6 py-4">Role</TableHead>
+                      <TableHead className="px-6 py-4">Scope</TableHead>
+                      <TableHead className="px-6 py-4 text-right">Actions</TableHead>
+                  </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-800">
                   {users.map(u => (
-                      <tr key={u.id} className="hover:bg-white/5 transition-colors group">
-                          <td className="px-6 py-4">
+                      <TableRow key={u.id} className="hover:bg-white/5 transition-colors group">
+                          <TableCell className="px-6 py-4">
                               <div className="font-bold text-white">{u.full_name}</div>
                               <div className="text-xs font-mono text-slate-500">{u.email}</div>
-                          </td>
-                          <td className="px-6 py-4">
+                          </TableCell>
+                          <TableCell className="px-6 py-4">
                               <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${u.role === 'admin' ? 'bg-purple-900 text-purple-400' : (u.role === 'client' ? 'bg-slate-700 text-slate-300' : 'bg-blue-900 text-blue-400')}`}>
                                   {u.role}
                               </span>
-                          </td>
-                          <td className="px-6 py-4 font-mono text-slate-400">{u.access_scope}</td>
-                          <td className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                          </TableCell>
+                          <TableCell className="px-6 py-4 font-mono text-slate-400">{u.access_scope}</TableCell>
+                          <TableCell className="px-6 py-4 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                               <button onClick={() => handleEdit(u)} className="text-slate-500 hover:text-white p-2 mr-1">
                                   <Edit2 size={16} />
                               </button>
                               <button onClick={() => setConfirm({ isOpen: true, title: "Delete User?", message: "This cannot be undone.", action: () => handleDelete(u.id) })} className="text-slate-500 hover:text-red-500 p-2">
                                   <Trash2 size={16} />
                               </button>
-                          </td>
-                      </tr>
+                          </TableCell>
+                      </TableRow>
                   ))}
-              </tbody>
-          </table>
+              </TableBody>
+          </Table>
       </div>
 
       {/* CREATE MODAL */}

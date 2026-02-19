@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { Loader2, Activity, Database, HardDrive, Cpu, GitBranch, RefreshCw, Server, AlertTriangle, CheckCircle, Download, Shield } from 'lucide-react';
 import api from '../lib/api';
 
@@ -146,32 +147,32 @@ export default function SystemHealth() {
                     <Activity size={18} className="text-sanctum-gold"/> Diagnostic Log
                 </h3>
             </div>
-            <table className="w-full text-sm text-left">
-                <thead className="bg-black/20 text-slate-500 uppercase text-xs font-bold">
-                    <tr>
-                        <th className="px-6 py-3">Component</th>
-                        <th className="px-6 py-3">Status</th>
-                        <th className="px-6 py-3">Latency</th>
-                        <th className="px-6 py-3">Message</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800">
+            <Table className="w-full text-sm text-left">
+                <TableHeader className="bg-black/20 text-slate-500 uppercase text-xs font-bold">
+                    <TableRow>
+                        <TableHead className="px-6 py-3">Component</TableHead>
+                        <TableHead className="px-6 py-3">Status</TableHead>
+                        <TableHead className="px-6 py-3">Latency</TableHead>
+                        <TableHead className="px-6 py-3">Message</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody className="divide-y divide-slate-800">
                     {data?.checks?.map((check, i) => (
-                        <tr key={i} className="hover:bg-white/5 transition-colors">
-                            <td className="px-6 py-3 font-bold text-white">{check.name}</td>
-                            <td className="px-6 py-3">
+                        <TableRow key={i} className="hover:bg-white/5 transition-colors">
+                            <TableCell className="px-6 py-3 font-bold text-white">{check.name}</TableCell>
+                            <TableCell className="px-6 py-3">
                                 {check.status === 'ok' ? (
                                     <span className="flex items-center gap-2 text-green-500"><CheckCircle size={14}/> OK</span>
                                 ) : (
                                     <span className="flex items-center gap-2 text-red-500"><AlertTriangle size={14}/> {check.status.toUpperCase()}</span>
                                 )}
-                            </td>
-                            <td className="px-6 py-3 font-mono opacity-70">{check.latency || '-'}</td>
-                            <td className="px-6 py-3 text-slate-400">{check.message}</td>
-                        </tr>
+                            </TableCell>
+                            <TableCell className="px-6 py-3 font-mono opacity-70">{check.latency || '-'}</TableCell>
+                            <TableCell className="px-6 py-3 text-slate-400">{check.message}</TableCell>
+                        </TableRow>
                     ))}
-                </tbody>
-            </table>
+                </TableBody>
+            </Table>
             <div className="p-2 bg-black/40 text-center text-xs text-slate-600 font-mono">
                 Execution Time: {data?.execution_time_ms}ms
             </div>

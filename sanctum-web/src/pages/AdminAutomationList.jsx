@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import api from '../lib/api';
 import { Loader2, Plus, Zap, PlayCircle, PauseCircle, Edit2, Trash2, Activity, FileText, LayoutGrid } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -168,25 +169,25 @@ export default function AdminAutomationList() {
                   </div>
               ) : (
                   <div className="overflow-x-auto">
-                      <table className="w-full text-left text-sm text-slate-400">
-                          <thead className="bg-slate-950 text-slate-500 uppercase text-xs">
-                              <tr>
-                                  <th className="p-4 w-40">Timestamp</th>
-                                  <th className="p-4 w-64">Rule</th>
-                                  <th className="p-4 w-32">Status</th>
-                                  <th className="p-4">Output</th>
-                              </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-800">
+                      <Table className="w-full text-left text-sm text-slate-400">
+                          <TableHeader className="bg-slate-950 text-slate-500 uppercase text-xs">
+                              <TableRow>
+                                  <TableHead className="p-4 w-40">Timestamp</TableHead>
+                                  <TableHead className="p-4 w-64">Rule</TableHead>
+                                  <TableHead className="p-4 w-32">Status</TableHead>
+                                  <TableHead className="p-4">Output</TableHead>
+                              </TableRow>
+                          </TableHeader>
+                          <TableBody className="divide-y divide-slate-800">
                               {logs.length > 0 ? logs.map(log => (
-                                  <tr key={log.id} className="hover:bg-white/5 transition-colors">
-                                      <td className="p-4 font-mono text-xs text-slate-500 whitespace-nowrap">
+                                  <TableRow key={log.id} className="hover:bg-white/5 transition-colors">
+                                      <TableCell className="p-4 font-mono text-xs text-slate-500 whitespace-nowrap">
                                           {new Date(log.triggered_at).toLocaleString()}
-                                      </td>
-                                      <td className="p-4 font-medium text-white">
+                                      </TableCell>
+                                      <TableCell className="p-4 font-medium text-white">
                                           {log.automation_name || <span className="opacity-30 italic">Unknown Rule</span>}
-                                      </td>
-                                      <td className="p-4">
+                                      </TableCell>
+                                      <TableCell className="p-4">
                                           <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${
                                               log.status === 'success' ? 'bg-green-500/10 text-green-400' : 
                                               log.status === 'failure' ? 'bg-red-500/10 text-red-400' : 
@@ -194,22 +195,22 @@ export default function AdminAutomationList() {
                                           }`}>
                                               {log.status}
                                           </span>
-                                      </td>
-                                      <td className="p-4 max-w-lg">
+                                      </TableCell>
+                                      <TableCell className="p-4 max-w-lg">
                                           <div className="font-mono text-xs text-slate-300 truncate hover:whitespace-normal break-words" title={log.output}>
                                               {log.output}
                                           </div>
-                                      </td>
-                                  </tr>
+                                      </TableCell>
+                                  </TableRow>
                               )) : (
-                                  <tr>
-                                      <td colSpan="4" className="p-8 text-center opacity-30 italic">
+                                  <TableRow>
+                                      <TableCell colSpan="4" className="p-8 text-center opacity-30 italic">
                                           No execution history found.
-                                      </td>
-                                  </tr>
+                                      </TableCell>
+                                  </TableRow>
                               )}
-                          </tbody>
-                      </table>
+                          </TableBody>
+                      </Table>
                   </div>
               )}
           </div>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ClipboardList, Download, Eye, Calendar, Users, Clock, Package } from 'lucide-react';
 import api from '../lib/api';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { Card } from '../components/portal';
 
 export default function AdminQuestionnaireList() {
@@ -247,74 +248,74 @@ export default function AdminQuestionnaireList() {
         {/* Results Table */}
         <Card>
           <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
-                <tr>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <Table className="w-full">
+              <TableHeader className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                <TableRow>
+                  <TableHead className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Account
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Submitted
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Company Size
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Assessment Interest
-                  </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-left text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Timeline
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Assets
-                  </th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  </TableHead>
+                  <TableHead className="px-4 py-3 text-center text-sm font-semibold text-slate-700 dark:text-slate-300">
                     Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-200 dark:divide-slate-700">
                 {filteredResponses.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
+                  <TableRow>
+                    <TableCell colSpan="7" className="px-4 py-8 text-center text-slate-500 dark:text-slate-400">
                       No questionnaire responses found
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   filteredResponses.map((response) => (
-                    <tr
+                    <TableRow
                       key={response.account_id}
                       className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                     >
-                      <td className="px-4 py-3">
+                      <TableCell className="px-4 py-3">
                         <div className="font-medium text-slate-900 dark:text-white">
                           {response.account_name}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                         {new Date(response.submitted_at).toLocaleDateString('en-AU', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
                         })}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                         {response.company_size}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
                         {response.assessment_interest || 'Not specified'}
-                      </td>
-                      <td className="px-4 py-3">
+                      </TableCell>
+                      <TableCell className="px-4 py-3">
                         <span className={`inline-block px-2 py-1 text-xs font-medium rounded border ${getTimelineBadgeColor(response.timeline)}`}>
                           {response.timeline?.split('(')[0].trim()}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-center">
                         <span className="inline-block px-2 py-1 bg-blue-500/20 text-blue-400 border border-blue-500/50 text-xs font-medium rounded">
                           {response.draft_assets_count}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
+                      </TableCell>
+                      <TableCell className="px-4 py-3 text-center">
                         <button
                           onClick={() => navigate(`/clients/${response.account_id}`)}
                           className="inline-flex items-center gap-1 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-sm font-medium transition-colors"
@@ -322,12 +323,12 @@ export default function AdminQuestionnaireList() {
                           <Eye size={14} />
                           View
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </Card>
 

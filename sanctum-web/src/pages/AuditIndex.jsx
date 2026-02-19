@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { Loader2, Plus, FileText, Download, ArrowRight } from 'lucide-react';
 import api from '../lib/api';
 
@@ -68,22 +69,22 @@ const fetchData = async () => {
     >
 
       <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-        <table className="w-full text-left">
-        <thead className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
-  <tr>
-    <th className="p-4">Client</th>
-    <th className="p-4">Framework</th>
-    <th className="p-4 w-32">Compliance Score</th>
-    <th className="p-4 w-24">Status</th>
-    <th className="p-4 w-20 text-right">Actions</th>
-  </tr>
-</thead>
-          <tbody className="text-sm text-white divide-y divide-slate-800">
+        <Table className="w-full text-left">
+        <TableHeader className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
+  <TableRow>
+    <TableHead className="p-4">Client</TableHead>
+    <TableHead className="p-4">Framework</TableHead>
+    <TableHead className="p-4 w-32">Compliance Score</TableHead>
+    <TableHead className="p-4 w-24">Status</TableHead>
+    <TableHead className="p-4 w-20 text-right">Actions</TableHead>
+  </TableRow>
+</TableHeader>
+          <TableBody className="text-sm text-white divide-y divide-slate-800">
           {audits.map(a => (
-  <tr key={a.id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => navigate(`/audit/${a.id}`)}>
+  <TableRow key={a.id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => navigate(`/audit/${a.id}`)}>
     
     {/* CLIENT */}
-    <td className="p-4">
+    <TableCell className="p-4">
       <button 
         onClick={(e) => {
           e.stopPropagation();
@@ -93,37 +94,37 @@ const fetchData = async () => {
       >
         {clients[a.account_id] || 'Unknown'}
       </button>
-    </td>
+    </TableCell>
     
     {/* FRAMEWORK */}
-    <td className="p-4">
+    <TableCell className="p-4">
       <div className="flex items-center gap-2">
         <FileText size={14} className="text-slate-500" />
         <span className="text-sm">{a.template_name}</span>
       </div>
-    </td>
+    </TableCell>
     
     {/* SCORE */}
-    <td className="p-4">
+    <TableCell className="p-4">
       <div className="flex items-center gap-2">
         <div className={`text-2xl font-bold font-mono ${a.security_score < 50 ? 'text-red-500' : a.security_score < 80 ? 'text-yellow-500' : 'text-green-500'}`}>
           {a.security_score}
         </div>
         <span className="text-xs text-slate-500">/100</span>
       </div>
-    </td>
+    </TableCell>
     
     {/* STATUS */}
-    <td className="p-4">
+    <TableCell className="p-4">
       <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${
         a.status === 'finalized' ? 'bg-green-500/20 text-green-400' : 'bg-slate-700 text-slate-300'
       }`}>
         {a.status}
       </span>
-    </td>
+    </TableCell>
     
     {/* ACTIONS */}
-    <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
+    <TableCell className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
       <div className="flex justify-end gap-2">
         {a.report_pdf_path && (
           <a 
@@ -143,11 +144,11 @@ const fetchData = async () => {
           <ArrowRight size={16} />
         </button>
       </div>
-    </td>
-  </tr>
+    </TableCell>
+  </TableRow>
 ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
         {audits.length === 0 && !loading && <div className="p-8 text-center opacity-50">No audits found.</div>}
       </div>
     </Layout>

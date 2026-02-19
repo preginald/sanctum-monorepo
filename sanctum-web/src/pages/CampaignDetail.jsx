@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { 
   Loader2, Users, Filter, CheckCircle, Save, Mail, Rocket, 
   RefreshCw, DollarSign, Target, TrendingUp 
@@ -178,27 +179,27 @@ export default function CampaignDetail() {
               </div>
 
               <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-                  <table className="w-full text-left text-sm text-slate-300">
-                      <thead className="bg-black/20 text-xs uppercase font-bold text-slate-500">
-                          <tr>
-                              <th className="p-4">Contact</th>
-                              <th className="p-4">Email</th>
-                              <th className="p-4">Status</th>
-                          </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-800">
+                  <Table className="w-full text-left text-sm text-slate-300">
+                      <TableHeader className="bg-black/20 text-xs uppercase font-bold text-slate-500">
+                          <TableRow>
+                              <TableHead className="p-4">Contact</TableHead>
+                              <TableHead className="p-4">Email</TableHead>
+                              <TableHead className="p-4">Status</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody className="divide-y divide-slate-800">
                           {targets.map(t => (
-                              <tr key={t.id} className="hover:bg-white/5">
-                                  <td className="p-4 font-bold text-white">{t.contact_name}</td>
-                                  <td className="p-4">{t.contact_email}</td>
-                                  <td className="p-4"><Badge variant={t.status === 'sent' ? 'success' : 'default'}>{t.status}</Badge></td>
-                              </tr>
+                              <TableRow key={t.id} className="hover:bg-white/5">
+                                  <TableCell className="p-4 font-bold text-white">{t.contact_name}</TableCell>
+                                  <TableCell className="p-4">{t.contact_email}</TableCell>
+                                  <TableCell className="p-4"><Badge variant={t.status === 'sent' ? 'success' : 'default'}>{t.status}</Badge></TableCell>
+                              </TableRow>
                           ))}
                           {targets.length === 0 && (
-                              <tr><td colSpan="3" className="p-8 text-center opacity-50">No targets selected. Use the List Builder.</td></tr>
+                              <TableRow><TableCell colSpan="3" className="p-8 text-center opacity-50">No targets selected. Use the List Builder.</TableCell></TableRow>
                           )}
-                      </tbody>
-                  </table>
+                      </TableBody>
+                  </Table>
               </div>
           </div>
       )}

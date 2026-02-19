@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { Download, Loader2, Plus, Trash2, Send, CheckCircle, Mail, X, Ban, User, Calendar, CreditCard, Edit2 } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
@@ -375,20 +376,20 @@ export default function InvoiceDetail() {
               </div>
 
               <div className="p-8 flex-1">
-                  <table className="w-full text-left text-sm">
-                      <thead>
-                          <tr className="border-b-2 border-slate-800 text-slate-600 uppercase text-xs tracking-wider">
-                              <th className="py-2 w-1/2">Description</th>
-                              <th className="py-2 w-24 text-center">Qty</th>
-                              <th className="py-2 w-32 text-right">Unit Price</th>
-                              <th className="py-2 w-32 text-right">Total</th>
-                              {!isLocked && <th className="py-2 w-10"></th>}
-                          </tr>
-                      </thead>
-                      <tbody className="text-slate-700">
+                  <Table className="w-full text-left text-sm">
+                      <TableHeader>
+                          <TableRow className="border-b-2 border-slate-800 text-slate-600 uppercase text-xs tracking-wider">
+                              <TableHead className="py-2 w-1/2">Description</TableHead>
+                              <TableHead className="py-2 w-24 text-center">Qty</TableHead>
+                              <TableHead className="py-2 w-32 text-right">Unit Price</TableHead>
+                              <TableHead className="py-2 w-32 text-right">Total</TableHead>
+                              {!isLocked && <TableHead className="py-2 w-10"></TableHead>}
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody className="text-slate-700">
                           {invoice.items.map(item => (
-                              <tr key={item.id} className="border-b border-slate-100 group hover:bg-slate-50">
-                                  <td className="py-3 pr-4">
+                              <TableRow key={item.id} className="border-b border-slate-100 group hover:bg-slate-50">
+                                  <TableCell className="py-3 pr-4">
                                       {item.ticket_id && (
                                           <div className="mb-1">
                                               <button onClick={() => navigate(`/tickets/${item.ticket_id}`)} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 text-[10px] font-bold uppercase hover:bg-blue-200 transition-colors">
@@ -406,8 +407,8 @@ export default function InvoiceDetail() {
                                               }}
                                           />
                                       ) : item.description}
-                                  </td>
-                                  <td className="py-3 text-center">
+                                  </TableCell>
+                                  <TableCell className="py-3 text-center">
                                       {!isLocked ? (
                                           <input type="number" className="w-full bg-transparent outline-none text-center focus:border-b border-blue-500"
                                               value={item.quantity}
@@ -418,8 +419,8 @@ export default function InvoiceDetail() {
                                               }}
                                           />
                                       ) : item.quantity}
-                                  </td>
-                                  <td className="py-3 text-right font-mono">
+                                  </TableCell>
+                                  <TableCell className="py-3 text-right font-mono">
                                       {!isLocked ? (
                                           <input type="number" className="w-full bg-transparent outline-none text-right focus:border-b border-blue-500"
                                               value={item.unit_price}
@@ -430,17 +431,17 @@ export default function InvoiceDetail() {
                                               }}
                                           />
                                       ) : `$${item.unit_price}`}
-                                  </td>
-                                  <td className="py-3 text-right font-mono font-bold">{formatCurrency(item.total)}</td>
+                                  </TableCell>
+                                  <TableCell className="py-3 text-right font-mono font-bold">{formatCurrency(item.total)}</TableCell>
                                   {!isLocked && (
-                                      <td className="py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
+                                      <TableCell className="py-3 text-right opacity-0 group-hover:opacity-100 transition-opacity">
                                           <button onClick={() => handleDeleteItem(item.id)} className="text-red-400 hover:text-red-600"><Trash2 size={16}/></button>
-                                      </td>
+                                      </TableCell>
                                   )}
-                              </tr>
+                              </TableRow>
                           ))}
-                      </tbody>
-                  </table>
+                      </TableBody>
+                  </Table>
 
                   {!isLocked && !showAddItem && (
                       <button onClick={() => setShowAddItem(true)} className="mt-4 flex items-center gap-2 text-xs font-bold text-blue-600 hover:underline uppercase tracking-wide">

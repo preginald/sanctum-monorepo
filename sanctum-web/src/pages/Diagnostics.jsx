@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { CheckCircle, XCircle, Activity, Server, Database, HardDrive, RefreshCw, Megaphone, Ticket, Receipt, Briefcase, Users } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
@@ -82,41 +83,41 @@ export default function Diagnostics() {
       </div>
 
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-left">
-          <thead className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
-            <tr>
-              <th className="p-4 w-12"></th>
-              <th className="p-4">Component</th>
-              <th className="p-4">Result</th>
-              <th className="p-4 text-right">Latency / Meta</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm text-white divide-y divide-slate-800">
+        <Table className="w-full text-left">
+          <TableHeader className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
+            <TableRow>
+              <TableHead className="p-4 w-12"></TableHead>
+              <TableHead className="p-4">Component</TableHead>
+              <TableHead className="p-4">Result</TableHead>
+              <TableHead className="p-4 text-right">Latency / Meta</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="text-sm text-white divide-y divide-slate-800">
             {report?.checks.map((check, idx) => (
-              <tr key={idx} className="hover:bg-white/5 transition-colors">
-                <td className="p-4">
+              <TableRow key={idx} className="hover:bg-white/5 transition-colors">
+                <TableCell className="p-4">
                   {check.status === 'ok' ? (
                     <CheckCircle className="text-green-500" size={20} />
                   ) : (
                     <XCircle className="text-red-500" size={20} />
                   )}
-                </td>
-                <td className="p-4 font-bold flex items-center gap-3">
+                </TableCell>
+                <TableCell className="p-4 font-bold flex items-center gap-3">
                   <span className="opacity-50">{getIcon(check.name)}</span>
                   {check.name}
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-4">
                   <span className={check.status === 'ok' ? 'text-green-400 font-bold text-xs uppercase' : 'text-red-400 font-bold text-xs uppercase'}>
                     {check.status === 'ok' ? 'OPERATIONAL' : 'FAILURE'}
                   </span>
-                </td>
-                <td className="p-4 text-right font-mono opacity-50 text-xs">
+                </TableCell>
+                <TableCell className="p-4 text-right font-mono opacity-50 text-xs">
                   {check.message}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
         {!report && <div className="p-8 text-center opacity-50">Initializing Protocols...</div>}
       </Card>
     </Layout>

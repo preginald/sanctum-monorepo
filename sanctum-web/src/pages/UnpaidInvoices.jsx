@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import api from '../lib/api';
 import { Loader2, AlertTriangle, Send, ExternalLink, DollarSign, Clock } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -93,24 +94,24 @@ export default function UnpaidInvoices() {
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700 text-xs uppercase tracking-widest opacity-50">
-                <th className="text-left p-4">Client</th>
-                <th className="text-right p-4">Amount</th>
-                <th className="text-left p-4">Issued</th>
-                <th className="text-left p-4">Due</th>
-                <th className="text-left p-4">Status</th>
-                <th className="text-right p-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow className="border-b border-slate-700 text-xs uppercase tracking-widest opacity-50">
+                <TableHead className="text-left p-4">Client</TableHead>
+                <TableHead className="text-right p-4">Amount</TableHead>
+                <TableHead className="text-left p-4">Issued</TableHead>
+                <TableHead className="text-left p-4">Due</TableHead>
+                <TableHead className="text-left p-4">Status</TableHead>
+                <TableHead className="text-right p-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {invoices.map(inv => (
-                <tr 
+                <TableRow 
                   key={inv.id} 
                   className={`border-b border-slate-800 hover:bg-white/5 transition-colors ${inv.is_overdue ? 'bg-red-500/5' : ''}`}
                 >
-                  <td className="p-4">
+                  <TableCell className="p-4">
                     <button 
                       onClick={() => navigate(`/clients/${inv.account_id}`)}
                       className="font-bold hover:text-sanctum-gold transition-colors text-left"
@@ -118,15 +119,15 @@ export default function UnpaidInvoices() {
                       {inv.account_name}
                     </button>
                     <div className="text-xs opacity-50 font-mono">#{inv.id.slice(0, 8)}</div>
-                  </td>
-                  <td className="p-4 text-right font-mono font-bold">{formatCurrency(inv.total_amount)}</td>
-                  <td className="p-4 text-xs opacity-70">{formatDate(inv.generated_at)}</td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell className="p-4 text-right font-mono font-bold">{formatCurrency(inv.total_amount)}</TableCell>
+                  <TableCell className="p-4 text-xs opacity-70">{formatDate(inv.generated_at)}</TableCell>
+                  <TableCell className="p-4">
                     <span className={`text-xs font-bold ${inv.is_overdue ? 'text-red-400' : 'opacity-70'}`}>
                       {formatDate(inv.due_date)}
                     </span>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell className="p-4">
                     {inv.is_overdue ? (
                       <span className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-red-500/20 text-red-400">
                         {inv.days_overdue}d overdue
@@ -136,8 +137,8 @@ export default function UnpaidInvoices() {
                         sent
                       </span>
                     )}
-                  </td>
-                  <td className="p-4 text-right">
+                  </TableCell>
+                  <TableCell className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
                         onClick={() => handleSendReminder(inv)}
@@ -156,11 +157,11 @@ export default function UnpaidInvoices() {
                         View
                       </button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Layout>

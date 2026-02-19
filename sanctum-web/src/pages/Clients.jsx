@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { Plus } from 'lucide-react';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
@@ -69,40 +70,40 @@ export default function Clients() {
     >
 
       <Card className="overflow-hidden p-0">
-        <table className="w-full text-left">
-          <thead className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
-            <tr>
-              <th className="p-4">Client Name</th>
-              <th className="p-4">Type</th>
-              <th className="p-4">Brand</th>
-              <th className="p-4">Status</th>
-            </tr>
-          </thead>
-          <tbody className="text-sm text-white divide-y divide-slate-800">
+        <Table className="w-full text-left">
+          <TableHeader className="bg-black/20 text-xs uppercase text-slate-400 font-bold tracking-wider">
+            <TableRow>
+              <TableHead className="p-4">Client Name</TableHead>
+              <TableHead className="p-4">Type</TableHead>
+              <TableHead className="p-4">Brand</TableHead>
+              <TableHead className="p-4">Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody className="text-sm text-white divide-y divide-slate-800">
             {accounts.map(account => (
-              <tr 
+              <TableRow 
                 key={account.id} 
                 onClick={() => navigate(`/clients/${account.id}`)}
                 className="hover:bg-white/5 transition-colors cursor-pointer group"
               >
-                <td className="p-4 font-bold text-base group-hover:text-sanctum-gold transition-colors">
+                <TableCell className="p-4 font-bold text-base group-hover:text-sanctum-gold transition-colors">
                     {account.name}
-                </td>
-                <td className="p-4 capitalize opacity-70">{account.type}</td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-4 capitalize opacity-70">{account.type}</TableCell>
+                <TableCell className="p-4">
                   {account.brand_affinity === 'ds' && <span className="text-sanctum-gold font-bold">SANCTUM</span>}
                   {account.brand_affinity === 'nt' && <span className="text-pink-500 font-bold">NAKED</span>}
                   {account.brand_affinity === 'both' && <span className="opacity-50">SHARED</span>}
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-4">
                   <Badge variant={account.status === 'client' ? 'success' : 'default'}>
                     {account.status}
                   </Badge>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
         {accounts.length === 0 && <div className="p-8 text-center opacity-50">No clients found.</div>}
       </Card>
 

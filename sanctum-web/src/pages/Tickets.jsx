@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import useModalStore from '../store/modalStore';
@@ -166,30 +167,30 @@ export default function Tickets({ autoCreate = false }) {
 
       {viewMode === 'list' ? (
         <Card className="overflow-hidden p-0">
-          <table className="w-full text-left">
-            <thead className="text-xs uppercase bg-black/20 text-slate-400 font-bold tracking-wider">
-              <tr>
-                <th className="p-4 w-12"></th>
-                <th className="p-4 w-24 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>ID</th>
-                <th className="p-4">Client</th>
-                <th className="p-4 w-1/3">Subject</th>
-                <th className="p-4 cursor-pointer hover:text-white" onClick={() => handleSort('priority')}>Priority</th>
-                <th className="p-4 cursor-pointer hover:text-white" onClick={() => handleSort('status')}>Status</th>
-              </tr>
-            </thead>
-            <tbody className="text-sm text-white divide-y divide-slate-800">
+          <Table className="w-full text-left">
+            <TableHeader className="text-xs uppercase bg-black/20 text-slate-400 font-bold tracking-wider">
+              <TableRow>
+                <TableHead className="p-4 w-12"></TableHead>
+                <TableHead className="p-4 w-24 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>ID</TableHead>
+                <TableHead className="p-4">Client</TableHead>
+                <TableHead className="p-4 w-1/3">Subject</TableHead>
+                <TableHead className="p-4 cursor-pointer hover:text-white" onClick={() => handleSort('priority')}>Priority</TableHead>
+                <TableHead className="p-4 cursor-pointer hover:text-white" onClick={() => handleSort('status')}>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody className="text-sm text-white divide-y divide-slate-800">
               {sortedTickets.map(t => (
-                <tr key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="hover:bg-white/5 cursor-pointer transition-colors group">
-                  <td className="p-4"><TicketTypeIcon type={t.ticket_type} /></td>
-                  <td className="p-4 font-mono opacity-50">#{t.id}</td>
-                  <td className="p-4 font-bold hover:text-sanctum-gold">{t.account_name}</td>
-                  <td className="p-4"><div className="flex items-center gap-2"><span className="font-medium">{t.subject}</span>{t.milestone_name && <Badge variant="info">{t.milestone_name}</Badge>}</div></td>
-                  <td className="p-4"><PriorityBadge priority={t.priority} /></td>
-                  <td className="p-4"><StatusBadge status={t.status} /></td>
-                </tr>
+                <TableRow key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="hover:bg-white/5 cursor-pointer transition-colors group">
+                  <TableCell className="p-4"><TicketTypeIcon type={t.ticket_type} /></TableCell>
+                  <TableCell className="p-4 font-mono opacity-50">#{t.id}</TableCell>
+                  <TableCell className="p-4 font-bold hover:text-sanctum-gold">{t.account_name}</TableCell>
+                  <TableCell className="p-4"><div className="flex items-center gap-2"><span className="font-medium">{t.subject}</span>{t.milestone_name && <Badge variant="info">{t.milestone_name}</Badge>}</div></TableCell>
+                  <TableCell className="p-4"><PriorityBadge priority={t.priority} /></TableCell>
+                  <TableCell className="p-4"><StatusBadge status={t.status} /></TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
           {sortedTickets.length === 0 && <div className="p-8 text-center opacity-30">No tickets match filters.</div>}
         </Card>
       ) : (

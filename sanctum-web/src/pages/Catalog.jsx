@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import { Trash2, Plus, Calendar, Edit2, X } from 'lucide-react';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
@@ -214,34 +215,34 @@ export default function Catalog() {
       )}
 
       <Card className="overflow-hidden p-0">
-          <table className="w-full text-left text-sm text-white">
-              <thead className="bg-black/20 text-xs uppercase font-bold text-slate-500">
-                  <tr>
-                      <th className="p-4">Type</th>
-                      <th className="p-4">Item Name</th>
-                      <th className="p-4 text-right">Unit Price</th>
-                      <th className="p-4 text-center">Frequency</th>
-                      {isAdmin && <th className="p-4 text-right">Action</th>}
-                  </tr>
-              </thead>
-              <tbody>
+          <Table className="w-full text-left text-sm text-white">
+              <TableHeader className="bg-black/20 text-xs uppercase font-bold text-slate-500">
+                  <TableRow>
+                      <TableHead className="p-4">Type</TableHead>
+                      <TableHead className="p-4">Item Name</TableHead>
+                      <TableHead className="p-4 text-right">Unit Price</TableHead>
+                      <TableHead className="p-4 text-center">Frequency</TableHead>
+                      {isAdmin && <TableHead className="p-4 text-right">Action</TableHead>}
+                  </TableRow>
+              </TableHeader>
+              <TableBody>
                   {products.map(p => {
                       const typeInfo = getTypeInfo(p.type);
                       return (
-                          <tr key={p.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
-                              <td className="p-4">
+                          <TableRow key={p.id} className="border-b border-slate-800 hover:bg-slate-800/50 transition-colors">
+                              <TableCell className="p-4">
                                   <Badge variant={typeInfo.color}>
                                       {p.type}
                                   </Badge>
-                              </td>
-                              <td className="p-4">
+                              </TableCell>
+                              <TableCell className="p-4">
                                   <div className="font-bold text-white">{p.name}</div>
                                   <div className="text-xs opacity-50">{p.description}</div>
-                              </td>
-                              <td className="p-4 text-right font-mono text-sanctum-gold">
+                              </TableCell>
+                              <TableCell className="p-4 text-right font-mono text-sanctum-gold">
                                   ${Number(p.unit_price).toFixed(2)}
-                              </td>
-                              <td className="p-4 text-center">
+                              </TableCell>
+                              <TableCell className="p-4 text-center">
                                   {p.is_recurring ? (
                                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded bg-purple-900/30 text-purple-300 text-xs font-bold border border-purple-500/30">
                                           <Calendar size={12} /> {p.billing_frequency?.toUpperCase()}
@@ -249,9 +250,9 @@ export default function Catalog() {
                                   ) : (
                                       <span className="text-xs opacity-30 text-slate-500">ONE-OFF</span>
                                   )}
-                              </td>
+                              </TableCell>
                               {isAdmin && (
-                                  <td className="p-4 text-right">
+                                  <TableCell className="p-4 text-right">
                                       <div className="flex justify-end gap-2">
                                           <button 
                                             onClick={() => handleEditClick(p)} 
@@ -268,13 +269,13 @@ export default function Catalog() {
                                             <Trash2 size={16} />
                                           </button>
                                       </div>
-                                  </td>
+                                  </TableCell>
                               )}
-                          </tr>
+                          </TableRow>
                       );
                   })}
-              </tbody>
-          </table>
+              </TableBody>
+          </Table>
           {products.length === 0 && <div className="p-8 text-center opacity-30">Catalog is empty.</div>}
       </Card>
     </Layout>

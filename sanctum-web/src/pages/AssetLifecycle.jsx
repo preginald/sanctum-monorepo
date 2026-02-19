@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Layout from '../components/Layout';
+import Layout
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table'; from '../components/Layout';
 import api from '../lib/api';
 import { Loader2, AlertTriangle, Clock, Shield, RefreshCw, Ticket } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -111,42 +112,42 @@ export default function AssetLifecycle() {
         </div>
       ) : (
         <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-700 text-xs uppercase tracking-widest opacity-50">
-                <th className="text-left p-4">Asset</th>
-                <th className="text-left p-4">Client</th>
-                <th className="text-left p-4">Type</th>
-                <th className="text-left p-4">Vendor</th>
-                <th className="text-left p-4">Expires</th>
-                <th className="text-left p-4">Status</th>
-                <th className="text-right p-4">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="w-full text-sm">
+            <TableHeader>
+              <TableRow className="border-b border-slate-700 text-xs uppercase tracking-widest opacity-50">
+                <TableHead className="text-left p-4">Asset</TableHead>
+                <TableHead className="text-left p-4">Client</TableHead>
+                <TableHead className="text-left p-4">Type</TableHead>
+                <TableHead className="text-left p-4">Vendor</TableHead>
+                <TableHead className="text-left p-4">Expires</TableHead>
+                <TableHead className="text-left p-4">Status</TableHead>
+                <TableHead className="text-right p-4">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {assets.map(asset => (
-                <tr
+                <TableRow
                   key={asset.id}
                   className={`border-b border-slate-800 hover:bg-white/5 transition-colors ${asset.is_expired ? 'bg-red-500/5' : ''}`}
                 >
-                <td className="p-4">
+                <TableCell className="p-4">
                     <button onClick={() => navigate(`/assets/${asset.id}`)} className="font-bold hover:text-sanctum-gold transition-colors text-left">
                       {asset.name}
                     </button>
-                  </td>
-                  <td className="p-4">
+                  </TableCell>
+                  <TableCell className="p-4">
                     <button
                       onClick={() => navigate(`/clients/${asset.account_id}`)}
                       className="hover:text-sanctum-gold transition-colors text-left"
                     >
                       {asset.account_name}
                     </button>
-                  </td>
-                  <td className="p-4 text-xs uppercase opacity-70">{asset.asset_type}</td>
-                  <td className="p-4 text-xs opacity-70">{asset.vendor || '—'}</td>
-                  <td className="p-4 text-xs">{formatDate(asset.expires_at)}</td>
-                  <td className="p-4">{statusBadge(asset)}</td>
-                  <td className="p-4 text-right">
+                  </TableCell>
+                  <TableCell className="p-4 text-xs uppercase opacity-70">{asset.asset_type}</TableCell>
+                  <TableCell className="p-4 text-xs opacity-70">{asset.vendor || '—'}</TableCell>
+                  <TableCell className="p-4 text-xs">{formatDate(asset.expires_at)}</TableCell>
+                  <TableCell className="p-4">{statusBadge(asset)}</TableCell>
+                  <TableCell className="p-4 text-right">
                     <button
                       onClick={() => handleCreateTicket(asset)}
                       disabled={creatingTicket === asset.id}
@@ -155,11 +156,11 @@ export default function AssetLifecycle() {
                       {creatingTicket === asset.id ? <Loader2 size={12} className="animate-spin" /> : <Ticket size={12} />}
                       Renew
                     </button>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </Layout>
