@@ -46,6 +46,29 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # API Token path (Personal Access Tokens)
+    if token.startswith("sntm_"):
+        prefix = token[:12]
+        api_token = db.query(models.ApiToken).filter(
+            models.ApiToken.token_prefix == prefix,
+            models.ApiToken.is_active == True
+        ).first()
+        if not api_token:
+            raise credentials_exception
+        if not pwd_context.verify(token, api_token.token_hash):
+            raise credentials_exception
+        if api_token.expires_at and api_token.expires_at < datetime.now(timezone.utc):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="API token has expired",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        api_token.last_used_at = datetime.now(timezone.utc)
+        db.commit()
+        return api_token.user
+
+    # JWT path (existing)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")

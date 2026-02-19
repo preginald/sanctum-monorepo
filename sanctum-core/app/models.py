@@ -631,3 +631,18 @@ class Vendor(Base):
 
     def __repr__(self):
         return f"<Vendor {self.name} ({self.category})>"
+
+class ApiToken(Base):
+    __tablename__ = "api_tokens"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    token_hash = Column(String, nullable=False)
+    token_prefix = Column(String(12), nullable=False, index=True)
+    scopes = Column(JSON, default=["*"])
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    last_used_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    user = relationship("User", backref="api_tokens")
