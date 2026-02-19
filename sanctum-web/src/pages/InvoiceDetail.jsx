@@ -37,7 +37,8 @@ export default function InvoiceDetail() {
       subject: '', 
       message: '', 
       recipient_contact_id: null,
-      mode: 'search'
+      mode: 'search',
+      test_mode: false
   });
   const [sending, setSending] = useState(false);
 
@@ -246,12 +247,13 @@ export default function InvoiceDetail() {
       e.preventDefault();
       setSending(true);
       try {
+          const testEmail = 'peter@digitalsanctum.com.au';
           await api.post(`/invoices/${id}/send`, {
-              to_email: sendForm.to,
-              cc_emails: sendForm.cc,
-              subject: sendForm.subject,
+              to_email: sendForm.test_mode ? testEmail : sendForm.to,
+              cc_emails: sendForm.test_mode ? [] : sendForm.cc,
+              subject: sendForm.test_mode ? `[TEST] ${sendForm.subject}` : sendForm.subject,
               message: sendForm.message,
-              recipient_contact_id: sendForm.recipient_contact_id 
+              recipient_contact_id: sendForm.test_mode ? null : sendForm.recipient_contact_id 
           });
           addToast("Email Sent Successfully", "success");
           setShowSendModal(false);
@@ -567,7 +569,15 @@ export default function InvoiceDetail() {
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Send size={20} className="text-blue-400"/> {getSendLabel()}</h2>
                 
                 <form onSubmit={handleSendEmail} className="space-y-4">
-                    <div>
+                    <label className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${sendForm.test_mode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'}`}>
+                        <div className="flex items-center gap-2">
+                            <span className={`text-xs font-bold uppercase tracking-wider ${sendForm.test_mode ? 'text-amber-400' : 'text-slate-500'}`}>Test Mode</span>
+                            {sendForm.test_mode && <span className="text-[10px] text-amber-300">→ peter@digitalsanctum.com.au</span>}
+                        </div>
+                        <input type="checkbox" checked={sendForm.test_mode} onChange={e => setSendForm({...sendForm, test_mode: e.target.checked})} className="accent-amber-500 w-4 h-4" />
+                    </label>
+
+                    <div className={sendForm.test_mode ? 'opacity-40 pointer-events-none' : ''}>
                         <div className="flex justify-between items-end mb-1">
                             <label className="text-xs opacity-50">To (Recipient)</label>
                             <button 
@@ -608,21 +618,29 @@ export default function InvoiceDetail() {
                         )}
                     </div>
                     
-                    {invoice.suggested_cc?.length > 0 && (
-                        <div>
-                            <label className="text-xs opacity-50 block mb-1">Smart CC</label>
-                            <div className="flex flex-wrap gap-2">
-                                {invoice.suggested_cc.map(email => (
-                                    <button
-                                        key={email} type="button" onClick={() => toggleCC(email)}
-                                        className={`px-2 py-1 rounded text-xs border transition-colors ${sendForm.cc.includes(email) ? 'bg-blue-600 border-blue-500 text-white' : 'bg-transparent border-slate-600 text-slate-400 hover:border-slate-400'}`}
-                                    >
+                    <div className={sendForm.test_mode ? 'opacity-40 pointer-events-none' : ''}>
+                        <label className="text-xs opacity-50 block mb-1">CC</label>
+                        <SearchableSelect
+                            items={contactOptions.filter(c => !sendForm.cc.includes(c.title))}
+                            labelKey="identifier"
+                            subLabelKey="title"
+                            valueKey="id"
+                            icon={User}
+                            placeholder="Add CC recipient..."
+                            onSelect={(item) => toggleCC(item.title)}
+                            selectedIds={[]}
+                        />
+                        {sendForm.cc.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {sendForm.cc.map(email => (
+                                    <span key={email} className="flex items-center gap-1 bg-blue-500/10 text-blue-200 border border-blue-500/20 px-2 py-1 rounded-full text-[10px] font-bold">
                                         {email}
-                                    </button>
+                                        <button type="button" onClick={() => toggleCC(email)} className="ml-1 hover:text-red-400"><X size={10}/></button>
+                                    </span>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </div>
 
                     <div>
                         <label className="text-xs opacity-50 block mb-1">Subject</label>
