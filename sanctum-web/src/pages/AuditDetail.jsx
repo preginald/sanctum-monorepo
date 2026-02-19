@@ -219,6 +219,8 @@ const calculateScore = () => {
       subtitle={selectedTemplate ? <>{selectedTemplate.name} {audit?.account_name && <>• <button onClick={() => navigate(`/clients/${audit.account_id}`)} className="text-sanctum-gold hover:underline">{audit.account_name}</button></>}</> : 'Select a framework to begin'}
       badge={audit?.status ? { label: audit.status === 'finalized' ? 'Locked' : audit.status, className: auditStatusColor(audit.status) } : null}
       backPath={-1}
+      onRefresh={fetchAudit}
+      onCopyMeta={() => `${audit?.account_name || "New"} — ${selectedTemplate?.name || "No template"}\nStatus: ${audit?.status || "draft"}\nScore: ${currentScore}/100`}
       actions={
         <div className="flex items-center gap-4">
           {selectedTemplate && (

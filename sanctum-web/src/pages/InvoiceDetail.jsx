@@ -309,6 +309,8 @@ export default function InvoiceDetail() {
       subtitle={<><button onClick={() => navigate(`/clients/${invoice.account_id}`)} className="text-sanctum-gold hover:underline">{invoice.account_name}</button> • {invoice.status === 'paid' && invoice.paid_at ? <span className="text-green-400">Paid {formatDate(invoice.paid_at)}</span> : <span>Due {formatDate(invoice.due_date)}</span>}</>}
       badge={{ label: invoice.status, className: invoiceStatusColor(invoice.status) }}
       backPath={`/clients/${invoice.account_id}`}
+      onRefresh={fetchInvoice}
+      onCopyMeta={() => `Invoice #${invoice.id.slice(0,8).toUpperCase()}\nClient: ${invoice.account_name}\nTotal: $${invoice.total_amount}\nStatus: ${invoice.status}`}
       actions={
         <div className="flex gap-2 items-center">
           {isDraft && isAdmin && (

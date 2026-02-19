@@ -282,6 +282,8 @@ export default function TicketDetail() {
       subtitle={<><span className="opacity-60">#{ticket.id}</span> • <span className="inline-flex items-center gap-1"><TicketTypeIcon type={ticket.ticket_type} /> {ticket.ticket_type}</span> • <PriorityBadge priority={ticket.priority} /> • <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="text-sanctum-gold hover:underline">{ticket.account_name}</button></>}
       badge={{ label: ticket.status, className: ticketStatusColor(ticket.status) }}
       backPath="/tickets"
+      onRefresh={fetchTicket}
+      onCopyMeta={() => `#${ticket.id} — ${ticket.subject}\nStatus: ${ticket.status}\nPriority: ${ticket.priority}\nClient: ${ticket.account_name}`}
       actions={
         <div className="flex gap-2 items-center">
           <button onClick={toggleLayout} className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors">

@@ -111,6 +111,8 @@ const toggleShowCompleted = (e) => {
       subtitle={<>Project • <button onClick={() => navigate(`/clients/${project.account_id}`)} className="text-sanctum-gold hover:underline">{project.account_name}</button></>}
       badge={{ label: project.status, className: statusColor(project.status) }}
       backPath="/projects"
+      onRefresh={fetchProject}
+      onCopyMeta={() => `${project.name}\nClient: ${project.account_name}\nStatus: ${project.status}\nMilestones: ${project.milestones?.length || 0}`}
       actions={
         <button onClick={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 rounded font-bold text-sm">
           <Plus size={16}/> Add Milestone

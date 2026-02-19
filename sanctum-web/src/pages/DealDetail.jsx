@@ -62,6 +62,8 @@ export default function DealDetail() {
       subtitle={<>Deal • <button onClick={() => navigate(`/clients/${deal.account_id}`)} className="text-sanctum-gold hover:underline">{deal.account_name}</button></>}
       badge={{ label: deal.stage, className: stageColor(deal.stage) }}
       backPath="/deals"
+      onRefresh={fetchDeal}
+      onCopyMeta={() => `${deal.title}\nStage: ${deal.stage}\nAmount: $${deal.amount}\nClient: ${deal.account_name}`}
       actions={!isEditing ? (
         <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors">
           <Edit2 size={16} /> Edit Deal
