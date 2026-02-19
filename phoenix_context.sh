@@ -56,6 +56,15 @@ echo "Generating Phoenix Payload..."
     echo "## 4. CORE CODEBASE"
     echo "### app/models.py"; cat sanctum-core/app/models.py
     echo "### src/lib/constants.js"; cat sanctum-web/src/lib/constants.js
+    echo ""
+    echo "## 5. DEVELOPMENT HELPER SCRIPTS"
+    echo "### scripts/README.md"; cat scripts/README.md
+    echo "### scripts/lib/sanctum_common.sh"; cat scripts/lib/sanctum_common.sh
+    echo ""
+    echo "## 6. API SPECIFICATION"
+    echo "OpenAPI docs: https://core.digitalsanctum.com.au/api/docs"
+    echo "OpenAPI JSON: https://core.digitalsanctum.com.au/api/openapi.json"
+    echo "Endpoints: 116"
 } > "$OUTPUT_FILE"
 
 # Clean up: Close the master connection
