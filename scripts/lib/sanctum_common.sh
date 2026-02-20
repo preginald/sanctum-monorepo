@@ -45,8 +45,8 @@ ensure_auth() {
     if [ -n "$SANCTUM_API_TOKEN" ]; then
         # Validate it works
         local health
-        health=$(curl -s -H "Authorization: Bearer $SANCTUM_API_TOKEN" "${API_BASE}/")
-        if echo "$health" | jq -e '.status == "operational"' > /dev/null 2>&1; then
+        health=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $SANCTUM_API_TOKEN" "${API_BASE}/projects")
+        if [ "$health" = "200" ]; then
             _SANCTUM_AUTH_TOKEN="$SANCTUM_API_TOKEN"
             echo -e "${GREEN}✓ Authenticated via API token (${SANCTUM_API_TOKEN:0:12}...)${NC}"
             return 0
@@ -60,8 +60,8 @@ ensure_auth() {
         local existing_token
         existing_token=$(cat "$TOKEN_FILE")
         local health
-        health=$(curl -s -H "Authorization: Bearer $existing_token" "${API_BASE}/" 2>/dev/null)
-        if echo "$health" | jq -e '.status == "operational"' > /dev/null 2>&1; then
+        health=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $existing_token" "${API_BASE}/projects" 2>/dev/null)
+        if [ "$health" = "200" ]; then
             _SANCTUM_AUTH_TOKEN="$existing_token"
             echo -e "${GREEN}✓ Authenticated via saved token (${PROFILE})${NC}"
             return 0

@@ -25,17 +25,19 @@ VERBOSE="${VERBOSE:-false}"
 # Create log directory
 mkdir -p "$LOG_DIR"
 
-# Check if token exists
-if [ ! -f "$TOKEN_FILE" ]; then
+# Check if token exists — prefer SANCTUM_API_TOKEN over saved JWT
+if [ -n "$SANCTUM_API_TOKEN" ]; then
+    TOKEN="$SANCTUM_API_TOKEN"
+elif [ ! -f "$TOKEN_FILE" ]; then
     echo -e "${RED}✗ No token found for profile '${PROFILE}'.${NC}"
     echo -e "${YELLOW}Run: ./scripts/dev/auth_test.sh${NC}"
     if [ "$PROFILE" != "default" ]; then
         echo -e "${YELLOW}Or: SANCTUM_PROFILE=${PROFILE} ./scripts/dev/auth_test.sh${NC}"
     fi
     exit 1
+else
+    TOKEN=$(cat "$TOKEN_FILE")
 fi
-
-TOKEN=$(cat "$TOKEN_FILE")
 
 # Parse arguments
 METHOD="${1:-GET}"
