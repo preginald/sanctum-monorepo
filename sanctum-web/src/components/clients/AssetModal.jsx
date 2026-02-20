@@ -24,11 +24,14 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
   // Logic: Does this asset have custom specs?
   const activeSpecs = SPEC_FIELDS[form.asset_type] || [];
 
-  // Load Catalog
+  // Load Catalog + Vendors
   useEffect(() => {
       if (isOpen) {
           api.get('/products').then(res => {
               setCatalog(res.data.filter(p => p.is_recurring));
+          });
+          api.get('/vendors').then(res => {
+              setVendors(res.data.map(v => ({ id: v.name, title: v.name, subtitle: v.website || '' })));
           });
       }
   }, [isOpen]);
@@ -77,6 +80,7 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                             selectedIds={[form.asset_type]}
                             onSelect={(item) => setForm({...form, asset_type: item.id, specs: {}})}
                             placeholder="Search asset type..."
+                            labelKey="title"
                             displaySelected
                         />
                     </div>

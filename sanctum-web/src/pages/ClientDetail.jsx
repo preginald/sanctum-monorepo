@@ -52,7 +52,7 @@ export default function ClientDetail() {
   });
 
   const [showAssetModal, setShowAssetModal] = useState(false);
-  const [assetForm, setAssetForm] = useState({ name: '', asset_type: 'server', status: 'active', ip_address: '', serial_number: '', notes: '' });
+  const [assetForm, setAssetForm] = useState({ name: '', asset_type: 'server', status: 'active', ip_address: '', serial_number: '', notes: '', specs: {} });
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', action: null });
   const [showTicketModal, setShowTicketModal] = useState(false);
@@ -318,7 +318,7 @@ export default function ClientDetail() {
 
               <AssetList 
                 assets={assets} 
-                onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active' }); setShowAssetModal(true); }}
+                onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active', specs: {} }); setShowAssetModal(true); }}
                 onEdit={(a) => { setAssetForm(a); setShowAssetModal(true); }}
                 onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
               />
