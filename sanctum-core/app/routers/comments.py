@@ -27,3 +27,16 @@ def create_comment(comment: schemas.CommentCreate, current_user: models.User = D
     db.refresh(new_comment)
     new_comment.author_name = current_user.full_name or current_user.email
     return new_comment
+
+@router.delete("/comments/{comment_id}")
+def delete_comment(comment_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    comment = db.query(models.Comment).filter(models.Comment.id == comment_id).first()
+    if not comment:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Comment not found")
+    if str(comment.author_id) != str(current_user.id) and current_user.role != "admin":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Not authorised to delete this comment")
+    db.delete(comment)
+    db.commit()
+    return {"deleted": comment_id}
