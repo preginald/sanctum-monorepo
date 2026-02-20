@@ -646,3 +646,118 @@ class ApiToken(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     user = relationship("User", backref="api_tokens")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UNIVERSAL TEMPLATE ENGINE
+# Phase 64: The Blueprint — Template Library
+# Supports: project, ticket, deal, campaign (and future entity types)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Template(Base):
+    """
+    Top-level template definition. Entity-agnostic — template_type drives
+    how the template is applied and which UI renders it.
+    """
+    __tablename__ = "templates"
+
+    id                 = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    name               = Column(String, nullable=False)
+    description        = Column(Text, nullable=True)
+    template_type      = Column(String, nullable=False)          # "project" | "ticket" | "deal" | "campaign"
+    category           = Column(String, default="general")       # "web", "infrastructure", "onboarding", etc.
+    tags               = Column(ARRAY(String), server_default='{}', default=[])
+    icon               = Column(String, nullable=True)           # emoji or icon slug, e.g. "🏗️" or "globe"
+
+    # Usage & lineage
+    times_applied      = Column(Integer, default=0)              # incremented by /apply endpoint
+    source_template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id"), nullable=True)  # populated on clone
+
+    # Ownership & lifecycle
+    created_by_id      = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    is_active          = Column(Boolean, default=True)
+    created_at         = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at         = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+
+    # Relationships
+    sections           = relationship("TemplateSection", back_populates="template",
+                                      cascade="all, delete-orphan", order_by="TemplateSection.sequence")
+    applications       = relationship("TemplateApplication", back_populates="template",
+                                      cascade="all, delete-orphan")
+    source_template    = relationship("Template", remote_side="Template.id", foreign_keys=[source_template_id])
+    created_by         = relationship("User", foreign_keys=[created_by_id])
+
+    def __repr__(self):
+        return f"<Template {self.name!r} type={self.template_type}>"
+
+
+class TemplateSection(Base):
+    """
+    Ordered section within a template — equivalent to a Milestone for project
+    templates, or a phase/stage for other types.
+    """
+    __tablename__ = "template_sections"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id"), nullable=False)
+    name        = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    sequence    = Column(Integer, default=1)
+    created_at  = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    # Relationships
+    template    = relationship("Template", back_populates="sections")
+    items       = relationship("TemplateItem", back_populates="section",
+                               cascade="all, delete-orphan", order_by="TemplateItem.sequence")
+
+    def __repr__(self):
+        return f"<TemplateSection {self.name!r} seq={self.sequence}>"
+
+
+class TemplateItem(Base):
+    """
+    Individual action/task stub within a section. Maps to a Ticket when
+    applied to a project template. config JSONB holds type-specific extras
+    (e.g. deal stage, campaign body, ticket checklist).
+    """
+    __tablename__ = "template_items"
+
+    id          = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    section_id  = Column(UUID(as_uuid=True), ForeignKey("template_sections.id"), nullable=False)
+    subject     = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    item_type   = Column(String, default="task")      # maps to ticket_type: task, feature, bug, etc.
+    priority    = Column(String, default="normal")    # low, normal, high, critical
+    sequence    = Column(Integer, default=1)
+    config      = Column(JSONB, server_default='{}', default={})  # type-specific extras
+    created_at  = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    # Relationships
+    section     = relationship("TemplateSection", back_populates="items")
+
+    def __repr__(self):
+        return f"<TemplateItem {self.subject!r}>"
+
+
+class TemplateApplication(Base):
+    """
+    Audit log of every time a template was applied.
+    Enables usage analytics, lineage tracking, and rollback awareness.
+    """
+    __tablename__ = "template_applications"
+
+    id              = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    template_id     = Column(UUID(as_uuid=True), ForeignKey("templates.id"), nullable=False)
+    applied_by_id   = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    account_id      = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
+    entity_type     = Column(String, nullable=False)   # "project", "ticket", etc.
+    entity_id       = Column(UUID(as_uuid=True), nullable=True)  # ID of the created record
+    applied_at      = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    # Relationships
+    template        = relationship("Template", back_populates="applications")
+    applied_by      = relationship("User", foreign_keys=[applied_by_id])
+    account         = relationship("Account", foreign_keys=[account_id])
+
+    def __repr__(self):
+        return f"<TemplateApplication template={self.template_id} entity={self.entity_type}/{self.entity_id}>"
