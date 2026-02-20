@@ -136,9 +136,12 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
     if submission:
         responses = submission.responses
     
+    account = db.query(models.Account).filter(models.Account.id == audit.account_id).first()
+
     return {
         "id": audit.id,
         "account_id": audit.account_id,
+        "account_name": account.name if account else None,
         "template_id": audit.template_id,
         "security_score": audit.security_score,
         "status": audit.status,

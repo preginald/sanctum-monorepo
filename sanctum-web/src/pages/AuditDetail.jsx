@@ -216,9 +216,11 @@ const calculateScore = () => {
   return (
     <Layout
       title={audit?.status === 'finalized' ? 'Compliance Audit' : id && id !== 'new' ? 'Draft Assessment' : 'New Assessment'}
-      subtitle={selectedTemplate ? <>{selectedTemplate.name} {audit?.account_name && <>• <button onClick={() => navigate(`/clients/${audit.account_id}`)} className="text-sanctum-gold hover:underline">{audit.account_name}</button></>}</> : 'Select a framework to begin'}
-      badge={audit?.status ? { label: audit.status === 'finalized' ? 'Locked' : audit.status, className: auditStatusColor(audit.status) } : null}
-      backPath={-1}
+      breadcrumb={[
+        { label: audit?.account_name, path: audit?.account_id ? `/clients/${audit.account_id}` : '/clients' },
+        { label: 'Audits', path: '/audits' },
+      ]}
+      badges={audit?.status ? [{ value: audit.status, map: 'auditStatus' }] : []}
       onRefresh={fetchAudit}
       onCopyMeta={() => `${audit?.account_name || "New"} — ${selectedTemplate?.name || "No template"}\nStatus: ${audit?.status || "draft"}\nScore: ${currentScore}/100`}
       actions={

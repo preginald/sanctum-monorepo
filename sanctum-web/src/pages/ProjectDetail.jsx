@@ -108,9 +108,11 @@ const toggleShowCompleted = (e) => {
   return (
     <Layout
       title={project.name}
-      subtitle={<>Project • <button onClick={() => navigate(`/clients/${project.account_id}`)} className="text-sanctum-gold hover:underline">{project.account_name}</button></>}
-      badge={{ label: project.status, className: statusColor(project.status) }}
-      backPath="/projects"
+      breadcrumb={[
+        { label: project.account_name, path: `/clients/${project.account_id}` },
+        { label: 'Projects', path: '/projects' },
+      ]}
+      badges={[{ value: project.status, map: 'projectStatus' }]}
       onRefresh={fetchProject}
       onCopyMeta={() => `${project.name}\nClient: ${project.account_name}\nStatus: ${project.status}\nMilestones: ${project.milestones?.length || 0}`}
       actions={

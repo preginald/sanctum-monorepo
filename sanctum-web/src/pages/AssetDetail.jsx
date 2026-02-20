@@ -60,9 +60,11 @@ export default function AssetDetail() {
   return (
     <Layout 
       title={asset.name}
-      subtitle={<>{asset.asset_type} • <button onClick={() => navigate(`/clients/${asset.account_id}`)} className="text-sanctum-gold hover:underline">{asset.account_name}</button></>}
-      badge={{ label: asset.status, className: statusColor(asset.status) }}
-      backPath={-1}
+      breadcrumb={[
+        { label: asset.account_name, path: `/clients/${asset.account_id}` },
+        { label: 'Assets', path: '/assets' },
+      ]}
+      badges={[{ value: asset.status, map: 'assetStatus' }]}
       actions={['expiring', 'expired'].includes(asset.status) ? (
         <button
           onClick={handleRenewalTicket}

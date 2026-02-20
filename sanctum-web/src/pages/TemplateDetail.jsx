@@ -343,7 +343,7 @@ export default function TemplateDetail() {
     return (
         <Layout
             title={template.name}
-            subtitle={`${template.template_type} template · ${template.category}`}
+            subtitle={`${template.template_type} template • ${template.category}`}
             badge={{ label: template.is_active ? 'Active' : 'Inactive', color: template.is_active ? 'green' : 'gray' }}
             backPath="/templates"
             actions={actions}

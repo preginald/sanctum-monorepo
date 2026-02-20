@@ -116,9 +116,8 @@ export default function CampaignDetail() {
   return (
     <Layout
       title={campaign.name}
-      subtitle={<>{campaign.type} • {campaign.brand_affinity}</>}
-      badge={{ label: campaign.status, className: campaignStatusColor(campaign.status) }}
-      backPath="/campaigns"
+      breadcrumb={[{ label: 'Campaigns', path: '/campaigns' }]}
+      badges={[{ value: campaign.status, map: 'campaignStatus' }]}
     >
       {/* SCOREBOARD (ROI DASHBOARD) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">

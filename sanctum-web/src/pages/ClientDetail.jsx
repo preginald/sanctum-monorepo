@@ -189,9 +189,8 @@ export default function ClientDetail() {
   return (
     <Layout
       title={account.name}
-      subtitle={<>{account.type} • {account.brand_affinity === 'ds' ? 'Digital Sanctum' : account.brand_affinity === 'nt' ? 'Naked Technology' : 'Both'}</>}
-      badge={{ label: account.status, className: statusColor(account.status) }}
-      backPath="/clients"
+      breadcrumb={[{ label: 'Clients', path: '/clients' }]}
+      badges={[{ value: account.status, map: 'clientStatus' }]}
       onRefresh={fetchAll}
       onCopyMeta={() => `${account.name}\nType: ${account.type}\nStatus: ${account.status}\nBrand: ${account.brand_affinity}`}
       actions={isEditingAccount ? (

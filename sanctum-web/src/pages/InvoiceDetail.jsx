@@ -309,9 +309,11 @@ export default function InvoiceDetail() {
   return (
     <Layout
       title={`Invoice #${invoice.id.slice(0,8).toUpperCase()}`}
-      subtitle={<><button onClick={() => navigate(`/clients/${invoice.account_id}`)} className="text-sanctum-gold hover:underline">{invoice.account_name}</button> • {invoice.status === 'paid' && invoice.paid_at ? <span className="text-green-400">Paid {formatDate(invoice.paid_at)}</span> : <span>Due {formatDate(invoice.due_date)}</span>}</>}
-      badge={{ label: invoice.status, className: invoiceStatusColor(invoice.status) }}
-      backPath={`/clients/${invoice.account_id}`}
+      breadcrumb={[
+        { label: invoice.account_name, path: `/clients/${invoice.account_id}` },
+        { label: 'Invoices', path: '/invoices' },
+      ]}
+      badges={[{ value: invoice.status, map: 'invoiceStatus' }]}
       onRefresh={fetchInvoice}
       onCopyMeta={() => `Invoice #${invoice.id.slice(0,8).toUpperCase()}\nClient: ${invoice.account_name}\nTotal: $${invoice.total_amount}\nStatus: ${invoice.status}`}
       actions={
