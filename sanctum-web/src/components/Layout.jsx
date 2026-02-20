@@ -4,14 +4,14 @@ import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
     Activity, Briefcase, Megaphone, Layers,
-    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check
+    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check, LayoutGrid, List
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api'; 
 import GlobalSearch from './ui/GlobalSearch';
 import NotificationBell from './ui/NotificationBell';
 
-export default function Layout({ children, title, subtitle, badge, backPath, actions, onRefresh, onCopyMeta }) {
+export default function Layout({ children, title, subtitle, badge, backPath, actions, onRefresh, onCopyMeta, onViewToggle, viewMode }) {
   const { user, token, setToken, logout } = useAuthStore();
   
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -101,6 +101,13 @@ export default function Layout({ children, title, subtitle, badge, backPath, act
             <GlobalSearch />
         </div>
         <div className="flex items-center gap-4 w-64 justify-end">
+            {(onRefresh || onViewToggle || onCopyMeta) && (
+                <div className="flex items-center gap-1 border-r border-white/10 pr-4 mr-0">
+                    {onCopyMeta && (<button onClick={() => { const text = onCopyMeta(); navigator.clipboard.writeText(text); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Copy metadata"><Copy size={16} /></button>)}
+                    {onRefresh && (<button onClick={() => { const btn = document.activeElement; btn?.classList.add('animate-spin'); onRefresh(); setTimeout(() => btn?.classList.remove('animate-spin'), 600); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Refresh"><RefreshCw size={16} /></button>)}
+                    {onViewToggle && (<div className="flex bg-slate-800 rounded p-1 border border-slate-700 ml-1"><button onClick={() => onViewToggle("grid")} className={`p-1.5 rounded transition-colors ${viewMode === "grid" ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`} title="Grid View"><LayoutGrid size={14} /></button><button onClick={() => onViewToggle("list")} className={`p-1.5 rounded transition-colors ${viewMode === "list" ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`} title="List View"><List size={14} /></button></div>)}
+                </div>
+            )}
             <NotificationBell />
             <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${buttonClass} text-white`}>
                 {scope}
@@ -190,7 +197,7 @@ export default function Layout({ children, title, subtitle, badge, backPath, act
                                 <p className="opacity-60 text-sm mt-1">{subtitle || 'Sovereign Architecture'}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">{onCopyMeta && (<button onClick={() => { const text = onCopyMeta(); navigator.clipboard.writeText(text).then(() => { const btn = event.currentTarget; btn.dataset.copied = "true"; setTimeout(() => delete btn.dataset.copied, 1500); }); }} className="group p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold relative" title="Copy metadata"><Copy size={18} /></button>)}{onRefresh && (<button onClick={() => { const btn = document.activeElement; btn?.classList.add('animate-spin'); onRefresh(); setTimeout(() => btn?.classList.remove('animate-spin'), 600); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Refresh"><RefreshCw size={18} /></button>)}{actions}</div>
+                        <div className="flex items-center gap-3">{actions}</div>
                     </div>
                 </div>
                 {children}

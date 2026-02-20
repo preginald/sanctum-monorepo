@@ -145,24 +145,6 @@ export default function LibraryIndex() {
 
     return (
       <div className="flex items-center gap-3">
-        {/* View Toggle */}
-        <div className="flex bg-slate-800 rounded p-1 border border-slate-700">
-          <button 
-            onClick={() => setViewMode("grid")}
-            className={`p-1.5 rounded transition-colors ${viewMode === "grid" ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`}
-            title="Grid View"
-          >
-            <LayoutGrid size={16} />
-          </button>
-          <button 
-            onClick={() => setViewMode("list")}
-            className={`p-1.5 rounded transition-colors ${viewMode === "list" ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`}
-            title="List View"
-          >
-            <List size={16} />
-          </button>
-        </div>
-
         <button onClick={() => navigate("/wiki/new")} className="bg-sanctum-gold hover:bg-yellow-500 text-slate-900 px-4 py-2 rounded font-bold text-sm shadow flex items-center gap-2">
           <Plus size={16} /> New Article
         </button>
@@ -177,6 +159,8 @@ export default function LibraryIndex() {
       title="The Library"
       subtitle="SOPs, templates, wiki articles, and troubleshooting guides"
       actions={renderActions()}
+      viewMode={viewMode}
+      onViewToggle={setViewMode}
     >
 
       {viewMode === "grid" ? (
