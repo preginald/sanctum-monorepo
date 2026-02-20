@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
-    Activity, Briefcase, Megaphone, 
+    Activity, Briefcase, Megaphone, Layers,
     BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
@@ -139,6 +139,7 @@ export default function Layout({ children, title, subtitle, badge, backPath, act
                 <NavItem icon={<Shield size={20} />} label="Asset Lifecycle" path="/assets/lifecycle" />
                 {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}
                 {!isNaked && <NavItem icon={<Briefcase size={20} />} label="Projects" path="/projects" />}
+                {!isNaked && <NavItem icon={<Layers size={20} />} label="Templates" path="/templates" />}
                 <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-4">Resources</div>
                 <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
                 <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
