@@ -172,23 +172,16 @@ export default function ProjectIndex() {
   if (loading) return <Layout title="Project Governance"><Loading /></Layout>;
 
   return (
-    <Layout title="Project Governance">
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-            <button 
-                onClick={() => handleViewChange('list')} 
-                className={`p-2 rounded flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'list' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
-            >
-                <LayoutList size={16} /> List
-            </button>
-            <button 
-                onClick={() => handleViewChange('board')} 
-                className={`p-2 rounded flex items-center gap-2 text-sm font-bold transition-all ${viewMode === 'board' ? 'bg-slate-700 text-white shadow' : 'text-slate-500 hover:text-white'}`}
-            >
-                <KanbanIcon size={16} /> Board
-            </button>
-        </div>
-
+    <Layout
+      title="Project Governance"
+      viewMode={viewMode}
+      onViewToggle={handleViewChange}
+      viewToggleOptions={[
+        { value: 'list', icon: <LayoutList size={14} /> },
+        { value: 'board', icon: <KanbanIcon size={14} /> }
+      ]}
+    >
+      <div className="flex justify-end items-center mb-6">
         <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">
           New Project
         </Button>

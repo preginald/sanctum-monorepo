@@ -161,6 +161,10 @@ export default function LibraryIndex() {
       actions={renderActions()}
       viewMode={viewMode}
       onViewToggle={setViewMode}
+      viewToggleOptions={[
+        { value: 'grid', icon: <LayoutGrid size={14} /> },
+        { value: 'list', icon: <List size={14} /> }
+      ]}
     >
 
       {viewMode === "grid" ? (

@@ -138,14 +138,17 @@ export default function Tickets({ autoCreate = false }) {
       actions={isAdmin ? (
         <Button variant="primary" icon={Plus} onClick={handleOpenModal}>New Ticket</Button>
       ) : null}
+      viewMode={viewMode}
+      onViewToggle={setViewMode}
+      viewToggleOptions={[
+        { value: 'list', icon: <LayoutList size={14} /> },
+        { value: 'board', icon: <KanbanIcon size={14} /> }
+      ]}
     >
       {/* VIEW TOGGLE + FILTERS */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
-            <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-                <button onClick={() => setViewMode('list')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'list' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><LayoutList size={16} /> List</button>
-                <button onClick={() => setViewMode('board')} className={`p-2 rounded flex items-center gap-2 text-sm font-bold ${viewMode === 'board' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}><KanbanIcon size={16} /> Board</button>
-            </div>
+
             
             <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
                 <div className="px-2 text-slate-500"><Filter size={14}/></div>

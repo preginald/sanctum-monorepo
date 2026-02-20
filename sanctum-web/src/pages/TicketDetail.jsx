@@ -285,11 +285,14 @@ export default function TicketDetail() {
       backPath="/tickets"
       onRefresh={() => { fetchTicket(); setRefreshKey(k => k + 1); }}
       onCopyMeta={() => `#${ticket.id} — ${ticket.subject}\nStatus: ${ticket.status}\nPriority: ${ticket.priority}\nClient: ${ticket.account_name}`}
+      viewMode={layoutMode}
+      onViewToggle={toggleLayout}
+      viewToggleOptions={[
+        { value: 'split', icon: <Columns size={14} /> },
+        { value: 'stacked', icon: <Rows size={14} /> }
+      ]}
       actions={
         <div className="flex gap-2 items-center">
-          <button onClick={toggleLayout} className="p-2 rounded bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors">
-            {layoutMode === 'split' ? <Rows size={16} /> : <Columns size={16} />}
-          </button>
           {!isEditing && (
             <>
               {ticket.status !== 'resolved' && (
