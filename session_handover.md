@@ -6,46 +6,38 @@
 
 ## 1. WHAT WE ACCOMPLISHED
 
-### Ticket #189 — Phase 64: The Blueprint ✅
+### Phase 65: The Polish — Sprint Complete
 
-#### Architecture Decision
-Rejected a project-only `ProjectTemplate` model. Built a **Universal Template Engine** — a single generic foundation supporting any entity type (`project`, `ticket`, `deal`, `campaign`, and future types).
+#### Ticket #218 — Bug: Add Asset in ClientDetail causes blank page ✅
+- **Root cause:** `SearchableSelect` for Asset Type received `items` with key `title` but defaulted to `labelKey="name"`. `item["name"]` returned `undefined` → controlled input threw → React unmounted entire page tree.
+- **Fixes (4 patches):**
+  1. `AssetModal.jsx` — Added `labelKey="title"` to Asset Type `SearchableSelect` *(crash fix)*
+  2. `AssetModal.jsx` — Added `api.get("/vendors")` fetch to `useEffect` — vendor dropdown was always empty
+  3. `ClientDetail.jsx` — Added `specs: {}` to initial `assetForm` state
+  4. `ClientDetail.jsx` — Added `specs: {}` to `onAdd` reset handler
+- **Commit:** `c4ca476`
 
-#### Backend
-- ✅ 4 new models appended to `app/models.py`:
-  - `Template` — top-level with `template_type`, `category`, `tags`, `icon`, `times_applied`, `source_template_id` (clone lineage), `created_by_id`
-  - `TemplateSection` — ordered milestone/phase stubs
-  - `TemplateItem` — ticket stubs with `item_type`, `priority`, `config` JSONB
-  - `TemplateApplication` — audit log of every apply action
-- ✅ `app/schemas/templates.py` — full Pydantic schema suite
-- ✅ `app/routers/templates.py` — CRUD, clone, import/export JSON, apply (atomic project scaffold), section/item inline edit, application history
-- ✅ Alembic migration: `ebecc463a0c2_add_universal_template_engine` — applied to prod
-- ✅ Seeder: `sanctum-core/seeders/seed_template_wix_11ty.py`
-- ✅ Seed: *Website Rebuild — Existing Site → 11ty* (`33bf15f7-4b2a-4a9d-9d0d-a0649bd3a4e3`) — 6 milestones, 26 tickets
+#### Ticket #219 — Bug: TicketDetail refresh does not reload comments ✅
+- **Root cause:** `CommentStream` self-contained with `useEffect([resourceId, resourceType])` — no external trigger.
+- **Fix:** Added `refreshKey` prop to `CommentStream` + dependency. `TicketDetail` increments `refreshKey` on refresh.
+- **Commit:** `7282449`
 
-#### API Endpoints Live
-| Method | Endpoint | Purpose |
-|--------|----------|---------|
-| GET | `/templates` | Filterable library |
-| POST | `/templates` | Create |
-| POST | `/templates/import` | JSON import |
-| GET | `/templates/{id}/export` | Portable JSON export |
-| POST | `/templates/{id}/clone` | Deep clone with lineage |
-| POST | `/templates/{id}/apply` | Atomically scaffold project + milestones + tickets |
-| GET | `/templates/{id}/applications` | Usage history |
-| POST/PUT/DELETE | `/templates/{id}/sections` | Inline section management |
-| POST/PUT/DELETE | `/templates/sections/{id}/items` | Inline item management |
+#### Ticket #221 — Contextual buttons moved to sticky nav bar ✅
+- Refresh, CopyMeta, ViewToggle moved from page title header into sticky top nav bar, left of notification bell.
+- **Commit:** `023f1e2`
 
-#### Frontend
-- ✅ `TemplateLibrary.jsx` — card grid, type/category/search filters, usage badges, clone modal, JSON import modal, stats bar
-- ✅ `TemplateDetail.jsx` — Intelligence Dossier, inline section/item editing, apply modal, export JSON, clone, application history sidebar, activate/deactivate
-- ✅ `Layout.jsx` — `Layers` icon added, Templates nav item after Projects
-- ✅ `App.jsx` — `/templates` and `/templates/:id` routes registered
+#### Ticket #222 — Sweep all modules — view toggles to sticky nav ✅
+- **Architecture:** Generic `viewToggleOptions` prop on Layout — array of `{ value, icon }` pairs.
+- **Modules updated:** `LibraryIndex`, `ProjectIndex`, `Tickets`, `TicketDetail`
+- **Commit:** `418d188`
 
-### Ticket #191 — Bug: Template import silent failure ✅
-- Root cause: `showToast` called but `ToastContext` exports `addToast`
-- Fix: Swept 23 occurrences across `TemplateLibrary.jsx` and `TemplateDetail.jsx`
-- Commit: `8724b4c`
+#### Ticket #223 — Bulk mark invoices paid ✅
+- **Backend:** `POST /invoices/bulk-mark-paid` — atomic, admin-only. `BulkMarkPaidRequest` + `BulkMarkPaidRecipient` schemas. Response: `updated`, `emails_sent`, `emails_failed`. Receipts via `send_template` with `invoice_notice.html`.
+- **Frontend:** Checkbox per row + select all, sticky green CTA bar, payment modal with method/date/send receipt toggle, per-invoice To field (prefilled from `billing_email`) + CC `SearchableSelect` with `allowCreate`, payment toast + email dispatch toast, `onRefresh` in sticky nav.
+- **Commit:** `80a81d1`
+
+#### DS-UX-002 — Subtitle & Breadcrumb Standard ✅ (DEFINED, NOT YET IMPLEMENTED)
+- Standard defined and documented in handover (see Section 4).
 
 ---
 
@@ -58,110 +50,96 @@ Rejected a project-only `ProjectTemplate` model. Built a **Universal Template En
 
 ### Git
 - **Branch:** main
-- **Last commit:** `8724b4c` — fix: replace showToast with addToast
+- **Last commit:** `80a81d1` — feat: bulk mark invoices paid with per-invoice recipients and email dispatch toasts (#223)
 - **Clean working tree** ✅
 
 ### Database
-- **4 new tables:** `templates`, `template_sections`, `template_items`, `template_applications`
-- **Live seed:** Website Rebuild — Wix → 11ty (`33bf15f7`)
-- **Blueprint milestone:** `3da65428-7634-4068-89e6-536e5d37fcfe`
-
-### Active Tickets
-- **#189** — The Blueprint — COMPLETE ✅
-- **#191** — showToast bug — RESOLVED ✅
-
-### Known Leftover Patch Files (untracked, safe to delete)
-```
-~/Dev/DigitalSanctum/patch_models.py
-~/Dev/DigitalSanctum/patch_main.py
-~/Dev/DigitalSanctum/deploy_blueprint.sh
-~/Dev/DigitalSanctum/seed_template_wix_11ty.py
-~/Dev/DigitalSanctum/sanctum-web/sweep_toast.py
-```
+- No migrations this session
 
 ---
 
 ## 3. KNOWN ISSUES / TECH DEBT
 
-- **`api_test.sh`** — does not support `-e dev|prod` flag. Uses `API_BASE` env var instead. Inconsistent with other scripts. QoL ticket worthy.
-- **`create_milestone.sh`** — no `--project-name` fuzzy resolution (only `--project-id`).
-- **`sanctum_common.sh` `resolve_project()`** — could be more defensive if `GET /projects` returns non-array on auth failure.
-- **Template Library** — no `/templates/new` creation form yet (currently create via API or JSON import only).
+- **`api_test.sh`** — no `-e dev|prod` flag. Uses `API_BASE` env var. Inconsistent with other scripts.
+- **`create_milestone.sh`** — no `--project-name` fuzzy resolution.
+- **Template Library** — no `/templates/new` creation form yet.
 - **Template sections** — no drag-to-reorder yet.
-- **Tag filter** — tags searchable via text but no dedicated tag chip filter UI yet.
-- **ToastContext** — exports `addToast` NOT `showToast`. Flag this in every new component — it has already caused one bug.
+- **ToastContext** — exports `addToast` NOT `showToast`. Flag in every new component.
+- **Comment API** — rejects JSON with special chars via shell. Use `cat > /tmp/file.json + curl -d @file` pattern.
+- **Leftover patch files** (safe to delete):
+  ```
+  ~/Dev/DigitalSanctum/patch_models.py
+  ~/Dev/DigitalSanctum/patch_main.py
+  ~/Dev/DigitalSanctum/deploy_blueprint.sh
+  ~/Dev/DigitalSanctum/seed_template_wix_11ty.py
+  ~/Dev/DigitalSanctum/sanctum-web/sweep_toast.py
+  ```
 
 ---
 
-## 4. NEXT SPRINT — Phase 65: The Polish
+## 4. NEXT SPRINT — Phase 65 continued
 
-### Item 1 — Layout Header Actions Unification
-**Context:** Several modules have "Copy Metadata", "Refresh", and view-toggle buttons (single/dual column in TicketDetail, grid/list in Wiki). These are currently per-module. Move them into the sticky Layout header next to the notification bell — consistent position, consistent UX across all modules.
+### Item 1 — DS-UX-002: Subtitle & Breadcrumb Standard (DEFINED THIS SESSION)
 
-**Approach:**
-- Layout already supports `onRefresh` and `onCopyMeta` props (opt-in callbacks)
-- View toggle needs a new `onViewToggle` / `viewMode` prop pair added to Layout
-- Modules pass their toggle state up via props
-- Recon: `TicketDetail.jsx`, `LibraryIndex.jsx`, `Layout.jsx` header section (L192 area)
+#### Type A — Client-Anchored Pages (top-level)
+**Format:** `{client} • {type} • {status}` — all lowercase, spaced bullet separator
 
----
+| Page | Example |
+|---|---|
+| ClientDetail | `Digital Sanctum HQ • client • active` |
+| InvoiceDetail | `Digital Sanctum HQ • invoice • sent` |
+| DealDetail | `Massive Dynamic • deal • negotiation` |
+| AuditDetail | `Digital Sanctum HQ • audit • draft` |
+| AssetDetail | `Digital Sanctum HQ • workstation • active` |
+| CampaignDetail | `Digital Sanctum HQ • campaign • draft` |
 
-### Item 2 — TicketDetail Refresh Bug
-**Context:** Refresh button in TicketDetail does not refresh comments — only ticket core data reloads. All related sub-modules (comments, time entries, materials, assets, linked articles) should reload on refresh.
+#### Type A — Deep/Relational Pages
+**Breadcrumb:** `Client → Project → Milestone` (clickable links above title)
+**Subtitle:** `{type} • {status} • {priority}`
 
-**Approach:**
-- Recon `TicketDetail.jsx` — find `load()` function and check what it fetches
-- Likely fix: ensure comment fetch is inside the same `load()` triggered by refresh
-- Surgical fix, likely 1–5 lines
+| Page | Breadcrumb | Subtitle |
+|---|---|---|
+| TicketDetail | `Digital Sanctum HQ → Sanctum Core → Phase 65` | `task • open • high` |
 
----
+#### Type B — System/Library Pages
+**Format:** `{identifier} • {category} • {version} • {author}` (omit nulls)
 
-### Item 3 — Bulk "Mark Paid" for Invoices
-**Context:** `/invoices/unpaid` lists unpaid invoices. Current workflow requires entering each InvoiceDetail individually. Client paid two invoices in one payment — need to select multiple and apply a single "Mark Paid" flow.
+| Page | Example |
+|---|---|
+| ArticleDetail | `DEV-060B • wiki • v1.0 • Peter Reginald` |
+| TemplateDetail | `project template • web` |
 
-**Approach:**
-- Add checkbox selection to `UnpaidInvoices.jsx` list rows
-- "Mark Selected Paid" CTA appears when ≥1 selected
-- Modal: payment method, date, amount received, "send receipt email" toggle
-- Backend: `POST /invoices/bulk-mark-paid` — array of IDs + payment details, atomic, fires receipt emails
-- Recon: `UnpaidInvoices.jsx`, `invoices.py` router, `billing_service.py`
-
----
-
-### Item 4 — Portal Project View + Backend ProjectDetail Review
-**Context:** Client portal needs an attractive project view with milestones and ticket progress. User also wants a UX review of the backend ProjectDetail before portal work begins.
-
-**Two parts:**
-- A) **C-Suite consultation** on current `ProjectDetail.jsx` UX — assess quality, identify gaps
-- B) **`PortalProjectDetail.jsx`** — client-facing milestone timeline, ticket status per milestone, progress indicators, no internal fields
-
-**Suggested:** Open next session with C-Suite consultation on project UX before writing code.
+**Implementation approach:**
+1. Add `breadcrumb` prop to `Layout.jsx` — array of `{ label, path }` — renders above title as clickable trail
+2. `TicketDetail` passes breadcrumb from `ticket.account_name → project.name → milestone.name`
+3. Recon all Type A/B pages for current subtitle JSX before patching
+4. Create ticket against Phase 65 milestone before starting
 
 ---
 
-### Item 5 — Bug: Add Asset in ClientDetail Goes Blank
-**Context:** Clicking "Add Asset" in `ClientDetail.jsx` causes the modal to flash then the entire page goes blank. Likely a JS runtime error — missing prop or undefined variable in the asset modal.
-
-**Approach:**
-- Recon `ClientDetail.jsx` — find asset modal trigger
-- Check console error (user to capture before next session)
-- Likely surgical fix
+### Item 2 — Portal Project View + Backend ProjectDetail Review
+- A) **C-Suite consultation** on current `ProjectDetail.jsx` UX
+- B) **`PortalProjectDetail.jsx`** — milestone timeline, ticket status per milestone, progress indicators, no internal fields
+- **Suggested:** Open with C-Suite consultation before writing code
 
 ---
 
 ## 5. IMPORTANT NOTES FOR NEXT SESSION
 
 - **Auth:** `export SANCTUM_API_TOKEN=sntm_...` — mandatory, no TOTP
-- **Toast hook:** ToastContext exports `addToast` — NOT `showToast`. Enforce in every new component.
-- **Ticket workflow:** Always post resolution comment BEFORE marking ticket resolved
-- **Delivery:** Surgical recon (grep/sed → cat -A → Python for multi-line JSX). Never sed for multi-line.
-- **Migration:** Always `alembic revision --autogenerate` — never draft manually
+- **Toast hook:** `addToast` NOT `showToast`
+- **Ticket workflow:** Post resolution comment BEFORE marking resolved
+- **Delivery:** Surgical recon (grep/sed → cat -A → Python for multi-line JSX)
+- **Migration:** Always `alembic revision --autogenerate`
 - **API prefix:** `https://core.digitalsanctum.com.au/api`
+- **Comment posting:** Use `cat > /tmp/file.json + curl -d @file` to avoid JSON encoding issues
 - **Project ID (Sanctum Core v1.x):** `335650e8-1a85-4263-9a25-4cf2ca55fb79`
+- **Phase 65 milestone ID:** `690652ef-4602-4a82-ae4c-dfa6dfa052a3`
 - **Blueprint milestone ID:** `3da65428-7634-4068-89e6-536e5d37fcfe`
-- **Account ID (DS HQ):** `dbc2c7b9-d8c2-493f-a6ed-527f7d191068`
+- **Account ID (DS HQ):** `dbc2c7b9-d8c2-493f6ed-527f7d191068`
 - **UI pattern:** Intelligence Dossier — reference `AssetDetail.jsx`
-- **Layout props:** `onRefresh`, `onCopyMeta` are opt-in — wire on all new detail pages
+- **Layout props:** `onRefresh`, `onCopyMeta`, `onViewToggle`, `viewToggleOptions`, `viewMode`, `breadcrumb` (new — not yet implemented)
+- **viewToggleOptions format:** `[{ value: 'grid', icon: <LayoutGrid size={14} /> }]`
 
 ---
 
@@ -182,18 +160,29 @@ rm ~/Dev/DigitalSanctum/patch_models.py \
    ~/Dev/DigitalSanctum/seed_template_wix_11ty.py \
    ~/Dev/DigitalSanctum/sanctum-web/sweep_toast.py
 
-# Recon — Item 1 (Layout header unification)
-grep -n "onRefresh\|onCopyMeta\|viewMode\|toggleView" ~/Dev/DigitalSanctum/sanctum-web/src/components/Layout.jsx
-grep -n "setView\|listView\|gridView\|toggleView\|onRefresh" ~/Dev/DigitalSanctum/sanctum-web/src/pages/TicketDetail.jsx | head -20
-grep -n "setView\|listView\|gridView\|toggleView\|onRefresh" ~/Dev/DigitalSanctum/sanctum-web/src/pages/LibraryIndex.jsx | head -20
+# Create ticket for DS-UX-002
+./scripts/dev/create_ticket.sh \
+  -e prod \
+  -p "Sanctum Core" \
+  -m "Phase 65" \
+  --type feature \
+  --priority normal \
+  -s "Feature: DS-UX-002 — Standardise subtitle and breadcrumb across all detail pages"
 
-# Recon — Item 2 (TicketDetail refresh bug)
-grep -n "load\|fetch\|comment\|refresh" ~/Dev/DigitalSanctum/sanctum-web/src/pages/TicketDetail.jsx | head -30
+# Recon — DS-UX-002 subtitle audit
+grep -n "subtitle=" \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/ClientDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/TicketDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/InvoiceDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/DealDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/AssetDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/AuditDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/ArticleDetail.jsx \
+  ~/Dev/DigitalSanctum/sanctum-web/src/pages/TemplateDetail.jsx
 
-# Recon — Item 3 (Bulk mark paid)
-grep -n "mark\|paid\|payment\|checkbox\|select" ~/Dev/DigitalSanctum/sanctum-web/src/pages/UnpaidInvoices.jsx | head -20
-grep -n "mark_paid\|bulk\|payment" ~/Dev/DigitalSanctum/sanctum-core/app/routers/invoices.py | head -20
+# Recon — Layout breadcrumb (not yet implemented)
+grep -n "breadcrumb\|backPath" ~/Dev/DigitalSanctum/sanctum-web/src/components/Layout.jsx | head -10
 
-# Recon — Item 5 (ClientDetail asset bug)
-grep -n "asset\|Asset\|modal\|Modal\|addAsset" ~/Dev/DigitalSanctum/sanctum-web/src/pages/ClientDetail.jsx | head -30
+# Recon — TicketDetail project/milestone data availability
+grep -n "project\|milestone\|account_name" ~/Dev/DigitalSanctum/sanctum-web/src/pages/TicketDetail.jsx | head -20
 ```

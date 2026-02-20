@@ -8,7 +8,8 @@ import { User, Briefcase, X, Plus, ShieldCheck } from 'lucide-react';
 
 export default function TicketOverview({ 
   ticket, isEditing, formData, setFormData, contacts, accountProjects, techs, 
-  onLinkContact, onUnlinkContact, onUpdateTech, showQuickTech, setShowQuickTech 
+  onLinkContact, onUnlinkContact, onUpdateTech, showQuickTech, setShowQuickTech,
+  showQuickMilestone, setShowQuickMilestone, onUpdateMilestone
 }) {
   
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
@@ -42,14 +43,8 @@ if (!isEditing) {
 
   return (
     <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative space-y-6">
-      {/* STATUS & PRIORITY ROW */}
-      <div className="grid grid-cols-2 gap-4">
-        <div><label className="text-xs uppercase opacity-50 font-bold tracking-widest block mb-1">Status</label><StatusBadge status={ticket.status} /></div>
-        <div><label className="text-xs uppercase opacity-50 font-bold tracking-widest block mb-1">Priority</label><PriorityBadge priority={ticket.priority} /></div>
-      </div>
-      
       {/* ASSIGNED TECHNICIAN SECTION */}
-      <div className="pt-2 border-t border-slate-800">
+      <div className="pt-2">
         <div className="flex justify-between items-center mb-4">
           <label className="text-xs uppercase opacity-50 font-bold tracking-widest flex items-center gap-2">
             <ShieldCheck size={14} className="text-purple-400" /> Assigned Agent
@@ -98,7 +93,46 @@ if (!isEditing) {
           )}
         </div>
       </div>
-        
+
+      {/* MILESTONE SECTION */}
+      <div className="pt-2 border-t border-slate-800">
+        <div className="flex justify-between items-center mb-4">
+          <label className="text-xs uppercase opacity-50 font-bold tracking-widest flex items-center gap-2">
+            <Briefcase size={14} className="text-sanctum-gold" /> Project / Milestone
+          </label>
+          {!showQuickMilestone && (
+            <button
+              onClick={() => setShowQuickMilestone(true)}
+              className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/5 border border-yellow-500/20 text-sanctum-gold hover:bg-yellow-500/10 hover:border-yellow-400 transition-all text-[10px] font-bold uppercase tracking-tighter"
+            >
+              <Plus size={12} className="group-hover:rotate-90 transition-transform" />
+              {ticket.milestone_name ? 'Change' : 'Link'}
+            </button>
+          )}
+        </div>
+        {showQuickMilestone && (
+          <div className="mb-4 animate-in slide-in-from-top-1 duration-200 z-20 relative">
+            <SearchableSelect
+              items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, title: m.name, subtitle: p.name })))}
+              onSelect={(m) => { onUpdateMilestone(m.id); setShowQuickMilestone(false); }}
+              placeholder="Search milestones..."
+              labelKey="title"
+              subLabelKey="subtitle"
+              icon={Briefcase}
+              onClose={() => setShowQuickMilestone(false)}
+            />
+          </div>
+        )}
+        <div className="flex items-center gap-2 group max-w-fit">
+          <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 px-3 py-1.5 rounded-full shadow-sm">
+            <Briefcase size={12} className="text-sanctum-gold opacity-70" />
+            <span className="text-xs font-semibold text-yellow-100">
+              {ticket.milestone_name ? `${ticket.project_name} / ${ticket.milestone_name}` : 'No milestone linked'}
+            </span>
+          </div>
+        </div>
+      </div>
+
         {/* STANDARDIZED CONTACT SECTION */}
 <div className="pt-2 border-t border-slate-800">
   <div className="flex justify-between items-center mb-4">

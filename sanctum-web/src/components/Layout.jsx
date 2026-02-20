@@ -7,11 +7,12 @@ import {
     BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
-import api from '../lib/api'; 
+import api from '../lib/api';
+import StatusBadge from './ui/StatusBadge';
 import GlobalSearch from './ui/GlobalSearch';
 import NotificationBell from './ui/NotificationBell';
 
-export default function Layout({ children, title, subtitle, badge, backPath, actions, onRefresh, onCopyMeta, onViewToggle, viewMode, viewToggleOptions = [] }) {
+export default function Layout({ children, title, subtitle, badge, badges, backPath, breadcrumb, actions, onRefresh, onCopyMeta, onViewToggle, viewMode, viewToggleOptions = [] }) {
   const { user, token, setToken, logout } = useAuthStore();
   
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -186,15 +187,33 @@ export default function Layout({ children, title, subtitle, badge, backPath, act
                                 </button>
                             )}
                             <div>
-                                <div className="flex items-center gap-3">
-                                    <h2 className="text-3xl font-bold">{title}</h2>
-                                    {badge && (
-                                        <span className={`px-2.5 py-1 rounded text-[10px] font-bold uppercase ${badge.className || 'bg-white/10'}`}>
-                                            {badge.label}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="opacity-60 text-sm mt-1">{subtitle || 'Sovereign Architecture'}</p>
+                                {breadcrumb && breadcrumb.length > 0 && (
+                                    <nav className="flex items-center gap-1.5 text-sm text-white/50 mb-1">
+                                        {breadcrumb.map((crumb, i) => (
+                                            <React.Fragment key={i}>
+                                                {i > 0 && <span className="opacity-40">›</span>}
+                                                {crumb.path
+                                                    ? <button onClick={() => navigate(crumb.path)} className="hover:text-white/80 transition-colors">{crumb.label}</button>
+                                                    : <span className="text-white/30">{crumb.label}</span>
+                                                }
+                                            </React.Fragment>
+                                        ))}
+                                    </nav>
+                                )}
+                                <h2 className="text-3xl font-bold">{title}</h2>
+                                {(badges?.length > 0 || badge) && (
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                        {badges?.map((b, i) => (
+                                            <StatusBadge key={i} value={b.value} map={b.map} />
+                                        ))}
+                                        {badge && !badges?.length && (
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase border ${badge.className || 'bg-white/10'}`}>
+                                                {badge.label}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                                {subtitle && <p className="opacity-60 text-sm mt-1">{subtitle}</p>}
                             </div>
                         </div>
                         <div className="flex items-center gap-3">{actions}</div>

@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
 import { Loader2, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus, Check } from 'lucide-react';
 import api from '../lib/api';
+import { ticketTypeStyles, ticketStatusStyles, priorityStyles } from '../lib/statusStyles';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
 
@@ -277,12 +278,22 @@ export default function TicketDetail() {
   // --- CALCULATE UNBILLED ITEMS ---
   const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
 
+  const ticketProject = accountProjects.find(p => p.milestones?.some(m => m.id === ticket.milestone_id));
+  const breadcrumb = [
+    { label: ticket.account_name, path: `/clients/${ticket.account_id}` },
+    ...(ticketProject ? [{ label: ticketProject.name, path: `/projects/${ticketProject.id}` }] : []),
+    ...(ticket.milestone_name ? [{ label: ticket.milestone_name }] : []),
+  ];
+
   return (
     <Layout
       title={ticket.subject}
-      subtitle={<><span className="opacity-60">#{ticket.id}</span> • <span className="inline-flex items-center gap-1"><TicketTypeIcon type={ticket.ticket_type} /> {ticket.ticket_type}</span> • <PriorityBadge priority={ticket.priority} /> • <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="text-sanctum-gold hover:underline">{ticket.account_name}</button></>}
-      badge={{ label: ticket.status, className: ticketStatusColor(ticket.status) }}
-      backPath="/tickets"
+      breadcrumb={breadcrumb}
+      badges={[
+        { value: ticket.ticket_type, map: 'ticketType' },
+        { value: ticket.status, map: 'ticketStatus' },
+        { value: ticket.priority, map: 'priority' },
+      ]}
       onRefresh={() => { fetchTicket(); setRefreshKey(k => k + 1); }}
       onCopyMeta={() => `#${ticket.id} — ${ticket.subject}\nStatus: ${ticket.status}\nPriority: ${ticket.priority}\nClient: ${ticket.account_name}`}
       viewMode={layoutMode}
@@ -331,35 +342,14 @@ export default function TicketDetail() {
         initialValue={resolveText} 
       />
 
-      {/* MILESTONE CONTEXT BAR */}
-      <div className="flex items-center gap-2 text-sm opacity-60 mb-6">
-        <Briefcase size={14} className="text-sanctum-gold" />
-        {!showQuickMilestone ? (
-          <button onClick={() => setShowQuickMilestone(true)} className="flex items-center gap-1 hover:text-sanctum-gold transition-colors text-sanctum-gold">
-            {ticket.milestone_name ? (
-              <span className="flex items-center gap-1">{ticket.project_name} / {ticket.milestone_name} <Plus size={10} /></span>
-            ) : (
-              <span className="flex items-center gap-1 italic opacity-70">Link to Milestone <Plus size={10} /></span>
-            )}
-          </button>
-        ) : (
-          <div className="inline-block w-72">
-            <SearchableSelect 
-              items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, name: `${p.name} - ${m.name}` })))}
-              onSelect={(m) => { handleUpdateMilestone(m.id); setShowQuickMilestone(false); }}
-              placeholder="Search Milestones..."
-              labelKey="name"
-              onClose={() => setShowQuickMilestone(false)}
-            />
-          </div>
-        )}
-      </div>
+
 
         <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>
         <div className="xl:col-span-3 space-y-6 min-w-0">
           <TicketOverview 
             ticket={ticket} isEditing={isEditing} formData={formData} setFormData={setFormData} contacts={contacts} accountProjects={accountProjects} techs={techs}
             onLinkContact={handleLinkContact} onUnlinkContact={handleUnlinkContact} onUpdateTech={handleUpdateTech} showQuickTech={showQuickTech} setShowQuickTech={setShowQuickTech}
+            showQuickMilestone={showQuickMilestone} setShowQuickMilestone={setShowQuickMilestone} onUpdateMilestone={handleUpdateMilestone}
           />
           {/* KB Section */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
