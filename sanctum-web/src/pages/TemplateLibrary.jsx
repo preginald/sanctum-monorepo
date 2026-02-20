@@ -120,7 +120,7 @@ const TemplateCard = ({ template, onNavigate, onClone }) => {
 
 export default function TemplateLibrary() {
     const navigate = useNavigate();
-    const { showToast } = useToast();
+    const { addToast } = useToast();
 
     const [templates, setTemplates]     = useState([]);
     const [loading, setLoading]         = useState(true);
@@ -143,7 +143,7 @@ export default function TemplateLibrary() {
             const res = await api.get('/templates');
             setTemplates(res.data);
         } catch {
-            showToast('Failed to load templates', 'error');
+            addToast('Failed to load templates', 'error');
         } finally {
             setLoading(false);
         }
@@ -175,11 +175,11 @@ export default function TemplateLibrary() {
         if (!cloneName.trim()) return;
         try {
             const res = await api.post(`/templates/${cloneTarget.id}/clone`, { name: cloneName });
-            showToast(`Cloned: ${res.data.name}`, 'success');
+            addToast(`Cloned: ${res.data.name}`, 'success');
             setShowClone(false);
             navigate(`/templates/${res.data.id}`);
         } catch {
-            showToast('Clone failed', 'error');
+            addToast('Clone failed', 'error');
         }
     };
 
@@ -197,12 +197,12 @@ export default function TemplateLibrary() {
         try {
             const payload = JSON.parse(importJson);
             const res = await api.post('/templates/import', payload);
-            showToast(`Imported: ${res.data.name}`, 'success');
+            addToast(`Imported: ${res.data.name}`, 'success');
             setShowImport(false);
             setImportJson('');
             navigate(`/templates/${res.data.id}`);
         } catch (e) {
-            showToast(e.message || 'Import failed — check JSON format', 'error');
+            addToast(e.message || 'Import failed — check JSON format', 'error');
         } finally {
             setImporting(false);
         }

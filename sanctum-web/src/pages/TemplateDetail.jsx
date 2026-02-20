@@ -39,7 +39,7 @@ const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
     const [open, setOpen] = useState(true);
     const [addingItem, setAddingItem] = useState(false);
     const [newItem, setNewItem] = useState({ subject: '', item_type: 'task', priority: 'normal' });
-    const { showToast } = useToast();
+    const { addToast } = useToast();
 
     const handleAddItem = async () => {
         if (!newItem.subject.trim()) return;
@@ -48,7 +48,7 @@ const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
             setNewItem({ subject: '', item_type: 'task', priority: 'normal' });
             setAddingItem(false);
         } catch {
-            showToast('Failed to add item', 'error');
+            addToast('Failed to add item', 'error');
         }
     };
 
@@ -164,7 +164,7 @@ const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
 export default function TemplateDetail() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const { showToast } = useToast();
+    const { addToast } = useToast();
 
     const [template, setTemplate]           = useState(null);
     const [applications, setApplications]   = useState([]);
@@ -192,7 +192,7 @@ export default function TemplateDetail() {
             setTemplate(tRes.data);
             setApplications(appRes.data);
         } catch {
-            showToast('Failed to load template', 'error');
+            addToast('Failed to load template', 'error');
         } finally {
             setLoading(false);
         }
@@ -218,9 +218,9 @@ export default function TemplateDetail() {
             a.download = `${template.name.replace(/\s+/g, '_')}.json`;
             a.click();
             URL.revokeObjectURL(url);
-            showToast('Template exported', 'success');
+            addToast('Template exported', 'success');
         } catch {
-            showToast('Export failed', 'error');
+            addToast('Export failed', 'error');
         }
     };
 
@@ -228,10 +228,10 @@ export default function TemplateDetail() {
     const handleClone = async () => {
         try {
             const res = await api.post(`/templates/${id}/clone`, { name: cloneName });
-            showToast(`Cloned: ${res.data.name}`, 'success');
+            addToast(`Cloned: ${res.data.name}`, 'success');
             navigate(`/templates/${res.data.id}`);
         } catch {
-            showToast('Clone failed', 'error');
+            addToast('Clone failed', 'error');
         }
     };
 
@@ -243,15 +243,15 @@ export default function TemplateDetail() {
     };
 
     const handleApply = async () => {
-        if (!applyForm.account_id) { showToast('Select a client', 'error'); return; }
+        if (!applyForm.account_id) { addToast('Select a client', 'error'); return; }
         setApplying(true);
         try {
             const res = await api.post(`/templates/${id}/apply`, applyForm);
-            showToast(`Project created: ${res.data.entity_name} (${res.data.milestones_created} milestones, ${res.data.tickets_created} tickets)`, 'success');
+            addToast(`Project created: ${res.data.entity_name} (${res.data.milestones_created} milestones, ${res.data.tickets_created} tickets)`, 'success');
             setShowApply(false);
             navigate(`/projects/${res.data.entity_id}`);
         } catch {
-            showToast('Apply failed', 'error');
+            addToast('Apply failed', 'error');
         } finally {
             setApplying(false);
         }
@@ -269,7 +269,7 @@ export default function TemplateDetail() {
             setShowAddSection(false);
             load();
         } catch {
-            showToast('Failed to add section', 'error');
+            addToast('Failed to add section', 'error');
         }
     };
 
@@ -282,10 +282,10 @@ export default function TemplateDetail() {
         if (!confirm('Delete this section and all its items?')) return;
         try {
             await api.delete(`/templates/sections/${sectionId}`);
-            showToast('Section deleted', 'success');
+            addToast('Section deleted', 'success');
             load();
         } catch {
-            showToast('Failed to delete section', 'error');
+            addToast('Failed to delete section', 'error');
         }
     };
 
@@ -294,7 +294,7 @@ export default function TemplateDetail() {
             await api.delete(`/templates/items/${itemId}`);
             load();
         } catch {
-            showToast('Failed to delete item', 'error');
+            addToast('Failed to delete item', 'error');
         }
     };
 
@@ -302,10 +302,10 @@ export default function TemplateDetail() {
     const handleToggleActive = async () => {
         try {
             await api.put(`/templates/${id}`, { is_active: !template.is_active });
-            showToast(`Template ${template.is_active ? 'deactivated' : 'activated'}`, 'success');
+            addToast(`Template ${template.is_active ? 'deactivated' : 'activated'}`, 'success');
             load();
         } catch {
-            showToast('Update failed', 'error');
+            addToast('Update failed', 'error');
         }
     };
 
