@@ -1,37 +1,22 @@
-# SESSION HANDOVER — 2026-02-19
+# SESSION HANDOVER — 2026-02-20
 
 ## 0. WHAT WE ACCOMPLISHED
 
-### Ticket #183 — Quality of Life Improvements ✅
-- ✅ Bug #1: Ticket premature save on contact link (TicketDetail.jsx)
-- ✅ Bug #2: Tech roster shows portal clients — filtered by role !== 'client' (TicketDetail.jsx)
-- ✅ Item #3: Global refresh button in Layout (`onRefresh` prop) + wired 7 pages
-- ✅ Item #4: Receipt email on payment + test mode toggle + CC SearchableSelect
-- ✅ Item #5: Asset type SearchableSelect (AssetModal.jsx)
-- ✅ Item #6: Vendor field standardisation (backend endpoint + SearchableSelect `allowCreate` + AssetModal wiring)
-- ✅ Item #7: Copy metadata button in Layout (`onCopyMeta` prop) + wired 6 detail pages
-- ✅ Item #8: CLI ticket creator v2.0 with shared library and env selector
+### Ticket #189 — The Blueprint (Governance) ✅
+- ✅ Created `create_milestone.sh` v1.0 — new CLI milestone creator
+- ✅ Created milestone *Phase 64: The Blueprint* (`3da65428-7634-4068-89e6-536e5d37fcfe`) under project `335650e8-1a85-4263-9a25-4cf2ca55fb79` (Sanctum Core v1.x)
+- ✅ Created Ticket #189 — `#16 Project Templates — The Blueprint` (feature, high priority, linked to milestone)
 
-### Ticket #185 — The Keymaster (API Token Authentication) ✅
-- ✅ ApiToken model + migration (api_tokens table)
-- ✅ Auth middleware — detects `sntm_` prefix, bcrypt verify, expiry check, updates last_used_at
-- ✅ API endpoints — `POST/GET/DELETE /api-tokens`
-- ✅ Shared script library (`scripts/lib/sanctum_common.sh`)
-- ✅ Profile page token management UI — create, list, copy-once, revoke
-- ✅ Profile avatar with initials in header → links to /profile
-- ✅ `onRefresh` wired to Profile page
+### Ticket #187 — Refactor Legacy Tables to Unified Component ✅
+- ✅ Posted internal resolution comment (work summary in markdown)
+- ✅ Marked ticket #187 as resolved via API
 
-### Infrastructure & Documentation ✅
-- ✅ SOP-099 updated to v2.21 via API token (dogfooding The Keymaster)
-- ✅ Phoenix script updated to v2.9.7 (shared lib + API spec URLs)
-- ✅ Swagger/OpenAPI docs fixed for prod (env-aware `root_path`)
-- ✅ 116 endpoints documented at https://core.digitalsanctum.com.au/api/docs
-
-### Table Standardisation Recovery ✅
-- ✅ Fixed 13 mangled Table/Layout imports from failed sweep
-- ✅ Committed Table.jsx and Checkbox.jsx components
-- ✅ LibraryIndex table view + localStorage toggle confirmed working
-- ✅ All 13 pages actively using Table components — clean build
+### Script Infrastructure Hardening ✅
+- ✅ `create_ticket.sh` — added `--project-id` flag to bypass fuzzy project name resolution
+- ✅ `create_ticket.sh` — auto-fetches `account_id` from project when `--project-id` is used
+- ✅ `create_ticket.sh` — fixed validation guard to accept `--project-id`
+- ✅ `sanctum_common.sh` — auth health check now uses protected `GET /projects` (HTTP 200 check) instead of public `GET /` (was silently passing expired/invalid tokens)
+- ✅ `api_test.sh` — now prefers `SANCTUM_API_TOKEN` over saved JWT token file
 
 ## 1. CURRENT STATE
 
@@ -39,89 +24,109 @@
 - **App:** https://app.digitalsanctum.com.au
 - **API:** https://core.digitalsanctum.com.au/api
 - **Swagger:** https://core.digitalsanctum.com.au/api/docs
-- **OpenAPI JSON:** https://core.digitalsanctum.com.au/api/openapi.json
 
 ### Git
 - **Branch:** main
-- **Clean working tree** (after final commit)
+- **Clean working tree** (all committed and pushed)
 
 ### Database
-- **New table:** api_tokens (migration: 10e97455ae95_add_api_tokens)
-- **Prod API token active:** "Claude AI" (sntm_e775c5e..., expires 2026-03-21)
-- **Test tickets to clean up:** #184 "CLI test — delete me"
+- **New milestone:** Phase 64: The Blueprint (`3da65428-7634-4068-89e6-536e5d37fcfe`)
+  - Project: Sanctum Core v1.x (`335650e8-1a85-4263-9a25-4cf2ca55fb79`)
+  - Sequence: 1, Status: pending
+
+### Active Tickets
+- **#189** — `#16 Project Templates — The Blueprint` (feature, high, new) — **NEXT SPRINT**
+- **#187** — Resolved ✅
 
 ### Files Modified This Session
 ```
-# Backend
-sanctum-core/app/models.py                          (ApiToken model)
-sanctum-core/app/auth.py                            (sntm_ token support)
-sanctum-core/app/main.py                            (api_tokens router, root_path)
-sanctum-core/app/routers/api_tokens.py              (NEW — CRUD endpoints)
-sanctum-core/app/routers/vendors.py                 (GET /vendors endpoint)
-sanctum-core/alembic/versions/10e97455ae95_*.py     (NEW — migration)
-
-# Frontend
-sanctum-web/src/pages/TicketDetail.jsx              (bugs 1 & 2, onRefresh, onCopyMeta)
-sanctum-web/src/pages/InvoiceDetail.jsx             (receipt email, test mode, CC, Table fix)
-sanctum-web/src/pages/Profile.jsx                   (token management UI, refresh)
-sanctum-web/src/pages/ClientDetail.jsx              (onRefresh + onCopyMeta)
-sanctum-web/src/pages/ProjectDetail.jsx             (onRefresh + onCopyMeta)
-sanctum-web/src/pages/DealDetail.jsx                (onRefresh + onCopyMeta)
-sanctum-web/src/pages/AuditDetail.jsx               (onRefresh + onCopyMeta)
-sanctum-web/src/pages/LibraryIndex.jsx              (table view + localStorage)
-sanctum-web/src/components/Layout.jsx               (refresh, copy meta, avatar)
-sanctum-web/src/components/ui/SearchableSelect.jsx  (allowCreate mode)
-sanctum-web/src/components/ui/Table.jsx             (NEW — standardised table)
-sanctum-web/src/components/ui/Checkbox.jsx          (NEW — checkbox component)
-sanctum-web/src/components/clients/AssetModal.jsx   (asset type + vendor)
-
-# 13 pages — fixed mangled Table/Layout imports:
-AdminAutomationList, AdminQuestionnaireList, AdminUserList,
-AssetLifecycle, AuditIndex, CampaignDetail, Catalog, Clients,
-Diagnostics, InvoiceDetail, SystemHealth, Tickets, UnpaidInvoices
-
-# Scripts & Docs
-scripts/lib/sanctum_common.sh                       (NEW — shared library)
-scripts/dev/create_ticket.sh                        (NEW — CLI ticket creator v2.0)
-phoenix_context.sh                                  (v2.9.7)
-session_handover.md                                 (this file)
+scripts/dev/create_milestone.sh   (NEW — CLI milestone creator v1.0)
+scripts/dev/create_ticket.sh      (--project-id flag + account resolution fix)
+scripts/dev/api_test.sh           (SANCTUM_API_TOKEN priority)
+scripts/lib/sanctum_common.sh     (protected endpoint health check)
 ```
 
 ## 2. KNOWN ISSUES / TECH DEBT
 
-- **onCopyMeta:** Uses `event.currentTarget` — should use React ref. Works but not idiomatic.
-- **SearchableSelect allowCreate:** Two code paths for create option (empty results vs appended). Could simplify.
-- **Vendor fetch errors:** Silently caught in AssetModal. Should surface to user.
-- **Test mode className:** Fixed template literal but worth visual QA on send modal.
-- **SOP-099 content field:** Was `null` in DB — confirmed PUT works to set content.
+- **`api_test.sh` env flag:** Does not support `-e dev|prod` — uses `API_BASE` env var instead. Inconsistent with `create_ticket.sh` and `create_milestone.sh`. Could unify in a future QoL pass.
+- **`create_milestone.sh`** — no `--project-name` fuzzy resolution yet (only accepts `--project-id`). Intentional for now but worth adding for consistency.
+- **`sanctum_common.sh` `resolve_project()`** — still fails in prod if the API returns unexpected shape. Root cause: `GET /projects` may return a non-array on auth failure. The new 200-check mitigates this but `resolve_project` itself could be more defensive.
 
-## 3. NEXT SPRINT
+## 3. NEXT SPRINT — The Blueprint (Ticket #189)
 
-### Priority 1: Table Standardisation QA
-- 13 pages now use Table components — visual QA recommended
-- Verify no regressions in: Tickets, Clients, Invoices, Audits, Catalog, etc.
-- LibraryIndex grid/list toggle — confirm localStorage persists correctly
+### Feature Summary
+Build a reusable project template engine. Staff define blueprints (milestones + ticket stubs). When creating a project, select a template to auto-scaffold the full structure in one click. Templates can be duplicated to create variants.
 
-### Priority 2: Strategic Features
-- **#16 Project Templates** (most excited) — reusable blueprints with milestones + ticket templates
-- **#11 Domain expiry management + email templates**
-- **#12 Portal project view (milestone display)**
-- **#14 Financial planning dashboard**
+### First Template to Seed
+**Website Rebuild — Existing Site → 11ty**
+| # | Milestone | Tickets |
+|---|-----------|---------|
+| 1 | Discovery & Scoping | Initial consult call, Content audit, Sitemap planning |
+| 2 | Design & Wireframes | Lo-fi wireframes, Client review, Design sign-off |
+| 3 | 11ty Development | Scaffold & repo, Build core pages, CMS config |
+| 4 | Content Migration | Copy migration, Image optimisation, SEO metadata |
+| 5 | QA & Client Review | Cross-browser testing, Client walkthrough, Amendments |
+| 6 | Launch & Handover | DNS cutover, Smoke test, Handover docs |
 
-### Suggested approach:
-Quick visual QA of the table standardisation, then pivot to #16 Project Templates as the headline feature.
+### Suggested Implementation Order
+
+#### Phase A — Backend
+1. New models: `ProjectTemplate`, `TemplateMilestone`, `TemplateTicket`
+2. Alembic `--autogenerate` migration
+3. Router: `GET/POST /project-templates`
+4. Router: `GET/PUT/DELETE /project-templates/{id}`
+5. Router: `POST /project-templates/{id}/duplicate`
+6. Router: `POST /project-templates/{id}/apply` — atomically creates project + milestones + tickets for a given `account_id`
+7. Seed script for the 11ty template
+
+#### Phase B — Frontend
+1. `ProjectTemplates.jsx` — dashboard, card grid, category badge, milestone/ticket counts
+2. `ProjectTemplateDetail.jsx` — inline edit milestones + nested ticket stubs
+3. Duplicate button — clone template, prompt for new name
+4. Apply Template modal — triggered from project creation, selects template + account
+
+### Suggested Data Model
+```python
+class ProjectTemplate(Base):
+    __tablename__ = "project_templates"
+    id = Column(UUID, primary_key=True)
+    name = Column(String, nullable=False)
+    description = Column(Text)
+    category = Column(String, default="general")  # e.g. "web", "infrastructure", "audit"
+    is_active = Column(Boolean, default=True)
+    created_at = Column(TIMESTAMP)
+    milestones = relationship("TemplateMilestone", cascade="all, delete-orphan")
+
+class TemplateMilestone(Base):
+    __tablename__ = "template_milestones"
+    id = Column(UUID, primary_key=True)
+    template_id = Column(UUID, ForeignKey("project_templates.id"))
+    name = Column(String, nullable=False)
+    sequence = Column(Integer, default=1)
+    tickets = relationship("TemplateTicket", cascade="all, delete-orphan")
+
+class TemplateTicket(Base):
+    __tablename__ = "template_tickets"
+    id = Column(UUID, primary_key=True)
+    milestone_id = Column(UUID, ForeignKey("template_milestones.id"))
+    subject = Column(String, nullable=False)
+    ticket_type = Column(String, default="task")
+    priority = Column(String, default="normal")
+    description = Column(Text)
+```
 
 ## 4. IMPORTANT NOTES FOR NEXT AI SESSION
 
-- **Auth:** `export SANCTUM_API_TOKEN=sntm_...` for zero-friction script auth
-- **Delivery:** Surgical recon (grep/sed → cat -A → Python for JSX). Never sed for multi-line JSX.
-- **Layout props:** `onRefresh` and `onCopyMeta` are opt-in via callbacks
-- **SearchableSelect:** `allowCreate` enables "Create: {query}" for new entries
-- **Table components:** `Table.jsx` and `Checkbox.jsx` in `components/ui/` — used across 13+ pages
-- **Prod API:** `https://core.digitalsanctum.com.au/api` (note `/api` prefix)
-- **Swagger:** `https://core.digitalsanctum.com.au/api/docs` — 116 endpoints
-- **Shared library:** `scripts/lib/sanctum_common.sh` — source in all new scripts
-- **User prefers:** Consultative workflow. Propose → Approve → Deliver → Verify.
+- **Auth:** `export SANCTUM_API_TOKEN=sntm_...` — mandatory, do not use saved JWT
+- **Delivery:** Surgical recon (grep/sed → cat -A → Python for multi-line). Never sed for multi-line.
+- **Patching:** Always confirm all patches ✅ before giving next command
+- **Migration:** Always use `alembic revision --autogenerate` — never draft manually
+- **API prefix:** `https://core.digitalsanctum.com.au/api` (note `/api` prefix in prod)
+- **Project ID:** Sanctum Core v1.x = `335650e8-1a85-4263-9a25-4cf2ca55fb79`
+- **Blueprint milestone ID:** `3da65428-7634-4068-89e6-536e5d37fcfe`
+- **Ticket #189** is the active governance ticket for this sprint
+- **UI pattern:** New pages follow Intelligence Dossier pattern — reference `AssetDetail.jsx`
+- **Layout props:** `onRefresh` and `onCopyMeta` are opt-in — wire them up on new detail pages
 
 ## 5. COMMANDS FOR NEXT SESSION
 
@@ -130,17 +135,26 @@ Quick visual QA of the table standardisation, then pivot to #16 Project Template
 cd ~/Dev/DigitalSanctum/sanctum-core && source ../venv/bin/activate && uvicorn app.main:app --reload
 cd ~/Dev/DigitalSanctum/sanctum-web && npm run dev
 
-# API token
+# Auth
 export SANCTUM_API_TOKEN=sntm_your_token
 
-# Visual QA — check table pages
-# Open in browser: /tickets, /clients, /library, /audits, /catalog
+# Recon for The Blueprint — models
+grep -n "class Project\|class Milestone\|class Ticket" ~/Dev/DigitalSanctum/sanctum-core/app/models.py
 
-# Recon for #16 Project Templates
-cd ~/Dev/DigitalSanctum/sanctum-web
-grep -n "milestone\|template\|blueprint" src/pages/Project*.jsx | head -20
-grep -n "class Project\|class Milestone" ~/Dev/DigitalSanctum/sanctum-core/app/models.py
+# Recon for The Blueprint — router
+grep -n "^@router" ~/Dev/DigitalSanctum/sanctum-core/app/routers/projects.py
 
-# Create tickets
-./scripts/dev/create_ticket.sh -e prod -s "Subject" -p "Sanctum Core" --type feature
+# Recon for The Blueprint — schemas
+grep -n "class.*Create\|class.*Response" ~/Dev/DigitalSanctum/sanctum-core/app/schemas/operations.py
+
+# After adding models, run migration
+cd sanctum-core
+alembic revision --autogenerate -m "add_project_templates"
+alembic upgrade head
+
+# Create tickets for sub-tasks if needed
+./scripts/dev/create_ticket.sh -e prod \
+  --project-id 335650e8-1a85-4263-9a25-4cf2ca55fb79 \
+  -m "Phase 64: The Blueprint" \
+  --type feature -s "Your subject"
 ```
