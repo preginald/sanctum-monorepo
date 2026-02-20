@@ -23,6 +23,7 @@ export default function TicketDetail() {
   // --- STATE ---
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false); 
   const [showResolveModal, setShowResolveModal] = useState(false);
@@ -282,7 +283,7 @@ export default function TicketDetail() {
       subtitle={<><span className="opacity-60">#{ticket.id}</span> • <span className="inline-flex items-center gap-1"><TicketTypeIcon type={ticket.ticket_type} /> {ticket.ticket_type}</span> • <PriorityBadge priority={ticket.priority} /> • <button onClick={() => navigate(`/clients/${ticket.account_id}`)} className="text-sanctum-gold hover:underline">{ticket.account_name}</button></>}
       badge={{ label: ticket.status, className: ticketStatusColor(ticket.status) }}
       backPath="/tickets"
-      onRefresh={fetchTicket}
+      onRefresh={() => { fetchTicket(); setRefreshKey(k => k + 1); }}
       onCopyMeta={() => `#${ticket.id} — ${ticket.subject}\nStatus: ${ticket.status}\nPriority: ${ticket.priority}\nClient: ${ticket.account_name}`}
       actions={
         <div className="flex gap-2 items-center">
@@ -413,7 +414,7 @@ export default function TicketDetail() {
           
         </div>
         <div className="xl:col-span-2 h-[800px] xl:sticky xl:top-8">
-            <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} />
+            <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} refreshKey={refreshKey} />
         </div>
       </div>
     </Layout>

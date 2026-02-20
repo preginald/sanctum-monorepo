@@ -5,7 +5,7 @@ import SanctumMarkdown from './ui/SanctumMarkdown';
 import useAuthStore from '../store/authStore';
 import { handleSmartWrap } from '../lib/textUtils';
 
-export default function CommentStream({ resourceType, resourceId, onPromote, highlightId }) {
+export default function CommentStream({ resourceType, resourceId, onPromote, highlightId, refreshKey = 0 }) {
   const { user } = useAuthStore();
   const [comments, setComments] = useState([]);
   const [newBody, setNewBody] = useState('');
@@ -13,7 +13,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  useEffect(() => { if (resourceId) fetchComments(); }, [resourceId, resourceType]);
+  useEffect(() => { if (resourceId) fetchComments(); }, [resourceId, resourceType, refreshKey]);
 
   const fetchComments = async () => {
     try {
