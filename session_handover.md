@@ -1,24 +1,55 @@
-# SESSION HANDOVER — 2026-02-20
+# SESSION HANDOVER — 2026-02-20 (End of Session)
 
-## 0. WHAT WE ACCOMPLISHED
+## 0. SESSION HANDOVER
 
-### Ticket #189 — The Blueprint (Governance) ✅
-- ✅ Created `create_milestone.sh` v1.0 — new CLI milestone creator
-- ✅ Created milestone *Phase 64: The Blueprint* (`3da65428-7634-4068-89e6-536e5d37fcfe`) under project `335650e8-1a85-4263-9a25-4cf2ca55fb79` (Sanctum Core v1.x)
-- ✅ Created Ticket #189 — `#16 Project Templates — The Blueprint` (feature, high priority, linked to milestone)
+---
 
-### Ticket #187 — Refactor Legacy Tables to Unified Component ✅
-- ✅ Posted internal resolution comment (work summary in markdown)
-- ✅ Marked ticket #187 as resolved via API
+## 1. WHAT WE ACCOMPLISHED
 
-### Script Infrastructure Hardening ✅
-- ✅ `create_ticket.sh` — added `--project-id` flag to bypass fuzzy project name resolution
-- ✅ `create_ticket.sh` — auto-fetches `account_id` from project when `--project-id` is used
-- ✅ `create_ticket.sh` — fixed validation guard to accept `--project-id`
-- ✅ `sanctum_common.sh` — auth health check now uses protected `GET /projects` (HTTP 200 check) instead of public `GET /` (was silently passing expired/invalid tokens)
-- ✅ `api_test.sh` — now prefers `SANCTUM_API_TOKEN` over saved JWT token file
+### Ticket #189 — Phase 64: The Blueprint ✅
 
-## 1. CURRENT STATE
+#### Architecture Decision
+Rejected a project-only `ProjectTemplate` model. Built a **Universal Template Engine** — a single generic foundation supporting any entity type (`project`, `ticket`, `deal`, `campaign`, and future types).
+
+#### Backend
+- ✅ 4 new models appended to `app/models.py`:
+  - `Template` — top-level with `template_type`, `category`, `tags`, `icon`, `times_applied`, `source_template_id` (clone lineage), `created_by_id`
+  - `TemplateSection` — ordered milestone/phase stubs
+  - `TemplateItem` — ticket stubs with `item_type`, `priority`, `config` JSONB
+  - `TemplateApplication` — audit log of every apply action
+- ✅ `app/schemas/templates.py` — full Pydantic schema suite
+- ✅ `app/routers/templates.py` — CRUD, clone, import/export JSON, apply (atomic project scaffold), section/item inline edit, application history
+- ✅ Alembic migration: `ebecc463a0c2_add_universal_template_engine` — applied to prod
+- ✅ Seeder: `sanctum-core/seeders/seed_template_wix_11ty.py`
+- ✅ Seed: *Website Rebuild — Existing Site → 11ty* (`33bf15f7-4b2a-4a9d-9d0d-a0649bd3a4e3`) — 6 milestones, 26 tickets
+
+#### API Endpoints Live
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/templates` | Filterable library |
+| POST | `/templates` | Create |
+| POST | `/templates/import` | JSON import |
+| GET | `/templates/{id}/export` | Portable JSON export |
+| POST | `/templates/{id}/clone` | Deep clone with lineage |
+| POST | `/templates/{id}/apply` | Atomically scaffold project + milestones + tickets |
+| GET | `/templates/{id}/applications` | Usage history |
+| POST/PUT/DELETE | `/templates/{id}/sections` | Inline section management |
+| POST/PUT/DELETE | `/templates/sections/{id}/items` | Inline item management |
+
+#### Frontend
+- ✅ `TemplateLibrary.jsx` — card grid, type/category/search filters, usage badges, clone modal, JSON import modal, stats bar
+- ✅ `TemplateDetail.jsx` — Intelligence Dossier, inline section/item editing, apply modal, export JSON, clone, application history sidebar, activate/deactivate
+- ✅ `Layout.jsx` — `Layers` icon added, Templates nav item after Projects
+- ✅ `App.jsx` — `/templates` and `/templates/:id` routes registered
+
+### Ticket #191 — Bug: Template import silent failure ✅
+- Root cause: `showToast` called but `ToastContext` exports `addToast`
+- Fix: Swept 23 occurrences across `TemplateLibrary.jsx` and `TemplateDetail.jsx`
+- Commit: `8724b4c`
+
+---
+
+## 2. CURRENT STATE
 
 ### Production
 - **App:** https://app.digitalsanctum.com.au
@@ -27,108 +58,114 @@
 
 ### Git
 - **Branch:** main
-- **Clean working tree** (all committed and pushed)
+- **Last commit:** `8724b4c` — fix: replace showToast with addToast
+- **Clean working tree** ✅
 
 ### Database
-- **New milestone:** Phase 64: The Blueprint (`3da65428-7634-4068-89e6-536e5d37fcfe`)
-  - Project: Sanctum Core v1.x (`335650e8-1a85-4263-9a25-4cf2ca55fb79`)
-  - Sequence: 1, Status: pending
+- **4 new tables:** `templates`, `template_sections`, `template_items`, `template_applications`
+- **Live seed:** Website Rebuild — Wix → 11ty (`33bf15f7`)
+- **Blueprint milestone:** `3da65428-7634-4068-89e6-536e5d37fcfe`
 
 ### Active Tickets
-- **#189** — `#16 Project Templates — The Blueprint` (feature, high, new) — **NEXT SPRINT**
-- **#187** — Resolved ✅
+- **#189** — The Blueprint — COMPLETE ✅
+- **#191** — showToast bug — RESOLVED ✅
 
-### Files Modified This Session
+### Known Leftover Patch Files (untracked, safe to delete)
 ```
-scripts/dev/create_milestone.sh   (NEW — CLI milestone creator v1.0)
-scripts/dev/create_ticket.sh      (--project-id flag + account resolution fix)
-scripts/dev/api_test.sh           (SANCTUM_API_TOKEN priority)
-scripts/lib/sanctum_common.sh     (protected endpoint health check)
-```
-
-## 2. KNOWN ISSUES / TECH DEBT
-
-- **`api_test.sh` env flag:** Does not support `-e dev|prod` — uses `API_BASE` env var instead. Inconsistent with `create_ticket.sh` and `create_milestone.sh`. Could unify in a future QoL pass.
-- **`create_milestone.sh`** — no `--project-name` fuzzy resolution yet (only accepts `--project-id`). Intentional for now but worth adding for consistency.
-- **`sanctum_common.sh` `resolve_project()`** — still fails in prod if the API returns unexpected shape. Root cause: `GET /projects` may return a non-array on auth failure. The new 200-check mitigates this but `resolve_project` itself could be more defensive.
-
-## 3. NEXT SPRINT — The Blueprint (Ticket #189)
-
-### Feature Summary
-Build a reusable project template engine. Staff define blueprints (milestones + ticket stubs). When creating a project, select a template to auto-scaffold the full structure in one click. Templates can be duplicated to create variants.
-
-### First Template to Seed
-**Website Rebuild — Existing Site → 11ty**
-| # | Milestone | Tickets |
-|---|-----------|---------|
-| 1 | Discovery & Scoping | Initial consult call, Content audit, Sitemap planning |
-| 2 | Design & Wireframes | Lo-fi wireframes, Client review, Design sign-off |
-| 3 | 11ty Development | Scaffold & repo, Build core pages, CMS config |
-| 4 | Content Migration | Copy migration, Image optimisation, SEO metadata |
-| 5 | QA & Client Review | Cross-browser testing, Client walkthrough, Amendments |
-| 6 | Launch & Handover | DNS cutover, Smoke test, Handover docs |
-
-### Suggested Implementation Order
-
-#### Phase A — Backend
-1. New models: `ProjectTemplate`, `TemplateMilestone`, `TemplateTicket`
-2. Alembic `--autogenerate` migration
-3. Router: `GET/POST /project-templates`
-4. Router: `GET/PUT/DELETE /project-templates/{id}`
-5. Router: `POST /project-templates/{id}/duplicate`
-6. Router: `POST /project-templates/{id}/apply` — atomically creates project + milestones + tickets for a given `account_id`
-7. Seed script for the 11ty template
-
-#### Phase B — Frontend
-1. `ProjectTemplates.jsx` — dashboard, card grid, category badge, milestone/ticket counts
-2. `ProjectTemplateDetail.jsx` — inline edit milestones + nested ticket stubs
-3. Duplicate button — clone template, prompt for new name
-4. Apply Template modal — triggered from project creation, selects template + account
-
-### Suggested Data Model
-```python
-class ProjectTemplate(Base):
-    __tablename__ = "project_templates"
-    id = Column(UUID, primary_key=True)
-    name = Column(String, nullable=False)
-    description = Column(Text)
-    category = Column(String, default="general")  # e.g. "web", "infrastructure", "audit"
-    is_active = Column(Boolean, default=True)
-    created_at = Column(TIMESTAMP)
-    milestones = relationship("TemplateMilestone", cascade="all, delete-orphan")
-
-class TemplateMilestone(Base):
-    __tablename__ = "template_milestones"
-    id = Column(UUID, primary_key=True)
-    template_id = Column(UUID, ForeignKey("project_templates.id"))
-    name = Column(String, nullable=False)
-    sequence = Column(Integer, default=1)
-    tickets = relationship("TemplateTicket", cascade="all, delete-orphan")
-
-class TemplateTicket(Base):
-    __tablename__ = "template_tickets"
-    id = Column(UUID, primary_key=True)
-    milestone_id = Column(UUID, ForeignKey("template_milestones.id"))
-    subject = Column(String, nullable=False)
-    ticket_type = Column(String, default="task")
-    priority = Column(String, default="normal")
-    description = Column(Text)
+~/Dev/DigitalSanctum/patch_models.py
+~/Dev/DigitalSanctum/patch_main.py
+~/Dev/DigitalSanctum/deploy_blueprint.sh
+~/Dev/DigitalSanctum/seed_template_wix_11ty.py
+~/Dev/DigitalSanctum/sanctum-web/sweep_toast.py
 ```
 
-## 4. IMPORTANT NOTES FOR NEXT AI SESSION
+---
 
-- **Auth:** `export SANCTUM_API_TOKEN=sntm_...` — mandatory, do not use saved JWT
-- **Delivery:** Surgical recon (grep/sed → cat -A → Python for multi-line). Never sed for multi-line.
-- **Patching:** Always confirm all patches ✅ before giving next command
-- **Migration:** Always use `alembic revision --autogenerate` — never draft manually
-- **API prefix:** `https://core.digitalsanctum.com.au/api` (note `/api` prefix in prod)
-- **Project ID:** Sanctum Core v1.x = `335650e8-1a85-4263-9a25-4cf2ca55fb79`
+## 3. KNOWN ISSUES / TECH DEBT
+
+- **`api_test.sh`** — does not support `-e dev|prod` flag. Uses `API_BASE` env var instead. Inconsistent with other scripts. QoL ticket worthy.
+- **`create_milestone.sh`** — no `--project-name` fuzzy resolution (only `--project-id`).
+- **`sanctum_common.sh` `resolve_project()`** — could be more defensive if `GET /projects` returns non-array on auth failure.
+- **Template Library** — no `/templates/new` creation form yet (currently create via API or JSON import only).
+- **Template sections** — no drag-to-reorder yet.
+- **Tag filter** — tags searchable via text but no dedicated tag chip filter UI yet.
+- **ToastContext** — exports `addToast` NOT `showToast`. Flag this in every new component — it has already caused one bug.
+
+---
+
+## 4. NEXT SPRINT — Phase 65: The Polish
+
+### Item 1 — Layout Header Actions Unification
+**Context:** Several modules have "Copy Metadata", "Refresh", and view-toggle buttons (single/dual column in TicketDetail, grid/list in Wiki). These are currently per-module. Move them into the sticky Layout header next to the notification bell — consistent position, consistent UX across all modules.
+
+**Approach:**
+- Layout already supports `onRefresh` and `onCopyMeta` props (opt-in callbacks)
+- View toggle needs a new `onViewToggle` / `viewMode` prop pair added to Layout
+- Modules pass their toggle state up via props
+- Recon: `TicketDetail.jsx`, `LibraryIndex.jsx`, `Layout.jsx` header section (L192 area)
+
+---
+
+### Item 2 — TicketDetail Refresh Bug
+**Context:** Refresh button in TicketDetail does not refresh comments — only ticket core data reloads. All related sub-modules (comments, time entries, materials, assets, linked articles) should reload on refresh.
+
+**Approach:**
+- Recon `TicketDetail.jsx` — find `load()` function and check what it fetches
+- Likely fix: ensure comment fetch is inside the same `load()` triggered by refresh
+- Surgical fix, likely 1–5 lines
+
+---
+
+### Item 3 — Bulk "Mark Paid" for Invoices
+**Context:** `/invoices/unpaid` lists unpaid invoices. Current workflow requires entering each InvoiceDetail individually. Client paid two invoices in one payment — need to select multiple and apply a single "Mark Paid" flow.
+
+**Approach:**
+- Add checkbox selection to `UnpaidInvoices.jsx` list rows
+- "Mark Selected Paid" CTA appears when ≥1 selected
+- Modal: payment method, date, amount received, "send receipt email" toggle
+- Backend: `POST /invoices/bulk-mark-paid` — array of IDs + payment details, atomic, fires receipt emails
+- Recon: `UnpaidInvoices.jsx`, `invoices.py` router, `billing_service.py`
+
+---
+
+### Item 4 — Portal Project View + Backend ProjectDetail Review
+**Context:** Client portal needs an attractive project view with milestones and ticket progress. User also wants a UX review of the backend ProjectDetail before portal work begins.
+
+**Two parts:**
+- A) **C-Suite consultation** on current `ProjectDetail.jsx` UX — assess quality, identify gaps
+- B) **`PortalProjectDetail.jsx`** — client-facing milestone timeline, ticket status per milestone, progress indicators, no internal fields
+
+**Suggested:** Open next session with C-Suite consultation on project UX before writing code.
+
+---
+
+### Item 5 — Bug: Add Asset in ClientDetail Goes Blank
+**Context:** Clicking "Add Asset" in `ClientDetail.jsx` causes the modal to flash then the entire page goes blank. Likely a JS runtime error — missing prop or undefined variable in the asset modal.
+
+**Approach:**
+- Recon `ClientDetail.jsx` — find asset modal trigger
+- Check console error (user to capture before next session)
+- Likely surgical fix
+
+---
+
+## 5. IMPORTANT NOTES FOR NEXT SESSION
+
+- **Auth:** `export SANCTUM_API_TOKEN=sntm_...` — mandatory, no TOTP
+- **Toast hook:** ToastContext exports `addToast` — NOT `showToast`. Enforce in every new component.
+- **Ticket workflow:** Always post resolution comment BEFORE marking ticket resolved
+- **Delivery:** Surgical recon (grep/sed → cat -A → Python for multi-line JSX). Never sed for multi-line.
+- **Migration:** Always `alembic revision --autogenerate` — never draft manually
+- **API prefix:** `https://core.digitalsanctum.com.au/api`
+- **Project ID (Sanctum Core v1.x):** `335650e8-1a85-4263-9a25-4cf2ca55fb79`
 - **Blueprint milestone ID:** `3da65428-7634-4068-89e6-536e5d37fcfe`
-- **Ticket #189** is the active governance ticket for this sprint
-- **UI pattern:** New pages follow Intelligence Dossier pattern — reference `AssetDetail.jsx`
-- **Layout props:** `onRefresh` and `onCopyMeta` are opt-in — wire them up on new detail pages
+- **Account ID (DS HQ):** `dbc2c7b9-d8c2-493f-a6ed-527f7d191068`
+- **UI pattern:** Intelligence Dossier — reference `AssetDetail.jsx`
+- **Layout props:** `onRefresh`, `onCopyMeta` are opt-in — wire on all new detail pages
 
-## 5. COMMANDS FOR NEXT SESSION
+---
+
+## 6. COMMANDS FOR NEXT SESSION
 
 ```bash
 # Start local dev
@@ -138,23 +175,25 @@ cd ~/Dev/DigitalSanctum/sanctum-web && npm run dev
 # Auth
 export SANCTUM_API_TOKEN=sntm_your_token
 
-# Recon for The Blueprint — models
-grep -n "class Project\|class Milestone\|class Ticket" ~/Dev/DigitalSanctum/sanctum-core/app/models.py
+# Clean up leftover patch files
+rm ~/Dev/DigitalSanctum/patch_models.py \
+   ~/Dev/DigitalSanctum/patch_main.py \
+   ~/Dev/DigitalSanctum/deploy_blueprint.sh \
+   ~/Dev/DigitalSanctum/seed_template_wix_11ty.py \
+   ~/Dev/DigitalSanctum/sanctum-web/sweep_toast.py
 
-# Recon for The Blueprint — router
-grep -n "^@router" ~/Dev/DigitalSanctum/sanctum-core/app/routers/projects.py
+# Recon — Item 1 (Layout header unification)
+grep -n "onRefresh\|onCopyMeta\|viewMode\|toggleView" ~/Dev/DigitalSanctum/sanctum-web/src/components/Layout.jsx
+grep -n "setView\|listView\|gridView\|toggleView\|onRefresh" ~/Dev/DigitalSanctum/sanctum-web/src/pages/TicketDetail.jsx | head -20
+grep -n "setView\|listView\|gridView\|toggleView\|onRefresh" ~/Dev/DigitalSanctum/sanctum-web/src/pages/LibraryIndex.jsx | head -20
 
-# Recon for The Blueprint — schemas
-grep -n "class.*Create\|class.*Response" ~/Dev/DigitalSanctum/sanctum-core/app/schemas/operations.py
+# Recon — Item 2 (TicketDetail refresh bug)
+grep -n "load\|fetch\|comment\|refresh" ~/Dev/DigitalSanctum/sanctum-web/src/pages/TicketDetail.jsx | head -30
 
-# After adding models, run migration
-cd sanctum-core
-alembic revision --autogenerate -m "add_project_templates"
-alembic upgrade head
+# Recon — Item 3 (Bulk mark paid)
+grep -n "mark\|paid\|payment\|checkbox\|select" ~/Dev/DigitalSanctum/sanctum-web/src/pages/UnpaidInvoices.jsx | head -20
+grep -n "mark_paid\|bulk\|payment" ~/Dev/DigitalSanctum/sanctum-core/app/routers/invoices.py | head -20
 
-# Create tickets for sub-tasks if needed
-./scripts/dev/create_ticket.sh -e prod \
-  --project-id 335650e8-1a85-4263-9a25-4cf2ca55fb79 \
-  -m "Phase 64: The Blueprint" \
-  --type feature -s "Your subject"
+# Recon — Item 5 (ClientDetail asset bug)
+grep -n "asset\|Asset\|modal\|Modal\|addAsset" ~/Dev/DigitalSanctum/sanctum-web/src/pages/ClientDetail.jsx | head -30
 ```
