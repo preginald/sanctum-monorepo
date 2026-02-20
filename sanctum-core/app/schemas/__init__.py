@@ -8,7 +8,7 @@ from .billing import (
     ProductCreate, ProductUpdate, ProductResponse, 
     InvoiceItemCreate, InvoiceItemUpdate, InvoiceItemSchema, 
     InvoiceDeliveryLogResponse, InvoiceSendRequest, 
-    InvoiceUpdate, InvoiceResponse
+    InvoiceUpdate, InvoiceResponse, BulkMarkPaidRequest, BulkMarkPaidRecipient
 )
 from .crm import (
     AccountCreate, AccountUpdate, AccountResponse, 

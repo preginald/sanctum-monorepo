@@ -54,6 +54,18 @@ class InvoiceDeliveryLogResponse(SanctumBase):
     status: str
     sender_name: Optional[str] = None
 
+class BulkMarkPaidRecipient(SanctumBase):
+    invoice_id: str
+    email: str
+    cc_emails: list[str] = []
+
+class BulkMarkPaidRequest(SanctumBase):
+    invoice_ids: list[str]
+    payment_method: str
+    paid_at: datetime
+    send_receipt: bool = False
+    recipients: list[BulkMarkPaidRecipient] = []
+
 class InvoiceSendRequest(SanctumBase):
     to_email: str # EmailStr
     cc_emails: List[str] = []

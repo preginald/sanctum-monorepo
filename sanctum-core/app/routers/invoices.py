@@ -107,6 +107,78 @@ def get_unpaid_invoices(
         "invoices": result
     }
 
+@router.post("/bulk-mark-paid", tags=["Invoices"])
+def bulk_mark_paid(
+    request: schemas.BulkMarkPaidRequest,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Atomically mark multiple invoices as paid and optionally send receipts."""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin only.")
+
+    updated = []
+    for invoice_id in request.invoice_ids:
+        inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
+        if not inv:
+            continue
+        if inv.status == 'paid':
+            continue
+        inv.status = 'paid'
+        inv.paid_at = request.paid_at
+        inv.payment_method = request.payment_method
+        updated.append(inv)
+
+    db.commit()
+
+    # Send receipts if requested
+    recipient_map = {r.invoice_id: r for r in request.recipients}
+    emails_sent = 0
+    emails_failed = 0
+    if request.send_receipt:
+        for inv in updated:
+            db.refresh(inv)
+            recipient = recipient_map.get(str(inv.id))
+            to_email = (recipient.email if recipient else None) or (inv.account.billing_email if inv.account else None)
+            if to_email:
+                try:
+                    regenerate_pdf_file(inv, db)
+                    cwd = os.getcwd()
+                    filename = f"invoice_{inv.id}.pdf"
+                    abs_path = os.path.join(cwd, "app/static/reports", filename)
+                    attachments = []
+                    if os.path.exists(abs_path):
+                        with open(abs_path, "rb") as f:
+                            attachments = [{"filename": filename, "content": list(f.read()), "type": "application/pdf"}]
+                    context = {
+                        "client_name": inv.account.name,
+                        "invoice_number": str(inv.id)[:8].upper(),
+                        "issue_date": inv.generated_at.strftime("%d %b %Y") if inv.generated_at else "",
+                        "date_label": "Paid On",
+                        "date_value": inv.paid_at.strftime("%d %b %Y") if inv.paid_at else "Paid",
+                        "amount_label": "Amount Paid",
+                        "amount_color": "#059669",
+                        "total_amount": f"{float(inv.total_amount or 0):,.2f}",
+                        "custom_message": "Thank you for your payment. A receipt is attached for your records.",
+                        "status_banner": "PAID",
+                    }
+                    recipient = recipient_map.get(str(inv.id))
+                    cc = recipient.cc_emails if recipient else []
+                    email_service.send_template(
+                        to_email=to_email,
+                        subject=f"Payment Receipt — Invoice #{str(inv.id)[:8].upper()}",
+                        template_name="invoice_notice.html",
+                        context=context,
+                        cc_emails=cc,
+                        attachments=attachments
+                    )
+                    emails_sent += 1
+                except Exception as e:
+                    print(f"Receipt email failed for {inv.id}: {e}")
+                    emails_failed += 1
+
+    return {"updated": len(updated), "invoice_ids": [str(i.id) for i in updated], "emails_sent": emails_sent, "emails_failed": emails_failed}
+
 @router.post("/from_ticket/{ticket_id}", response_model=schemas.InvoiceResponse)
 def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     # 1. Fetch Ticket
