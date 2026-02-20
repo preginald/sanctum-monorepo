@@ -14,6 +14,7 @@ while [[ $# -gt 0 ]]; do
         -d|--description) DESCRIPTION="$2"; shift 2 ;;
         -p|--project)     PROJECT_NAME="$2"; shift 2 ;;
         -m|--milestone)   MILESTONE_NAME="$2"; shift 2 ;;
+        --project-id)     PROJECT_ID="$2"; shift 2 ;;
         -a|--account)     ACCOUNT_NAME="$2"; shift 2 ;;
         -e|--env)         ENV="$2"; shift 2 ;;
         --priority)       PRIORITY="$2"; shift 2 ;;
@@ -44,7 +45,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 [ -z "$SUBJECT" ] && echo -e "${RED}✗ --subject is required${NC}" && exit 1
-[ -z "$PROJECT_NAME" ] && [ -z "$ACCOUNT_NAME" ] && echo -e "${RED}✗ Either --project or --account is required${NC}" && exit 1
+[ -z "$PROJECT_NAME" ] && [ -z "$ACCOUNT_NAME" ] && [ -z "$PROJECT_ID" ] && echo -e "${RED}✗ Either --project, --project-id, or --account is required${NC}" && exit 1
 
 # Init
 resolve_env "$ENV"
@@ -52,10 +53,23 @@ print_env_banner "Sanctum Ticket Creator"
 ensure_auth
 
 # Resolve entities
-ACCOUNT_ID=""; PROJECT_ID=""; MILESTONE_ID=""
+ACCOUNT_ID=""; MILESTONE_ID=""
 PROJECT_DISPLAY=""; MILESTONE_DISPLAY=""
 
-if [ -n "$PROJECT_NAME" ]; then
+if [ -n "$PROJECT_ID" ]; then
+    echo -e "${YELLOW}→ Fetching project...${NC}"
+    PROJECT_DETAIL=$(api_get "/projects/${PROJECT_ID}")
+    ACCOUNT_ID=$(echo "$PROJECT_DETAIL" | jq -r '.account_id // empty')
+    PROJECT_DISPLAY=$(echo "$PROJECT_DETAIL" | jq -r '.name // empty')
+    if [ -z "$ACCOUNT_ID" ]; then
+        echo -e "${RED}✗ Could not resolve project: ${PROJECT_ID}${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}  ✓ ${PROJECT_DISPLAY}${NC}"
+    if [ -n "$MILESTONE_NAME" ]; then
+        resolve_milestone "$MILESTONE_NAME" "$PROJECT_ID" || exit 1
+    fi
+elif [ -n "$PROJECT_NAME" ]; then
     resolve_project "$PROJECT_NAME" || exit 1
 
     if [ -n "$MILESTONE_NAME" ]; then
