@@ -10,12 +10,13 @@ export default function AssetLifecycle() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [data, setData] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [days, setDays] = useState(90);
   const [creatingTicket, setCreatingTicket] = useState(null);
 
-  useEffect(() => { fetchData(); }, [days]);
+  useEffect(() => { fetchData(); }, [days, refreshKey]);
 
   const fetchData = async () => {
     if (data) setRefreshing(true); else setLoading(true);
@@ -49,12 +50,12 @@ export default function AssetLifecycle() {
     return <span className="px-2 py-1 rounded text-[10px] font-bold uppercase bg-yellow-500/20 text-yellow-400">{asset.days_until_expiry}d left</span>;
   };
 
-  if (loading && !data) return <Layout title="Asset Lifecycle"><div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div></Layout>;
+  if (loading && !data) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Asset Lifecycle"><div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div></Layout>;
 
   const { total, expired_count, expiring_count, assets } = data || { total: 0, expired_count: 0, expiring_count: 0, assets: [] };
 
   return (
-    <Layout title="Asset Lifecycle">
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Asset Lifecycle">
 
       {/* SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">

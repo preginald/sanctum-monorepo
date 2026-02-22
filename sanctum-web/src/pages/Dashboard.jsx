@@ -10,7 +10,7 @@ export default function Dashboard() {
   const isClient = user?.role === 'client';
 
   return (
-    <Layout title={isClient ? "Client Portal" : "Command Center"}>
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title={isClient ? "Client Portal" : "Command Center"}>
       {isClient ? (
         <ClientDashboard user={user} />
       ) : (

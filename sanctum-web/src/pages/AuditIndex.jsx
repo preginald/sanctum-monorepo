@@ -10,12 +10,13 @@ export default function AuditIndex() {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const [audits, setAudits] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [clients, setClients] = useState({});
   const [loading, setLoading] = useState(true);
 
   const isAdmin = user?.role !== 'client';
 
-  useEffect(() => { fetchData(); }, [token]);
+  useEffect(() => { fetchData(); }, [token, refreshKey]);
 
 const fetchData = async () => {
   try {
@@ -54,7 +55,7 @@ const fetchData = async () => {
 };
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="Audit Registry"
       subtitle="Compliance assessments and security audits"
       actions={isAdmin ? (

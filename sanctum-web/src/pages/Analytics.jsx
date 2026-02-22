@@ -7,6 +7,7 @@ import { formatCurrency } from '../lib/formatters';
 
 export default function Analytics() {
   const [revenue, setRevenue] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -19,12 +20,12 @@ export default function Analytics() {
           setAssets(assRes.data);
           setLoading(false);
       });
-  }, []);
+  }, [refreshKey]);
 
-  if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
+  if (loading) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout title="The Oracle">
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="The Oracle">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
           {/* REVENUE CHART */}

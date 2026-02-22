@@ -10,6 +10,7 @@ import { useToast } from '../context/ToastContext';
 export default function AdminUserList() {
   const { addToast } = useToast();
   const [users, setUsers] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
 
@@ -21,7 +22,7 @@ export default function AdminUserList() {
   
   const [confirm, setConfirm] = useState({ isOpen: false, title: '', message: '', action: null });
 
-  useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => { fetchUsers(); }, [refreshKey]);
 
   const fetchUsers = async () => {
       try {
@@ -66,10 +67,10 @@ export default function AdminUserList() {
       } catch(e) { addToast("Failed to remove user", "danger"); }
   };
 
-  if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
+  if (loading) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="Staff Roster"
       subtitle="Manage access and roles"
       actions={

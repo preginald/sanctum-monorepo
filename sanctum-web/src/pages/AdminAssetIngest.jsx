@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 
 export default function AdminAssetIngest() {
     const [accounts, setAccounts] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
     const [selectedAccount, setSelectedAccount] = useState('');
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(null);
@@ -16,7 +17,7 @@ export default function AdminAssetIngest() {
             setAccounts(res.data);
             setLoading(false);
         });
-    }, []);
+    }, [refreshKey]);
 
     // 1. Ensure we compare as strings to avoid type mismatches
     const account = accounts.find(a => String(a.id) === String(selectedAccount));
@@ -64,7 +65,7 @@ curl -X POST "$API" -H "Content-Type: application/json" -d "$PAYLOAD"`
     };
 
     return (
-        <Layout title="The Ingest Agent">
+        <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="The Ingest Agent">
             <div className="max-w-4xl mx-auto space-y-6">
                 <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl shadow-2xl">
                     <h2 className="text-xl font-bold flex items-center gap-2 mb-4 text-sanctum-blue">

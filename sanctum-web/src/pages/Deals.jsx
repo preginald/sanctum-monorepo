@@ -23,6 +23,7 @@ export default function Deals() {
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const [deals, setDeals] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
@@ -31,7 +32,7 @@ export default function Deals() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', title: '', amount: 0 });
 
-  useEffect(() => { fetchDeals(); }, [token]);
+  useEffect(() => { fetchDeals(); }, [token, refreshKey]);
 
   const fetchDeals = async () => {
     try {
@@ -82,7 +83,7 @@ export default function Deals() {
   const formatCurrency = (val) => new Intl.NumberFormat('en-AU', { style: 'currency', currency: 'AUD' }).format(val);
 
   return (
-    <Layout title="Revenue Pipeline">
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Revenue Pipeline">
       
       <div className="flex justify-between items-center mb-6">
         <div>

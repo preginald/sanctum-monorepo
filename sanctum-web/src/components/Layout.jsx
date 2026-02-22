@@ -86,6 +86,8 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
   };
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
 
   return (
     <div className={`flex flex-col h-screen w-screen ${bgColors} ${textColors} overflow-hidden`}>
@@ -106,8 +108,8 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
         <div className="flex items-center gap-2 md:gap-4 w-auto md:w-64 justify-end">
             {(onRefresh || onViewToggle || onCopyMeta) && (
                 <div className="flex items-center gap-1 border-r border-white/10 pr-4 mr-0">
-                    {onCopyMeta && (<button onClick={() => { const text = onCopyMeta(); navigator.clipboard.writeText(text); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Copy metadata"><Copy size={16} /></button>)}
-                    {onRefresh && (<button onClick={() => { const btn = document.activeElement; btn?.classList.add('animate-spin'); onRefresh(); setTimeout(() => btn?.classList.remove('animate-spin'), 600); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Refresh"><RefreshCw size={16} /></button>)}
+                    {onCopyMeta && (<button onClick={() => { const text = onCopyMeta(); navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Copy metadata">{copied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}</button>)}
+                    {onRefresh && (<button onClick={() => { setIsSpinning(true); onRefresh(); setTimeout(() => setIsSpinning(false), 600); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Refresh"><RefreshCw size={16} className={isSpinning ? 'animate-spin' : ''} /></button>)}
                     {viewToggleOptions.length > 0 && onViewToggle && (<div className="hidden md:flex bg-slate-800 rounded p-1 border border-slate-700 ml-1">{viewToggleOptions.map(opt => (<button key={opt.value} onClick={() => onViewToggle(opt.value)} className={`p-1.5 rounded transition-colors ${viewMode === opt.value ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`} title={opt.value}>{opt.icon}</button>))}</div>)}
                 </div>
             )}
@@ -133,10 +135,10 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                                 <p className="text-sm text-white truncate font-mono">{user?.email || 'admin'}</p>
                             </div>
                             <button 
-                                onClick={() => { setShowProfileMenu(false); navigate('/settings'); }} 
+                                onClick={() => { setShowProfileMenu(false); window.location.href = 'https://core.digitalsanctum.com.au/profile'; }} 
                                 className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
                             >
-                                Settings
+                                Profile
                             </button>
                             <div className="border-t border-white/5 mt-1 pt-1">
                                 <button 

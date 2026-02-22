@@ -7,13 +7,14 @@ import { Loader2, ChevronLeft, ChevronRight, Clock, Calendar } from 'lucide-reac
 export default function TimesheetView() {
   const navigate = useNavigate();
   const [offset, setOffset] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchWeek(); }, [offset]);
+  useEffect(() => { fetchWeek(); }, [offset, refreshKey]);
 
   const fetchWeek = async () => {
-    setLoading(true);
+    if (!data) setLoading(true);
     try {
         const res = await api.get(`/timesheets/my-week?offset=${offset}`);
         setData(res.data);
@@ -26,7 +27,7 @@ export default function TimesheetView() {
   };
 
   return (
-    <Layout title="My Timesheet">
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="My Timesheet">
       
       {/* HEADER CONTROLS */}
       <div className="flex justify-between items-center mb-8">

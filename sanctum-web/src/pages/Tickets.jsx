@@ -28,6 +28,7 @@ const COLUMNS = {
 };
 
 export default function Tickets({ autoCreate = false }) { 
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const { addToast } = useToast();
@@ -44,7 +45,7 @@ export default function Tickets({ autoCreate = false }) {
 
   const isAdmin = user?.role !== 'client';
 
-  useEffect(() => { fetchData(); }, [token]);
+  useEffect(() => { fetchData(); }, [token, refreshKey]);
 
   // DATA FETCHING
   const fetchData = async () => {
@@ -70,7 +71,7 @@ export default function Tickets({ autoCreate = false }) {
     if (autoCreate) {
         handleOpenModal();
     }
-  }, [autoCreate]); // Depend on autoCreate only to prevent loops
+  }, [autoCreate, refreshKey]); // Depend on autoCreate only to prevent loops
 
   const handleSort = (key) => {
       let direction = 'asc';
@@ -103,7 +104,7 @@ export default function Tickets({ autoCreate = false }) {
         });
       }
       return items;
-  }, [filteredTickets, sortConfig]);
+  }, [filteredTickets, sortConfig, refreshKey]);
 
   const onDragEnd = async (result) => {
     const { destination, draggableId } = result;
@@ -125,14 +126,14 @@ export default function Tickets({ autoCreate = false }) {
 
   if (loading) {
       return (
-          <Layout title="Service Desk">
+          <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Service Desk">
               <Loading message="Synchronizing Tickets..." />
           </Layout>
       );
   }
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="Service Desk"
       subtitle="Ticket management and operations"
       actions={isAdmin ? (

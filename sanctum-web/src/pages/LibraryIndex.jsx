@@ -20,6 +20,7 @@ import {
 } from "../components/ui/Table";
 
 export default function LibraryIndex() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +28,7 @@ export default function LibraryIndex() {
 
   useEffect(() => {
     localStorage.setItem("kb_view_mode", viewMode);
-  }, [viewMode]);
+  }, [viewMode, refreshKey]);
   
   // Selection State
   const [selectedIds, setSelectedIds] = useState([]);
@@ -35,7 +36,7 @@ export default function LibraryIndex() {
 
   useEffect(() => {
     loadArticles();
-  }, []);
+  }, [refreshKey]);
 
   const loadArticles = () => {
     setLoading(true);
@@ -152,10 +153,10 @@ export default function LibraryIndex() {
     );
   };
 
-  if (loading && !articles.length) return <Layout title="Loading..."><div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div></Layout>;
+  if (loading && !articles.length) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Loading..."><div className="flex justify-center p-12"><Loader2 className="animate-spin" /></div></Layout>;
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="The Library"
       subtitle="SOPs, templates, wiki articles, and troubleshooting guides"
       actions={renderActions()}

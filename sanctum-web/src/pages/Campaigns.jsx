@@ -20,6 +20,7 @@ export default function Campaigns() {
   const { token } = useAuthStore();
   const { addToast } = useToast();
   const [campaigns, setCampaigns] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'email', brand_affinity: 'ds' });
@@ -33,7 +34,7 @@ export default function Campaigns() {
       finally { setLoading(false); }
     };
     if (token) fetch();
-  }, [token]);
+  }, [token, refreshKey]);
 
   const handleCreate = async (e) => {
       e.preventDefault();
@@ -48,14 +49,14 @@ export default function Campaigns() {
 
   if (loading) {
     return (
-      <Layout title="The War Room">
+      <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="The War Room">
         <Loading />
       </Layout>
     );
   }
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="The War Room"
       subtitle="Campaign management and outreach operations"
       actions={

@@ -8,6 +8,7 @@ import ConfirmationModal from '../components/ui/ConfirmationModal';
 import AutomationModal from '../components/automations/AutomationModal';
 
 export default function AdminAutomationList() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('rules'); // 'rules' | 'logs'
   
@@ -29,11 +30,11 @@ export default function AdminAutomationList() {
 
   useEffect(() => { 
       fetchRules(); 
-  }, []);
+  }, [refreshKey]);
 
   useEffect(() => {
       if (activeTab === 'logs') fetchLogs();
-  }, [activeTab]);
+  }, [activeTab, refreshKey]);
 
   const fetchRules = async () => {
       try {
@@ -83,10 +84,10 @@ export default function AdminAutomationList() {
       } catch(e) { addToast("Failed to delete", "danger"); }
   };
 
-  if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
+  if (loading) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="The Weaver"
       subtitle="Event-driven workflows and triggers"
       actions={activeTab === 'rules' ? (

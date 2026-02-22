@@ -9,7 +9,7 @@ import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { useToast } from '../context/ToastContext';
 
 export default function ArticleDetail() {
-  const handleRefresh = () => { setLoading(true); setRefreshKey(prev => prev + 1); };
+  const handleRefresh = () => { setRefreshKey(prev => prev + 1); };
   const handleCopyMeta = () => {
     if (!article) return "";
     return `#${article.identifier || article.id} — ${article.title}

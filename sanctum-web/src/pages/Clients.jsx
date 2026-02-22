@@ -21,6 +21,7 @@ export default function Clients() {
   const { token, user } = useAuthStore();
   const { addToast } = useToast();
   const [accounts, setAccounts] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'business', brand_affinity: 'ds' });
@@ -36,7 +37,7 @@ export default function Clients() {
       finally { setLoading(false); }
     };
     if (token) fetchAccounts();
-  }, [token]);
+  }, [token, refreshKey]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -52,14 +53,14 @@ export default function Clients() {
 
   if (loading) {
     return (
-      <Layout title="Client Registry">
+      <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Client Registry">
         <Loading />
       </Layout>
     );
   }
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="Client Registry"
       subtitle="Accounts, contacts, and relationship management"
       actions={isAdmin ? (

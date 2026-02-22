@@ -98,6 +98,7 @@ const ProjectBoardView = ({ projects, onNavigate, onDragEnd }) => (
 
 // --- MAIN COMPONENT ---
 export default function ProjectIndex() {
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
   const { token } = useAuthStore();
   const { addToast } = useToast();
@@ -114,7 +115,7 @@ export default function ProjectIndex() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
 
-  useEffect(() => { fetchData(); }, [token]);
+  useEffect(() => { fetchData(); }, [token, refreshKey]);
 
   // Handle View Toggle & Save
   const handleViewChange = (mode) => {
@@ -169,10 +170,10 @@ export default function ProjectIndex() {
     } 
   };
 
-  if (loading) return <Layout title="Project Governance"><Loading /></Layout>;
+  if (loading) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Project Governance"><Loading /></Layout>;
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="Project Governance"
       viewMode={viewMode}
       onViewToggle={handleViewChange}

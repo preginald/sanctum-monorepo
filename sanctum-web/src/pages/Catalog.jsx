@@ -17,6 +17,7 @@ export default function Catalog() {
   const { user } = useAuthStore();
   const { addToast } = useToast();
   const [products, setProducts] = useState([]);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   
   // EDIT STATE: null = hidden, 'new' = create mode, object = edit mode
@@ -33,7 +34,7 @@ export default function Catalog() {
 
   const isAdmin = user?.scope === 'global';
 
-  useEffect(() => { fetchProducts(); }, []);
+  useEffect(() => { fetchProducts(); }, [refreshKey]);
 
   const fetchProducts = async () => {
     try {
@@ -105,14 +106,14 @@ export default function Catalog() {
 
   if (loading) {
     return (
-      <Layout title="Service & Hardware Catalog">
+      <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Service & Hardware Catalog">
         <Loading />
       </Layout>
     );
   }
 
   return (
-    <Layout
+    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
       title="Service & Hardware Catalog"
       subtitle="Products, services, and recurring billing items"
       actions={isAdmin && !editMode ? (
