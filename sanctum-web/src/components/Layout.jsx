@@ -85,10 +85,12 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
     );
   };
 
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
   return (
     <div className={`flex flex-col h-screen w-screen ${bgColors} ${textColors} overflow-hidden`}>
       <header className={`h-16 flex items-center justify-between px-4 border-b border-white/10 ${isNaked ? 'bg-white' : 'bg-slate-900'} z-30 shrink-0`}>
-        <div className="flex items-center gap-4 w-64">
+        <div className="flex items-center gap-2 md:gap-4 w-auto md:w-64">
             <button onClick={() => setDrawerOpen(true)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
                 <Menu size={24} />
             </button>
@@ -98,29 +100,60 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                 </span>
             </div>
         </div>
-        <div className="flex-1 max-w-2xl px-4">
+        <div className="flex-1 px-2 md:px-8">
             <GlobalSearch />
         </div>
-        <div className="flex items-center gap-4 w-64 justify-end">
+        <div className="flex items-center gap-2 md:gap-4 w-auto md:w-64 justify-end">
             {(onRefresh || onViewToggle || onCopyMeta) && (
                 <div className="flex items-center gap-1 border-r border-white/10 pr-4 mr-0">
                     {onCopyMeta && (<button onClick={() => { const text = onCopyMeta(); navigator.clipboard.writeText(text); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Copy metadata"><Copy size={16} /></button>)}
                     {onRefresh && (<button onClick={() => { const btn = document.activeElement; btn?.classList.add('animate-spin'); onRefresh(); setTimeout(() => btn?.classList.remove('animate-spin'), 600); }} className="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-sanctum-gold" title="Refresh"><RefreshCw size={16} /></button>)}
-                    {viewToggleOptions.length > 0 && onViewToggle && (<div className="flex bg-slate-800 rounded p-1 border border-slate-700 ml-1">{viewToggleOptions.map(opt => (<button key={opt.value} onClick={() => onViewToggle(opt.value)} className={`p-1.5 rounded transition-colors ${viewMode === opt.value ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`} title={opt.value}>{opt.icon}</button>))}</div>)}
+                    {viewToggleOptions.length > 0 && onViewToggle && (<div className="hidden md:flex bg-slate-800 rounded p-1 border border-slate-700 ml-1">{viewToggleOptions.map(opt => (<button key={opt.value} onClick={() => onViewToggle(opt.value)} className={`p-1.5 rounded transition-colors ${viewMode === opt.value ? "bg-slate-600 text-white" : "text-slate-400 hover:text-white"}`} title={opt.value}>{opt.icon}</button>))}</div>)}
                 </div>
             )}
             <NotificationBell />
-            <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${buttonClass} text-white`}>
-                {scope}
+            
+            <div className="relative">
+                <button 
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className="flex items-center gap-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors group focus:outline-none" 
+                    title="Profile"
+                >
+                    <div className="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:border-sanctum-gold group-hover:text-sanctum-gold transition-colors">
+                        {user?.full_name?.split(' ').map(n => n[0]).join('').slice(0,2) || '?'}
+                    </div>
+                </button>
+
+                {showProfileMenu && (
+                    <>
+                        <div className="fixed inset-0 z-40" onClick={() => setShowProfileMenu(false)} />
+                        <div className="absolute right-0 mt-2 w-48 bg-slate-800 border border-white/10 rounded-lg shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-2 duration-100">
+                            <div className="px-4 py-2 border-b border-white/5">
+                                <p className="text-xs text-slate-400 font-medium">Signed in as</p>
+                                <p className="text-sm text-white truncate font-mono">{user?.email || 'admin'}</p>
+                            </div>
+                            <button 
+                                onClick={() => { setShowProfileMenu(false); navigate('/settings'); }} 
+                                className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
+                            >
+                                Settings
+                            </button>
+                            <div className="border-t border-white/5 mt-1 pt-1">
+                                <button 
+                                    onClick={() => {
+                                        localStorage.removeItem('token');
+                                        window.location.href = '/login';
+                                    }} 
+                                    className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
+                                >
+                                    Sign Out
+                                </button>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
-            <button onClick={() => navigate('/profile')} className="flex items-center gap-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors group" title="Profile">
-                <div className="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:border-sanctum-gold group-hover:text-sanctum-gold transition-colors">
-                    {user?.full_name?.split(' ').map(n => n[0]).join('').slice(0,2) || '?'}
-                </div>
-            </button>
-            <button onClick={logout} className="p-2 hover:bg-white/10 rounded-full text-red-400 opacity-70 hover:opacity-100">
-                <LogOut size={18} />
-            </button>
+            
         </div>
       </header>
 
