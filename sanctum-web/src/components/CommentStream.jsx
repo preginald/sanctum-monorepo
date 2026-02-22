@@ -1,11 +1,37 @@
 import React, { useEffect, useState } from 'react';
-import { Send, User, Clock, MessageSquare, Lock, Globe, CheckCircle } from 'lucide-react';
+import { Search as LucideSearchIcon, CheckCircle, Send, User, Clock, MessageSquare, Lock, Globe, Shield, Check, Trash2 } from 'lucide-react';
 import api from '../lib/api';
 import SanctumMarkdown from './ui/SanctumMarkdown';
 import useAuthStore from '../store/authStore';
 import { handleSmartWrap } from '../lib/textUtils';
 
 export default function CommentStream({ resourceType, resourceId, onPromote, highlightId, refreshKey = 0 }) {
+  // --- COMMAND PALETTE LOGIC ---
+  const [embedMenu, setEmbedMenu] = useState({ active: false, query: '', startIndex: null, cursorIndex: null });
+  const [availableArticles, setAvailableArticles] = useState([]);
+  const fetchArticles = async () => {
+    try { const res = await api.get('/articles'); setAvailableArticles(res.data); } 
+    catch (e) { console.error(e); }
+  };
+  const handleBodyChange = (e) => {
+    const val = e.target.value;
+    setNewBody(val); // Update the existing local body state
+    const cursor = e.target.selectionStart;
+    const match = val.substring(0, cursor).match(/\{\{article:([^\}]*)$/);
+    if (match) {
+      if (availableArticles.length === 0) fetchArticles();
+      setEmbedMenu({ active: true, query: match[1], startIndex: match.index, cursorIndex: cursor });
+    } else {
+      setEmbedMenu(prev => prev.active ? { active: false, query: '', startIndex: null, cursorIndex: null } : prev);
+    }
+  };
+  const insertEmbed = (identifier) => {
+    const before = newBody.substring(0, embedMenu.startIndex);
+    const after = newBody.substring(embedMenu.cursorIndex);
+    setNewBody(before + `{{article:${identifier}}}` + after);
+    setEmbedMenu({ active: false, query: '', startIndex: null, cursorIndex: null });
+  };
+
   const { user } = useAuthStore();
   const [comments, setComments] = useState([]);
   const [newBody, setNewBody] = useState('');
@@ -19,7 +45,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
     try {
       // e.g. /comments?ticket_id=123
       const param = `${resourceType}_id`; 
-      const res = await api.get(`/comments?${param}=${resourceId}`);
+      const res = await api.get(`/comments?${param}=${resourceId}&resolve_embeds=true`);
       setComments(res.data);
     } catch (e) { console.error("Failed to load comments", e); } 
     finally { setLoading(false); }
@@ -61,7 +87,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
                 rows="3"
                 placeholder={`Log ${visibility} activity... (Markdown supported)`}
                 value={newBody}
-                onChange={(e) => setNewBody(e.target.value)}
+                onChange={handleBodyChange}
                 onKeyDown={(e) => {
                     handleSmartWrap(e, newBody, setNewBody);
                     if (e.key === 'Enter' && e.metaKey) handleSubmit(e); 
@@ -128,13 +154,29 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
                     
                     {/* BODY */}
                     <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${isSolution ? 'border-green-500/30 bg-green-900/5' : (c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10')} group-hover:border-white/10 transition-colors`}>
-                        <SanctumMarkdown content={c.body} className="prose-sm" />
+                        <SanctumMarkdown content={c.resolved_body || c.body} className="prose-sm" />
                     </div>
                 </div>
                 );
             })
         )}
-      </div>
+      
+      {embedMenu.active && (
+        <div className="fixed z-[100] bg-slate-900 border border-sanctum-gold rounded-xl shadow-2xl w-80 overflow-hidden" style={{ bottom: '80px', right: '20px' }}>
+          <div className="bg-slate-800 p-2 border-b border-slate-700 flex justify-between items-center">
+            <span className="text-[10px] font-bold text-sanctum-gold uppercase tracking-tighter flex items-center gap-1"><LucideSearchIcon size={12}/> Link Wiki</span>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1">
+            {availableArticles.filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || a.identifier?.toLowerCase().includes(embedMenu.query.toLowerCase())).map(a => (
+              <div key={a.id} onClick={() => insertEmbed(a.identifier || a.slug)} className="p-2 hover:bg-white/5 cursor-pointer rounded text-xs">
+                <div className="font-bold text-white truncate">{a.title}</div>
+                <div className="text-[10px] opacity-40 font-mono">{a.identifier}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
     </div>
   );
 }

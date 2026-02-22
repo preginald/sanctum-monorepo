@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { Loader2, Save, ArrowLeft, Eye, Edit3 } from 'lucide-react';
+import { Search, Loader2, Save, ArrowLeft, Eye, Edit3 } from 'lucide-react';
 import api from '../lib/api';
 // IMPORT SHARED MARKDOWN COMPONENT
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
@@ -19,7 +19,47 @@ export default function ArticleEditor() {
   const [formData, setFormData] = useState({
     title: '', slug: '', category: 'wiki', identifier: '', version: 'v1.0', content: ''
   });
-  const [activeTab, setActiveTab] = useState('write'); 
+  const [activeTab, setActiveTab] = useState('write');
+
+
+  
+  // --- EMBED MENU LOGIC ---
+  const [embedMenu, setEmbedMenu] = useState({ active: false, query: '', startIndex: null, cursorIndex: null });
+  const [availableArticles, setAvailableArticles] = useState([]);
+
+  const fetchAvailableArticles = async () => {
+    try {
+      const res = await api.get('/articles');
+      setAvailableArticles(res.data);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleContentChange = (e) => {
+    const val = e.target.value;
+    setFormData({...formData, content: val});
+
+    const cursor = e.target.selectionStart;
+    const textBefore = val.substring(0, cursor);
+    
+    // Regex matches {{article: followed by anything EXCEPT a closing brace, anchored to the end
+    const match = textBefore.match(/\{\{article:([^\}]*)$/);
+
+    if (match) {
+      if (availableArticles.length === 0) fetchAvailableArticles();
+      setEmbedMenu({ active: true, query: match[1], startIndex: match.index, cursorIndex: cursor });
+    } else {
+      setEmbedMenu(prev => prev.active ? { active: false, query: '', startIndex: null, cursorIndex: null } : prev);
+    }
+  };
+
+  const insertEmbed = (identifier) => {
+    const before = formData.content.substring(0, embedMenu.startIndex);
+    const after = formData.content.substring(embedMenu.cursorIndex);
+    const newContent = before + `{{article:${identifier}}}` + after;
+    setFormData({...formData, content: newContent});
+    setEmbedMenu({ active: false, query: '', startIndex: null, cursorIndex: null });
+  };
+ 
 
   useEffect(() => {
     if (id) {
@@ -66,9 +106,35 @@ export default function ArticleEditor() {
       }
   };
 
-  if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
-
-  return (
+  if (loading) return <Layout title="Loading..."><Loader2 className="animate-spin"/>
+        {embedMenu.active && (
+          <div className="fixed z-[100] bg-slate-900 border border-sanctum-gold rounded-xl shadow-2xl w-96 overflow-hidden animate-in slide-in-from-bottom-4" style={{ bottom: '2rem', right: '2rem' }}>
+            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+              <span className="text-xs font-bold text-sanctum-gold uppercase tracking-widest flex items-center gap-2">
+                <Search size={14} /> Embed Article
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Query: {embedMenu.query || '*'}</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto p-2">
+              {availableArticles
+                .filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase())))
+                .map(a => (
+                  <div 
+                    key={a.id} 
+                    onClick={() => insertEmbed(a.identifier || a.slug)} 
+                    className="p-3 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-transparent hover:border-white/20 mb-1"
+                  >
+                    <div className="font-bold text-white text-sm mb-1">{a.title}</div>
+                    <div className="text-xs text-slate-400 font-mono">{a.identifier} • {a.category}</div>
+                  </div>
+              ))}
+              {availableArticles.filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase()))).length === 0 && (
+                  <div className="p-4 text-center text-sm text-slate-500 italic">No articles found matching "{embedMenu.query}"</div>
+              )}
+            </div>
+          </div>
+        )}
+    </Layout>;return (
     <Layout title={id ? "Edit Article" : "New Article"}>
       <form onSubmit={handleSave} className="h-[calc(100vh-140px)] flex flex-col">
           
@@ -129,7 +195,7 @@ export default function ArticleEditor() {
   className="flex-1 w-full bg-transparent p-6 text-slate-300 font-mono text-sm outline-none resize-none" 
   placeholder="# Start writing your SOP here..."
   value={formData.content}
-  onChange={e => setFormData({...formData, content: e.target.value})}
+  onChange={handleContentChange}
   // NEW: Add onKeyDown handler
   onKeyDown={(e) => handleSmartWrap(e, formData.content, (v) => setFormData({...formData, content: v}))}
 />
@@ -142,6 +208,34 @@ export default function ArticleEditor() {
           </div>
 
       </form>
+    
+        {embedMenu.active && (
+          <div className="fixed z-[100] bg-slate-900 border border-sanctum-gold rounded-xl shadow-2xl w-96 overflow-hidden animate-in slide-in-from-bottom-4" style={{ bottom: '2rem', right: '2rem' }}>
+            <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
+              <span className="text-xs font-bold text-sanctum-gold uppercase tracking-widest flex items-center gap-2">
+                <Search size={14} /> Embed Article
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">Query: {embedMenu.query || '*'}</span>
+            </div>
+            <div className="max-h-64 overflow-y-auto p-2">
+              {availableArticles
+                .filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase())))
+                .map(a => (
+                  <div 
+                    key={a.id} 
+                    onClick={() => insertEmbed(a.identifier || a.slug)} 
+                    className="p-3 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-transparent hover:border-white/20 mb-1"
+                  >
+                    <div className="font-bold text-white text-sm mb-1">{a.title}</div>
+                    <div className="text-xs text-slate-400 font-mono">{a.identifier} • {a.category}</div>
+                  </div>
+              ))}
+              {availableArticles.filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase()))).length === 0 && (
+                  <div className="p-4 text-center text-sm text-slate-500 italic">No articles found matching "{embedMenu.query}"</div>
+              )}
+            </div>
+          </div>
+        )}
     </Layout>
   );
 }

@@ -1,16 +1,51 @@
+import api from '../../lib/api';
 import React, { useMemo, useState } from 'react';
-import { StatusBadge, PriorityBadge } from './TicketBadges';
+import {  StatusBadge, PriorityBadge } from './TicketBadges';
 import SanctumMarkdown from '../ui/SanctumMarkdown';
-import { TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
-import { handleSmartWrap } from '../../lib/textUtils';
+import {  TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
+import {  handleSmartWrap } from '../../lib/textUtils';
 import SearchableSelect from '../ui/SearchableSelect';
-import { User, Briefcase, X, Plus, ShieldCheck } from 'lucide-react';
+import { Search as LucideSearchIcon,  User, Briefcase, X, Plus, ShieldCheck } from 'lucide-react';
 
 export default function TicketOverview({ 
   ticket, isEditing, formData, setFormData, contacts, accountProjects, techs, 
   onLinkContact, onUnlinkContact, onUpdateTech, showQuickTech, setShowQuickTech,
   showQuickMilestone, setShowQuickMilestone, onUpdateMilestone
 }) {
+
+  // --- COMMAND PALETTE LOGIC ---
+  const [embedMenu, setEmbedMenu] = React.useState({ active: false, query: '', startIndex: null, cursorIndex: null });
+  const [availableArticles, setAvailableArticles] = React.useState([]);
+  
+  const fetchArticles = async () => {
+    try { const res = await api.get('/articles'); setAvailableArticles(res.data); } 
+    catch (e) { console.error(e); }
+  };
+  
+  const handleDescriptionChange = (e) => {
+    const val = e.target.value;
+    console.log("[Wiretap] Typing detected. Length:", val.length);
+    setFormData({ ...formData, description: val });
+    
+    const cursor = e.target.selectionStart;
+    const match = val.substring(0, cursor).match(/\{\{article:([^\}]*)$/);
+    console.log("[Wiretap] Regex match result:", match ? "SUCCESS" : "FAILED");
+    
+    if (match) {
+      console.log("[Wiretap] Trigger activated! Fetching articles...");
+      if (availableArticles.length === 0) fetchArticles();
+      setEmbedMenu({ active: true, query: match[1], startIndex: match.index, cursorIndex: cursor });
+    } else {
+      setEmbedMenu(prev => prev.active ? { active: false, query: '', startIndex: null, cursorIndex: null } : prev);
+    }
+  };
+  
+  const insertEmbed = (identifier) => {
+    const before = formData.description.substring(0, embedMenu.startIndex);
+    const after = formData.description.substring(embedMenu.cursorIndex);
+    setFormData({ ...formData, description: before + `{{article:${identifier}}}` + after });
+    setEmbedMenu({ active: false, query: '', startIndex: null, cursorIndex: null });
+  };
   
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
   const formatInputDate = (d) => d ? d.slice(0, 16) : ''; 
@@ -186,7 +221,7 @@ if (!isEditing) {
 </div>
         
         <div className="pt-2 border-t border-slate-800 text-sm text-gray-300 leading-relaxed">
-            <SanctumMarkdown content={ticket.description || 'No description provided.'} />
+            <SanctumMarkdown content={ticket.resolved_description || ticket.description || "No description provided."} />
         </div>
         
         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-[10px] font-mono uppercase tracking-tighter opacity-40">
@@ -198,7 +233,7 @@ if (!isEditing) {
             <div className="pt-4 border-t border-slate-800">
                 <label className="text-xs uppercase opacity-50 block mb-2 text-green-400 font-bold">Official Resolution</label>
                 <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl text-sm text-gray-300">
-                    <SanctumMarkdown content={ticket.resolution} />
+                    <SanctumMarkdown content={ticket.resolved_description || ticket.description || "No description provided."} />
                 </div>
             </div>
         )}
@@ -236,7 +271,29 @@ if (!isEditing) {
             <div><label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Opened</label><input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formatInputDate(formData.created_at)} onChange={e => setFormData({...formData, created_at: e.target.value})} /></div>
             <div><label className="block text-xs uppercase opacity-50 mb-1 text-yellow-400">Closed</label><input type="datetime-local" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formatInputDate(formData.closed_at)} onChange={e => setFormData({...formData, closed_at: e.target.value})} /></div>
         </div>
-        <textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} onKeyDown={(e) => handleSmartWrap(e, formData.description, (v) => setFormData({...formData, description: v}))} />
+        <div className="relative w-full z-[9998]">
+
+      {embedMenu?.active && (
+        <div className="absolute z-[9999] top-full mt-1 left-0 bg-slate-900 border border-sanctum-gold rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+          <div className="bg-slate-800 p-2 border-b border-slate-700 flex justify-between items-center">
+            <span className="text-[10px] font-bold text-sanctum-gold uppercase tracking-tighter flex items-center gap-1"><LucideSearchIcon size={12}/> Link Wiki Article</span>
+          </div>
+          <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+            {availableArticles.filter(a => 
+              a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || 
+              (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase()))
+            ).map(a => (
+              <div key={a.id} onMouseDown={(e) => { e.preventDefault(); insertEmbed(a.identifier || a.slug); }} className="p-2 hover:bg-white/10 cursor-pointer rounded text-xs transition-colors">
+                <div className="font-bold text-white truncate">{a.title}</div>
+                <div className="text-[10px] opacity-40 font-mono">{a.identifier || a.slug}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+<textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white font-mono text-sm" value={formData.description} onChange={handleDescriptionChange} onKeyDown={(e) => handleSmartWrap(e, formData.description, (v) => setFormData({...formData, description: v}))} />
+</div>
         {formData.status === 'resolved' && <textarea className="w-full p-3 h-32 rounded bg-black/40 border border-slate-600 text-white" value={formData.resolution} onChange={e => setFormData({...formData, resolution: e.target.value})} onKeyDown={(e) => handleSmartWrap(e, formData.resolution, (v) => setFormData({...formData, resolution: v}))} />}
     </div>
   );

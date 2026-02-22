@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
 import { Loader2, Save, Edit2, User, Receipt, Briefcase, BookOpen, Link as LinkIcon, X, CheckCircle, Columns, Rows, Server, Plus, Check } from 'lucide-react';
 import api from '../lib/api';
+import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { ticketTypeStyles, ticketStatusStyles, priorityStyles } from '../lib/statusStyles';
 import { TicketTypeIcon, StatusBadge, PriorityBadge } from '../components/tickets/TicketBadges';
 import { useToast } from '../context/ToastContext';
@@ -17,6 +18,19 @@ import SearchableSelect from '../components/ui/SearchableSelect';
 import InvoiceList from '../components/invoices/InvoiceList'; // NEW IMPORT
 
 export default function TicketDetail() {
+  const handleDescriptionChange = (e) => {
+    const val = e.target.value;
+    setFormData({ ...formData, description: val });
+    const cursor = e.target.selectionStart;
+    const match = val.substring(0, cursor).match(/\{\{article:([^\}]*)$/);
+    if (match) {
+      if (availableArticles.length === 0) fetchArticles();
+      setEmbedMenu({ active: true, query: match[1], startIndex: match.index, cursorIndex: cursor });
+    } else {
+      setEmbedMenu(prev => prev.active ? { active: false, query: '', startIndex: null, cursorIndex: null } : prev);
+    }
+  };
+
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
@@ -88,8 +102,8 @@ export default function TicketDetail() {
   // --- API ---
   const fetchTicket = async () => {
     try {
-      const res = await api.get('/tickets'); 
-      const target = res.data.find(t => t.id === parseInt(id));
+      const res = await api.get(`/tickets/${id}?resolve_embeds=true`);
+      const target = res.data;
       if (target) {
         setTicket(target);
         setFormData({
@@ -121,7 +135,7 @@ export default function TicketDetail() {
     if (!payload.closed_at) delete payload.closed_at;
     if (!payload.milestone_id) payload.milestone_id = null;
     try { 
-      await api.put(`/tickets/${id}`, payload); 
+      await api.put(`/tickets/${id}?resolve_embeds=true`, payload); 
       await fetchTicket(); 
       setIsEditing(false); 
       addToast("Ticket updated successfully", "success");
@@ -131,7 +145,7 @@ export default function TicketDetail() {
 
   const handleUpdateMilestone = async (milestoneId) => {
     try {
-      await api.put(`/tickets/${id}`, { milestone_id: milestoneId });
+      await api.put(`/tickets/${id}?resolve_embeds=true`, { milestone_id: milestoneId });
       addToast("Milestone updated", "success");
       fetchTicket();
     } catch (e) { addToast("Failed to update milestone", "danger"); }
@@ -139,7 +153,7 @@ export default function TicketDetail() {
 
   const handleUpdateTech = async (techId) => {
     try {
-      await api.put(`/tickets/${id}`, { assigned_tech_id: techId });
+      await api.put(`/tickets/${id}?resolve_embeds=true`, { assigned_tech_id: techId });
       addToast("Assignee updated", "success");
       fetchTicket();
     } catch (e) { addToast("Failed to update assignee", "danger"); }
@@ -156,7 +170,7 @@ export default function TicketDetail() {
     const currentContactIds = ticket.contacts?.map(c => c.id) || [];
     if (currentContactIds.includes(contactId)) return;
     try {
-      await api.put(`/tickets/${id}`, { contact_ids: [...currentContactIds, contactId] });
+      await api.put(`/tickets/${id}?resolve_embeds=true`, { contact_ids: [...currentContactIds, contactId] });
       addToast("Contact linked", "success");
       fetchTicket();
     } catch (e) { addToast("Failed to link contact", "danger"); }
@@ -172,7 +186,7 @@ export default function TicketDetail() {
     const newContactIds = ticket.contacts?.map(c => c.id).filter(cid => cid !== contactId);
     triggerConfirm("Unlink Contact?", "Remove this person from the ticket?", async () => {
       try {
-        await api.put(`/tickets/${id}`, { contact_ids: newContactIds });
+        await api.put(`/tickets/${id}?resolve_embeds=true`, { contact_ids: newContactIds });
         addToast("Contact removed", "info");
         fetchTicket();
       } catch (e) { addToast("Failed to unlink", "danger"); }
@@ -244,7 +258,7 @@ export default function TicketDetail() {
   const handleResolve = async (resolutionText) => {
       setIsSaving(true);
       try {
-          await api.put(`/tickets/${id}`, { status: 'resolved', resolution: resolutionText, closed_at: new Date().toISOString(), resolution_comment_id: resolveId });
+          await api.put(`/tickets/${id}?resolve_embeds=true`, { status: 'resolved', resolution: resolutionText, closed_at: new Date().toISOString(), resolution_comment_id: resolveId });
           await fetchTicket();
           setShowResolveModal(false);
           addToast("Ticket Resolved Successfully", "success");

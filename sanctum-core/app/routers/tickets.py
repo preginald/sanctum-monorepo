@@ -130,12 +130,34 @@ def create_ticket(
     
     return new_ticket
 
+
+@router.get("/{ticket_id}", response_model=schemas.TicketResponse)
+def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+        
+    response_data = schemas.TicketResponse.model_validate(ticket)
+    
+    if resolve_embeds:
+        try:
+            from ..services.content_engine import resolve_content
+            if response_data.description:
+                response_data.resolved_description = resolve_content(db, response_data.description)
+            for comment in response_data.comments:
+                if comment.body:
+                    comment.resolved_body = resolve_content(db, comment.body)
+        except Exception as e:
+            print(f"Content Engine failed: {e}")
+            
+    return response_data
+
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
 def update_ticket(
     ticket_id: int, 
     ticket_update: schemas.TicketUpdate, 
     background_tasks: BackgroundTasks, 
-    db: Session = Depends(get_db)
+    resolve_embeds: bool = False, db: Session = Depends(get_db)
 ):
     ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts)).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
@@ -180,7 +202,20 @@ def update_ticket(
     if ticket.status == 'resolved' and not was_resolved:
         event_bus.emit("ticket_resolved", ticket, background_tasks)
 
-    return ticket
+    response_data = schemas.TicketResponse.model_validate(ticket)
+    
+    if resolve_embeds:
+        try:
+            from ..services.content_engine import resolve_content
+            if response_data.description:
+                response_data.resolved_description = resolve_content(db, response_data.description)
+            for comment in response_data.comments:
+                if comment.body:
+                    comment.resolved_body = resolve_content(db, comment.body)
+        except Exception as e:
+            print(f"CRITICAL: Content Engine failed on save: {e}")
+            
+    return response_data
 
 @router.delete("/{ticket_id}")
 def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):

@@ -81,6 +81,7 @@ class TicketUpdate(SanctumBase):
     resolution_comment_id: Optional[UUID] = None
 
 class TicketResponse(TicketCreate):
+    resolved_description: Optional[str] = None
     id: int
     status: str
     resolution: Optional[str] = None

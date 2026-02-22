@@ -48,10 +48,12 @@ export const TICKET_TYPES = [
 
 // KNOWLEDGE BASE
 export const ARTICLE_CATEGORIES = [
-    "sop",
-    "template",
-    "wiki",
-    "troubleshooting" 
+    "Standard Operating Procedure",
+    "System Documentation",
+    "Developer Documentation",
+    "Troubleshooting Guide",
+    "General Knowledge",
+    "Template"
 ];
 
 // ASSETS (CMDB)

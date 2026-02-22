@@ -9,3 +9,95 @@ body {
   background-color: #0f172a; /* Default to Sanctum Dark */
   color: white;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * DS-EMBED: KNOWLEDGE BASE SHORTCODE STYLES
+ * ───────────────────────────────────────────────────────────────────────────── */
+
+/* Base Embed Wrapper */
+.ds-embed {
+  margin: 1.5rem 0;
+  transition: all 0.2s ease;
+}
+.ds-embed-header {
+  font-family: monospace;
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+.ds-embed-header a {
+  color: #cda434; /* sanctum-gold */
+  text-decoration: none;
+  font-weight: bold;
+}
+.ds-embed-header a:hover {
+  text-decoration: underline;
+}
+
+/* 1. SEAMLESS MODE (Floating Hover UI) */
+.embed-style-seamless .ds-embed {
+  margin: 1rem 0;
+  position: relative; /* Anchor for absolute header */
+}
+.embed-style-seamless .ds-embed-header {
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin: 0;
+  z-index: 10;
+  opacity: 0.4;
+  transition: opacity 0.2s ease;
+}
+.embed-style-seamless .ds-embed-header:hover,
+.embed-style-seamless .ds-embed-header:focus-within {
+  opacity: 1;
+}
+.embed-style-seamless .ds-embed-header a {
+  display: block;
+  max-width: 26px; /* Width of the link icon */
+  white-space: nowrap;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.9); /* slate-900 with slight transparency */
+  border: 1px solid #334155;
+  border-radius: 12px;
+  padding: 2px 6px;
+  backdrop-filter: blur(4px);
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+}
+.embed-style-seamless .ds-embed-header a:hover,
+.embed-style-seamless .ds-embed-header a:focus {
+  max-width: 400px; /* Expands to show text */
+}
+
+/* 2. CALLOUT MODE (Default) */
+.embed-style-callout .ds-embed {
+  border-left: 3px solid #334155; /* slate-700 */
+  padding-left: 1rem;
+  background: rgba(15, 23, 42, 0.3); /* slate-900 with opacity */
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+/* 3. CARD MODE */
+.embed-style-card .ds-embed {
+  border: 1px solid #334155; /* slate-700 */
+  border-radius: 0.5rem;
+  background: #0f172a; /* slate-900 */
+  overflow: hidden;
+}
+.embed-style-card .ds-embed-header {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.5rem 1rem;
+  margin-bottom: 0;
+  border-bottom: 1px solid #334155;
+}
+.embed-style-card .ds-embed-content {
+  padding: 1rem;
+}
+.embed-style-card .ds-embed-content > :first-child {
+  margin-top: 0;
+}
+.embed-style-card .ds-embed-content > :last-child {
+  margin-bottom: 0;
+}

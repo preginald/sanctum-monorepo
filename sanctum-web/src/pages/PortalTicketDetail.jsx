@@ -1,3 +1,4 @@
+import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api'; 
@@ -190,7 +191,7 @@ const PortalTicketDetail = () => {
                                     </span>
                                 </div>
                                 <div className="whitespace-pre-wrap text-sm">
-                                    {comment.body}
+                                    <SanctumMarkdown content={comment.resolved_body || comment.body} />
                                 </div>
                             </div>
                         </div>

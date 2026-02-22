@@ -7,6 +7,7 @@ from ..database import get_db
 from uuid import UUID
 import re
 import os
+from ..services.content_engine import resolve_content
 
 router = APIRouter(tags=["Wiki"])
 
@@ -79,7 +80,7 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     return articles
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
-def get_article_detail(slug: str, db: Session = Depends(get_db)):
+def get_article_detail(slug: str, resolve_embeds: bool = False, db: Session = Depends(get_db)):
     query = db.query(models.Article).options(joinedload(models.Article.author))
     try:
         uid = UUID(slug)
@@ -90,7 +91,16 @@ def get_article_detail(slug: str, db: Session = Depends(get_db)):
     if not article: raise HTTPException(status_code=404, detail="Article not found")
     
     if article.author: article.author_name = article.author.full_name
-    return article
+    
+    # Parse into Pydantic model while still attached to the session
+    # This safely loads all lazy attributes (like 'history') without DetachedInstanceError
+    response_data = schemas.ArticleResponse.model_validate(article)
+    
+    # Resolve shortcodes safely on the Pydantic object
+    if resolve_embeds and response_data.content:
+        response_data.content = resolve_content(db, response_data.content)
+        
+    return response_data
 
 @router.post("/articles", response_model=schemas.ArticleResponse)
 def create_article(article: schemas.ArticleCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):

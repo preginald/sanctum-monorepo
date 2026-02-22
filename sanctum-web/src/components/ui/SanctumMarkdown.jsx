@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
+import rehypeRaw from 'rehype-raw';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -114,6 +115,15 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
 };
 
 // --- MARKDOWN MAPPING ---
+const customSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    '*': ['className', 'style'],
+    'div': ['className', 'data-identifier']
+  }
+};
+
 const MarkdownComponents = {
     // Headers
     h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-white mt-8 mb-4 border-b border-slate-700 pb-2" {...props} />,
@@ -161,7 +171,7 @@ export default function SanctumMarkdown({ content, className="" }) {
                 components={MarkdownComponents}
                 remarkPlugins={[remarkGfm]}
                 // REF: Security - Added rehype-sanitize
-                rehypePlugins={[rehypeSanitize]}
+                rehypePlugins={[rehypeRaw, [rehypeSanitize, customSchema]]}
             >
                 {content}
             </ReactMarkdown>

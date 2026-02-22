@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X } from 'lucide-react';
+import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate } from 'lucide-react';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
@@ -17,6 +17,12 @@ export default function ArticleDetail() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('content');
+  const [embedStyle, setEmbedStyle] = useState(localStorage.getItem('ds_embed_style') || 'callout');
+
+  const handleEmbedStyleToggle = (val) => {
+    setEmbedStyle(val);
+    localStorage.setItem('ds_embed_style', val);
+  };
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailForm, setEmailForm] = useState({ to_email: '', cc_emails: '', subject: '', message: '' });
   const [sendingEmail, setSendingEmail] = useState(false);
@@ -45,7 +51,7 @@ export default function ArticleDetail() {
 
   const fetchArticle = async () => {
     try {
-        const res = await api.get(`/articles/${slug}`);
+        const res = await api.get(`/articles/${slug}?resolve_embeds=true`);
         setArticle(res.data);
         fetchHistory(res.data.id);
     } catch(e) { 
@@ -115,6 +121,13 @@ export default function ArticleDetail() {
 
   return (
     <Layout
+      viewMode={embedStyle}
+      onViewToggle={handleEmbedStyleToggle}
+      viewToggleOptions={[
+        { value: 'seamless', icon: <AlignLeft size={14} /> },
+        { value: 'callout', icon: <MessageSquare size={14} /> },
+        { value: 'card', icon: <LayoutTemplate size={14} /> }
+      ]}
       title={article.title}
       subtitle={<>{article.identifier && <span className="font-mono opacity-70">{article.identifier}</span>} • {article.category} • <span className="font-mono">{article.version}</span> • <span className="flex inline-flex items-center gap-1"><User size={12}/> {article.author_name || 'Unknown'}</span></>}
       badge={{ label: article.category, className: categoryColor(article.category) }}
@@ -150,7 +163,7 @@ export default function ArticleDetail() {
 
         {/* CONTENT TAB */}
         {activeTab === 'content' && (
-            <div className="pb-20 animate-in fade-in duration-200">
+            <div className={`pb-20 animate-in fade-in duration-200 embed-style-${embedStyle}`}>
                 <SanctumMarkdown content={article.content} />
             </div>
         )}
