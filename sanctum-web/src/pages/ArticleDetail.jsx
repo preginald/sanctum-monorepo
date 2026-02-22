@@ -9,6 +9,15 @@ import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import { useToast } from '../context/ToastContext';
 
 export default function ArticleDetail() {
+  const handleRefresh = () => { setLoading(true); setRefreshKey(prev => prev + 1); };
+  const handleCopyMeta = () => {
+    if (!article) return "";
+    return `#${article.identifier || article.id} — ${article.title}
+Status: ${article.status}
+Category: ${article.category}
+Client: Digital Sanctum HQ`;
+  };
+
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast(); // Initialize toast
@@ -16,6 +25,7 @@ export default function ArticleDetail() {
   const [article, setArticle] = useState(null);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('content');
   const [embedStyle, setEmbedStyle] = useState(localStorage.getItem('ds_embed_style') || 'callout');
 
@@ -47,7 +57,7 @@ export default function ArticleDetail() {
 
   useEffect(() => {
     fetchArticle();
-  }, [slug]);
+  }, [slug, refreshKey]);
 
   const fetchArticle = async () => {
     try {
@@ -116,11 +126,15 @@ export default function ArticleDetail() {
     return map[c] || 'bg-white/10 text-slate-300';
   };
 
-  if (loading || !article) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
+  if (loading || !article) return <Layout
+      onRefresh={handleRefresh}
+      onCopyMeta={handleCopyMeta} title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
 
   return (
     <Layout
+      onRefresh={handleRefresh}
+      onCopyMeta={handleCopyMeta}
       viewMode={embedStyle}
       onViewToggle={handleEmbedStyleToggle}
       viewToggleOptions={[
