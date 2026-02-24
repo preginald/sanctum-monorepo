@@ -133,10 +133,11 @@ def create_ticket(
 
 @router.get("/{ticket_id}", response_model=schemas.TicketResponse)
 def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session = Depends(get_db)):
-    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.account)).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-        
+
+    ticket.account_name = ticket.account.name if ticket.account else None
     response_data = schemas.TicketResponse.model_validate(ticket)
     
     if resolve_embeds:
