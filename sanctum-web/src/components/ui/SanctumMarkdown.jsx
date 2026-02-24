@@ -165,6 +165,7 @@ const MarkdownComponents = {
 
 export default function SanctumMarkdown({ content, className="" }) {
     if (!content) return null;
+    const safeContent = typeof content === 'string' ? content : String(content);
     return (
         <div className={`max-w-none ${className}`}>
             <ReactMarkdown 
@@ -173,7 +174,7 @@ export default function SanctumMarkdown({ content, className="" }) {
                 // REF: Security - Added rehype-sanitize
                 rehypePlugins={[rehypeRaw, [rehypeSanitize, customSchema]]}
             >
-                {content}
+                {safeContent}
             </ReactMarkdown>
         </div>
     );

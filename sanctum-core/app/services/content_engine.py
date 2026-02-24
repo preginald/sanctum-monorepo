@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from ..models import Article
 
-def resolve_content(db: Session, text: str, depth: int = 0, max_depth: int = 2, seen_slugs: set = None) -> str:
+def resolve_content(db: Session, text: str, portal_mode: bool = False, depth: int = 0, max_depth: int = 2, seen_slugs: set = None) -> str:
     """
     Parses text for {{article:slug}} or {{article:identifier}} shortcodes.
     Replaces them with wrapped HTML containing the embedded article content.
@@ -57,17 +57,17 @@ def resolve_content(db: Session, text: str, depth: int = 0, max_depth: int = 2, 
         branch_seen = set(seen_slugs)
         branch_seen.add(ref)
         
-        # Recursively resolve content of the embedded article
-        embedded_content = resolve_content(db, article.content, depth + 1, max_depth, branch_seen)
+        # Recursively resolve text of the embedded article
+        embedded_text = resolve_content(db, article.content, portal_mode=portal_mode, depth=depth + 1, max_depth=max_depth, seen_slugs=branch_seen)
         
         # Wrap in the Intelligence Dossier semantic HTML
         return (
-            f'\n<div class="ds-embed" data-identifier="{article.identifier or article.slug}">\n'
-            f'  <div class="ds-embed-header">\n'
-            f'    <a href="/wiki/{article.slug}">🔗 {article.title}</a>\n'
+            f'\n<div class="ds-embed my-4 rounded-lg border border-white/10 bg-black/20 overflow-hidden" data-identifier="{article.identifier or article.slug}">\n'
+            f'  <div class="ds-embed-header px-4 py-2 bg-white/5 border-b border-white/10 text-xs font-bold">\n'
+            f'    {"<a href=\"/wiki/" + article.slug + "\" class=\"ds-portal-link\">" + article.title + "</a>" if not portal_mode else "<span class=\"ds-embed-title\">" + article.title + "</span>"}\n'
             f'  </div>\n'
-            f'  <div class="ds-embed-content">\n\n'
-            f'{embedded_content}\n\n'
+            f'  <div class="ds-embed-text p-4">\n\n'
+            f'{embedded_text}\n\n'
             f'  </div>\n'
             f'</div>\n'
         )

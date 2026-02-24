@@ -1,3 +1,4 @@
+
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -167,8 +168,8 @@ const PortalTicketDetail = () => {
             {/* DESCRIPTION CARD */}
             <div className={`p-6 rounded-xl border ${theme.card}`}>
               <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 mb-4">Initial Request</h3>
-              <div className={`prose max-w-none ${isNaked ? 'prose-slate' : 'prose-invert'} whitespace-pre-wrap leading-relaxed`}>
-                {ticket.description}
+              <div className={`prose max-w-none ${isNaked ? 'prose-slate' : 'prose-invert'} leading-relaxed`}>
+<SanctumMarkdown content={ticket.description} />
               </div>
             </div>
 
@@ -190,7 +191,7 @@ const PortalTicketDetail = () => {
                                         {new Date(comment.created_at).toLocaleString()}
                                     </span>
                                 </div>
-                                <div className="whitespace-pre-wrap text-sm">
+                                <div className="text-sm">
                                     <SanctumMarkdown content={comment.resolved_body || comment.body} />
                                 </div>
                             </div>

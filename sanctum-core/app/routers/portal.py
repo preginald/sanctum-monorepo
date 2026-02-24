@@ -13,6 +13,7 @@ from ..database import get_db
 from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact, Comment, Asset, Project, Milestone
 from ..services.event_bus import event_bus
 from ..services.account_service import account_needs_questionnaire, get_account_lifecycle_stage, process_questionnaire_submission
+from ..services.content_engine import resolve_content
 
 router = APIRouter(prefix="/portal", tags=["Portal"])
 
@@ -406,7 +407,7 @@ def get_portal_ticket(
 
     formatted_comments = [{
         "id": c.id,
-        "body": c.body,
+        "body": str(resolve_content(db, c.body, portal_mode=True) or ""),
         "created_at": c.created_at,
         "author_name": c.author.full_name if c.author else "Support",
         "is_me": c.author_id == current_user.id
@@ -432,7 +433,7 @@ def get_portal_ticket(
         "subject": ticket.subject,
         "status": ticket.status,
         "priority": ticket.priority,
-        "description": ticket.description,
+        "description": str(resolve_content(db, ticket.description, portal_mode=True) or ""),
         "created_at": ticket.created_at,
         "resolution": ticket.resolution,
         "milestone": ticket.milestone.name if ticket.milestone else None,
@@ -652,7 +653,7 @@ def get_portal_article(
         "identifier": article.identifier,
         "version": article.version,
         "category": article.category,
-        "content": article.content,
+        "content": resolve_content(db, article.content, portal_mode=True),
         "author_name": article.author.full_name if article.author else "Unknown",
         "updated_at": article.updated_at.isoformat() if article.updated_at else
                       article.created_at.isoformat() if article.created_at else None
