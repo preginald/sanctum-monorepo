@@ -168,7 +168,7 @@ def update_ticket(
     background_tasks: BackgroundTasks, 
     resolve_embeds: bool = False, db: Session = Depends(get_db)
 ):
-    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account)).filter(models.Ticket.id == ticket_id).first()
+    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
 
@@ -192,7 +192,12 @@ def update_ticket(
     
     db.commit()
     db.refresh(ticket)
-    ticket.account_name = ticket.account.name
+    ticket.account_name = ticket.account.name if ticket.account else None
+    if ticket.milestone:
+        ticket.milestone_name = ticket.milestone.name
+        if ticket.milestone.project:
+            ticket.project_id = ticket.milestone.project.id
+            ticket.project_name = ticket.milestone.project.name
 
     # 4. NOTIFY: ASSIGNMENT CHANGE
     if ticket.assigned_tech_id and ticket.assigned_tech_id != old_tech_id:
