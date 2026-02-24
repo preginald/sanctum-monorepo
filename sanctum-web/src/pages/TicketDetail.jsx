@@ -147,7 +147,7 @@ export default function TicketDetail() {
     try {
       await api.put(`/tickets/${id}?resolve_embeds=true`, { milestone_id: milestoneId });
       addToast("Milestone updated", "success");
-      fetchTicket();
+      await fetchTicket();
     } catch (e) { addToast("Failed to update milestone", "danger"); }
   };
 
@@ -155,7 +155,7 @@ export default function TicketDetail() {
     try {
       await api.put(`/tickets/${id}?resolve_embeds=true`, { assigned_tech_id: techId });
       addToast("Assignee updated", "success");
-      fetchTicket();
+      await fetchTicket();
     } catch (e) { addToast("Failed to update assignee", "danger"); }
   };
 
