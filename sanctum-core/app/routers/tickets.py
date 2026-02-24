@@ -203,13 +203,14 @@ def update_ticket(
     if ticket.assigned_tech_id and ticket.assigned_tech_id != old_tech_id:
         tech = db.query(models.User).filter(models.User.id == ticket.assigned_tech_id).first()
         if tech:
-            notification_service.notify(
-                db, tech,
-                title=f"Assignment Update: #{ticket.id}",
+            notification_service.enqueue(
+                db,
+                recipients=[{ 'type': 'user', 'user_id': tech.id, 'email': tech.email }],
+                subject=f"Assignment Update: #{ticket.id}",
                 message=f"You have been assigned to ticket: {ticket.subject}",
                 link=f"/tickets/{ticket.id}",
                 priority=ticket.priority,
-                event_type="ticket_assigned"
+                event_payload={ 'event_type': 'ticket_assigned', 'ticket_id': ticket.id }
             )
 
     # 5. NOTIFY: RESOLUTION
