@@ -61,7 +61,7 @@ export default function AssetDetail() {
     <Layout 
       title={asset.name}
       breadcrumb={[
-        { label: asset.account_name, path: `/clients/${asset.account_id}` },
+        { label: asset?.account_name, path: asset?.account_id ? `/clients/${asset.account_id}` : `/assets` },
         { label: 'Assets', path: '/assets' },
       ]}
       badges={[{ value: asset.status, map: 'assetStatus' }]}

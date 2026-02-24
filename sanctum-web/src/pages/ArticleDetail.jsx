@@ -145,7 +145,7 @@ Client: Digital Sanctum HQ`;
       title={article.title}
       subtitle={<>{article.identifier && <span className="font-mono opacity-70">{article.identifier}</span>} • {article.category} • <span className="font-mono">{article.version}</span> • <span className="flex inline-flex items-center gap-1"><User size={12}/> {article.author_name || 'Unknown'}</span></>}
       badge={{ label: article.category, className: categoryColor(article.category) }}
-      backPath="/wiki"
+      breadcrumb={[{ label: 'Library', path: '/wiki' }, { label: article.category }]}
       actions={
         <div className="flex items-center gap-2">
           <button onClick={handleCopyMarkdown} className="flex items-center gap-2 px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors text-slate-300 hover:text-white" title="Copy Markdown with Metadata">

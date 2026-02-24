@@ -345,7 +345,7 @@ export default function TemplateDetail() {
             title={template.name}
             subtitle={`${template.template_type} template • ${template.category}`}
             badge={{ label: template.is_active ? 'Active' : 'Inactive', color: template.is_active ? 'green' : 'gray' }}
-            backPath="/templates"
+            breadcrumb={[{ label: 'Templates', path: '/templates' }]}
             actions={actions}
             onRefresh={load}
         >

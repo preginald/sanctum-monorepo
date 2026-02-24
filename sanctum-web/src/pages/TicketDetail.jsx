@@ -294,9 +294,10 @@ export default function TicketDetail() {
 
   const ticketProject = accountProjects.find(p => p.milestones?.some(m => m.id === ticket.milestone_id));
   const breadcrumb = [
-    { label: ticket.account_name, path: `/clients/${ticket.account_id}` },
+    { label: ticket?.account_name, path: ticket?.account_id ? `/clients/${ticket.account_id}` : '/clients' },
     ...(ticketProject ? [{ label: ticketProject.name, path: `/projects/${ticketProject.id}` }] : []),
-    ...(ticket.milestone_name ? [{ label: ticket.milestone_name }] : []),
+    ...(ticket?.milestone_name ? [{ label: ticket.milestone_name }] : []),
+    { label: 'Tickets', path: '/tickets' },
   ];
 
   return (
