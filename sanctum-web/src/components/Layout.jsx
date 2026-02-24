@@ -214,8 +214,8 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
             )}
             <div className="p-8 max-w-[1920px] mx-auto">
                 <div className="mb-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
+                    <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 min-w-0 w-full xl:w-auto">
                             {backPath && (
                                 <button onClick={() => backPath === -1 ? navigate(-1) : navigate(backPath)} className="p-2 hover:bg-white/10 rounded-lg transition-colors -ml-2">
                                     <ArrowLeft size={20} />
@@ -223,7 +223,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                             )}
                             <div>
                                 {breadcrumb && breadcrumb.length > 0 && (
-                                    <nav className="flex items-center gap-1.5 text-sm text-white/50 mb-1">
+                                    <nav className="flex flex-wrap items-center gap-1.5 text-sm text-white/50 mb-1">
                                         {breadcrumb.map((crumb, i) => (
                                             <React.Fragment key={i}>
                                                 {i > 0 && <span className="opacity-40">›</span>}
@@ -235,7 +235,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                                         ))}
                                     </nav>
                                 )}
-                                <h2 className="text-3xl font-bold">{title}</h2>
+                                <h2 className="text-xl md:text-2xl xl:text-3xl font-bold">{title}</h2>
                                 {(badges?.length > 0 || badge) && (
                                     <div className="flex items-center gap-2 mt-1.5">
                                         {badges?.map((b, i) => (
@@ -251,7 +251,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                                 {subtitle && <p className="opacity-60 text-sm mt-1">{subtitle}</p>}
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">{actions}</div>
+                        <div className="flex items-center gap-3 shrink-0 flex-wrap">{actions}</div>
                     </div>
                 </div>
                 {children}
