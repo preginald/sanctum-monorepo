@@ -486,6 +486,7 @@ class Asset(Base):
     vendor = Column(String, nullable=True) 
     linked_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
     auto_invoice = Column(Boolean, default=False)
+    pending_renewal_invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
     
     # NEW: Asset Intelligence (Big Data Ready)
     # Stores flexible specs like {"os": "iOS 17", "cpu": "M1", "ram": "16GB"}
@@ -496,6 +497,7 @@ class Asset(Base):
 
     account = relationship("Account", backref="assets")
     linked_product = relationship("Product")
+    pending_renewal_invoice = relationship("Invoice", foreign_keys=[pending_renewal_invoice_id])
 
 class Automation(Base):
     __tablename__ = "automations"
