@@ -18,6 +18,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../lib/sanctum_common.sh"
 
+main() {
 # ─────────────────────────────────────────────
 # USAGE
 # ─────────────────────────────────────────────
@@ -554,3 +555,7 @@ case "$DOMAIN" in
         exit 1
         ;;
 esac
+
+}
+
+main "$@" 2>&1 | tee /dev/tty | sed "s/\x1b\[[0-9;]*m//g" | xclip -selection clipboard -i
