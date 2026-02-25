@@ -119,13 +119,14 @@ def create_ticket(
     if new_ticket.assigned_tech_id:
         tech = db.query(models.User).filter(models.User.id == new_ticket.assigned_tech_id).first()
         if tech:
-            notification_service.notify(
-                db, tech,
+            notification_service.enqueue(
+                db,
                 title=f"New Assignment: #{new_ticket.id}",
                 message=f"You have been assigned to: {new_ticket.subject} ({new_ticket.account_name})",
                 link=f"/tickets/{new_ticket.id}",
                 priority=new_ticket.priority,
-                event_type="ticket_assigned"
+                event_type="ticket_assigned",
+                recipients=[{"type": "user", "user_id": str(tech.id), "email": tech.email}]
             )
     
     return new_ticket
