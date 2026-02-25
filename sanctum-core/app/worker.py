@@ -12,6 +12,7 @@ from app.database import SessionLocal
 from app.models import Notification, User, UserNotificationPreference, AuditReport
 from app.services.email_service import email_service
 from app.services.sentinel_engine import SentinelEngine
+from app.services.renewal_engine import renewal_engine
 
 def process_digest_queue():
     db = SessionLocal()
@@ -135,6 +136,18 @@ def process_audit_scans():
     finally:
         db.close()
 
+def process_renewals():
+    db = SessionLocal()
+    print(f"[{datetime.now()}] 🔄 Renewal Worker: Running...")
+    try:
+        renewal_engine.run(db)
+    except Exception as e:
+        print(f"❌ Renewal Worker Error: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 if __name__ == "__main__":
     process_digest_queue()
     process_audit_scans()
+    process_renewals()
