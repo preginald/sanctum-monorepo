@@ -233,7 +233,7 @@ if (!isEditing) {
             <div className="pt-4 border-t border-slate-800">
                 <label className="text-xs uppercase opacity-50 block mb-2 text-green-400 font-bold">Official Resolution</label>
                 <div className="p-4 bg-green-500/5 border border-green-500/20 rounded-xl text-sm text-gray-300">
-                    <SanctumMarkdown content={ticket.resolved_description || ticket.description || "No description provided."} />
+                    <SanctumMarkdown content={ticket.resolution} />
                 </div>
             </div>
         )}
