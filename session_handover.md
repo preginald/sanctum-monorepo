@@ -1,67 +1,48 @@
 # SESSION HANDOVER
-Generated: Tue 24 Feb 2026 — Digital Sanctum CIS
+Generated: Wed 25 Feb 2026 — Digital Sanctum CIS
 
 ---
 
 ## 0. SESSION HANDOVER (READ FIRST)
 
-This session focused entirely on bug fixes and UX polish under **Phase 65: The Polish** milestone.
+This session focused on completing Phase 65: The Polish carry-forwards, building the unified `sanctum.sh` CLI tool, and associated bug fixes and documentation.
 
 ---
 
 ## 1. WHAT WE ACCOMPLISHED ✅
 
-### Ticket #246 — Client Portal: Render Resolved Shortcodes
-- **Root cause:** `portal_mode` parameter accepted in `content_engine.py` but never acted upon (Gemini's implementation was incomplete)
-- **Fix:** `portal_mode=True` now emits `<span>` instead of `<a>` for embed headers
-- **Also fixed:**
-  - `return content` undefined variable bug in `content_engine.py`
-  - `max_depth` silently bumped 2→5 — restored
-  - Type hints stripped from signature — restored
-  - f-string backslash syntax error (Python <3.12) — hotfixed post-deploy
-  - `portal.py` missing `portal_mode=True` on description resolver
-  - `wiki.py` incorrectly repurposed `resolve_embeds` as `portal_mode` — reverted
-  - `SanctumMarkdown.jsx` unreliable `ds-portal-link` mapper — reverted
-  - `PortalArticleView.jsx` dead CSS block in catch handler — removed
-  - `PortalTicketDetail.jsx` CSS injection + unrelated `messageMe` style change — reverted
-- **Commits:** `f182a55`, follow-up f-string fix
+### Ticket #250 — Recon: Audit codebase for defunct notify() callers
+- **Found:** One remaining `notification_service.notify()` call in `POST /tickets` creation path (`tickets.py` line 122)
+- **Fixed:** Replaced with `enqueue()` using correct signature — `recipients`, `subject`, `message`, `link`, `priority`
+- **Verified:** API test confirmed ticket creation with assigned tech returns 200
+- **Commits:** `42f9842`, `72a07e7`
 
-### Ticket #247 — UX Audit: Breadcrumb Consistency Across Detail Views
-- **Audit findings:** Three patterns existed (`breadcrumb`, `backPath`, inline `ArrowLeft`)
-- **Convention agreed:** All Detail views use `breadcrumb` array prop. No `backPath` in Detail views. Optional chaining for null safety.
-- **Changes:**
-  - `TicketDetail`: restructured to `Client › Project › Milestone › Tickets`, null guards added
-  - `AssetDetail`: null guard added to client crumb
-  - `ArticleDetail`: `backPath` → `breadcrumb` array (`Library › Category`)
-  - `TemplateDetail`: `backPath` → `breadcrumb` array (`Templates`)
-  - `CampaignDetail`: no change — campaigns are not client-owned entities
-- **Commit:** `fae443e`
+### Ticket #251 — KB Article: UI Standard — Breadcrumb Navigation Convention
+- **Published:** New article `UI Standard: Breadcrumb Navigation` (System Documentation)
+- Covers: `breadcrumb` array prop convention, null safety, reference implementations, deprecated patterns, CampaignDetail exception
+- **Resolved via:** `sanctum.sh ticket resolve`
 
-### Ticket #248 — TicketDetail: Split/Stack Toggle, Assign Agent & Link Milestone Bugs
-- **Bug 1:** Split/Stack toggle visible on mobile — `hidden md:flex` → `hidden xl:flex` in `Layout.jsx`
-- **Bug 2:** Assign Agent UI not updating — missing `await` on `fetchTicket()` in `handleUpdateTech`
-- **Bug 3:** Link Milestone failing — three fixes:
-  - Missing `await` on `fetchTicket()` in `handleUpdateMilestone`
-  - GET `/tickets/{id}` not eager loading `milestone` + `milestone.project`
-  - PUT `/tickets/{id}` same missing joinedloads + computed fields
-- **Bonus fix:** `notification_service.notify()` → `notification_service.enqueue()` with correct `recipients` list signature — was causing 500 on agent assignment
-- **Commits:** multiple, all pushed
+### Ticket #252 — QA: Responsive header fixes verification (#249)
+- **Verified:** All breakpoints confirmed good in production — desktop, iPad, iPhone
+- Tested on TicketDetail and AssetDetail with long subject lines
 
-### Ticket #249 — Layout: Responsive Header Bugs
-- **Bug 1:** Long title squashing action buttons on desktop
-- **Bug 2:** Breadcrumb and buttons cramped on iPad
-- **Bug 3:** Breadcrumb stacking vertically, title oversized, buttons disappearing on iPhone
-- **Fix (all in `Layout.jsx`):**
-  - Outer row: `flex-col xl:flex-row` — stacks on mobile
-  - Left container: `min-w-0 w-full xl:w-auto` — prevents title expanding into buttons
-  - Breadcrumb nav: `flex-wrap` — crumbs wrap cleanly
-  - Title: `text-xl md:text-2xl xl:text-3xl` — responsive scaling
-  - Actions div: `shrink-0 flex-wrap` — buttons hold width
-- **Commit:** `acaec43`
+### Ticket #256 — Build: sanctum.sh — Unified CLI tool for tickets and articles
+- **Built:** `scripts/dev/sanctum.sh` v1.0 — full unified CLI
+- **Ticket commands:** `create`, `update`, `comment`, `resolve`, `show`, `delete`
+- **Article commands:** `create`, `update`, `show` (slug or identifier lookup)
+- **Two-step resolve flow:** `POST /comments` then `PUT /tickets/{id}` with `status`, `resolution`, `resolution_comment_id`
+- **Auto clipboard copy:** All output piped through `xclip` — terminal shows colours, clipboard is plain text
+- **Commits:** `f088d3a`, `ef4676c`, `370fe57`, `39b4dce`
 
-### Bonus — GET /tickets/{id} account_name null
-- Discovered `account_name` returning `null` on single ticket GET
-- Fixed: added `joinedload(Ticket.account)` and populated `ticket.account_name` before `model_validate`
+### Bonus — TicketOverview.jsx resolution panel bug
+- **Bug:** "Official Resolution" panel rendered `ticket.resolved_description || ticket.description` instead of `ticket.resolution`
+- **Fixed:** `sanctum-web/src/components/tickets/TicketOverview.jsx` line 236
+- **Commit:** `f088d3a`
+
+### Documentation Updates
+- **DOC-001** (API Guide: Managing Tickets) — updated with two-step resolve flow, `status` field caveat on comments endpoint, `sanctum.sh` CLI reference
+- **DOC-002** (API Guide: Creating Wiki Content) — updated with `sanctum.sh` CLI equivalents, link to DOC-009
+- **DOC-009** (CLI Guide: sanctum.sh) — new article published, covers all commands, clipboard feature, auth, env, categories
 
 ---
 
@@ -71,43 +52,42 @@ This session focused entirely on bug fixes and UX polish under **Phase 65: The P
 |---|---|
 | Production URL | https://core.digitalsanctum.com.au |
 | Git branch | `main` |
-| Last commit | `acaec43` |
+| Last commit | `39b4dce` |
 | API status | Running ✅ |
 | DB migrations | None required this session |
 
 ### Files Modified This Session
 | File | Changes |
 |---|---|
-| `sanctum-core/app/services/content_engine.py` | `portal_mode` conditional, type hints, `max_depth`, f-string fix |
-| `sanctum-core/app/routers/portal.py` | `portal_mode=True` on all resolve calls |
-| `sanctum-core/app/routers/wiki.py` | Reverted Gemini's `portal_mode` piggyback |
-| `sanctum-core/app/routers/tickets.py` | Joinedloads for account/milestone/project on GET+PUT, computed fields, `enqueue` fix |
-| `sanctum-web/src/components/Layout.jsx` | View toggle breakpoint, responsive header fixes |
-| `sanctum-web/src/components/ui/SanctumMarkdown.jsx` | Reverted ds-portal-link mapper, kept safeContent |
-| `sanctum-web/src/pages/PortalArticleView.jsx` | Removed dead CSS block |
-| `sanctum-web/src/pages/PortalTicketDetail.jsx` | Removed CSS injection, reverted messageMe |
-| `sanctum-web/src/pages/TicketDetail.jsx` | Breadcrumb restructure, await fetchTicket fixes |
-| `sanctum-web/src/pages/AssetDetail.jsx` | Null guard on client crumb |
-| `sanctum-web/src/pages/ArticleDetail.jsx` | backPath → breadcrumb array |
-| `sanctum-web/src/pages/TemplateDetail.jsx` | backPath → breadcrumb array |
+| `sanctum-core/app/routers/tickets.py` | `notify()` → `enqueue()` with correct signature in POST /tickets |
+| `sanctum-web/src/components/tickets/TicketOverview.jsx` | Resolution panel renders `ticket.resolution` correctly |
+| `scripts/dev/sanctum.sh` | New file — unified CLI tool |
+
+### New KB Articles
+| Identifier | Title |
+|---|---|
+| SYS-025 (auto) | UI Standard: Breadcrumb Navigation |
+| DOC-009 | CLI Guide: sanctum.sh |
 
 ---
 
 ## 3. KNOWN ISSUES / TECH DEBT
 
-- `notification_service.notify()` was called in `tickets.py` — fixed this session. **Recommend a codebase-wide grep** to ensure no other routers still call the defunct `.notify()` method.
-- `GET /tickets/{id}` now eager loads account + milestone + project but **not** contacts, time_entries, materials, articles, assets — these rely on SQLAlchemy lazy loading. Worth auditing for N+1 queries under load.
-- KB article documenting the breadcrumb standard (agreed in #247) was not yet created — carry forward to next session.
+- `sanctum.sh article show` identifier lookup fetches ALL articles then filters client-side — inefficient at scale. Backend should support `/articles?identifier=DOC-002` query param.
+- `sanctum.sh article update` requires UUID — no identifier or slug lookup support yet. Workaround: use `article show DOC-002` to get UUID first.
+- `GET /tickets/{id}` eager loads account + milestone + project but not contacts, time_entries, materials, articles, assets — potential N+1 under load (carry-forward from previous session).
+- `scripts/dev/create_ticket.sh` is now superseded by `sanctum.sh ticket create` but has not been deprecated/removed yet.
 
 ---
 
 ## 4. NEXT SPRINT
 
 ### Suggested Tasks
-1. **KB Article — Breadcrumb Standard** (carry forward from #247): Create article documenting the agreed breadcrumb convention for all Detail views.
-2. **Grep for `notification_service.notify()`** across all routers — confirm no other callers of the defunct method exist.
-3. **Layout responsive header QA** — verify #249 fixes look correct across device sizes in production after deploy.
-4. **Breadcrumb KB Article** — document the standard per the agreed convention.
+1. **sanctum.sh article update by identifier/slug** — currently requires UUID. Add lookup support so `article update DOC-009 -f file.md` works.
+2. **sanctum.sh article list** — add `article list [--category <category>]` command for discoverability.
+3. **Backend: `/articles?identifier=` query param** — support filtering by identifier on the GET /articles endpoint to avoid client-side filtering.
+4. **Deprecate create_ticket.sh** — add deprecation notice pointing to `sanctum.sh ticket create`.
+5. **N+1 audit** — review GET /tickets/{id} lazy loading under load.
 
 ---
 
@@ -117,20 +97,23 @@ This session focused entirely on bug fixes and UX polish under **Phase 65: The P
 - [x] All tickets marked resolved
 - [x] All commits pushed to `main`
 - [x] Production deployed and verified
+- [x] DOC-001, DOC-002, DOC-009 updated
 - [x] Session handover file generated
 - [ ] Handover file committed and pushed
-- [ ] KB article for breadcrumb standard created (#247 carry-forward)
 
 ---
 
 ## 6. IMPORTANT NOTES FOR NEXT AI SESSION
 
-- **Read `## 0. SESSION HANDOVER` first** before doing anything else.
-- **Delivery Doctrine is active** — always `grep -n` before editing, deliver Find→Replace pairs, use Python for multi-line JSX patches.
-- **`notification_service`** uses `enqueue()` not `notify()`. Recipients must be a `list[dict]` with keys `type`, `user_id`, `email`.
+- **`sanctum.sh`** is the preferred CLI tool for all ticket and article operations. Use it instead of raw curl or `api_test.sh` where possible.
+- **`sanctum.sh article show`** supports both slug (`api-guide-tickets`) and identifier (`DOC-001`) lookup.
+- **`sanctum.sh ticket resolve`** is a two-step flow — do NOT use `ticket comment --status resolved`, it won't update the ticket status.
+- **`notification_service`** uses `enqueue()` not `notify()`. Signature: `db, recipients=[...], subject, message, link, priority`.
 - **`content_engine.py`** `portal_mode=True` emits `<span>`, `portal_mode=False` emits `<a>`. Always pass `portal_mode=True` in portal routers.
-- **Breadcrumb convention** is now standardised — all Detail views use `breadcrumb` array prop, no `backPath`. See #247 comment for full spec.
-- **`tickets.py` GET+PUT** now eager loads `account`, `milestone`, `milestone.project`. If adding new computed fields to `TicketResponse`, ensure they are populated before `model_validate()`.
+- **Breadcrumb convention** — all Detail views use `breadcrumb` array prop, no `backPath`. See SYS-025.
+- **`tickets.py` GET+PUT** eager loads `account`, `milestone`, `milestone.project`.
+- **Resolution field** — `TicketUpdate` has `resolution` (writable). `TicketResponse` has `resolved_description` (read-only, = description run through content engine). They are unrelated.
+- **`xclip`** must be installed for `sanctum.sh` clipboard feature to work.
 
 ---
 
@@ -140,12 +123,34 @@ This session focused entirely on bug fixes and UX polish under **Phase 65: The P
 # Verify service is running
 sudo systemctl status sanctum-api
 
-# Check for any remaining notify() calls
-grep -rn "notification_service.notify(" sanctum-core/app/routers/
+# Verify sanctum.sh works
+./scripts/dev/sanctum.sh --help
 
-# Create KB article for breadcrumb standard
-curl -s -X POST "https://core.digitalsanctum.com.au/api/articles" \
-  -H "Authorization: Bearer $SANCTUM_API_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"title": "UI Standard: Breadcrumb Navigation", "slug": "ui-standard-breadcrumb", "category": "System Documentation", "content": "..."}'
+# Look up an article by identifier
+./scripts/dev/sanctum.sh article show DOC-009 -e prod
+
+# Create a ticket
+./scripts/dev/sanctum.sh ticket create -e prod \
+  -s "Subject" -p "Sanctum Core" -m "Phase 65: The Polish" \
+  --type task --priority normal
+
+# Resolve a ticket
+./scripts/dev/sanctum.sh ticket resolve <id> -e prod \
+  -b "Resolution text here."
+
+# Check for any N+1 issues in tickets router
+grep -n "lazy\|joinedload" sanctum-core/app/routers/tickets.py
 ```
+
+---
+
+## 8. KEY ARTICLE REFERENCES
+
+| Identifier | Title | When to use |
+|---|---|---|
+| DOC-001 | API Guide: Managing Tickets | Ticket API reference |
+| DOC-002 | API Guide: Creating Wiki Content | Article API reference |
+| DOC-009 | CLI Guide: sanctum.sh | Full sanctum.sh usage guide |
+| SYS-025 | UI Standard: Breadcrumb Navigation | Frontend breadcrumb convention |
+| WIKI-024 | Surgical Reconnaissance | Code delivery methodology |
+| SYS-007 | Frontend Architecture & UX Standards | Frontend conventions |
