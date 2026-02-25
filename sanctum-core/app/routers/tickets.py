@@ -121,12 +121,11 @@ def create_ticket(
         if tech:
             notification_service.enqueue(
                 db,
-                title=f"New Assignment: #{new_ticket.id}",
+                recipients=[{"type": "user", "user_id": str(tech.id), "email": tech.email}],
+                subject=f"New Assignment: #{new_ticket.id}",
                 message=f"You have been assigned to: {new_ticket.subject} ({new_ticket.account_name})",
                 link=f"/tickets/{new_ticket.id}",
-                priority=new_ticket.priority,
-                event_type="ticket_assigned",
-                recipients=[{"type": "user", "user_id": str(tech.id), "email": tech.email}]
+                priority=new_ticket.priority
             )
     
     return new_ticket
