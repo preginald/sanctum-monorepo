@@ -477,10 +477,10 @@ article_update() {
 }
 
 article_show() {
-    local SLUG="$1"; shift
+    local QUERY="$1"; shift
     local ENV="dev"
 
-    [ -z "$SLUG" ] && echo -e "${RED}✗ Slug is required${NC}" && exit 1
+    [ -z "$QUERY" ] && echo -e "${RED}✗ Slug or identifier is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -493,7 +493,19 @@ article_show() {
     print_env_banner "sanctum.sh — article show"
     ensure_auth
 
-    RESULT=$(api_get "/articles/slug/${SLUG}")
+    # Detect if query looks like an identifier (e.g. DOC-002, SYS-007, WIKI-024)
+    if [[ "$QUERY" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        echo -e "${YELLOW}→ Looking up by identifier: ${QUERY}...${NC}"
+        RESULT=$(api_get "/articles" | jq --arg id "$QUERY" '.[] | select(.identifier == $id)')
+    else
+        echo -e "${YELLOW}→ Looking up by slug: ${QUERY}...${NC}"
+        RESULT=$(api_get "/articles/${QUERY}")
+    fi
+
+    if [ -z "$RESULT" ] || [ "$RESULT" = "null" ]; then
+        echo -e "${RED}✗ Article not found: ${QUERY}${NC}"
+        exit 1
+    fi
 
     echo ""
     echo "$RESULT" | jq '{
@@ -508,8 +520,8 @@ article_show() {
         updated_at
     }'
     echo ""
-}
 
+}
 # ─────────────────────────────────────────────
 # DISPATCH
 # ─────────────────────────────────────────────
