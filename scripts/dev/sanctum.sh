@@ -7,7 +7,7 @@
 #
 # Examples:
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" -m "Phase 65" --type bug
-#   sanctum.sh ticket comment 250 -b "Investigated." --status resolved
+#   sanctum.sh ticket update  256 -d "New description" --status open
 #   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
@@ -29,6 +29,7 @@ usage() {
     echo ""
     echo -e "${YELLOW}TICKET COMMANDS${NC}"
     echo "  ticket create   -s <subject> -p <project> [-m <milestone>] [--type <type>] [--priority <priority>] [-d <description>] [-e dev|prod]"
+    echo "  ticket update   <id> [-s <subject>] [-d <description>] [--status <status>] [--priority <priority>] [--type <type>] [-e dev|prod]"
     echo "  ticket comment  <id> -b <body> [--status <status>] [-e dev|prod]"
     echo "  ticket resolve  <id> -b <body> [-e dev|prod]"
     echo "  ticket show     <id> [-e dev|prod]"
@@ -310,6 +311,56 @@ ticket_delete() {
         exit 1
     fi
 }
+ticket_update() {
+    local TICKET_ID="$1"; shift
+    local SUBJECT="" DESCRIPTION="" STATUS="" PRIORITY="" TICKET_TYPE="" ENV="dev"
+
+    [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -s|--subject)     SUBJECT="$2"; shift 2 ;;
+            -d|--description) DESCRIPTION="$2"; shift 2 ;;
+            --status)         STATUS="$2"; shift 2 ;;
+            --priority)       PRIORITY="$2"; shift 2 ;;
+            --type)           TICKET_TYPE="$2"; shift 2 ;;
+            -e|--env)         ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket update"
+    ensure_auth
+    confirm_prod "About to update ticket #${TICKET_ID}"
+
+    PAYLOAD=$(jq -n \
+        --arg subject "$SUBJECT" \
+        --arg description "$DESCRIPTION" \
+        --arg status "$STATUS" \
+        --arg priority "$PRIORITY" \
+        --arg ticket_type "$TICKET_TYPE" \
+        '{}
+        | if $subject != "" then .subject = $subject else . end
+        | if $description != "" then .description = $description else . end
+        | if $status != "" then .status = $status else . end
+        | if $priority != "" then .priority = $priority else . end
+        | if $ticket_type != "" then .ticket_type = $ticket_type else . end')
+
+    RESULT=$(api_put "/tickets/${TICKET_ID}" "$PAYLOAD")
+    UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+    if [ -z "$UPDATED_ID" ]; then
+        echo -e "${RED}✗ Failed to update ticket${NC}"
+        echo "$RESULT" | jq
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ Ticket #${TICKET_ID} Updated${NC}"
+    echo ""
+}
+
 
 # ─────────────────────────────────────────────
 # ARTICLE DOMAIN
@@ -472,13 +523,14 @@ case "$DOMAIN" in
         shift 2 || true
         case "$COMMAND" in
             create)  ticket_create "$@" ;;
+            update)  ticket_update "$@" ;;
             comment) ticket_comment "$@" ;;
             resolve) ticket_resolve "$@" ;;
             show)    ticket_show "$@" ;;
             delete)  ticket_delete "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, comment, resolve, show, delete"
+                echo "  Valid commands: create, update, comment, resolve, show, delete"
                 exit 1
                 ;;
         esac
