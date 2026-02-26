@@ -110,7 +110,7 @@ export default function SearchableSelect({
                     onFocus={(e) => e.target.select()} // Auto-select text on focus for easy replacement
                 />
                 {query && (
-                    <button onClick={handleClear} className="absolute right-2 top-2 text-slate-500 hover:text-white transition-colors">
+                    <button type="button" onClick={handleClear} className="absolute right-2 top-2 text-slate-500 hover:text-white transition-colors">
                         <X size={14} />
                     </button>
                 )}
@@ -133,6 +133,7 @@ export default function SearchableSelect({
                             
                             return (
                                 <button 
+                                    type="button"
                                     key={item[valueKey]} 
                                     onClick={() => handleSelect(item)}
                                     disabled={isSelected}
@@ -171,6 +172,7 @@ export default function SearchableSelect({
                     ) : null}
                     {allowCreate && query.length > 0 && filtered.length > 0 && !filtered.some(i => String(i[labelKey]).toLowerCase() === query.toLowerCase()) && !filtered.some(i => String(i[subLabelKey] || '').toLowerCase().includes(query.toLowerCase())) && (
                         <button
+                            type="button"
                             onClick={() => handleSelect({ [valueKey]: query, [labelKey]: query, _isNew: true })}
                             className="w-full text-left flex items-center gap-2 p-2 rounded transition-all duration-150 border bg-green-500/5 border-green-500/20 hover:bg-green-500/10 hover:border-green-400/40 mt-1"
                         >
@@ -181,6 +183,7 @@ export default function SearchableSelect({
                     {filtered.length === 0 && query.length > 0 ? (
                         allowCreate ? (
                             <button
+                                type="button"
                                 onClick={() => handleSelect({ [valueKey]: query, [labelKey]: query, _isNew: true })}
                                 className="w-full text-left flex items-center gap-2 p-2 rounded transition-all duration-150 border bg-green-500/5 border-green-500/20 hover:bg-green-500/10 hover:border-green-400/40"
                             >
