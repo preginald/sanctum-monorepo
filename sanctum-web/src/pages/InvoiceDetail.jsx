@@ -9,6 +9,7 @@ import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import { PAYMENT_METHODS } from '../lib/constants';
+import RenewalModal from '../components/ui/RenewalModal';
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -27,6 +28,8 @@ export default function InvoiceDetail() {
   // MODAL STATES
   const [showSendModal, setShowSendModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [renewalAsset, setRenewalAsset] = useState(null);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
   
   // NOTE: Removed confirmDelete state in favor of window.confirm for direct action
   const [confirmVoid, setConfirmVoid] = useState(false);
@@ -212,6 +215,10 @@ export default function InvoiceDetail() {
           setLastUpdate(Date.now()); 
           setShowPaymentModal(false);
           addToast("Payment Details Updated", "success");
+          if (res.data.renewal_asset) {
+              setRenewalAsset(res.data.renewal_asset);
+              setShowRenewalModal(true);
+          }
           
           setSendForm(prev => ({...prev, subject: `Receipt: Invoice #${res.data.id.slice(0,8).toUpperCase()} - PAID`}));
           if (paymentForm.send_receipt) setShowSendModal(true);
@@ -353,7 +360,14 @@ export default function InvoiceDetail() {
         </div>
       }
     >
-      <ConfirmationModal 
+      <RenewalModal
+        isOpen={showRenewalModal}
+        onClose={() => setShowRenewalModal(false)}
+        renewalAsset={renewalAsset}
+        onConfirm={() => addToast("Asset expiry updated", "success")}
+        isManual={false}
+    />
+    <ConfirmationModal 
           isOpen={confirmVoid} onClose={() => setConfirmVoid(false)} onConfirm={handleVoid}
           title="Void Invoice?" message="Release items back to pool?" isDangerous={true}
       />

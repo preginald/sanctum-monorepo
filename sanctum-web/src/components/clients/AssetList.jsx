@@ -2,10 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
     Server, Laptop, Router, Printer, Key, Box, Plus, Trash2, Edit2, 
-    Globe, Cloud, Layers, Calendar, Receipt 
+    Globe, Cloud, Layers, Calendar, Receipt, RefreshCw 
 } from 'lucide-react';
 
-export default function AssetList({ assets, onAdd, onEdit, onDelete }) {
+export default function AssetList({ assets, onAdd, onEdit, onDelete, onRenew }) {
   const navigate = useNavigate();
   
   const getIcon = (type) => {
@@ -99,6 +99,9 @@ export default function AssetList({ assets, onAdd, onEdit, onDelete }) {
                             </span>
                             
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {a.expires_at && onRenew && (
+                                    <button onClick={() => onRenew(a)} className="p-1 text-slate-500 hover:text-indigo-400" title="Renew Asset"><RefreshCw size={14}/></button>
+                                )}
                                 <button onClick={() => onEdit(a)} className="p-1 text-slate-500 hover:text-white"><Edit2 size={14}/></button>
                                 <button onClick={() => onDelete(a.id)} className="p-1 text-slate-500 hover:text-red-500"><Trash2 size={14}/></button>
                             </div>

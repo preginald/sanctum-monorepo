@@ -13,6 +13,7 @@ import FinancialSection from '../components/clients/FinancialSection';
 import AuditList from '../components/audits/AuditList';
 import ClientModals from '../components/clients/ClientModals';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
+import RenewalModal from '../components/ui/RenewalModal';
 import TicketCreateModal from '../components/tickets/TicketCreateModal';
 import TicketList from '../components/tickets/TicketList';
 import AssetList from '../components/clients/AssetList';
@@ -52,6 +53,8 @@ export default function ClientDetail() {
   });
 
   const [showAssetModal, setShowAssetModal] = useState(false);
+  const [renewalAsset, setRenewalAsset] = useState(null);
+  const [showRenewalModal, setShowRenewalModal] = useState(false);
   const [assetForm, setAssetForm] = useState({ name: '', asset_type: 'server', status: 'active', ip_address: '', serial_number: '', notes: '', specs: {} });
 
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, title: '', message: '', action: null });
@@ -210,6 +213,13 @@ export default function ClientDetail() {
         </div>
       )}
     >
+      <RenewalModal
+        isOpen={showRenewalModal}
+        onClose={() => setShowRenewalModal(false)}
+        renewalAsset={renewalAsset}
+        onConfirm={() => { addToast("Asset expiry updated", "success"); fetchAll(); }}
+        isManual={true}
+      />
       <ConfirmationModal 
         isOpen={confirmModal.isOpen} 
         onClose={() => setConfirmModal({...confirmModal, isOpen: false})} 
@@ -320,6 +330,7 @@ export default function ClientDetail() {
                 onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active', specs: {} }); setShowAssetModal(true); }}
                 onEdit={(a) => { setAssetForm(a); setShowAssetModal(true); }}
                 onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
+                onRenew={(a) => { setRenewalAsset({ asset_id: a.id, asset_name: a.name, asset_type: a.asset_type, current_expires_at: a.expires_at, suggested_expires_at: a.expires_at, billing_frequency: a.linked_product?.billing_frequency || null }); setShowRenewalModal(true); }}
               />
 
               <AuditList 
