@@ -87,11 +87,17 @@ class RenewalEngine:
 
                 # Client billing email
                 if account.billing_email:
-                    html = self._render_invoice_email(asset, account, invoice_url)
-                    email_service.send(
-                        to_emails=account.billing_email,
+                    email_service.send_template(
+                        to_email=account.billing_email,
                         subject=f"Renewal Invoice Ready — {asset.name}",
-                        html_content=html
+                        template_name="renewal_invoice_ready.html",
+                        context={
+                            "account_name": account.name,
+                            "asset_name": asset.name,
+                            "asset_type": asset.asset_type,
+                            "expires_at": asset.expires_at.strftime("%d %b %Y"),
+                            "invoice_url": invoice_url
+                        }
                     )
                     print(f"[RenewalEngine] ✓ Client email sent to {account.billing_email} for {asset.name}")
                 else:
@@ -163,35 +169,6 @@ class RenewalEngine:
             except Exception as e:
                 print(f"[RenewalEngine] ❌ Escalation error for asset {asset.id}: {e}")
                 continue
-
-    # ─────────────────────────────────────────────
-    # Email renderer — client renewal invoice email
-    # ─────────────────────────────────────────────
-    def _render_invoice_email(self, asset: Asset, account: Account, invoice_url: str) -> str:
-        return f"""
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #1a1a2e;">Renewal Invoice Ready</h2>
-            <p>Dear {account.name},</p>
-            <p>A renewal invoice has been generated for the following service:</p>
-            <table style="width:100%; border-collapse:collapse; margin: 16px 0;">
-                <tr style="background:#f5f5f5;">
-                    <td style="padding:8px; border:1px solid #ddd;"><strong>Asset</strong></td>
-                    <td style="padding:8px; border:1px solid #ddd;">{asset.name}</td>
-                </tr>
-                <tr>
-                    <td style="padding:8px; border:1px solid #ddd;"><strong>Type</strong></td>
-                    <td style="padding:8px; border:1px solid #ddd;">{asset.asset_type}</td>
-                </tr>
-                <tr style="background:#f5f5f5;">
-                    <td style="padding:8px; border:1px solid #ddd;"><strong>Expiry Date</strong></td>
-                    <td style="padding:8px; border:1px solid #ddd;">{asset.expires_at.strftime('%d %b %Y')}</td>
-                </tr>
-            </table>
-            <p>Please action this invoice at your earliest convenience to avoid any service interruption.</p>
-            <a href="{invoice_url}" style="display:inline-block; padding:12px 24px; background:#4f46e5; color:#fff; text-decoration:none; border-radius:6px;">View Invoice</a>
-            <p style="margin-top:24px; color:#666; font-size:12px;">Digital Sanctum — Managed IT Services</p>
-        </div>
-        """
 
 
 renewal_engine = RenewalEngine()

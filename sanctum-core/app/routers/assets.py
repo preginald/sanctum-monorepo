@@ -75,33 +75,17 @@ def update_asset(asset_id: UUID, update: schemas.AssetUpdate, db: Session = Depe
         should_notify = had_pending_renewal or update.send_renewal_notification
 
         if should_notify and account and account.billing_email:
-            html = f"""
-            <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;'>
-                <h2 style='color: #1a1a2e;'>Service Renewed</h2>
-                <p>Dear {account.name},</p>
-                <p>Your service has been successfully renewed:</p>
-                <table style='width:100%; border-collapse:collapse; margin: 16px 0;'>
-                    <tr style='background:#f5f5f5;'>
-                        <td style='padding:8px; border:1px solid #ddd;'><strong>Asset</strong></td>
-                        <td style='padding:8px; border:1px solid #ddd;'>{asset.name}</td>
-                    </tr>
-                    <tr>
-                        <td style='padding:8px; border:1px solid #ddd;'><strong>Type</strong></td>
-                        <td style='padding:8px; border:1px solid #ddd;'>{asset.asset_type}</td>
-                    </tr>
-                    <tr style='background:#f5f5f5;'>
-                        <td style='padding:8px; border:1px solid #ddd;'><strong>New Expiry</strong></td>
-                        <td style='padding:8px; border:1px solid #ddd;'>{asset.expires_at.strftime('%d %b %Y')}</td>
-                    </tr>
-                </table>
-                <p style='color:#666; font-size:12px;'>Digital Sanctum — Managed IT Services</p>
-            </div>
-            """
             from ..services.email_service import email_service as _email_service
-            _email_service.send(
-                to_emails=account.billing_email,
+            _email_service.send_template(
+                to_email=account.billing_email,
                 subject=f"{asset.name} Has Been Renewed",
-                html_content=html
+                template_name="asset_renewed.html",
+                context={
+                    "account_name": account.name,
+                    "asset_name": asset.name,
+                    "asset_type": asset.asset_type,
+                    "new_expires_at": asset.expires_at.strftime("%d %b %Y")
+                }
             )
 
     return asset

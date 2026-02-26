@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+    <p>Hi {{ account_name }},</p>
+    <p>A renewal invoice has been generated for the following service. Please action this at your earliest convenience to avoid any service interruption.</p>
+
+    <div style="background-color: #f4f4f5; border-left: 4px solid #d4af37; padding: 20px; margin: 25px 0; border-radius: 4px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="color: #52525b; font-size: 14px; padding-bottom: 8px;">Asset</td>
+                <td style="font-weight: bold; text-align: right; color: #18181b; padding-bottom: 8px;">{{ asset_name }}</td>
+            </tr>
+            <tr>
+                <td style="color: #52525b; font-size: 14px; padding-bottom: 8px;">Type</td>
+                <td style="font-weight: bold; text-align: right; color: #18181b; padding-bottom: 8px; text-transform: capitalize;">{{ asset_type }}</td>
+            </tr>
+            <tr>
+                <td style="color: #52525b; font-size: 14px; padding-top: 12px; border-top: 1px solid #e4e4e7;">Current Expiry</td>
+                <td style="font-weight: bold; text-align: right; color: #c0392b; padding-top: 12px; border-top: 1px solid #e4e4e7;">{{ expires_at }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <p style="text-align: center; margin: 30px 0;">
+        <a href="{{ invoice_url }}" class="button">View Invoice</a>
+    </p>
+
+    <p style="font-size: 14px; color: #71717a; margin-top: 30px;">
+        If you have any questions regarding this renewal, simply reply to this email and our team will assist you.
+    </p>
+{% endblock %}

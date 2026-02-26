@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+    <p>Hi {{ account_name }},</p>
+    <p>Great news — your service has been successfully renewed. Here are the updated details:</p>
+
+    <div style="background-color: #f4f4f5; border-left: 4px solid #27ae60; padding: 20px; margin: 25px 0; border-radius: 4px;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="color: #52525b; font-size: 14px; padding-bottom: 8px;">Asset</td>
+                <td style="font-weight: bold; text-align: right; color: #18181b; padding-bottom: 8px;">{{ asset_name }}</td>
+            </tr>
+            <tr>
+                <td style="color: #52525b; font-size: 14px; padding-bottom: 8px;">Type</td>
+                <td style="font-weight: bold; text-align: right; color: #18181b; padding-bottom: 8px; text-transform: capitalize;">{{ asset_type }}</td>
+            </tr>
+            <tr>
+                <td style="color: #52525b; font-size: 14px; padding-top: 12px; border-top: 1px solid #e4e4e7;"><strong>New Expiry</strong></td>
+                <td style="font-weight: bold; text-align: right; color: #27ae60; padding-top: 12px; border-top: 1px solid #e4e4e7; font-size: 16px;">{{ new_expires_at }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <p style="font-size: 14px; color: #71717a; margin-top: 30px;">
+        No action is required on your part. If you have any questions, simply reply to this email.
+    </p>
+{% endblock %}
