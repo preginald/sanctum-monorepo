@@ -314,6 +314,54 @@ def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Sess
         print(f"PDF Regen Failed: {e}")
     
     inv.account_name = inv.account.name
+
+    # Phase 66: Detect renewal asset and attach payload
+    if update.status == 'paid':
+        renewal_asset = db.query(models.Asset).options(
+            joinedload(models.Asset.linked_product)
+        ).filter(
+            models.Asset.pending_renewal_invoice_id == inv.id
+        ).first()
+
+        if renewal_asset and renewal_asset.linked_product:
+            from datetime import date
+            current_expiry = renewal_asset.expires_at
+            freq = renewal_asset.linked_product.billing_frequency
+            suggested = current_expiry
+
+            if freq == 'monthly':
+                next_month = current_expiry.month + 1 if current_expiry.month < 12 else 1
+                next_year = current_expiry.year if current_expiry.month < 12 else current_expiry.year + 1
+                try:
+                    suggested = current_expiry.replace(year=next_year, month=next_month)
+                except ValueError:
+                    suggested = current_expiry.replace(year=next_year, month=next_month, day=28)
+            elif freq == 'quarterly':
+                months = current_expiry.month + 3
+                suggested = current_expiry.replace(year=current_expiry.year + (months - 1) // 12, month=(months - 1) % 12 + 1)
+            elif freq == 'biannual':
+                months = current_expiry.month + 6
+                suggested = current_expiry.replace(year=current_expiry.year + (months - 1) // 12, month=(months - 1) % 12 + 1)
+            elif freq == 'annual' or freq == 'yearly':
+                try:
+                    suggested = current_expiry.replace(year=current_expiry.year + 1)
+                except ValueError:
+                    suggested = current_expiry.replace(year=current_expiry.year + 1, day=28)
+            elif freq == 'biennial':
+                try:
+                    suggested = current_expiry.replace(year=current_expiry.year + 2)
+                except ValueError:
+                    suggested = current_expiry.replace(year=current_expiry.year + 2, day=28)
+
+            inv.renewal_asset = {
+                'asset_id': str(renewal_asset.id),
+                'asset_name': renewal_asset.name,
+                'asset_type': renewal_asset.asset_type,
+                'current_expires_at': current_expiry.isoformat(),
+                'suggested_expires_at': suggested.isoformat(),
+                'billing_frequency': freq
+            }
+
     return inv
 
 @router.delete("/{invoice_id}")

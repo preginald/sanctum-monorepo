@@ -101,3 +101,4 @@ class InvoiceResponse(SanctumBase):
     items: List[InvoiceItemSchema] = []
     delivery_logs: List[InvoiceDeliveryLogResponse] = []
     suggested_cc: List[str] = []
+    renewal_asset: Optional[dict] = None
