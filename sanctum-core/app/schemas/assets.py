@@ -34,6 +34,7 @@ class AssetUpdate(SanctumBase):
     linked_product_id: Optional[UUID] = None
     auto_invoice: Optional[bool] = None
     pending_renewal_invoice_id: Optional[UUID] = None
+    send_renewal_notification: Optional[bool] = None
 
     # NEW: Asset Intelligence
     specs: Optional[Dict[str, Any]] = None
@@ -43,3 +44,4 @@ class AssetResponse(AssetCreate):
     created_at: datetime
     updated_at: Optional[datetime] = None
     pending_renewal_invoice_id: Optional[UUID] = None
+    renewal_cleared: Optional[bool] = None
