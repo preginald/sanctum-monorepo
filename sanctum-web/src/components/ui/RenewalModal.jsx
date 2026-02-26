@@ -2,10 +2,11 @@ import React, { useState, useEffect } from 'react';
 import Modal from './Modal';
 import { RefreshCw, Calendar, AlertTriangle } from 'lucide-react';
 import api from '../../lib/api';
+import SendNotificationForm from './SendNotificationForm';
 
 export default function RenewalModal({ isOpen, onClose, renewalAsset, onConfirm, isManual = false }) {
     const [newExpiry, setNewExpiry] = useState('');
-    const [notifyClient, setNotifyClient] = useState(true);
+    const [sendForm, setSendForm] = useState(null);
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState(null);
 
@@ -14,6 +15,7 @@ export default function RenewalModal({ isOpen, onClose, renewalAsset, onConfirm,
             setNewExpiry(renewalAsset.suggested_expires_at);
         }
         setError(null);
+        setSendForm(null);
     }, [renewalAsset]);
 
     const handleConfirm = async () => {
@@ -22,7 +24,14 @@ export default function RenewalModal({ isOpen, onClose, renewalAsset, onConfirm,
         setError(null);
         try {
             const payload = { expires_at: newExpiry };
-            if (isManual) payload.send_renewal_notification = notifyClient;
+            if (isManual && sendForm) {
+                payload.send_renewal_notification = true;
+                payload.to_email = sendForm.test_mode ? 'peter@digitalsanctum.com.au' : sendForm.to;
+                payload.cc_emails = sendForm.test_mode ? [] : sendForm.cc;
+                payload.subject = sendForm.test_mode ? `[TEST] ${sendForm.subject}` : sendForm.subject;
+                payload.message = sendForm.message;
+                payload.recipient_contact_id = sendForm.test_mode ? null : sendForm.recipient_contact_id;
+            }
             const res = await api.put(`/assets/${renewalAsset.asset_id}`, payload);
             onConfirm?.(res.data);
             onClose();
@@ -86,19 +95,15 @@ export default function RenewalModal({ isOpen, onClose, renewalAsset, onConfirm,
                 />
             </div>
 
-            {/* Notify Client checkbox — manual flow only */}
+            {/* Client Notification — Full Variant (DOC-012) — manual flow only */}
             {isManual && (
-                <div className="flex items-center gap-2.5 mb-5 p-3 bg-slate-800/50 border border-slate-700 rounded-lg">
-                    <input
-                        type="checkbox"
-                        id="notifyClient"
-                        checked={notifyClient}
-                        onChange={e => setNotifyClient(e.target.checked)}
-                        className="w-4 h-4 accent-indigo-500 cursor-pointer"
+                <div className="mb-5 p-4 bg-slate-800/50 border border-slate-700 rounded-lg">
+                    <SendNotificationForm
+                        accountId={renewalAsset.account_id}
+                        assetName={renewalAsset.asset_name}
+                        onChange={setSendForm}
+                        disabled={isSaving}
                     />
-                    <label htmlFor="notifyClient" className="text-sm text-slate-300 cursor-pointer">
-                        Send renewal notification to client
-                    </label>
                 </div>
             )}
 
