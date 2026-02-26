@@ -33,7 +33,8 @@ usage() {
     echo "  ticket update   <id> [-s <subject>] [-d <description>] [--status <status>] [--priority <priority>] [--type <type>] [-e dev|prod]"
     echo "  ticket comment  <id> -b <body> [--status <status>] [-e dev|prod]"
     echo "  ticket resolve  <id> -b <body> [-e dev|prod]"
-    echo "  ticket show     <id> [-e dev|prod]"
+    echo "  ticket list     [-m <milestone>] [-p <project>] [--status <status>] [-e dev|prod]
+  ticket show     <id> [-e dev|prod]"
     echo "  ticket delete   <id> [-e dev|prod]"
     echo ""
     echo -e "${YELLOW}ARTICLE COMMANDS${NC}"
@@ -280,6 +281,52 @@ ticket_show() {
         created_at,
         updated_at
     }'
+    echo ""
+}
+
+ticket_list() {
+    local MILESTONE=""
+    local PROJECT=""
+    local STATUS=""
+    local ENV="dev"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -m|--milestone) MILESTONE="$2"; shift 2 ;;
+            -p|--project)   PROJECT="$2"; shift 2 ;;
+            --status)       STATUS="$2"; shift 2 ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket list"
+    ensure_auth
+
+    local MILESTONE_FILTER=""
+    if [ -n "$MILESTONE" ]; then
+        if [ -n "$PROJECT" ]; then
+            resolve_project "$PROJECT"
+        else
+            resolve_project "Sanctum Core"
+        fi
+        resolve_milestone "$MILESTONE" "$PROJECT_ID"
+        MILESTONE_FILTER="$MILESTONE_ID"
+    fi
+
+    RESULT=$(api_get "/tickets")
+
+    echo ""
+    if [ -n "$MILESTONE_FILTER" ]; then
+        echo -e "${BLUE}Milestone: ${MILESTONE_DISPLAY}${NC}"
+        echo ""
+        echo "$RESULT" | jq --arg mid "$MILESTONE_FILTER"             '[.[] | select(.milestone_id == $mid) | {id, subject, status, priority, ticket_type}]'
+    elif [ -n "$STATUS" ]; then
+        echo "$RESULT" | jq --arg s "$STATUS"             '[.[] | select(.status == $s) | {id, subject, status, priority, ticket_type}]'
+    else
+        echo "$RESULT" | jq '[.[] | {id, subject, status, priority, ticket_type}]'
+    fi
     echo ""
 }
 
@@ -539,11 +586,12 @@ case "$DOMAIN" in
             update)  ticket_update "$@" ;;
             comment) ticket_comment "$@" ;;
             resolve) ticket_resolve "$@" ;;
+            list)    ticket_list "$@" ;;
             show)    ticket_show "$@" ;;
             delete)  ticket_delete "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, comment, resolve, show, delete"
+                echo "  Valid commands: create, update, comment, resolve, list, show, delete"
                 exit 1
                 ;;
         esac
