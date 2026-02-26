@@ -330,7 +330,7 @@ export default function ClientDetail() {
                 onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active', specs: {} }); setShowAssetModal(true); }}
                 onEdit={(a) => { setAssetForm(a); setShowAssetModal(true); }}
                 onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
-                onRenew={(a) => { setRenewalAsset({ asset_id: a.id, asset_name: a.name, asset_type: a.asset_type, current_expires_at: a.expires_at, suggested_expires_at: a.expires_at, billing_frequency: a.linked_product?.billing_frequency || null }); setShowRenewalModal(true); }}
+                onRenew={(a) => { setRenewalAsset({ asset_id: a.id, account_id: id, asset_name: a.name, asset_type: a.asset_type, current_expires_at: a.expires_at, suggested_expires_at: a.expires_at, billing_frequency: a.linked_product?.billing_frequency || null }); setShowRenewalModal(true); }}
               />
 
               <AuditList 

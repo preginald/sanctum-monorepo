@@ -355,6 +355,7 @@ def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Sess
 
             inv.renewal_asset = {
                 'asset_id': str(renewal_asset.id),
+                'account_id': str(renewal_asset.account_id),
                 'asset_name': renewal_asset.name,
                 'asset_type': renewal_asset.asset_type,
                 'current_expires_at': current_expiry.isoformat(),
