@@ -90,9 +90,13 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                             className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white capitalize focus:border-sanctum-blue outline-none" 
                             value={form.status} 
                             onChange={e => setForm({...form, status: e.target.value})}
+                            disabled={['expiring', 'expired'].includes(form.status)}
                         >
                             {ASSET_STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}
                         </select>
+                        {['expiring', 'expired'].includes(form.status) && (
+                            <p className="text-xs text-amber-400 mt-1">Status is system-managed and cannot be changed manually.</p>
+                        )}
                     </div>
                 </div>
 

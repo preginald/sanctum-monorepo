@@ -83,7 +83,9 @@ export const ASSET_STATUSES = [
     "maintenance",
     "storage",
     "retired",
-    "lost"
+    "lost",
+    "expiring",
+    "expired"
 ];
 
 // CATALOG / PRODUCTS
