@@ -169,7 +169,7 @@ export default function SearchableSelect({
                             );
                         })
                     ) : null}
-                    {allowCreate && query.length > 0 && filtered.length > 0 && !filtered.some(i => String(i[labelKey]).toLowerCase() === query.toLowerCase()) && (
+                    {allowCreate && query.length > 0 && filtered.length > 0 && !filtered.some(i => String(i[labelKey]).toLowerCase() === query.toLowerCase()) && !filtered.some(i => String(i[subLabelKey] || '').toLowerCase().includes(query.toLowerCase())) && (
                         <button
                             onClick={() => handleSelect({ [valueKey]: query, [labelKey]: query, _isNew: true })}
                             className="w-full text-left flex items-center gap-2 p-2 rounded transition-all duration-150 border bg-green-500/5 border-green-500/20 hover:bg-green-500/10 hover:border-green-400/40 mt-1"
