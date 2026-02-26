@@ -195,6 +195,7 @@ export default function SendNotificationForm({ accountId, assetName, onChange, d
                     onSelect={handleCcAdd}
                     labelKey="title"
                     subLabelKey="identifier"
+                    displaySelected={false}
                     allowCreate
                     placeholder="Add CC recipient..."
                 />
