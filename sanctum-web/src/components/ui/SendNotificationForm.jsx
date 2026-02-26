@@ -163,6 +163,8 @@ export default function SendNotificationForm({ accountId, assetName, onChange, d
                         items={contactOptions}
                         selectedIds={form.recipient_contact_id ? [form.recipient_contact_id] : []}
                         onSelect={handleContactSelect}
+                        labelKey="title"
+                        subLabelKey="identifier"
                         placeholder={loading ? 'Loading contacts...' : 'Search contacts...'}
                     />
                 ) : (
@@ -191,6 +193,8 @@ export default function SendNotificationForm({ accountId, assetName, onChange, d
                 <SearchableSelect
                     items={contactOptions.filter(c => !form.cc.includes(c.title))}
                     onSelect={handleCcAdd}
+                    labelKey="title"
+                    subLabelKey="identifier"
                     allowCreate
                     placeholder="Add CC recipient..."
                 />
