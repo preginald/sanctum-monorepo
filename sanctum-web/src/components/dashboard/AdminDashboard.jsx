@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { DollarSign, Briefcase, Activity, Ticket, AlertCircle } from 'lucide-react';
 import api from '../../lib/api';
 import { formatCurrency } from '../../lib/formatters';
+import UpcomingRenewals from './UpcomingRenewals';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
@@ -38,7 +39,7 @@ export default function AdminDashboard() {
             subtext={`${stats.open_tickets} total open tickets`}
         />
       </div>
-      {/* Future: Add Recent Activity Feed here */}
+      <UpcomingRenewals />
     </div>
   );
 }

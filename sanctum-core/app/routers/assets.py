@@ -165,7 +165,8 @@ def get_expiring_assets(
             "days_until_expiry": days_until,
             "is_expired": days_until is not None and days_until < 0,
             "auto_invoice": a.auto_invoice,
-            "linked_product_id": str(a.linked_product_id) if a.linked_product_id else None
+            "linked_product_id": str(a.linked_product_id) if a.linked_product_id else None,
+            "pending_renewal_invoice_id": str(a.pending_renewal_invoice_id) if a.pending_renewal_invoice_id else None
         })
 
     expired_count = sum(1 for r in result if r["is_expired"])
