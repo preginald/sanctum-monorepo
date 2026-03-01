@@ -37,6 +37,12 @@ usage() {
   ticket show     <id> [-e dev|prod]"
     echo "  ticket delete   <id> [-e dev|prod]"
     echo ""
+    echo -e "${YELLOW}INVOICE COMMANDS${NC}"
+    echo "  invoice create  -a <account> [-s <status>] [--description <desc>] [--amount <amount>] [-e dev|prod]"
+    echo "  invoice update  <id> --status <status> [-e dev|prod]"
+    echo "  invoice delete  <id> [--ticket <ticket_id>] [-e dev|prod]"
+    echo "  invoice show    <id> [-e dev|prod]"
+    echo ""
     echo -e "${YELLOW}ARTICLE COMMANDS${NC}"
     echo "  article create  -t <title> --slug <slug> --category <category> [-f <file>] [-e dev|prod]"
     echo "  article update  <uuid> [-f <file>] [-e dev|prod]"
@@ -411,6 +417,160 @@ ticket_update() {
 
 
 # ─────────────────────────────────────────────
+# INVOICE DOMAIN
+# ─────────────────────────────────────────────
+invoice_create() {
+    local ACCOUNT_NAME="" STATUS="sent" DESCRIPTION="QA Test Invoice" AMOUNT="100" ENV="dev"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -a|--account)     ACCOUNT_NAME="$2"; shift 2 ;;
+            -s|--status)      STATUS="$2"; shift 2 ;;
+            -d|--description) DESCRIPTION="$2"; shift 2 ;;
+            --amount)         AMOUNT="$2"; shift 2 ;;
+            -e|--env)         ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$ACCOUNT_NAME" ] && echo -e "${RED}✗ -a/--account is required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — invoice create"
+    ensure_auth
+    resolve_account "$ACCOUNT_NAME" || exit 1
+    confirm_prod "About to create test invoice for: ${ACCOUNT_DISPLAY}"
+
+    # Step 1: Create invoice directly
+    echo -e "${YELLOW}→ Creating invoice...${NC}"
+    INVOICE_PAYLOAD=$(jq -n         --arg account_id "$ACCOUNT_ID"         --arg status "$STATUS"         --arg payment_terms "Net 14 Days"         '{account_id: $account_id, status: $status, payment_terms: $payment_terms}')
+    INVOICE_RESULT=$(api_post "/invoices" "$INVOICE_PAYLOAD")
+    INVOICE_ID=$(echo "$INVOICE_RESULT" | jq -r '.id // empty')
+    if [ -z "$INVOICE_ID" ]; then
+        echo -e "${RED}✗ Failed to create invoice${NC}"
+        echo "$INVOICE_RESULT" | jq; exit 1
+    fi
+    echo -e "${GREEN}  ✓ Invoice created (${INVOICE_ID:0:8})${NC}"
+
+    # Step 2: Add line item
+    echo -e "${YELLOW}→ Adding line item (${DESCRIPTION} @ \$${AMOUNT})...${NC}"
+    ITEM_PAYLOAD=$(jq -n         --arg description "$DESCRIPTION"         --arg unit_price "$AMOUNT"         '{description: $description, quantity: 1, unit_price: $unit_price}')
+    api_post "/invoices/${INVOICE_ID}/items" "$ITEM_PAYLOAD" > /dev/null
+    echo -e "${GREEN}  ✓ Line item added${NC}"
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}✓ Invoice Created${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo -e "  Invoice ID: ${BLUE}${INVOICE_ID}${NC}"
+    echo -e "  Account:    ${BLUE}${ACCOUNT_DISPLAY}${NC}"
+    echo -e "  Status:     ${BLUE}${STATUS}${NC}"
+    echo -e "  Amount:     ${BLUE}\$${AMOUNT}${NC}"
+    echo ""
+    echo -e "${GRAY}To delete: sanctum.sh invoice delete ${INVOICE_ID} -e ${ENV}${NC}"
+    echo ""
+}
+
+invoice_update() {
+    local INVOICE_ID="$1"; shift
+    local STATUS="" DUE_DATE="" PAYMENT_TERMS="" ENV="dev"
+
+    [ -z "$INVOICE_ID" ] && echo -e "${RED}✗ Invoice ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --status)         STATUS="$2"; shift 2 ;;
+            --due-date)       DUE_DATE="$2"; shift 2 ;;
+            --payment-terms)  PAYMENT_TERMS="$2"; shift 2 ;;
+            -e|--env)         ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — invoice update"
+    ensure_auth
+    confirm_prod "About to update invoice: ${INVOICE_ID}"
+
+    PAYLOAD=$(jq -n         --arg status "$STATUS"         --arg due_date "$DUE_DATE"         --arg payment_terms "$PAYMENT_TERMS"         '{}
+        | if $status != "" then .status = $status else . end
+        | if $due_date != "" then .due_date = $due_date else . end
+        | if $payment_terms != "" then .payment_terms = $payment_terms else . end')
+
+    RESULT=$(api_put "/invoices/${INVOICE_ID}" "$PAYLOAD")
+    UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+    if [ -z "$UPDATED_ID" ]; then
+        echo -e "${RED}✗ Failed to update invoice${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ Invoice updated: ${INVOICE_ID:0:8}${NC}"
+    echo ""
+}
+
+invoice_delete() {
+    local INVOICE_ID="$1"; shift
+    local TICKET_ID="" ENV="dev"
+
+    [ -z "$INVOICE_ID" ] && echo -e "${RED}✗ Invoice ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --ticket) TICKET_ID="$2"; shift 2 ;;
+            -e|--env) ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — invoice delete"
+    ensure_auth
+    confirm_prod "About to delete invoice: ${INVOICE_ID}"
+
+    RESULT=$(api_delete "/invoices/${INVOICE_ID}")
+    echo -e "${GREEN}✓ Invoice deleted: ${INVOICE_ID:0:8}${NC}"
+
+    if [ -n "$TICKET_ID" ]; then
+        echo -e "${YELLOW}→ Soft-deleting source ticket #${TICKET_ID}...${NC}"
+        TICKET_RESULT=$(api_delete "/tickets/${TICKET_ID}")
+        TICKET_STATUS=$(echo "$TICKET_RESULT" | jq -r '.status // empty')
+        if [ "$TICKET_STATUS" = "archived" ]; then
+            echo -e "${GREEN}✓ Ticket #${TICKET_ID} archived${NC}"
+        else
+            echo -e "${YELLOW}⚠ Ticket delete returned unexpected response${NC}"
+            echo "$TICKET_RESULT" | jq
+        fi
+    fi
+    echo ""
+}
+
+invoice_show() {
+    local INVOICE_ID="$1"; shift
+    local ENV="dev"
+
+    [ -z "$INVOICE_ID" ] && echo -e "${RED}✗ Invoice ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -e|--env) ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — invoice show"
+    ensure_auth
+
+    RESULT=$(api_get "/invoices/${INVOICE_ID}")
+    echo ""
+    echo "$RESULT" | jq '{id, status, total_amount, account_id, due_date, payment_terms, generated_at, paid_at}'
+    echo ""
+}
+
+# ─────────────────────────────────────────────
 # ARTICLE DOMAIN
 # ─────────────────────────────────────────────
 article_create() {
@@ -592,6 +752,20 @@ case "$DOMAIN" in
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
                 echo "  Valid commands: create, update, comment, resolve, list, show, delete"
+                exit 1
+                ;;
+        esac
+        ;;
+    invoice)
+        shift 2 || true
+        case "$COMMAND" in
+            create)  invoice_create "$@" ;;
+            update)  invoice_update "$@" ;;
+            delete)  invoice_delete "$@" ;;
+            show)    invoice_show "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown invoice command: ${COMMAND}${NC}"
+                echo "  Valid commands: create, update, delete, show"
                 exit 1
                 ;;
         esac

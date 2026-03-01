@@ -73,6 +73,11 @@ class InvoiceSendRequest(SanctumBase):
     message: Optional[str] = None
     recipient_contact_id: Optional[UUID] = None # NEW FIELD
 
+class InvoiceCreate(SanctumBase):
+    account_id: UUID
+    status: Optional[str] = "draft"
+    payment_terms: Optional[str] = "Net 14 Days"
+
 class InvoiceUpdate(SanctumBase):
     status: Optional[str] = None
     due_date: Optional[date] = None

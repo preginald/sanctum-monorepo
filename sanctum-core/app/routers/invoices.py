@@ -179,6 +179,24 @@ def bulk_mark_paid(
 
     return {"updated": len(updated), "invoice_ids": [str(i.id) for i in updated], "emails_sent": emails_sent, "emails_failed": emails_failed}
 
+@router.post("", response_model=schemas.InvoiceResponse)
+def create_invoice(invoice: schemas.InvoiceCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    account = db.query(models.Account).filter(models.Account.id == invoice.account_id).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    new_invoice = models.Invoice(
+        account_id=invoice.account_id,
+        status=invoice.status or "draft",
+        payment_terms=invoice.payment_terms or "Net 14 Days",
+        due_date=calculate_due_date(datetime.now(), invoice.payment_terms or "Net 14 Days"),
+        generated_at=datetime.now()
+    )
+    db.add(new_invoice)
+    db.commit()
+    db.refresh(new_invoice)
+    return new_invoice
+
 @router.post("/from_ticket/{ticket_id}", response_model=schemas.InvoiceResponse)
 def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     # 1. Fetch Ticket
