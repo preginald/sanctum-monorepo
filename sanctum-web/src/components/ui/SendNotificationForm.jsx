@@ -68,6 +68,13 @@ export default function SendNotificationForm({ accountId, assetName, defaultSubj
         }
     }, [assetName]);
 
+    // Keep subject in sync if defaultSubject arrives after mount
+    useEffect(() => {
+        if (defaultSubject && !assetName) {
+            update({ subject: defaultSubject });
+        }
+    }, [defaultSubject]);
+
     const update = (patch) => {
         setForm(prev => {
             const next = { ...prev, ...patch };
