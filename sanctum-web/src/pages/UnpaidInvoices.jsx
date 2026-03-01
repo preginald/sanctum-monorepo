@@ -7,13 +7,21 @@ import { Loader2, AlertTriangle, Send, ExternalLink, DollarSign, Clock, CheckSqu
 import { useToast } from '../context/ToastContext';
 import { PAYMENT_METHODS } from '../lib/constants';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import SendNotificationForm from '../components/ui/SendNotificationForm';
 
 export default function UnpaidInvoices() {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [sendingReminder, setSendingReminder] = useState(null);
+
+  // Send modal
+  const [showSendModal, setShowSendModal] = useState(false);
+  const [form, setForm] = useState({});
+  const [sendingBulk, setSendingBulk] = useState(false);
+  const [pendingInvoices, setPendingInvoices] = useState([]);
+  const [computedSubject, setComputedSubject] = useState('');
+  const [multiAccountError, setMultiAccountError] = useState('');
 
   // Bulk selection
   const [selectedIds, setSelectedIds] = useState(new Set());
@@ -64,24 +72,43 @@ export default function UnpaidInvoices() {
     } finally { setLoading(false); }
   };
 
-  const handleSendReminder = async (inv) => {
-    if (!inv.billing_email) {
-      addToast("No billing email set for this client", "danger");
+  const openSendModal = (singleInv = null) => {
+    setMultiAccountError('');
+    if (singleInv) {
+      setPendingInvoices([singleInv]);
+      setComputedSubject('Invoice from Digital Sanctum');
+      setShowSendModal(true);
       return;
     }
-    setSendingReminder(inv.id);
+    const selected = invoices.filter(i => selectedIds.has(i.id));
+    const accountIds = [...new Set(selected.map(i => i.account_id))];
+    if (accountIds.length > 1) {
+      setMultiAccountError('Bulk send is limited to one client account at a time. Please filter your selection.');
+      return;
+    }
+    setPendingInvoices(selected);
+    setComputedSubject('Outstanding Invoices from Digital Sanctum');
+    setShowSendModal(true);
+  };
+
+  const handleBulkSend = async () => {
+    setSendingBulk(true);
     try {
-      await api.post(`/invoices/${inv.id}/send`, {
-        to_email: inv.billing_email,
-        cc_emails: [],
-        subject: `Friendly Reminder: Invoice #${inv.id.slice(0, 8).toUpperCase()} Outstanding`,
-        message: "We hope this finds you well. This is a friendly reminder that the attached invoice remains outstanding. Please let us know if you have any questions."
-      });
-      addToast(`Reminder sent to ${inv.billing_email}`, "success");
+      for (const inv of pendingInvoices) {
+        await api.post(`/invoices/${inv.id}/send`, {
+          to_email: form.test_mode ? 'peter@digitalsanctum.com.au' : form.to,
+          cc_emails: form.test_mode ? [] : form.cc,
+          subject: form.test_mode ? `[TEST] ${form.subject}` : form.subject,
+          message: form.message,
+          recipient_contact_id: form.test_mode ? null : form.recipient_contact_id
+        });
+      }
+      addToast(`Reminder${pendingInvoices.length !== 1 ? 's' : ''} sent successfully`, 'success');
+      setShowSendModal(false);
       fetchUnpaid();
     } catch (e) {
-      addToast("Failed to send reminder", "danger");
-    } finally { setSendingReminder(null); }
+      addToast('Failed to send reminder', 'danger');
+    } finally { setSendingBulk(false); }
   };
 
   const toggleSelect = (id) => {
@@ -142,6 +169,40 @@ export default function UnpaidInvoices() {
 
   return (
     <Layout title="Unpaid Invoices" onRefresh={fetchUnpaid}>
+
+      {/* SEND MODAL */}
+      {showSendModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold flex items-center gap-2"><Send size={18} className="text-blue-400"/> Send Reminder</h2>
+                <p className="text-sm text-slate-400 mt-1">
+                  {pendingInvoices.length === 1
+                    ? `Invoice #${pendingInvoices[0].id.slice(0, 8).toUpperCase()} — ${pendingInvoices[0].account_name}`
+                    : `${pendingInvoices.length} invoices — ${pendingInvoices[0]?.account_name}`}
+                </p>
+              </div>
+              <button onClick={() => setShowSendModal(false)} className="opacity-50 hover:opacity-100"><X size={20}/></button>
+            </div>
+            <SendNotificationForm
+              accountId={pendingInvoices[0]?.account_id}
+              defaultSubject={computedSubject}
+              onChange={setForm}
+              disabled={sendingBulk}
+            />
+            <button
+              type="button"
+              onClick={handleBulkSend}
+              disabled={sendingBulk}
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex justify-center items-center gap-2 disabled:opacity-50 transition-colors"
+            >
+              {sendingBulk ? <Loader2 className="animate-spin" size={18}/> : <Send size={16}/>}
+              {pendingInvoices.length === 1 ? 'Send Reminder' : `Send to ${pendingInvoices.length} Invoices`}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* PAYMENT MODAL */}
       {showPayModal && (
@@ -296,12 +357,27 @@ export default function UnpaidInvoices() {
             <span className="text-sm font-bold text-white">{selectedIds.size} invoice{selectedIds.size !== 1 ? 's' : ''} selected</span>
             <span className="text-sm text-green-400 font-bold">{formatCurrency(selectedTotal())}</span>
           </div>
-          <button
-            onClick={openPayModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition-colors shadow-lg shadow-green-900/30"
-          >
-            <CreditCard size={14} /> Mark Selected Paid
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => openSendModal()}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-colors shadow-lg shadow-blue-900/30"
+            >
+              <Send size={14} /> Send Reminder
+            </button>
+            <button
+              onClick={openPayModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-bold transition-colors shadow-lg shadow-green-900/30"
+            >
+              <CreditCard size={14} /> Mark Selected Paid
+            </button>
+          </div>
+        </div>
+      )}
+
+      {multiAccountError && (
+        <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 rounded-xl flex items-center gap-3 text-sm text-red-400 animate-in fade-in slide-in-from-top-2 duration-200">
+          <AlertTriangle size={16} className="shrink-0" />
+          {multiAccountError}
         </div>
       )}
 
@@ -374,12 +450,10 @@ export default function UnpaidInvoices() {
                   <TableCell className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => handleSendReminder(inv)}
-                        disabled={sendingReminder === inv.id}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 disabled:opacity-30 transition-colors"
-                        title={inv.billing_email ? `Send to ${inv.billing_email}` : 'No billing email'}
+                        onClick={() => openSendModal(inv)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-bold bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 transition-colors"
                       >
-                        {sendingReminder === inv.id ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                        <Send size={12} />
                         Remind
                       </button>
                       <button
