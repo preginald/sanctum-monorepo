@@ -530,6 +530,14 @@ invoice_delete() {
     ensure_auth
     confirm_prod "About to delete invoice: ${INVOICE_ID}"
 
+    # Void first if not already draft or void
+    STATUS=$(api_get "/invoices/${INVOICE_ID}" | jq -r '.status // empty')
+    if [ "$STATUS" != "draft" ] && [ "$STATUS" != "void" ]; then
+        echo -e "${YELLOW}→ Invoice status is '${STATUS}' — voiding first...${NC}"
+        api_put "/invoices/${INVOICE_ID}/void" "{}" > /dev/null
+        echo -e "${GREEN}  ✓ Voided${NC}"
+    fi
+
     RESULT=$(api_delete "/invoices/${INVOICE_ID}")
     echo -e "${GREEN}✓ Invoice deleted: ${INVOICE_ID:0:8}${NC}"
 
