@@ -373,7 +373,7 @@ ticket_delete() {
 }
 ticket_update() {
     local TICKET_ID="$1"; shift
-    local SUBJECT="" DESCRIPTION="" STATUS="" PRIORITY="" TICKET_TYPE="" ENV="dev"
+    local SUBJECT="" DESCRIPTION="" STATUS="" PRIORITY="" TICKET_TYPE="" MILESTONE_NAME="" ENV="dev"
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
@@ -384,6 +384,7 @@ ticket_update() {
             --status)         STATUS="$2"; shift 2 ;;
             --priority)       PRIORITY="$2"; shift 2 ;;
             --type)           TICKET_TYPE="$2"; shift 2 ;;
+            -m|--milestone)   MILESTONE_NAME="$2"; shift 2 ;;
             -e|--env)         ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
@@ -392,6 +393,10 @@ ticket_update() {
     resolve_env "$ENV"
     print_env_banner "sanctum.sh — ticket update"
     ensure_auth
+    if [ -n "$MILESTONE_NAME" ]; then
+        resolve_project "Sanctum Core" || exit 1
+        resolve_milestone "$MILESTONE_NAME" "$PROJECT_ID" || exit 1
+    fi
     confirm_prod "About to update ticket #${TICKET_ID}"
 
     PAYLOAD=$(jq -n \
@@ -400,12 +405,14 @@ ticket_update() {
         --arg status "$STATUS" \
         --arg priority "$PRIORITY" \
         --arg ticket_type "$TICKET_TYPE" \
+        --arg milestone_id "$MILESTONE_ID" \
         '{}
         | if $subject != "" then .subject = $subject else . end
         | if $description != "" then .description = $description else . end
         | if $status != "" then .status = $status else . end
         | if $priority != "" then .priority = $priority else . end
-        | if $ticket_type != "" then .ticket_type = $ticket_type else . end')
+        | if $ticket_type != "" then .ticket_type = $ticket_type else . end
+        | if $milestone_id != "" then .milestone_id = $milestone_id else . end')
 
     RESULT=$(api_put "/tickets/${TICKET_ID}" "$PAYLOAD")
     UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
