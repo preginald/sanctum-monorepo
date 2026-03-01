@@ -8,6 +8,7 @@ import useAuthStore from '../store/authStore';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import SendNotificationForm from '../components/ui/SendNotificationForm';
 import { PAYMENT_METHODS } from '../lib/constants';
 import RenewalModal from '../components/ui/RenewalModal';
 
@@ -20,7 +21,6 @@ export default function InvoiceDetail() {
   // === STATE ===
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [accountContacts, setAccountContacts] = useState([]);
   
   // Track updates to force PDF refresh
   const [lastUpdate, setLastUpdate] = useState(Date.now());
@@ -35,15 +35,8 @@ export default function InvoiceDetail() {
   const [confirmVoid, setConfirmVoid] = useState(false);
 
   // SEND FORM
-  const [sendForm, setSendForm] = useState({ 
-      to: '', 
-      cc: [], 
-      subject: '', 
-      message: '', 
-      recipient_contact_id: null,
-      mode: 'search',
-      test_mode: false
-  });
+  const [form, setForm] = useState({});
+  const [computedSubject, setComputedSubject] = useState('');
   const [sending, setSending] = useState(false);
 
   // PAYMENT FORM
@@ -74,32 +67,10 @@ export default function InvoiceDetail() {
       if(res.data.account_id) {
           api.get(`/accounts/${res.data.account_id}`).then(accRes => {
               const contacts = accRes.data.contacts || [];
-              setAccountContacts(contacts);
-
-              let defaultEmail = accRes.data.billing_email || '';
-              let defaultContactId = null;
-
-              const billingLead = contacts.find(c => c.persona === 'Billing Lead');
-              const primary = contacts.find(c => c.is_primary_contact);
-
-              if (billingLead && billingLead.email) {
-                  defaultEmail = billingLead.email;
-                  defaultContactId = billingLead.id;
-              } else if (primary && primary.email) {
-                  defaultEmail = primary.email;
-                  defaultContactId = primary.id;
-              }
-
-              setSendForm(prev => ({ 
-                  ...prev, 
-                  subject: subjectLine,
-                  to: defaultEmail,
-                  recipient_contact_id: defaultContactId,
-                  mode: defaultContactId ? 'search' : 'manual' 
-              }));
+              setComputedSubject(subjectLine);
           });
       } else {
-          setSendForm(prev => ({ ...prev, subject: subjectLine }));
+          setComputedSubject(subjectLine);
       }
 
     } catch (e) { console.error(e); } 
@@ -220,7 +191,7 @@ export default function InvoiceDetail() {
               setShowRenewalModal(true);
           }
           
-          setSendForm(prev => ({...prev, subject: `Receipt: Invoice #${res.data.id.slice(0,8).toUpperCase()} - PAID`}));
+          setComputedSubject(`Receipt: Invoice #${res.data.id.slice(0,8).toUpperCase()} - PAID`);
           if (paymentForm.send_receipt) setShowSendModal(true);
       } catch (e) { 
           addToast("Payment update failed", "danger"); 
@@ -235,33 +206,17 @@ export default function InvoiceDetail() {
       } catch(e) { addToast("Failed to save terms", "danger"); }
   };
 
-  const handleSelectContact = (contact) => {
-      setSendForm(prev => ({
-          ...prev,
-          to: contact.email,
-          recipient_contact_id: contact.id
-      }));
-  };
-
-  const toggleCC = (email) => {
-      const current = sendForm.cc;
-      setSendForm({
-          ...sendForm,
-          cc: current.includes(email) ? current.filter(e => e !== email) : [...current, email]
-      });
-  };
-
   const handleSendEmail = async (e) => {
       e.preventDefault();
       setSending(true);
       try {
           const testEmail = 'peter@digitalsanctum.com.au';
           await api.post(`/invoices/${id}/send`, {
-              to_email: sendForm.test_mode ? testEmail : sendForm.to,
-              cc_emails: sendForm.test_mode ? [] : sendForm.cc,
-              subject: sendForm.test_mode ? `[TEST] ${sendForm.subject}` : sendForm.subject,
-              message: sendForm.message,
-              recipient_contact_id: sendForm.test_mode ? null : sendForm.recipient_contact_id 
+              to_email: form.test_mode ? testEmail : form.to,
+              cc_emails: form.test_mode ? [] : form.cc,
+              subject: form.test_mode ? `[TEST] ${form.subject}` : form.subject,
+              message: form.message,
+              recipient_contact_id: form.test_mode ? null : form.recipient_contact_id
           });
           addToast("Email Sent Successfully", "success");
           setShowSendModal(false);
@@ -297,15 +252,6 @@ export default function InvoiceDetail() {
   const isDraft = invoice.status === 'draft';
   const isAdmin = user?.role === 'admin';
 
-  const contactOptions = accountContacts.map(c => ({
-      id: c.id,
-      title: c.email,
-      identifier: `${c.first_name} ${c.last_name} (${c.persona || 'Contact'})`,
-      original: c
-  }));
-
-  const selectedContact = accountContacts.find(c => c.id === sendForm.recipient_contact_id);
-  const greetingName = selectedContact ? selectedContact.first_name : "Team";
 
   const getSendLabel = () => {
       if (invoice.status === 'paid') return 'Send Receipt';
@@ -586,91 +532,14 @@ export default function InvoiceDetail() {
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Send size={20} className="text-blue-400"/> {getSendLabel()}</h2>
                 
                 <form onSubmit={handleSendEmail} className="space-y-4">
-                    <label className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${sendForm.test_mode ? 'bg-amber-500/10 border-amber-500/30' : 'bg-slate-800/50 border-slate-700 hover:border-slate-600'}`}>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold uppercase tracking-wider ${sendForm.test_mode ? 'text-amber-400' : 'text-slate-500'}`}>Test Mode</span>
-                            {sendForm.test_mode && <span className="text-[10px] text-amber-300">→ peter@digitalsanctum.com.au</span>}
-                        </div>
-                        <input type="checkbox" checked={sendForm.test_mode} onChange={e => setSendForm({...sendForm, test_mode: e.target.checked})} className="accent-amber-500 w-4 h-4" />
-                    </label>
-
-                    <div className={sendForm.test_mode ? 'opacity-40 pointer-events-none' : ''}>
-                        <div className="flex justify-between items-end mb-1">
-                            <label className="text-xs opacity-50">To (Recipient)</label>
-                            <button 
-                                type="button" 
-                                onClick={() => setSendForm(prev => ({...prev, mode: prev.mode === 'search' ? 'manual' : 'search'}))}
-                                className="text-[10px] text-blue-400 hover:text-blue-300 underline"
-                            >
-                                {sendForm.mode === 'search' ? 'Enter Custom Email' : 'Search Contacts'}
-                            </button>
-                        </div>
-
-                        {sendForm.mode === 'search' ? (
-                            <SearchableSelect 
-                                items={contactOptions}
-                                labelKey="title"      
-                                subLabelKey="identifier" 
-                                valueKey="id"
-                                icon={User}
-                                placeholder="Search contacts..."
-                                onSelect={(item) => handleSelectContact(item.original)}
-                                selectedIds={[sendForm.recipient_contact_id]}
-                            />
-                        ) : (
-                            <input 
-                                required type="email" autoFocus
-                                className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" 
-                                placeholder="client@example.com"
-                                value={sendForm.to} 
-                                onChange={e => setSendForm({...sendForm, to: e.target.value, recipient_contact_id: null})} 
-                            />
-                        )}
-                        
-                        {sendForm.recipient_contact_id && sendForm.mode === 'search' && (
-                             <div className="mt-2 text-xs text-green-400 flex items-center gap-1 bg-green-900/10 p-2 rounded border border-green-500/20">
-                                <CheckCircle size={12} /> 
-                                Will greet as: <span className="font-bold">Hi {greetingName},</span>
-                             </div>
-                        )}
-                    </div>
-                    
-                    <div className={sendForm.test_mode ? 'opacity-40 pointer-events-none' : ''}>
-                        <label className="text-xs opacity-50 block mb-1">CC</label>
-                        <SearchableSelect
-                            items={contactOptions.filter(c => !sendForm.cc.includes(c.title))}
-                            labelKey="identifier"
-                            subLabelKey="title"
-                            valueKey="id"
-                            icon={User}
-                            placeholder="Add CC recipient..."
-                            onSelect={(item) => toggleCC(item.title)}
-                            selectedIds={[]}
-                        />
-                        {sendForm.cc.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {sendForm.cc.map(email => (
-                                    <span key={email} className="flex items-center gap-1 bg-blue-500/10 text-blue-200 border border-blue-500/20 px-2 py-1 rounded-full text-[10px] font-bold">
-                                        {email}
-                                        <button type="button" onClick={() => toggleCC(email)} className="ml-1 hover:text-red-400"><X size={10}/></button>
-                                    </span>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    <div>
-                        <label className="text-xs opacity-50 block mb-1">Subject</label>
-                        <input className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white" value={sendForm.subject} onChange={e => setSendForm({...sendForm, subject: e.target.value})} />
-                    </div>
-                    
-                    <div>
-                        <label className="text-xs opacity-50 block mb-1">Message</label>
-                        <textarea className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm" value={sendForm.message} onChange={e => setSendForm({...sendForm, message: e.target.value})} placeholder="Add a personal note..." />
-                    </div>
-
+                    <SendNotificationForm
+                        accountId={invoice.account_id}
+                        defaultSubject={computedSubject}
+                        onChange={setForm}
+                        disabled={sending}
+                    />
                     <button type="submit" disabled={sending} className="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded flex justify-center items-center gap-2">
-                        {sending ? <Loader2 className="animate-spin" size={18}/> : 'Send Invoice'}
+                        {sending ? <Loader2 className="animate-spin" size={18}/> : getSendLabel()}
                     </button>
                 </form>
             </div>
