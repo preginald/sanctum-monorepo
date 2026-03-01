@@ -4,7 +4,7 @@ from datetime import datetime
 
 class PDFService:
     def __init__(self):
-        self.font_primary = 'Helvetica'
+        self.font_primary = 'DejaVu'
         self.color_primary = (10, 25, 47)  # Sanctum Dark Blue
         self.color_accent = (212, 175, 55) # Sanctum Gold
 
@@ -35,10 +35,20 @@ class PDFService:
         pdf.set_text_color(0, 0, 0)
         pdf.set_xy(10, 50)
 
+    def _setup_fonts(self, pdf):
+        font_dir = "/usr/share/fonts/truetype/dejavu"
+        pdf.add_font("DejaVu", "",  f"{font_dir}/DejaVuSans.ttf", uni=True)
+        pdf.add_font("DejaVu", "B", f"{font_dir}/DejaVuSans-Bold.ttf", uni=True)
+        pdf.add_font("DejaVu", "I", f"{font_dir}/DejaVuSans.ttf", uni=True)
+        pdf.add_font("DejaVuMono", "",  f"{font_dir}/DejaVuSansMono.ttf", uni=True)
+        pdf.add_font("DejaVuMono", "B", f"{font_dir}/DejaVuSansMono-Bold.ttf", uni=True)
+
     def generate_invoice_pdf(self, invoice_data):
+
         self.ensure_directory()
         
         pdf = FPDF()
+        self._setup_fonts(pdf)
         pdf.add_page()
         
         # Determine Status robustly
@@ -167,7 +177,7 @@ class PDFService:
         pdf.set_y(-60)
         pdf.set_font(self.font_primary, '', 10)
         pdf.cell(0, 6, "Payment Details:", 0, 1, 'L')
-        pdf.set_font("Courier", '', 10)
+        pdf.set_font("DejaVuMono", '', 10)
         pdf.cell(0, 5, "Bank: Sanctum Bank", 0, 1, 'L')
         pdf.cell(0, 5, "BSB:  063 010", 0, 1, 'L')
         pdf.cell(0, 5, "ACC:  1149 9520", 0, 1, 'L')
