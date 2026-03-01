@@ -51,7 +51,7 @@ usage() {
     echo ""
     echo -e "${YELLOW}ARTICLE COMMANDS${NC}"
     echo "  article create  -t <title> --slug <slug> --category <category> [-f <file>] [-e dev|prod]"
-    echo "  article update  <uuid> [-f <file>] [-e dev|prod]"
+    echo "  article update  <uuid|identifier> [-f <file>] [-e dev|prod]"
     echo "  article show    <slug> [-e dev|prod]"
     echo ""
     echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
@@ -810,7 +810,7 @@ article_update() {
     local ARTICLE_ID="$1"; shift
     local CONTENT_FILE="" TITLE="" ENV="dev"
 
-    [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID is required${NC}" && exit 1
+    [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -833,6 +833,19 @@ article_update() {
     resolve_env "$ENV"
     print_env_banner "sanctum.sh — article update"
     ensure_auth
+    # Resolve identifier (e.g. DOC-012) to UUID if needed
+    if [[ "$ARTICLE_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        echo -e "${YELLOW}→ Resolving identifier: ${ARTICLE_ID}...${NC}"
+        ARTICLES=$(api_get "/articles")
+        RESOLVED=$(echo "$ARTICLES" | jq -r --arg id "$ARTICLE_ID" '.[] | select(.identifier == $id) | .id // empty')
+        RESOLVED_TITLE=$(echo "$ARTICLES" | jq -r --arg id "$ARTICLE_ID" '.[] | select(.identifier == $id) | .title // empty')
+        if [ -z "$RESOLVED" ]; then
+            echo -e "${RED}✗ No article found with identifier: ${ARTICLE_ID}${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}  ✓ Resolved to: ${RESOLVED_TITLE}${NC} ${GRAY}(${RESOLVED})${NC}"
+        ARTICLE_ID="$RESOLVED"
+    fi
     confirm_prod "About to update article: ${ARTICLE_ID}"
 
     PAYLOAD=$(jq -n \
