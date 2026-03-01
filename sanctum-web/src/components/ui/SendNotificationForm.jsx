@@ -14,7 +14,7 @@ const TEST_EMAIL = 'peter@digitalsanctum.com.au';
  *   onChange   {fn(form)} — Fires on every state change. Parent reads form at submit time.
  *   disabled   {bool}     — Greys out the form during parent save operation.
  */
-export default function SendNotificationForm({ accountId, assetName, onChange, disabled = false }) {
+export default function SendNotificationForm({ accountId, assetName, defaultSubject, onChange, disabled = false }) {
     const [form, setForm] = useState({
         to: '',
         cc: [],
@@ -54,7 +54,7 @@ export default function SendNotificationForm({ accountId, assetName, onChange, d
                     to: defaultEmail,
                     recipient_contact_id: defaultContactId,
                     mode: defaultContactId ? 'search' : 'manual',
-                    subject: assetName ? `${assetName} Has Been Renewed` : ''
+                    subject: assetName ? `${assetName} Has Been Renewed` : (defaultSubject || '')
                 });
             })
             .catch(e => console.error('SendNotificationForm: failed to load account', e))
