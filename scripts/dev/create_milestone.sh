@@ -38,8 +38,8 @@ while [[ $# -gt 0 ]]; do
             echo "  ./scripts/dev/create_milestone.sh --project-id <uuid> -n 'The Blueprint'"
             echo "  ./scripts/dev/create_milestone.sh -e prod --project-id <uuid> -n 'Launch' --due-date 2026-03-31 --amount 1500"
             echo ""
-            echo "Pipe into create_ticket.sh:"
-            echo "  ./scripts/dev/create_ticket.sh -e prod -p 'Sanctum Core' -m 'The Blueprint' --type feature -s 'My ticket'"
+            echo "Pipe into sanctum.sh:"
+            echo "  ./scripts/dev/sanctum.sh ticket create -e prod -p 'Sanctum Core' -m 'The Blueprint' --type feature -s 'My ticket'"
             exit 0 ;;
         *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
     esac
@@ -92,5 +92,5 @@ echo -e "  ID:         ${GRAY}${MILESTONE_ID}${NC}"
 [ -n "$AMOUNT"   ] && echo -e "  Amount:     ${BLUE}\$${AMOUNT}${NC}"
 echo ""
 echo -e "${YELLOW}→ Next: create a ticket linked to this milestone:${NC}"
-echo -e "${GRAY}  ./scripts/dev/create_ticket.sh -e ${ENV} -p 'Sanctum Core' -m '${MILESTONE_NAME}' --type feature -s 'Your subject'${NC}"
+echo -e "${GRAY}  ./scripts/dev/sanctum.sh ticket create -e ${ENV} -p 'Sanctum Core' -m '${MILESTONE_NAME}' --type feature -s 'Your subject'${NC}"
 echo ""
