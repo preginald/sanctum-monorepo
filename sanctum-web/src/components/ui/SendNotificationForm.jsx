@@ -18,7 +18,7 @@ export default function SendNotificationForm({ accountId, assetName, defaultSubj
     const [form, setForm] = useState({
         to: '',
         cc: [],
-        subject: '',
+        subject: defaultSubject || '',
         message: '',
         recipient_contact_id: null,
         mode: 'search',
@@ -54,7 +54,7 @@ export default function SendNotificationForm({ accountId, assetName, defaultSubj
                     to: defaultEmail,
                     recipient_contact_id: defaultContactId,
                     mode: defaultContactId ? 'search' : 'manual',
-                    subject: assetName ? `${assetName} Has Been Renewed` : (defaultSubject || '')
+                    subject: assetName ? `${assetName} Has Been Renewed` : (form.subject || defaultSubject || '')
                 });
             })
             .catch(e => console.error('SendNotificationForm: failed to load account', e))
