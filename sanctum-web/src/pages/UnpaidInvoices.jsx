@@ -76,7 +76,7 @@ export default function UnpaidInvoices() {
     setMultiAccountError('');
     if (singleInv) {
       setPendingInvoices([singleInv]);
-      setComputedSubject('Invoice from Digital Sanctum');
+      setComputedSubject('Payment Reminder: Invoice from Digital Sanctum');
       setShowSendModal(true);
       return;
     }
@@ -87,7 +87,7 @@ export default function UnpaidInvoices() {
       return;
     }
     setPendingInvoices(selected);
-    setComputedSubject('Outstanding Invoices from Digital Sanctum');
+    setComputedSubject('Payment Reminder: Outstanding Invoices from Digital Sanctum');
     setShowSendModal(true);
   };
 
