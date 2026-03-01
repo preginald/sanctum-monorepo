@@ -44,7 +44,14 @@ export default function UpcomingRenewals() {
     };
 
     if (loading) return null;
-    if (!data || data.assets.length === 0) return null;
+    if (!data || data.assets.length === 0) return (
+        <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-4">
+                <RefreshCw size={14} /> Upcoming Renewals
+            </h3>
+            <p className="text-slate-500 text-sm">No upcoming renewals.</p>
+        </div>
+    );
 
     return (
         <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
