@@ -37,7 +37,13 @@ usage() {
   ticket show     <id> [-e dev|prod]"
     echo "  ticket delete   <id> [-e dev|prod]"
     echo ""
-    echo -e "${YELLOW}INVOICE COMMANDS${NC}"
+    echo -e "${YELLOW}MILESTONE COMMANDS${NC}"
+    echo "  milestone create  -p <project> -n <name> [--due-date <date>] [--billable <amount>] [--sequence <n>] [-e dev|prod]"
+    echo "  milestone update  <id> [-n <name>] [--status <status>] [--due-date <date>] [--billable <amount>] [--sequence <n>] [-e dev|prod]"
+    echo "  milestone list    -p <project> [-e dev|prod]"
+    echo "  milestone show    <id> [-e dev|prod]"
+    echo ""
+    echo -e "${YELLOW}INVOICE COMMANDS${NC}" 
     echo "  invoice create  -a <account> [-s <status>] [--description <desc>] [--amount <amount>] [-e dev|prod]"
     echo "  invoice update  <id> --status <status> [-e dev|prod]"
     echo "  invoice delete  <id> [--ticket <ticket_id>] [-e dev|prod]"
@@ -417,6 +423,156 @@ ticket_update() {
 
 
 # ─────────────────────────────────────────────
+# MILESTONE DOMAIN
+# ─────────────────────────────────────────────
+milestone_create() {
+    local PROJECT_NAME="" NAME="" DUE_DATE="" BILLABLE="0" SEQUENCE="1" ENV="dev"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -p|--project)   PROJECT_NAME="$2"; shift 2 ;;
+            -n|--name)      NAME="$2"; shift 2 ;;
+            --due-date)     DUE_DATE="$2"; shift 2 ;;
+            --billable)     BILLABLE="$2"; shift 2 ;;
+            --sequence)     SEQUENCE="$2"; shift 2 ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$PROJECT_NAME" ] && echo -e "${RED}✗ -p/--project is required${NC}" && exit 1
+    [ -z "$NAME" ] && echo -e "${RED}✗ -n/--name is required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — milestone create"
+    ensure_auth
+    resolve_project "$PROJECT_NAME" || exit 1
+    confirm_prod "About to create milestone: ${NAME}"
+
+    PAYLOAD=$(jq -n         --arg name "$NAME"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --argjson sequence "$SEQUENCE"         '{name: $name, sequence: $sequence, billable_amount: $billable_amount}
+        | if $due_date != "" then .due_date = $due_date else . end')
+
+    RESULT=$(api_post "/projects/${PROJECT_ID}/milestones" "$PAYLOAD")
+    MILESTONE_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+    if [ -z "$MILESTONE_ID" ]; then
+        echo -e "${RED}✗ Failed to create milestone${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}✓ Milestone Created${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo -e "  Name:     ${BLUE}${NAME}${NC}"
+    echo -e "  Project:  ${BLUE}${PROJECT_DISPLAY}${NC}"
+    echo -e "  ID:       ${GRAY}${MILESTONE_ID}${NC}"
+    echo ""
+}
+
+milestone_update() {
+    local MILESTONE_ID="$1"; shift
+    local NAME="" STATUS="" DUE_DATE="" BILLABLE="" SEQUENCE="" ENV="dev"
+
+    [ -z "$MILESTONE_ID" ] && echo -e "${RED}✗ Milestone ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -n|--name)      NAME="$2"; shift 2 ;;
+            --status)       STATUS="$2"; shift 2 ;;
+            --due-date)     DUE_DATE="$2"; shift 2 ;;
+            --billable)     BILLABLE="$2"; shift 2 ;;
+            --sequence)     SEQUENCE="$2"; shift 2 ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — milestone update"
+    ensure_auth
+    confirm_prod "About to update milestone: ${MILESTONE_ID}"
+
+    PAYLOAD=$(jq -n         --arg name "$NAME"         --arg status "$STATUS"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --arg sequence "$SEQUENCE"         '{}
+        | if $name != "" then .name = $name else . end
+        | if $status != "" then .status = $status else . end
+        | if $due_date != "" then .due_date = $due_date else . end
+        | if $billable_amount != "" then .billable_amount = $billable_amount else . end
+        | if $sequence != "" then .sequence = ($sequence | tonumber) else . end')
+
+    RESULT=$(api_put "/milestones/${MILESTONE_ID}" "$PAYLOAD")
+    UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+    if [ -z "$UPDATED_ID" ]; then
+        echo -e "${RED}✗ Failed to update milestone${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ Milestone updated: ${MILESTONE_ID}${NC}"
+    echo ""
+}
+
+milestone_list() {
+    local PROJECT_NAME="" ENV="dev"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -p|--project)   PROJECT_NAME="$2"; shift 2 ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$PROJECT_NAME" ] && echo -e "${RED}✗ -p/--project is required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — milestone list"
+    ensure_auth
+    resolve_project "$PROJECT_NAME" || exit 1
+
+    RESULT=$(api_get "/projects/${PROJECT_ID}")
+    echo ""
+    echo -e "${BLUE}Milestones: ${PROJECT_DISPLAY}${NC}"
+    echo ""
+    echo "$RESULT" | jq -r '.milestones | sort_by(.sequence) | .[] | "  [\(.sequence)] \(.name) — \(.status) (ID: \(.id))"'
+    echo ""
+}
+
+milestone_show() {
+    local MILESTONE_ID="$1"; shift
+    local ENV="dev"
+
+    [ -z "$MILESTONE_ID" ] && echo -e "${RED}✗ Milestone ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -e|--env) ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — milestone show"
+    ensure_auth
+
+    # Milestone show — fetch via project list and find by ID
+    echo -e "${YELLOW}→ Looking up milestone ${MILESTONE_ID}...${NC}"
+    PROJECTS=$(api_get "/projects")
+    MILESTONE=$(echo "$PROJECTS" | jq -r --arg mid "$MILESTONE_ID"         '[.[].milestones[] | select(.id == $mid)] | first // empty')
+
+    if [ -z "$MILESTONE" ] || [ "$MILESTONE" = "null" ]; then
+        echo -e "${RED}✗ Milestone not found: ${MILESTONE_ID}${NC}"
+        exit 1
+    fi
+
+    echo ""
+    echo "$MILESTONE" | jq '{id, name, status, due_date, billable_amount, sequence}'
+    echo ""
+}
+
+# ─────────────────────────────────────────────
 # INVOICE DOMAIN
 # ─────────────────────────────────────────────
 invoice_create() {
@@ -760,6 +916,20 @@ case "$DOMAIN" in
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
                 echo "  Valid commands: create, update, comment, resolve, list, show, delete"
+                exit 1
+                ;;
+        esac
+        ;;
+    milestone)
+        shift 2 || true
+        case "$COMMAND" in
+            create)  milestone_create "$@" ;;
+            update)  milestone_update "$@" ;;
+            list)    milestone_list "$@" ;;
+            show)    milestone_show "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown milestone command: ${COMMAND}${NC}"
+                echo "  Valid commands: create, update, list, show"
                 exit 1
                 ;;
         esac
