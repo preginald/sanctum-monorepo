@@ -53,8 +53,7 @@ export default function SendNotificationForm({ accountId, assetName, defaultSubj
                 update({
                     to: defaultEmail,
                     recipient_contact_id: defaultContactId,
-                    mode: defaultContactId ? 'search' : 'manual',
-                    subject: assetName ? `${assetName} Has Been Renewed` : (form.subject || defaultSubject || '')
+                    mode: defaultContactId ? 'search' : 'manual'
                 });
             })
             .catch(e => console.error('SendNotificationForm: failed to load account', e))
