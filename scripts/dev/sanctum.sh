@@ -13,7 +13,7 @@
 #   sanctum.sh ticket delete 250
 #   sanctum.sh article create -t "My Article" --slug "my-article" --category "System Documentation" -f content.md
 #   sanctum.sh article update <uuid> -f content.md
-#   sanctum.sh article show <slug>
+#   sanctum.sh article show <slug|identifier> [-c] [-e dev|prod]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../lib/sanctum_common.sh"
@@ -52,7 +52,7 @@ usage() {
     echo -e "${YELLOW}ARTICLE COMMANDS${NC}"
     echo "  article create  -t <title> --slug <slug> --category <category> [-f <file>] [-e dev|prod]"
     echo "  article update  <uuid|identifier> [-f <file>] [-e dev|prod]"
-    echo "  article show    <slug> [-e dev|prod]"
+    echo "  article show    <slug|identifier> [-c] [-e dev|prod]"
     echo ""
     echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
     echo "  -e, --env       dev | prod (default: dev)"
@@ -268,7 +268,8 @@ ticket_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env) ENV="$2"; shift 2 ;;
+            -e|--env)     ENV="$2"; shift 2 ;;
+            -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -350,7 +351,8 @@ ticket_delete() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env) ENV="$2"; shift 2 ;;
+            -e|--env)     ENV="$2"; shift 2 ;;
+            -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -555,7 +557,8 @@ milestone_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env) ENV="$2"; shift 2 ;;
+            -e|--env)     ENV="$2"; shift 2 ;;
+            -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -683,7 +686,8 @@ invoice_delete() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --ticket) TICKET_ID="$2"; shift 2 ;;
-            -e|--env) ENV="$2"; shift 2 ;;
+            -e|--env)     ENV="$2"; shift 2 ;;
+            -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -726,7 +730,8 @@ invoice_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env) ENV="$2"; shift 2 ;;
+            -e|--env)     ENV="$2"; shift 2 ;;
+            -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -875,7 +880,8 @@ article_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env) ENV="$2"; shift 2 ;;
+            -e|--env)     ENV="$2"; shift 2 ;;
+            -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -897,21 +903,13 @@ article_show() {
         echo -e "${RED}✗ Article not found: ${QUERY}${NC}"
         exit 1
     fi
-
     echo ""
-    echo "$RESULT" | jq '{
-        id,
-        identifier,
-        title,
-        slug,
-        category,
-        version,
-        author_id,
-        created_at,
-        updated_at
-    }'
+    if [ "$SHOW_CONTENT" = true ]; then
+        echo "$RESULT" | jq '{id, identifier, title, slug, category, version, author_id, created_at, updated_at, content}'
+    else
+        echo "$RESULT" | jq '{id, identifier, title, slug, category, version, author_id, created_at, updated_at}'
+    fi
     echo ""
-
 }
 # ─────────────────────────────────────────────
 # DISPATCH
