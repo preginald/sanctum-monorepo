@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import { Loader2, TrendingUp, AlertTriangle, DollarSign, Clock, RefreshCw, Target } from 'lucide-react';
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { formatCurrency } from '../lib/formatters';
 
-const KpiCard = ({ icon: Icon, iconColor, label, value, sub }) => (
-  <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+const KpiCard = ({ icon: Icon, iconColor, label, value, sub, onClick }) => (
+  <div
+    className={`bg-slate-900 border border-slate-700 rounded-xl p-5 ${onClick ? 'cursor-pointer hover:border-slate-500 transition-colors' : ''}`}
+    onClick={onClick}
+  >
     <div className="flex items-center gap-2 mb-2">
       <Icon size={16} className={iconColor} />
       <span className="text-slate-400 text-sm">{label}</span>
@@ -29,6 +33,7 @@ export default function Analytics() {
   const [budgetActual, setBudgetActual] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const navigate = useNavigate();
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +73,7 @@ export default function Analytics() {
           label="Total Outstanding"
           value={formatCurrency(cashPosition?.total_outstanding || 0)}
           sub={cashPosition?.total_overdue > 0 ? `${formatCurrency(cashPosition.total_overdue)} overdue` : 'No overdue invoices'}
+          onClick={() => navigate('/invoices')}
         />
         <KpiCard
           icon={RefreshCw}
