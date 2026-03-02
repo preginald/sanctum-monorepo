@@ -441,10 +441,10 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
     if not inv: 
         raise HTTPException(status_code=404, detail="Invoice not found")
     
-    if inv.status != 'draft':
+    if inv.status not in ('draft', 'void'):
         raise HTTPException(
             status_code=400, 
-            detail=f"Cannot delete invoice in '{inv.status}' status. Only drafts can be deleted."
+            detail=f"Cannot delete invoice in '{inv.status}' status. Only drafts and void invoices can be deleted."
         )
 
     # UNLOCKING: Release the source items back to the pool
