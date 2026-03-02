@@ -562,8 +562,10 @@ def get_portal_project(
                 "id": m.id,
                 "name": m.name,
                 "status": m.status,
-                "due_date": m.due_date
-            } for m in project.milestones
+                "due_date": m.due_date,
+                "description": m.description,
+                "sequence": m.sequence
+            } for m in sorted(project.milestones, key=lambda m: m.sequence)
         ]
     }
 

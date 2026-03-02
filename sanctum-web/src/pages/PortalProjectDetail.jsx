@@ -99,12 +99,12 @@ export default function PortalProjectDetail() {
                     return (
                         <div key={milestone.id} className="relative pl-8 group">
                             {/* Dot */}
-                            <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 transition-colors ${
+                            <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 transition-colors flex items-center justify-center ${
                                 isCompleted ? 'bg-green-500 border-green-500' : 
                                 isActive ? 'bg-slate-900 border-sanctum-gold animate-pulse' : 
                                 'bg-slate-900 border-slate-600'
                             }`}>
-                                {isCompleted && <CheckCircle size={12} className="text-slate-900 absolute top-0 left-0" />}
+                                {isCompleted ? <CheckCircle size={12} className="text-slate-900" /> : <span className="text-[8px] font-bold text-slate-400">{milestone.sequence}</span>}
                             </div>
 
                             {/* Card */}
@@ -125,6 +125,9 @@ export default function PortalProjectDetail() {
                                         {milestone.status.replace('_', ' ')}
                                     </span>
                                 </div>
+                                {milestone.description && (
+                                    <p className="text-sm text-slate-400 mt-1 mb-2 leading-relaxed">{milestone.description}</p>
+                                )}
                                 <div className="flex items-center gap-2 text-xs text-slate-500 font-mono">
                                     <Calendar size={12} />
                                     Due: {formatDate(milestone.due_date)}
