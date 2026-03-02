@@ -435,7 +435,7 @@ ticket_update() {
 # MILESTONE DOMAIN
 # ─────────────────────────────────────────────
 milestone_create() {
-    local PROJECT_NAME="" NAME="" DUE_DATE="" BILLABLE="0" SEQUENCE="1" ENV="dev"
+    local PROJECT_NAME="" NAME="" DUE_DATE="" BILLABLE="0" SEQUENCE="" ENV="dev"
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -456,6 +456,14 @@ milestone_create() {
     print_env_banner "sanctum.sh — milestone create"
     ensure_auth
     resolve_project "$PROJECT_NAME" || exit 1
+    if [ -z "$SEQUENCE" ]; then
+        local PROJECT_DETAIL
+        PROJECT_DETAIL=$(api_get "/projects/${PROJECT_ID}")
+        local MAX_SEQ
+        MAX_SEQ=$(echo "$PROJECT_DETAIL" | jq '[.milestones[].sequence] | if length == 0 then 0 else max end')
+        SEQUENCE=$((MAX_SEQ + 1))
+        echo -e "${GRAY}  → Auto-sequence: ${SEQUENCE}${NC}"
+    fi
     confirm_prod "About to create milestone: ${NAME}"
 
     PAYLOAD=$(jq -n         --arg name "$NAME"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --argjson sequence "$SEQUENCE"         '{name: $name, sequence: $sequence, billable_amount: $billable_amount}
