@@ -53,7 +53,7 @@ const toggleShowCompleted = (e) => {
   };
 
   // --- ACTIONS ---
-  const handleSaveMilestone = async (e) => { e.preventDefault(); try { const p = { name: msForm.name, billable_amount: parseFloat(msForm.billable_amount)||0, sequence: parseInt(msForm.sequence)||1, due_date: msForm.due_date||null }; if(editingMsId) await api.put(`/milestones/${editingMsId}`, p); else await api.post(`/projects/${id}/milestones`, p); setShowMsModal(false); fetchProject(); } catch(e){ alert("Failed"); } };
+  const handleSaveMilestone = async (e) => { e.preventDefault(); try { const p = { name: msForm.name, description: msForm.description || null, billable_amount: parseFloat(msForm.billable_amount)||0, sequence: parseInt(msForm.sequence)||1, due_date: msForm.due_date||null }; if(editingMsId) await api.put(`/milestones/${editingMsId}`, p); else await api.post(`/projects/${id}/milestones`, p); setShowMsModal(false); fetchProject(); } catch(e){ alert("Failed"); } };
   const handleCreateTicket = async (e) => { e.preventDefault(); try { await api.post('/tickets', {...ticketForm, account_id: project.account_id}); setShowTicketModal(false); fetchProject(); } catch(e){ alert("Failed"); } };
   const updateMilestoneStatus = async (mid, st) => { try { await api.put(`/milestones/${mid}`, {status:st}); fetchProject(); } catch(e){ alert("Failed"); } };
   const generateInvoice = async (mid) => { if(!confirm("Bill?")) return; try { await api.post(`/milestones/${mid}/invoice`); fetchProject(); alert("Billed."); } catch(e){ alert("Error"); } };
@@ -116,7 +116,7 @@ const toggleShowCompleted = (e) => {
       onRefresh={fetchProject}
       onCopyMeta={() => `${project.name}\nClient: ${project.account_name}\nStatus: ${project.status}\nMilestones: ${project.milestones?.length || 0}`}
       actions={
-        <button onClick={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 rounded font-bold text-sm">
+        <button onClick={() => { setEditingMsId(null); setMsForm({name:'', description:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 rounded font-bold text-sm">
           <Plus size={16}/> Add Milestone
         </button>
       }
@@ -146,7 +146,7 @@ const toggleShowCompleted = (e) => {
                           <input type="checkbox" className="hidden" checked={showCompletedMs} onChange={toggleShowCompleted} />
                       </label>
 
-                          <button onClick={() => { setEditingMsId(null); setMsForm({name:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors">
+                          <button onClick={() => { setEditingMsId(null); setMsForm({name:'', description:'', billable_amount:'', due_date:'', sequence: project.milestones.length+1}); setShowMsModal(true); }} className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors">
                               <Plus size={16} />
                           </button>
                       </div>
@@ -169,6 +169,7 @@ const toggleShowCompleted = (e) => {
                                               <h4 className={`font-bold ${ms.status === 'completed' ? 'text-slate-500 line-through' : 'text-white'}`}>{ms.name}</h4>
                                               <button onClick={() => { setEditingMsId(ms.id); setMsForm(ms); setShowMsModal(true); }} className="text-slate-500 hover:text-sanctum-gold"><Edit2 size={12}/></button>
                                           </div>
+                                          {ms.description && <p className="text-xs text-slate-400 italic mt-0.5">{ms.description}</p>}
                                           <p className="text-xs opacity-50">Due: {ms.due_date || 'TBD'} • ${ms.billable_amount.toLocaleString()}</p>
                                       </div>
                                   </div>
@@ -207,6 +208,7 @@ const toggleShowCompleted = (e) => {
                 <form onSubmit={handleSaveMilestone} className="space-y-3">
                     <div><label className="text-xs opacity-50 block mb-1">Sequence</label><input required type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.sequence} onChange={e => setMsForm({...msForm, sequence: e.target.value})} /></div>
                     <div><label className="text-xs opacity-50 block mb-1">Name</label><input required placeholder="Name" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.name} onChange={e => setMsForm({...msForm, name: e.target.value})} /></div>
+                    <div><label className="text-xs opacity-50 block mb-1">Description</label><textarea placeholder="Optional notes about this milestone..." className="w-full p-2 h-20 rounded bg-black/40 border border-slate-600 text-white text-sm font-mono" value={msForm.description || ''} onChange={e => setMsForm({...msForm, description: e.target.value})} /></div>
                     <div><label className="text-xs opacity-50 block mb-1">Billable Value ($)</label><input required type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.billable_amount} onChange={e => setMsForm({...msForm, billable_amount: e.target.value})} /></div>
                     <div><label className="text-xs opacity-50 block mb-1">Target Date</label><input type="date" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.due_date} onChange={e => setMsForm({...msForm, due_date: e.target.value})} /></div>
                     <button type="submit" className="w-full py-2 bg-sanctum-gold rounded text-sm text-slate-900 font-bold mt-2">Save</button>
