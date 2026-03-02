@@ -42,60 +42,6 @@ class BillingService:
             "total": total
         }
 
-    def generate_renewals(self, db: Session):
-        """
-        Scans for assets expiring in exactly 30 days with auto_invoice=True.
-        Generates DRAFT invoices.
-        """
-        target_date = date.today() + timedelta(days=30)
-        
-        # Find expiring assets
-        expiring = db.query(Asset).filter(
-            Asset.expires_at == target_date,
-            Asset.auto_invoice == True,
-            Asset.status == 'active',
-            Asset.linked_product_id != None
-        ).all()
-        
-        generated_count = 0
-        
-        for asset in expiring:
-            # Create Invoice Header
-            invoice = Invoice(
-                account_id=asset.account_id,
-                status='draft',
-                payment_terms='Net 14 Days',
-                due_date=asset.expires_at # Due on expiry
-            )
-            db.add(invoice)
-            db.flush() # Get ID
-            
-            # Create Line Item from Linked Product
-            product = asset.linked_product
-            # Ensure price is Decimal for safe math
-            price = Decimal(str(product.unit_price))
-            
-            item = InvoiceItem(
-                invoice_id=invoice.id,
-                description=f"Renewal: {asset.name} ({asset.asset_type}) - {product.name}",
-                quantity=1,
-                unit_price=price,
-                total=price,
-                source_type='asset_renewal',
-                source_id=asset.id
-            )
-            db.add(item)
-            
-            # Update Invoice Totals
-            invoice.subtotal_amount = price
-            invoice.gst_amount = (price * Decimal("0.10")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            invoice.total_amount = invoice.subtotal_amount + invoice.gst_amount
-            
-            generated_count += 1
-            
-        db.commit()
-        return {"status": "success", "generated": generated_count}
-
     def check_and_invoice_asset(self, db: Session, asset_id: UUID) -> dict:
         """
         Triggers an immediate check for a single asset.
