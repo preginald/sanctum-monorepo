@@ -110,7 +110,7 @@ const PortalTicketDetail = () => {
     accent: isNaked ? 'text-naked-pink' : 'text-sanctum-gold',
     btn: isNaked ? 'bg-naked-pink hover:bg-pink-600 text-white' : 'bg-sanctum-gold hover:bg-yellow-500 text-slate-900',
     inputBg: isNaked ? 'bg-white border-slate-300 text-slate-900' : 'bg-black/20 border-slate-600 text-white',
-    messageMe: isNaked ? 'bg-naked-pink text-white' : 'bg-sanctum-gold text-slate-900',
+    messageMe: isNaked ? 'bg-naked-pink text-white' : 'bg-[#7ba2a8]/10 text-[#7ba2a8] border border-[#7ba2a8]/20',
     messageOther: isNaked ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-slate-200',
     statusTag: (status) => {
         if (status === 'resolved') return 'bg-green-500/20 text-green-500';
