@@ -1,67 +1,58 @@
 # Session Handover — 2026-03-02
-**Session Name:** Phase 66: Backlog Clearance & Knowledge Base Housekeeping
+**Session Name:** Phase 67: The Ledger (Part 1) + Phase 66 Carry-overs
 **Duration:** ~4 hours
-**Status:** All targeted tickets resolved, backlog significantly expanded and triaged, KB fully updated
+**Status:** 5 tickets resolved, Phase 67 partially complete
 
 ---
 
 ## 0. WHAT WE ACCOMPLISHED
 
-### Phase 66 Backlog Clearance (5 tickets resolved)
+### Phase 66 Carry-overs (2 tickets resolved)
 
 | Ticket | Subject | Status |
 |---|---|---|
-| #272 | Deprecate `create_ticket.sh` | ✅ Resolved |
-| #273 | UpcomingRenewals: add empty state | ✅ Resolved |
-| #271 | `sanctum.sh article update`: identifier lookup | ✅ Resolved |
-| #282 | PDF engine: Unicode character support (DejaVu fonts) | ✅ Resolved |
-| #274 | Deprecate `billing_service.generate_renewals()` | ✅ Resolved |
+| #297 | `sanctum.sh milestone create`: sequence defaults to 1 | ✅ Resolved |
+| #298 | Milestones: add description field | ✅ Resolved |
 
-### sanctum.sh Enhancements
-- `article show` — added `-c/--content` flag to return full article body
-- `article update` — added identifier lookup (e.g. `DOC-009` in place of UUID)
-- `milestone create` — sequence bug filed as #297
+### Phase 66 Detail
 
-### Knowledge Base Housekeeping (4 tickets resolved)
+**#297 — milestone create auto-sequence:**
+- Changed `SEQUENCE` default from `"1"` to `""` in `milestone_create()`
+- After `resolve_project`, auto-detects `max(.milestones[].sequence) + 1`
+- Defaults to `1` if no milestones exist
+- Explicit `--sequence` flag still overrides
 
-| Ticket | Article | Change |
+**#298 — Milestone description field:**
+- Added `description = Column(Text, nullable=True)` to `Milestone` model
+- Added `description: Optional[str] = None` to `MilestoneCreate` and `MilestoneUpdate` schemas
+- Alembic migration: `ce2b5f16d5ca_add_milestone_description`
+- Added `--description` flag to `milestone_create()` and `milestone_update()` in `sanctum.sh`
+
+### Phase 67: The Ledger (3 tickets resolved)
+
+| Ticket | Subject | Status |
 |---|---|---|
-| #285 | DOC-002 — API Guide: Creating Wiki Content | ✅ v1.11 — identifier lookup, article show -c flag |
-| #284 | DOC-009 — CLI Guide: sanctum.sh | ✅ v1.2 — invoice, milestone domains, new flags |
-| #286 | DOC-020 — API Endpoint Discovery & CLI Extension | ✅ Created — new article |
-| #283 | SOP-099 — The Phoenix Protocol | ✅ v2.24 — major update |
+| #299 | All Invoices view with filtering | ✅ Resolved |
+| #300 | Invoice status colour review: draft and void identical | ✅ Resolved |
+| #301 | Delete voided test invoices | ✅ Resolved |
 
-**Also updated inline:** DOC-018 (Invoices) v1.1 — removed stale Unicode limitation note post #282.
+### Phase 67 Detail
 
-### SOP-099 v2.24 Key Changes
-- Super Prompt `DEVELOPMENT TOOLS` block updated — `sanctum.sh` as primary CLI
-- `create_ticket.sh` removed from every reference
-- Section 4 restructured: sanctum.sh (C), srun (D), helpers (E), shared lib (F)
-- srun anti-patterns documented in Appendix C and D
-- API endpoint discovery workflow added to Appendix D
-- Session naming convention added to Section 7
-- Phoenix script updated to v2.9.8 (OpenAPI URLs in payload)
-- Version mismatch fixed
+**#299 — All Invoices view:**
+- New `GET /invoices` backend endpoint with optional `?status=` filter (draft, sent, paid, overdue, void)
+- Overdue is a derived status: `sent` invoices past due date
+- New `Invoices.jsx` page with status filter tabs, summary bar (count, total value, overdue count), and invoice table
+- Route `/invoices` added to `App.jsx` (before `/invoices/unpaid` and `/invoices/:id`)
+- `Invoices` nav item added to `Layout.jsx` using `Receipt` icon, above existing Receivables
+- `void` status added to `invoiceStatusStyles` in `statusStyles.js`
 
-### New Tickets Filed (11 tickets)
+**#300 — Invoice status colours:**
+- `void` changed from slate (identical to draft) to amber (`bg-amber-500/20 text-amber-500 border-amber-500/30`)
 
-| Ticket | Subject | Milestone |
-|---|---|---|
-| #287 | ArticleDetail: shortcode embeds render as `<div>` when copying | KB Housekeeping |
-| #288 | ArticleDetail: copy metadata missing article ID | KB Housekeeping |
-| #289 | Portal: Project view with milestones for clients | Phase 67: The Ledger |
-| #290 | Backend: Review and improve project detail view | Phase 55: UX & Stability |
-| #291 | Vendors: All vendors list view | Phase 55: UX & Stability |
-| #292 | Financial planning view | Phase 67: The Ledger |
-| #293 | Domain expiry: send warning email (unmanaged domains) | Phase 68: The Steward v2 |
-| #294 | Domain asset: prompt to send email when expiry date missing | Phase 68: The Steward v2 |
-| #295 | Screenshot capture: full page with download option | Phase 55: UX & Stability |
-| #296 | Accounts: default technician assignment per client | Phase 55: UX & Stability |
-| #297 | sanctum.sh milestone create: sequence defaults to 1 | Phase 66: The Steward |
-| #298 | Milestones: add description field for context and notes | Phase 66: The Steward |
-
-### New Milestone Created
-- **Knowledge Base Housekeeping** (`ec8bb3ee-9d4b-459a-a6cb-f981c05b6933`) — all 4 KB tickets resolved ✅
+**#301 — Delete voided test invoices:**
+- Extended `DELETE /invoices/{id}` to permit void status deletion (was draft-only)
+- Updated error message accordingly
+- Deleted all 9 void test invoices from production (all Digital Sanctum HQ / Above and Beyond, $0 value except one $196.90 test)
 
 ---
 
@@ -70,63 +61,51 @@
 ### Git
 - All commits pushed to `main`
 - Production deployed ✅
-- Latest commits: `b90a517`, `8df6f85`, `7fc94a6` + sanctum.sh patches
+- Latest commits:
+  - `ba6e760` — fix(#297): milestone create auto-detects sequence from max+1
+  - `2a4c9b1` — feat(#298): add description field to milestones
+  - `d01a8eb` — feat(#299): All Invoices view with status filter tabs
+  - `f5739fd` — fix: allow deletion of void invoices
+  - `221809b` — fix(#300): void invoice status colour changed to amber
 
-### Production KB Articles Updated
-| Identifier | Title | Version |
-|---|---|---|
-| SOP-099 | AI Context Migration Protocol (The Phoenix) | v2.24 |
-| DOC-009 | CLI Guide: sanctum.sh | v1.2 |
-| DOC-002 | API Guide: Creating Wiki Content | v1.11 |
-| DOC-018 | API Guide: Invoices | v1.1 |
-| DOC-020 | API Endpoint Discovery & CLI Extension Workflow | v1.0 (new) |
+### Production KB Articles
+No KB updates this session — pending after Phase 67 completes.
 
 ---
 
 ## 2. FULL BACKLOG
 
-### Phase 66: The Steward (2 new tickets)
+### Phase 67: The Ledger (2 remaining)
 | Ticket | Subject | Type | Priority |
 |---|---|---|---|
-| #297 | sanctum.sh milestone create: sequence defaults to 1 | bug | normal |
-| #298 | Milestones: add description field | feature | normal |
+| #289 | Portal: Project view with milestones for clients | feature | normal |
+| #292 | Financial planning view | feature | normal |
+
+**Note:** Before #289, consider filing a ticket for admin-facing project/milestone view improvements. Current `ProjectDetail.jsx` predates milestone work and may need review. #290 (Phase 55) covers backend only.
 
 ### Knowledge Base Housekeeping (2 open)
-| Ticket | Subject | Type | Priority |
-|---|---|---|---|
-| #287 | ArticleDetail: shortcode embeds render as `<div>` | bug | normal |
-| #288 | ArticleDetail: copy metadata missing article ID | bug | normal |
-
-### Phase 55: UX & Stability (carry-overs + new)
-| Ticket | Subject | Type | Priority |
-|---|---|---|---|
-| #249 | Layout: Responsive Header wrapping | bug | normal |
-| #220 | Unify view toggle into Layout header | feature | normal |
-| #185 | API token authentication (Personal Access Tokens) | feature | normal |
-| #182 | Intelligence Dossier refactoring | refactor | normal |
-| #290 | Backend: Review and improve project detail view | feature | normal |
-| #291 | Vendors: All vendors list view | feature | normal |
-| #295 | Screenshot capture: full page with download option | feature | normal |
-| #296 | Accounts: default technician assignment per client | feature | normal |
-
-### Phase 67: The Ledger (tabled + new tickets)
 | Ticket | Subject | Type |
 |---|---|---|
-| #289 | Portal: Project view with milestones for clients | feature |
-| #292 | Financial planning view | feature |
-| — | All Invoices view with filtering | tabled |
-| — | Invoice status colour review | tabled |
-| — | Delete voided test invoices | tabled |
-| — | Email delivery log at client level | tabled |
+| #287 | ArticleDetail: shortcode embeds render as `<div>` | bug |
+| #288 | ArticleDetail: copy metadata missing article ID | bug |
+
+### Phase 55: UX & Stability
+| Ticket | Subject | Type |
+|---|---|---|
+| #249 | Layout: Responsive Header wrapping | bug |
+| #220 | Unify view toggle into Layout header | feature |
+| #185 | API token authentication (Personal Access Tokens) | feature |
+| #182 | Intelligence Dossier refactoring | refactor |
+| #290 | Backend: Review and improve project detail view | feature |
+| #291 | Vendors: All vendors list view | feature |
+| #295 | Screenshot capture: full page with download option | feature |
+| #296 | Accounts: default technician assignment per client | feature |
 
 ### Phase 68: The Steward v2
 | Ticket | Subject | Type |
 |---|---|---|
 | #293 | Domain expiry: send warning email (unmanaged domains) | feature |
 | #294 | Domain asset: prompt to send email when expiry date missing | feature |
-| — | Asset renewal notification email | tabled |
-| — | Asset renewal automation (domain names) | tabled |
-| — | Generalise renewal automation via Weaver | tabled |
 
 ### Future Milestones (tabled)
 | Item | Milestone |
@@ -143,17 +122,14 @@
 
 ## 3. RECOMMENDED NEXT SPRINT
 
-**Phase 67: The Ledger** — start with the All Invoices view (largest item, sets layout foundation).
+**Continue Phase 67: The Ledger** — two items remain:
 
 Suggested order:
-1. Create feature ticket for All Invoices view with filtering
-2. Invoice status colour review (Draft/Void identical)
-3. Delete voided test invoices
-4. Email delivery log at client level
-5. #289 Portal project view with milestones
-6. #292 Financial planning view
+1. File admin-facing project/milestone view ticket (quick, sets context)
+2. **#289** — Portal: Project view with milestones (client-facing)
+3. **#292** — Financial planning view (largest remaining item)
 
-Alternatively, clear the two Phase 66 carry-overs (#297, #298) first as quick wins before The Ledger.
+Alternatively, clear KB bugs #287 and #288 first as quick wins before tackling the larger Phase 67 items.
 
 ---
 
@@ -161,36 +137,35 @@ Alternatively, clear the two Phase 66 carry-overs (#297, #298) first as quick wi
 
 | File | Notes |
 |---|---|
+| `sanctum-web/src/pages/Invoices.jsx` | New — All Invoices view (#299) |
 | `sanctum-web/src/pages/ArticleDetail.jsx` | #287, #288 — copy bugs |
-| `sanctum-web/src/components/dashboard/UpcomingRenewals.jsx` | Empty state added |
-| `sanctum-core/app/services/pdf_engine.py` | DejaVu fonts, Unicode fix |
-| `sanctum-core/app/services/billing_service.py` | `generate_renewals()` removed |
-| `sanctum-core/app/models.py` | #298 — milestone description field needed |
-| `scripts/dev/sanctum.sh` | identifier lookup, -c flag, milestone sequence bug (#297) |
-| `scripts/dev/create_milestone.sh` | Updated to reference sanctum.sh |
+| `sanctum-web/src/components/Layout.jsx` | Invoices nav item added |
+| `sanctum-web/src/lib/statusStyles.js` | void → amber, void added |
+| `sanctum-web/src/App.jsx` | /invoices route added |
+| `sanctum-core/app/routers/invoices.py` | GET /invoices + void delete |
+| `sanctum-core/app/models.py` | Milestone.description added |
+| `sanctum-core/app/schemas/strategy.py` | MilestoneCreate/Update description |
+| `scripts/dev/sanctum.sh` | auto-sequence + --description flag |
 
 ---
 
 ## 5. KNOWN ISSUES / TECH DEBT
 
-- **#297** — `sanctum.sh milestone create` defaults sequence to 1 — multiple milestones now have sequence 1 in production. Fix: auto-detect `max(sequence) + 1`.
+- **#249** — Responsive header wrapping still unresolved (Phase 55 carry-over)
+- **#185** — API token auth UI still pending (Phase 63 carry-over)
+- **#287/#288** — ArticleDetail copy bugs still open (KB Housekeeping)
+- **Admin project/milestone view** — No dedicated ticket yet. `ProjectDetail.jsx` may not surface milestone descriptions or auto-sequence changes. Consider filing before #289.
 - **PDF italic fallback** — Prod has no `DejaVuSans-Oblique.ttf`. Italic renders upright. Low priority.
-- **#249** — Responsive header wrapping still unresolved (Phase 55 carry-over).
-- **#185** — API token auth UI still pending (Phase 63 carry-over).
 
 ---
 
 ## 6. HANDOVER CHECKLIST
 
-- [x] Phase 66 backlog cleared (5 tickets resolved)
-- [x] KB Housekeeping milestone complete (4 tickets resolved)
-- [x] SOP-099 updated to v2.24
-- [x] DOC-009 updated to v1.2
-- [x] DOC-002 updated to v1.11
-- [x] DOC-018 updated to v1.1
-- [x] DOC-020 created
-- [x] 12 new tickets filed and assigned
+- [x] Phase 66 carry-overs cleared (#297, #298)
+- [x] Phase 67 partial: #299, #300, #301 resolved
 - [x] All commits pushed to main
+- [x] Production deployed
+- [x] 9 void test invoices deleted from production
 - [x] Session handover committed
 
 ---
@@ -199,11 +174,11 @@ Alternatively, clear the two Phase 66 carry-overs (#297, #298) first as quick wi
 
 - **Auth:** `export SANCTUM_API_TOKEN=sntm_6f29146e796e53a8eb8a2cd18a92c01839ea351b` — re-export if starting a new terminal.
 - **sanctum.sh copies to clipboard natively** — never pipe to `srun`.
-- **srun + Python heredocs** — do NOT pipe Python heredoc scripts to `srun` — produces `heredoc>` prompt.
+- **srun + Python heredocs** — do NOT pipe Python heredoc scripts to `srun`.
 - **Delivery doctrine:** Recon before edit. Always `grep -n` and `sed -n` before proposing changes. Python for multi-line JSX patches.
 - **Ticket workflow:** Request ticket → wait for ID → add description → implement → resolve with comment.
-- **Milestone sequence bug (#297)** — new milestones created this session may have sequence 1. Fix before relying on sequence ordering.
-- **Downloaded files path:** `~/Downloads` — always reference files there when using `-f` flag.
+- **Invoices nav:** Both "Invoices" (`/invoices`) and "Receivables" (`/invoices/unpaid`) now exist in nav. Receivables is the bulk action surface (send reminders, mark paid). Invoices is the browse/filter view.
+- **Portal project view (#289):** Before implementing, consider whether admin `ProjectDetail.jsx` needs updating first — it predates milestone description field and auto-sequence work.
 
 ---
 
@@ -213,16 +188,17 @@ Alternatively, clear the two Phase 66 carry-overs (#297, #298) first as quick wi
 # Verify auth
 echo $SANCTUM_API_TOKEN
 
-# Check open Phase 66 tickets
-./scripts/dev/sanctum.sh ticket show 297 -e prod
-./scripts/dev/sanctum.sh ticket show 298 -e prod
+# Check open Phase 67 tickets
+./scripts/dev/sanctum.sh ticket show 289 -e prod
+./scripts/dev/sanctum.sh ticket show 292 -e prod
 
-# Start Phase 67 — create All Invoices view ticket
+# Check KB bug tickets
+./scripts/dev/sanctum.sh ticket show 287 -e prod
+./scripts/dev/sanctum.sh ticket show 288 -e prod
+
+# File admin project view ticket (if proceeding with #289)
 ./scripts/dev/sanctum.sh ticket create -e prod \
-  -s "All Invoices view with filtering" \
-  -p "Sanctum Core" -m "Phase 67: The Ledger" \
+  -s "ProjectDetail: surface milestone descriptions and improve milestone display" \
+  -p "Sanctum Core" -m "Phase 55: UX & Stability" \
   --type feature --priority normal
-
-# Fix milestone sequence bug
-grep -n "milestone_create\|sequence\|billable" scripts/dev/sanctum.sh | srun
 ```
