@@ -4,7 +4,7 @@ import useAuthStore from '../store/authStore';
 import { 
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
     Activity, Briefcase, Megaphone, Layers,
-    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check
+    BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check, Receipt
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api';
@@ -178,6 +178,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                 <NavItem icon={<Shield size={20} />} label="Overview" path="/" />
                 <NavItem icon={<Users size={20} />} label="Clients" path="/clients" />
                 <NavItem icon={<Wifi size={20} />} label="Tickets" path="/tickets" />
+                <NavItem icon={<Receipt size={20} />} label="Invoices" path="/invoices" />
                 <NavItem icon={<DollarSign size={20} />} label="Receivables" path="/invoices/unpaid" />
                 <NavItem icon={<Shield size={20} />} label="Asset Lifecycle" path="/assets/lifecycle" />
                 {!isNaked && <NavItem icon={<DollarSign size={20} />} label="Deals" path="/deals" />}

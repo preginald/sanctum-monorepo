@@ -50,6 +50,7 @@ import AuditDetail from './pages/AuditDetail';
 // --- FINANCE MODULE ---
 import InvoiceDetail from './pages/InvoiceDetail';
 import UnpaidInvoices from './pages/UnpaidInvoices';
+import Invoices from './pages/Invoices';
 
 // --- CAMPAIGN MODULE ---
 import Campaigns from './pages/Campaigns';
@@ -159,6 +160,7 @@ function App() {
                               <Route path="/catalog" element={<Catalog />} />
                               <Route path="/assets/lifecycle" element={<AssetLifecycle />} />
                               <Route path="/assets/:assetId" element={<AssetDetail />} />
+                              <Route path="/invoices" element={<Invoices />} />
                               <Route path="/invoices/unpaid" element={<UnpaidInvoices />} />
                               <Route path="/invoices/:id" element={<InvoiceDetail />} />
 

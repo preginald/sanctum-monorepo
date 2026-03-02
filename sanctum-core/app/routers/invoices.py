@@ -179,6 +179,55 @@ def bulk_mark_paid(
 
     return {"updated": len(updated), "invoice_ids": [str(i.id) for i in updated], "emails_sent": emails_sent, "emails_failed": emails_failed}
 
+@router.get("", tags=["Invoices"])
+def get_all_invoices(
+    status: str = None,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Returns all invoices with optional ?status= filter. Overdue is a derived status."""
+    if current_user.role != 'admin':
+        raise HTTPException(status_code=403, detail="Admin only.")
+
+    today = datetime.now().date()
+
+    query = db.query(models.Invoice).options(
+        joinedload(models.Invoice.account)
+    )
+
+    if status == "overdue":
+        query = query.filter(
+            models.Invoice.status == 'sent',
+            models.Invoice.due_date < today
+        )
+    elif status and status != "all":
+        query = query.filter(models.Invoice.status == status)
+
+    invoices = query.order_by(models.Invoice.generated_at.desc()).all()
+
+    result = []
+    for inv in invoices:
+        is_overdue = (
+            inv.status == 'sent' and
+            inv.due_date and
+            today > inv.due_date
+        )
+        result.append({
+            "id": str(inv.id),
+            "account_id": str(inv.account_id),
+            "account_name": inv.account.name if inv.account else "Unknown",
+            "total_amount": float(inv.total_amount or 0),
+            "status": "overdue" if is_overdue else inv.status,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "generated_at": inv.generated_at.isoformat() if inv.generated_at else None,
+        })
+
+    return {
+        "total_count": len(result),
+        "total_value": sum(r["total_amount"] for r in result),
+        "invoices": result
+    }
+
 @router.post("", response_model=schemas.InvoiceResponse)
 def create_invoice(invoice: schemas.InvoiceCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     account = db.query(models.Account).filter(models.Account.id == invoice.account_id).first()
