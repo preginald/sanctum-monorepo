@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
 import api from '../lib/api';
@@ -11,12 +11,13 @@ import { formatCurrency } from '../lib/formatters';
 import { FileText, DollarSign, AlertCircle } from 'lucide-react';
 
 const STATUS_TABS = [
-  { key: 'all',     label: 'All' },
-  { key: 'draft',   label: 'Draft' },
-  { key: 'sent',    label: 'Sent' },
-  { key: 'paid',    label: 'Paid' },
-  { key: 'overdue', label: 'Overdue' },
-  { key: 'void',    label: 'Void' },
+  { key: 'all',         label: 'All' },
+  { key: 'outstanding', label: 'Outstanding' },
+  { key: 'draft',       label: 'Draft' },
+  { key: 'sent',        label: 'Sent' },
+  { key: 'paid',        label: 'Paid' },
+  { key: 'overdue',     label: 'Overdue' },
+  { key: 'void',        label: 'Void' },
 ];
 
 function formatDate(str) {
@@ -26,11 +27,12 @@ function formatDate(str) {
 
 export default function Invoices() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { addToast } = useToast();
 
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(searchParams.get('status') || 'all');
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => { fetchData(); }, [refreshKey]);
@@ -49,6 +51,8 @@ export default function Invoices() {
 
   const filtered = activeTab === 'all'
     ? invoices
+    : activeTab === 'outstanding'
+    ? invoices.filter(inv => ['draft', 'sent'].includes(inv.status))
     : invoices.filter(inv => inv.status === activeTab);
 
   const totalValue = filtered.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);

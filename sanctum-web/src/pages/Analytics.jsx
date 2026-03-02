@@ -73,7 +73,7 @@ export default function Analytics() {
           label="Total Outstanding"
           value={formatCurrency(cashPosition?.total_outstanding || 0)}
           sub={cashPosition?.total_overdue > 0 ? `${formatCurrency(cashPosition.total_overdue)} overdue` : 'No overdue invoices'}
-          onClick={() => navigate('/invoices')}
+          onClick={() => navigate('/invoices?status=outstanding')}
         />
         <KpiCard
           icon={RefreshCw}
