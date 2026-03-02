@@ -1,58 +1,30 @@
 # Session Handover — 2026-03-02
-**Session Name:** Phase 67: The Ledger (Part 1) + Phase 66 Carry-overs
-**Duration:** ~4 hours
-**Status:** 5 tickets resolved, Phase 67 partially complete
+**Session Name:** Phase 67: The Ledger (Part 2) + Phase 66 Admin Carry-over
+**Duration:** ~1 hour
+**Status:** 3 tickets resolved, Phase 67 one ticket from completion
 
 ---
 
 ## 0. WHAT WE ACCOMPLISHED
 
-### Phase 66 Carry-overs (2 tickets resolved)
-
 | Ticket | Subject | Status |
 |---|---|---|
-| #297 | `sanctum.sh milestone create`: sequence defaults to 1 | ✅ Resolved |
-| #298 | Milestones: add description field | ✅ Resolved |
+| #302 | ProjectDetail: surface milestone descriptions and improve milestone display | ✅ Resolved |
+| #289 | Portal: Project view with milestones for clients | ✅ Resolved |
 
-### Phase 66 Detail
+### #302 — ProjectDetail milestone descriptions
+- Added `description: ''` to both `setMsForm` initialisers in Add Milestone button handlers
+- Added `description: msForm.description || null` to `handleSaveMilestone` API payload
+- Added description textarea to milestone modal (below Name, above Billable Value)
+- Description renders on milestone card when present (italic, subtle)
+- Sequence ordering confirmed already in place — no change needed
+- Commit: `1f262b9`
 
-**#297 — milestone create auto-sequence:**
-- Changed `SEQUENCE` default from `"1"` to `""` in `milestone_create()`
-- After `resolve_project`, auto-detects `max(.milestones[].sequence) + 1`
-- Defaults to `1` if no milestones exist
-- Explicit `--sequence` flag still overrides
-
-**#298 — Milestone description field:**
-- Added `description = Column(Text, nullable=True)` to `Milestone` model
-- Added `description: Optional[str] = None` to `MilestoneCreate` and `MilestoneUpdate` schemas
-- Alembic migration: `ce2b5f16d5ca_add_milestone_description`
-- Added `--description` flag to `milestone_create()` and `milestone_update()` in `sanctum.sh`
-
-### Phase 67: The Ledger (3 tickets resolved)
-
-| Ticket | Subject | Status |
-|---|---|---|
-| #299 | All Invoices view with filtering | ✅ Resolved |
-| #300 | Invoice status colour review: draft and void identical | ✅ Resolved |
-| #301 | Delete voided test invoices | ✅ Resolved |
-
-### Phase 67 Detail
-
-**#299 — All Invoices view:**
-- New `GET /invoices` backend endpoint with optional `?status=` filter (draft, sent, paid, overdue, void)
-- Overdue is a derived status: `sent` invoices past due date
-- New `Invoices.jsx` page with status filter tabs, summary bar (count, total value, overdue count), and invoice table
-- Route `/invoices` added to `App.jsx` (before `/invoices/unpaid` and `/invoices/:id`)
-- `Invoices` nav item added to `Layout.jsx` using `Receipt` icon, above existing Receivables
-- `void` status added to `invoiceStatusStyles` in `statusStyles.js`
-
-**#300 — Invoice status colours:**
-- `void` changed from slate (identical to draft) to amber (`bg-amber-500/20 text-amber-500 border-amber-500/30`)
-
-**#301 — Delete voided test invoices:**
-- Extended `DELETE /invoices/{id}` to permit void status deletion (was draft-only)
-- Updated error message accordingly
-- Deleted all 9 void test invoices from production (all Digital Sanctum HQ / Above and Beyond, $0 value except one $196.90 test)
+### #289 — Portal: Project view with milestones
+- `portal.py`: added `description` and `sequence` to milestone serializer, milestones sorted by sequence
+- `PortalProjectDetail.jsx`: sequence number renders on timeline dot (replacing empty circle), description renders below milestone name when present
+- Note: first JSX patch attempt failed due to trailing whitespace — resolved with exact string match via `cat -A` recon
+- Commit: `aea6126`
 
 ---
 
@@ -62,11 +34,8 @@
 - All commits pushed to `main`
 - Production deployed ✅
 - Latest commits:
-  - `ba6e760` — fix(#297): milestone create auto-detects sequence from max+1
-  - `2a4c9b1` — feat(#298): add description field to milestones
-  - `d01a8eb` — feat(#299): All Invoices view with status filter tabs
-  - `f5739fd` — fix: allow deletion of void invoices
-  - `221809b` — fix(#300): void invoice status colour changed to amber
+  - `1f262b9` — feat(#302): surface milestone descriptions in ProjectDetail modal and card
+  - `aea6126` — feat(#289): surface milestone description and sequence in portal project view
 
 ### Production KB Articles
 No KB updates this session — pending after Phase 67 completes.
@@ -75,13 +44,10 @@ No KB updates this session — pending after Phase 67 completes.
 
 ## 2. FULL BACKLOG
 
-### Phase 67: The Ledger (2 remaining)
+### Phase 67: The Ledger (1 remaining)
 | Ticket | Subject | Type | Priority |
 |---|---|---|---|
-| #289 | Portal: Project view with milestones for clients | feature | normal |
 | #292 | Financial planning view | feature | normal |
-
-**Note:** Before #289, consider filing a ticket for admin-facing project/milestone view improvements. Current `ProjectDetail.jsx` predates milestone work and may need review. #290 (Phase 55) covers backend only.
 
 ### Knowledge Base Housekeeping (2 open)
 | Ticket | Subject | Type |
@@ -122,14 +88,9 @@ No KB updates this session — pending after Phase 67 completes.
 
 ## 3. RECOMMENDED NEXT SPRINT
 
-**Continue Phase 67: The Ledger** — two items remain:
+**Complete Phase 67: The Ledger** with #292 — Financial planning view. This is the largest remaining item in the phase and has been deferred twice. Completing it closes Phase 67 entirely.
 
-Suggested order:
-1. File admin-facing project/milestone view ticket (quick, sets context)
-2. **#289** — Portal: Project view with milestones (client-facing)
-3. **#292** — Financial planning view (largest remaining item)
-
-Alternatively, clear KB bugs #287 and #288 first as quick wins before tackling the larger Phase 67 items.
+Alternatively, clear KB bugs #287 and #288 as quick wins before #292.
 
 ---
 
@@ -137,15 +98,9 @@ Alternatively, clear KB bugs #287 and #288 first as quick wins before tackling t
 
 | File | Notes |
 |---|---|
-| `sanctum-web/src/pages/Invoices.jsx` | New — All Invoices view (#299) |
-| `sanctum-web/src/pages/ArticleDetail.jsx` | #287, #288 — copy bugs |
-| `sanctum-web/src/components/Layout.jsx` | Invoices nav item added |
-| `sanctum-web/src/lib/statusStyles.js` | void → amber, void added |
-| `sanctum-web/src/App.jsx` | /invoices route added |
-| `sanctum-core/app/routers/invoices.py` | GET /invoices + void delete |
-| `sanctum-core/app/models.py` | Milestone.description added |
-| `sanctum-core/app/schemas/strategy.py` | MilestoneCreate/Update description |
-| `scripts/dev/sanctum.sh` | auto-sequence + --description flag |
+| `sanctum-web/src/pages/ProjectDetail.jsx` | #302 — milestone description in modal + card |
+| `sanctum-core/app/routers/portal.py` | #289 — milestone serializer updated |
+| `sanctum-web/src/pages/PortalProjectDetail.jsx` | #289 — sequence + description on timeline |
 
 ---
 
@@ -154,18 +109,16 @@ Alternatively, clear KB bugs #287 and #288 first as quick wins before tackling t
 - **#249** — Responsive header wrapping still unresolved (Phase 55 carry-over)
 - **#185** — API token auth UI still pending (Phase 63 carry-over)
 - **#287/#288** — ArticleDetail copy bugs still open (KB Housekeeping)
-- **Admin project/milestone view** — No dedicated ticket yet. `ProjectDetail.jsx` may not surface milestone descriptions or auto-sequence changes. Consider filing before #289.
 - **PDF italic fallback** — Prod has no `DejaVuSans-Oblique.ttf`. Italic renders upright. Low priority.
 
 ---
 
 ## 6. HANDOVER CHECKLIST
 
-- [x] Phase 66 carry-overs cleared (#297, #298)
-- [x] Phase 67 partial: #299, #300, #301 resolved
+- [x] #302 ProjectDetail milestone descriptions resolved
+- [x] #289 Portal project view with milestones resolved
 - [x] All commits pushed to main
 - [x] Production deployed
-- [x] 9 void test invoices deleted from production
 - [x] Session handover committed
 
 ---
@@ -175,10 +128,10 @@ Alternatively, clear KB bugs #287 and #288 first as quick wins before tackling t
 - **Auth:** `export SANCTUM_API_TOKEN=sntm_6f29146e796e53a8eb8a2cd18a92c01839ea351b` — re-export if starting a new terminal.
 - **sanctum.sh copies to clipboard natively** — never pipe to `srun`.
 - **srun + Python heredocs** — do NOT pipe Python heredoc scripts to `srun`.
-- **Delivery doctrine:** Recon before edit. Always `grep -n` and `sed -n` before proposing changes. Python for multi-line JSX patches.
+- **Delivery doctrine:** Recon before edit. Always `grep -n` and `sed -n` before proposing changes. Use `cat -A` before Python patches on JSX — trailing whitespace will break string matching.
 - **Ticket workflow:** Request ticket → wait for ID → add description → implement → resolve with comment.
-- **Invoices nav:** Both "Invoices" (`/invoices`) and "Receivables" (`/invoices/unpaid`) now exist in nav. Receivables is the bulk action surface (send reminders, mark paid). Invoices is the browse/filter view.
-- **Portal project view (#289):** Before implementing, consider whether admin `ProjectDetail.jsx` needs updating first — it predates milestone description field and auto-sequence work.
+- **Resolving tickets:** Use `ticket resolve` not `ticket update --comment` — the latter doesn't exist.
+- **#292 Financial planning view:** No recon done yet. Start by checking if any backend analytics/financial endpoints exist before designing the frontend.
 
 ---
 
@@ -188,17 +141,14 @@ Alternatively, clear KB bugs #287 and #288 first as quick wins before tackling t
 # Verify auth
 echo $SANCTUM_API_TOKEN
 
-# Check open Phase 67 tickets
-./scripts/dev/sanctum.sh ticket show 289 -e prod
+# Check remaining Phase 67 ticket
 ./scripts/dev/sanctum.sh ticket show 292 -e prod
 
 # Check KB bug tickets
 ./scripts/dev/sanctum.sh ticket show 287 -e prod
 ./scripts/dev/sanctum.sh ticket show 288 -e prod
 
-# File admin project view ticket (if proceeding with #289)
-./scripts/dev/sanctum.sh ticket create -e prod \
-  -s "ProjectDetail: surface milestone descriptions and improve milestone display" \
-  -p "Sanctum Core" -m "Phase 55: UX & Stability" \
-  --type feature --priority normal
+# Recon for #292 — check existing financial/analytics endpoints
+grep -n "financial\|budget\|revenue\|forecast" sanctum-core/app/routers/analytics.py
+grep -rn "financial\|planning" sanctum-web/src/pages/
 ```
