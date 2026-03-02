@@ -119,8 +119,9 @@ const customSchema = {
   ...defaultSchema,
   attributes: {
     ...defaultSchema.attributes,
-    '*': ['className', 'style'],
-    'div': ['className', 'data-identifier']
+    '*': ['className', 'class', 'style'],
+    'div': ['className', 'class', 'data-identifier'],
+    'a': ['href', 'className', 'class']
   }
 };
 

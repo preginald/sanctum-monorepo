@@ -85,6 +85,7 @@ Client: Digital Sanctum HQ`;
       const metadata = [
         '---',
         `Title: ${article.title}`,
+        `ID: ${article.id}`,
         `Identifier: ${article.identifier || 'N/A'}`,
         `Version: ${article.version || 'v1.0'}`,
         `Category: ${article.category}`,
