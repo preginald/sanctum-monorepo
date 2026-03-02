@@ -180,6 +180,7 @@ class Milestone(Base):
     status = Column(String, default='pending')
     billable_amount = Column(Numeric(12, 2), default=0.0)
     sequence = Column(Integer, default=1)
+    description = Column(Text, nullable=True)
     invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 

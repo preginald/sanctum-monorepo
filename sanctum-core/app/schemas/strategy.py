@@ -91,6 +91,7 @@ class MilestoneCreate(SanctumBase):
     status: str = 'pending'
     billable_amount: Decimal = Decimal("0.00")
     sequence: int = 1
+    description: Optional[str] = None
 
 class MilestoneUpdate(SanctumBase):
     name: Optional[str] = None
@@ -99,6 +100,7 @@ class MilestoneUpdate(SanctumBase):
     due_date: Optional[date] = None
     sequence: Optional[int] = None
     invoice_id: Optional[UUID] = None
+    description: Optional[str] = None
 
 class MilestoneResponse(MilestoneCreate):
     id: UUID

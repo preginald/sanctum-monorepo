@@ -444,6 +444,7 @@ milestone_create() {
             --due-date)     DUE_DATE="$2"; shift 2 ;;
             --billable)     BILLABLE="$2"; shift 2 ;;
             --sequence)     SEQUENCE="$2"; shift 2 ;;
+            --description)  DESCRIPTION="$2"; shift 2 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
@@ -466,7 +467,7 @@ milestone_create() {
     fi
     confirm_prod "About to create milestone: ${NAME}"
 
-    PAYLOAD=$(jq -n         --arg name "$NAME"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --argjson sequence "$SEQUENCE"         '{name: $name, sequence: $sequence, billable_amount: $billable_amount}
+    PAYLOAD=$(jq -n         --arg name "$NAME"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --argjson sequence "$SEQUENCE"         --arg description "$DESCRIPTION"         '{name: $name, sequence: $sequence, billable_amount: $billable_amount, description: $description}
         | if $due_date != "" then .due_date = $due_date else . end')
 
     RESULT=$(api_post "/projects/${PROJECT_ID}/milestones" "$PAYLOAD")
@@ -501,6 +502,7 @@ milestone_update() {
             --due-date)     DUE_DATE="$2"; shift 2 ;;
             --billable)     BILLABLE="$2"; shift 2 ;;
             --sequence)     SEQUENCE="$2"; shift 2 ;;
+            --description)  DESCRIPTION="$2"; shift 2 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
@@ -511,12 +513,13 @@ milestone_update() {
     ensure_auth
     confirm_prod "About to update milestone: ${MILESTONE_ID}"
 
-    PAYLOAD=$(jq -n         --arg name "$NAME"         --arg status "$STATUS"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --arg sequence "$SEQUENCE"         '{}
+    PAYLOAD=$(jq -n         --arg name "$NAME"         --arg status "$STATUS"         --arg due_date "$DUE_DATE"         --arg billable_amount "$BILLABLE"         --arg sequence "$SEQUENCE"         --arg description "$DESCRIPTION"         '{}
         | if $name != "" then .name = $name else . end
         | if $status != "" then .status = $status else . end
         | if $due_date != "" then .due_date = $due_date else . end
         | if $billable_amount != "" then .billable_amount = $billable_amount else . end
-        | if $sequence != "" then .sequence = ($sequence | tonumber) else . end')
+        | if $sequence != "" then .sequence = ($sequence | tonumber) else . end
+        | if $description != "" then .description = $description else . end')
 
     RESULT=$(api_put "/milestones/${MILESTONE_ID}" "$PAYLOAD")
     UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
