@@ -648,6 +648,15 @@ def get_portal_article(
         if not linked:
             raise HTTPException(status_code=403, detail="You do not have access to this article")
 
+    # Load related articles bidirectionally
+    from sqlalchemy import or_
+    ar = models.article_relations
+    related_ids_a = db.query(ar.c.related_id).filter(ar.c.article_id == article.id)
+    related_ids_b = db.query(ar.c.article_id).filter(ar.c.related_id == article.id)
+    related = db.query(models.Article).filter(
+        or_(models.Article.id.in_(related_ids_a), models.Article.id.in_(related_ids_b))
+    ).all()
+
     return {
         "id": str(article.id),
         "title": article.title,
@@ -658,7 +667,11 @@ def get_portal_article(
         "content": resolve_content(db, article.content, portal_mode=True),
         "author_name": article.author.full_name if article.author else "Unknown",
         "updated_at": article.updated_at.isoformat() if article.updated_at else
-                      article.created_at.isoformat() if article.created_at else None
+                      article.created_at.isoformat() if article.created_at else None,
+        "related_articles": [
+            {"id": str(r.id), "title": r.title, "slug": r.slug, "identifier": r.identifier}
+            for r in related
+        ]
     }
 
 @router.get("/articles")

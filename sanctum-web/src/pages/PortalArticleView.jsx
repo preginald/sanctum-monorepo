@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
-import { ArrowLeft, BookOpen, Download, Loader2, Calendar, User, Tag } from 'lucide-react';
+import { ArrowLeft, BookOpen, Download, Loader2, Calendar, User, Tag, Link } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import usePortalNav from '../hooks/usePortalNav';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
@@ -10,6 +10,7 @@ import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 export default function PortalArticleView() {
   const { slug } = useParams();
   const { portalNav, impersonateId } = usePortalNav();
+  const navigate = useNavigate();
   const { addToast } = useToast();
   const [article, setArticle] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -122,6 +123,30 @@ export default function PortalArticleView() {
           <SanctumMarkdown content={article.content} />
       </div>
 
+      {/* RELATED ARTICLES */}
+      {article.related_articles?.length > 0 && (
+        <div className="max-w-4xl mx-auto px-6 pb-8">
+          <div className="border border-slate-700 rounded-xl p-5 bg-slate-900">
+            <h3 className="text-xs font-bold uppercase tracking-wider opacity-50 mb-3 flex items-center gap-2">
+              <Link size={14} /> Related Articles
+            </h3>
+            <div className="space-y-2">
+              {article.related_articles.map(r => (
+                <button
+                  key={r.id}
+                  onClick={() => navigate(`/portal/wiki/${r.slug}${impersonateId ? '?impersonate=' + impersonateId : ''}`)}
+                  className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  {r.identifier && (
+                    <span className="text-[10px] font-mono text-sanctum-gold opacity-70 block">{r.identifier}</span>
+                  )}
+                  <span className="text-sm text-white">{r.title}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {/* FOOTER */}
       <div className="border-t border-slate-700 bg-slate-900">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between text-xs text-slate-500">
