@@ -25,6 +25,11 @@ ticket_articles = Table('ticket_articles', Base.metadata,
     Column('article_id', UUID(as_uuid=True), ForeignKey('articles.id'), primary_key=True)
 )
 
+article_relations = Table('article_relations', Base.metadata,
+    Column('article_id', UUID(as_uuid=True), ForeignKey('articles.id'), primary_key=True),
+    Column('related_id', UUID(as_uuid=True), ForeignKey('articles.id'), primary_key=True)
+)
+
 ticket_assets = Table('ticket_assets', Base.metadata,
     Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
     Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id'), primary_key=True)
@@ -457,6 +462,13 @@ class Article(Base):
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
     author = relationship("User")
+    related_articles = relationship(
+        "Article",
+        secondary=article_relations,
+        primaryjoin="Article.id == article_relations.c.article_id",
+        secondaryjoin="Article.id == article_relations.c.related_id",
+        overlaps="related_articles"
+    )
 
 class ArticleHistory(Base):
     __tablename__ = "article_history"

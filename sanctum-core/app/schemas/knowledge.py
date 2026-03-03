@@ -44,11 +44,19 @@ class ArticleHistoryResponse(SanctumBase):
     author_name: Optional[str] = None # For UI display
     # Content is usually heavy, maybe load only on detail, but for now include it
 
+class RelatedArticleResponse(SanctumBase):
+    id: UUID
+    title: str
+    slug: str
+    identifier: Optional[str] = None
+    category: Optional[str] = None
+
 class ArticleResponse(ArticleCreate):
     id: UUID
     author_id: Optional[UUID] = None
     author_name: Optional[str] = None
     history: list[ArticleHistoryResponse] = []
+    related_articles: list[RelatedArticleResponse] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
 

@@ -91,10 +91,25 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
     if not article: raise HTTPException(status_code=404, detail="Article not found")
     
     if article.author: article.author_name = article.author.full_name
-    
+
+    # Load related articles from both directions of the join table
+    from sqlalchemy import or_
+    ar = models.article_relations
+    related_ids_a = db.query(ar.c.related_id).filter(ar.c.article_id == article.id)
+    related_ids_b = db.query(ar.c.article_id).filter(ar.c.related_id == article.id)
+    related = db.query(models.Article).filter(
+        or_(models.Article.id.in_(related_ids_a), models.Article.id.in_(related_ids_b))
+    ).all()
+
     # Parse into Pydantic model while still attached to the session
     # This safely loads all lazy attributes (like 'history') without DetachedInstanceError
     response_data = schemas.ArticleResponse.model_validate(article)
+    response_data.related_articles = [
+        schemas.RelatedArticleResponse(
+            id=r.id, title=r.title, slug=r.slug,
+            identifier=r.identifier, category=r.category
+        ) for r in related
+    ]
     
     # Resolve shortcodes safely on the Pydantic object
     if resolve_embeds and response_data.content:
@@ -267,3 +282,57 @@ def email_article(
         raise HTTPException(status_code=500, detail="Email failed")
 
     return {"status": "sent", "to": request.to_email}
+
+
+@router.post("/articles/{article_id}/relations")
+def add_article_relation(
+    article_id: str,
+    payload: dict,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role == 'client':
+        raise HTTPException(status_code=403, detail="Forbidden")
+    related_id = payload.get("related_id")
+    if not related_id:
+        raise HTTPException(status_code=422, detail="related_id required")
+    if article_id == related_id:
+        raise HTTPException(status_code=422, detail="An article cannot relate to itself")
+    ar = models.article_relations
+    from sqlalchemy import or_, and_
+    exists = db.execute(
+        ar.select().where(
+            or_(
+                and_(ar.c.article_id == article_id, ar.c.related_id == related_id),
+                and_(ar.c.article_id == related_id, ar.c.related_id == article_id)
+            )
+        )
+    ).first()
+    if exists:
+        return {"status": "already_exists"}
+    db.execute(ar.insert().values(article_id=article_id, related_id=related_id))
+    db.commit()
+    return {"status": "linked"}
+
+
+@router.delete("/articles/{article_id}/relations/{related_id}")
+def remove_article_relation(
+    article_id: str,
+    related_id: str,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    if current_user.role == 'client':
+        raise HTTPException(status_code=403, detail="Forbidden")
+    ar = models.article_relations
+    from sqlalchemy import or_, and_
+    db.execute(
+        ar.delete().where(
+            or_(
+                and_(ar.c.article_id == article_id, ar.c.related_id == related_id),
+                and_(ar.c.article_id == related_id, ar.c.related_id == article_id)
+            )
+        )
+    )
+    db.commit()
+    return {"status": "unlinked"}
