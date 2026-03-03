@@ -80,7 +80,7 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     return articles
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
-def get_article_detail(slug: str, resolve_embeds: bool = False, db: Session = Depends(get_db)):
+def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: bool = False, db: Session = Depends(get_db)):
     query = db.query(models.Article).options(joinedload(models.Article.author))
     try:
         uid = UUID(slug)
@@ -99,6 +99,8 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, db: Session = De
     # Resolve shortcodes safely on the Pydantic object
     if resolve_embeds and response_data.content:
         response_data.content = resolve_content(db, response_data.content)
+    elif inline_embeds and response_data.content:
+        response_data.content = resolve_content(db, response_data.content, inline_mode=True)
         
     return response_data
 

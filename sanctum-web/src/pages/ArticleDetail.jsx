@@ -13,8 +13,9 @@ export default function ArticleDetail() {
   const handleCopyMeta = () => {
     if (!article) return "";
     return `#${article.identifier || article.id} — ${article.title}
-Status: ${article.status}
+ID: ${article.id}
 Category: ${article.category}
+Version: ${article.version || 'v1.0'}
 Client: Digital Sanctum HQ`;
   };
 
@@ -23,6 +24,7 @@ Client: Digital Sanctum HQ`;
   const { addToast } = useToast(); // Initialize toast
    
   const [article, setArticle] = useState(null);
+  const [rawContent, setRawContent] = useState('');
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -61,8 +63,12 @@ Client: Digital Sanctum HQ`;
 
   const fetchArticle = async () => {
     try {
-        const res = await api.get(`/articles/${slug}?resolve_embeds=true`);
+        const [res, rawRes] = await Promise.all([
+            api.get(`/articles/${slug}?resolve_embeds=true`),
+            api.get(`/articles/${slug}?inline_embeds=true`)
+        ]);
         setArticle(res.data);
+        setRawContent(rawRes.data.content || '');
         fetchHistory(res.data.id);
     } catch(e) { 
         console.error(e); 
@@ -91,7 +97,7 @@ Client: Digital Sanctum HQ`;
         `Category: ${article.category}`,
         '---',
         '',
-        article.content
+        rawContent
       ].join('\n');
 
       await navigator.clipboard.writeText(metadata);

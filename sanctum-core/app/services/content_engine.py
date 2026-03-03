@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from ..models import Article
 
-def resolve_content(db: Session, text: str, portal_mode: bool = False, depth: int = 0, max_depth: int = 2, seen_slugs: set = None) -> str:
+def resolve_content(db: Session, text: str, portal_mode: bool = False, inline_mode: bool = False, depth: int = 0, max_depth: int = 2, seen_slugs: set = None) -> str:
     """
     Parses text for {{article:slug}} or {{article:identifier}} shortcodes.
     Replaces them with wrapped HTML containing the embedded article content.
@@ -58,8 +58,18 @@ def resolve_content(db: Session, text: str, portal_mode: bool = False, depth: in
         branch_seen.add(ref)
         
         # Recursively resolve text of the embedded article
-        embedded_text = resolve_content(db, article.content, portal_mode=portal_mode, depth=depth + 1, max_depth=max_depth, seen_slugs=branch_seen)
+        embedded_text = resolve_content(db, article.content, portal_mode=portal_mode, inline_mode=inline_mode, depth=depth + 1, max_depth=max_depth, seen_slugs=branch_seen)
         
+        # Inline mode — return pure markdown for copy/export
+        if inline_mode:
+            identifier = article.identifier or article.slug
+            return (
+                f'\n\n---\n'
+                f'### {article.title} ({identifier})\n\n'
+                f'{embedded_text}\n\n'
+                f'---\n'
+            )
+
         # Wrap in the Intelligence Dossier semantic HTML
         if portal_mode:
             header_link = f'<span class="ds-embed-title">{article.title}</span>'
