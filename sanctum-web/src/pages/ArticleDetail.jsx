@@ -293,7 +293,7 @@ Client: Digital Sanctum HQ`;
                 key={relationSelectKey}
                 items={allArticles.filter(a => a.id !== article?.id && !relatedArticles.find(r => r.id === a.id))}
                 onSelect={(item) => handleLinkRelation(item.id)}
-                selectedIds={relatedArticles.map(r => r.id)}
+                selectedIds={[]}
                 placeholder="Search articles to link..."
                 labelKey="title"
                 subLabelKey="identifier"
