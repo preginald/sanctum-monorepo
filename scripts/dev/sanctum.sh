@@ -58,18 +58,23 @@ ticket_usage() {
     echo "  list     List tickets, optionally filtered"
     echo "  show     Show ticket details"
     echo "  delete   Soft-delete (archive) a ticket"
+    echo "  relate   Link one or more articles to a ticket"
+    echo "  unrelate Unlink an article from a ticket"
     echo ""
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
     echo "  create:  -s|--subject <text>, -p|--project <name> OR -a|--account <name>,"
-    echo "[-m|--milestone <name>], [--type <type>], [--priority <priority>],"
-    echo "[-d|--description <text>], [-e|--env dev|prod]"
+    echo "           [-m|--milestone <name>], [--type <type>], [--priority <priority>],"
+    echo "           [-d|--description <text>], [--articles <id1,id2,...>], [-e|--env dev|prod]"
     echo "  update:  <id>, [-s|--subject], [-d|--description], [--status <status>],"
-    echo "           [--priority <priority>], [--type <type>],[-m|--milestone <name>], [-e|--env]"
+    echo "           [--priority <priority>], [--type <type>], [-m|--milestone <name>],"
+    echo "           [--articles <id1,id2,...>], [-e|--env]"
     echo "  comment: <id>, -b|--body <text>, [--status <status>], [--visibility internal|public], [-e|--env]"
-    echo "  resolve: <id>, -b|--body <text>, [--visibility internal|public],[-e|--env]"
-    echo "  list:    [-p|--project <name>],[-m|--milestone <name>], [--status <status>], [-e|--env]"
+    echo "  resolve: <id>, -b|--body <text>, [--visibility internal|public], [-e|--env]"
+    echo "  list:    [-p|--project <name>], [-m|--milestone <name>], [--status <status>], [-e|--env]"
     echo "  show:    <id>, [-e|--env]"
-    echo "  delete:  <id>,[-e|--env]"
+    echo "  delete:  <id>, [-e|--env]"
+    echo "  relate:  <ticket_id> --articles <id1,id2,...>, [-e|--env]"
+    echo "  unrelate:<ticket_id> --article <id>, [-e|--env]"
     echo ""
     echo -e "${YELLOW}ENUMERATIONS${NC}"
     echo "  Types:     support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test"
@@ -78,6 +83,9 @@ ticket_usage() {
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh ticket create -s \"Fix login\" -p \"Sanctum Core\" -m \"Phase 65\" --type bug"
+    echo "  sanctum.sh ticket create -s \"Setup guide\" -p \"Sanctum Core\" --articles \"DOC-001,WIKI-002\""
+    echo "  sanctum.sh ticket relate 310 --articles \"DOC-001,WIKI-002\" -e prod"
+    echo "  sanctum.sh ticket unrelate 310 --article DOC-001 -e prod"
     echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
     echo ""
     exit 0
@@ -148,12 +156,17 @@ article_usage() {
     echo "  create   Create a new article"
     echo "  update   Update an existing article"
     echo "  show     Show article details"
+    echo "  relate   Link one or more related articles"
+    echo "  unrelate Unlink a related article"
     echo ""
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
     echo "  create:  -t|--title <text>, --slug <text>, --category <category>,"
-    echo "           [-f|--file <path>], [-e|--env]"
-    echo "  update:  <uuid|identifier>, [-f|--file <path>], [-t|--title <text>],[-e|--env]"
-    echo "  show:    <slug|identifier>, [-c|--content],[-e|--env]"
+    echo "           [-f|--file <path>], [--related <id1,id2,...>], [-e|--env]"
+    echo "  update:  <uuid|identifier>, [-f|--file <path>], [-t|--title <text>],"
+    echo "           [--related <id1,id2,...>], [-e|--env]"
+    echo "  show:    <slug|identifier>, [-c|--content], [-e|--env]"
+    echo "  relate:  <uuid|identifier> --related <id1,id2,...>, [-e|--env]"
+    echo "  unrelate:<uuid|identifier> --related <id>, [-e|--env]"
     echo ""
     echo -e "${YELLOW}CATEGORIES${NC}"
     echo "  Standard Operating Procedure, System Documentation, Developer Documentation,"
@@ -161,10 +174,33 @@ article_usage() {
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md"
-    echo "  sanctum.sh article update DOC-012 -f updated_doc.md"
+    echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md --related \"DOC-001,WIKI-002\""
+    echo "  sanctum.sh article update DOC-012 -f updated_doc.md --related \"DOC-001\""
+    echo "  sanctum.sh article relate DOC-012 --related \"DOC-001,WIKI-002\" -e prod"
+    echo "  sanctum.sh article unrelate DOC-012 --related DOC-001 -e prod"
     echo "  sanctum.sh article show DOC-012 -c"
     echo ""
     exit 0
+}
+
+# ─────────────────────────────────────────────
+# SHARED HELPER: Resolve article identifier or UUID
+# Usage: ARTICLE_UUID=$(resolve_article_identifier "DOC-012")
+# ─────────────────────────────────────────────
+resolve_article_identifier() {
+    local INPUT="$1"
+    if [[ "$INPUT" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        local ARTICLES RESOLVED
+        ARTICLES=$(api_get "/articles")
+        RESOLVED=$(echo "$ARTICLES" | jq -r --arg id "$INPUT" '.[] | select(.identifier == $id) | .id // empty')
+        if [ -z "$RESOLVED" ]; then
+            echo -e "${RED}✗ No article found with identifier: ${INPUT}${NC}" >&2
+            return 1
+        fi
+        echo "$RESOLVED"
+    else
+        echo "$INPUT"
+    fi
 }
 
 # ─────────────────────────────────────────────
@@ -173,6 +209,7 @@ article_usage() {
 ticket_create() {
     local SUBJECT="" DESCRIPTION="" PRIORITY="normal" TICKET_TYPE="task"
     local PROJECT_NAME="" MILESTONE_NAME="" ACCOUNT_NAME="" ENV="dev"
+    local ARTICLES=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -184,6 +221,7 @@ ticket_create() {
             -e|--env)         ENV="$2"; shift 2 ;;
             --priority)       PRIORITY="$2"; shift 2 ;;
             --type)           TICKET_TYPE="$2"; shift 2 ;;
+            --articles)       ARTICLES="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -246,6 +284,18 @@ ticket_create() {
         && echo -e "${GRAY}View: https://app.digitalsanctum.com.au/tickets/${TICKET_ID}${NC}" \
         || echo -e "${GRAY}View: http://localhost:5173/tickets/${TICKET_ID}${NC}"
     echo ""
+
+    # Link articles if --articles provided
+    if [ -n "$ARTICLES" ]; then
+        echo -e "${YELLOW}-> Linking articles...${NC}"
+        IFS=',' read -ra ARTICLE_LIST <<< "$ARTICLES"
+        for RAW_ID in "${ARTICLE_LIST[@]}"; do
+            RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+            ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+            api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
+            echo -e "${GREEN}  Linked article: ${RAW_ID}${NC}"
+        done
+    fi
 }
 
 ticket_comment() {
@@ -469,6 +519,7 @@ ticket_delete() {
 ticket_update() {
     local TICKET_ID="$1"; shift
     local SUBJECT="" DESCRIPTION="" STATUS="" PRIORITY="" TICKET_TYPE="" MILESTONE_NAME="" ENV="dev"
+    local ARTICLES=""
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
@@ -481,6 +532,7 @@ ticket_update() {
             --type)           TICKET_TYPE="$2"; shift 2 ;;
             -m|--milestone)   MILESTONE_NAME="$2"; shift 2 ;;
             -e|--env)         ENV="$2"; shift 2 ;;
+            --articles)       ARTICLES="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -521,8 +573,71 @@ ticket_update() {
     echo ""
     echo -e "${GREEN}✓ Ticket #${TICKET_ID} Updated${NC}"
     echo ""
+
+    # Link articles if --articles provided
+    if [ -n "$ARTICLES" ]; then
+        echo -e "${YELLOW}-> Linking articles...${NC}"
+        IFS=',' read -ra ARTICLE_LIST <<< "$ARTICLES"
+        for RAW_ID in "${ARTICLE_LIST[@]}"; do
+            RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+            ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+            api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
+            echo -e "${GREEN}  Linked article: ${RAW_ID}${NC}"
+        done
+    fi
 }
 
+# ─────────────────────────────────────────────
+# TICKET RELATE / UNRELATE
+# ─────────────────────────────────────────────
+ticket_relate() {
+    local TICKET_ID="$1"; shift
+    local ARTICLES="" ENV="dev"
+    [ -z "$TICKET_ID" ] && echo -e "${RED}Ticket ID is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --articles) ARTICLES="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    [ -z "$ARTICLES" ] && echo -e "${RED}--articles is required${NC}" && exit 1
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket relate"
+    ensure_auth
+    confirm_prod "About to link articles to ticket #${TICKET_ID}"
+    echo -e "${YELLOW}-> Linking articles...${NC}"
+    IFS=',' read -ra ARTICLE_LIST <<< "$ARTICLES"
+    for RAW_ID in "${ARTICLE_LIST[@]}"; do
+        RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+        ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+        api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
+        echo -e "${GREEN}  Linked: ${RAW_ID}${NC}"
+    done
+    echo ""
+}
+
+ticket_unrelate() {
+    local TICKET_ID="$1"; shift
+    local ARTICLE="" ENV="dev"
+    [ -z "$TICKET_ID" ] && echo -e "${RED}Ticket ID is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --article)  ARTICLE="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    [ -z "$ARTICLE" ] && echo -e "${RED}--article is required${NC}" && exit 1
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket unrelate"
+    ensure_auth
+    ARTICLE_UUID=$(resolve_article_identifier "$ARTICLE") || exit 1
+    confirm_prod "About to unlink article ${ARTICLE} from ticket #${TICKET_ID}"
+    api_delete "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" > /dev/null
+    echo -e "${GREEN}Unlinked: ${ARTICLE} from ticket #${TICKET_ID}${NC}"
+    echo ""
+}
 
 # ─────────────────────────────────────────────
 # MILESTONE DOMAIN
@@ -855,6 +970,7 @@ invoice_show() {
 # ─────────────────────────────────────────────
 article_create() {
     local TITLE="" SLUG="" CATEGORY="" CONTENT_FILE="" ENV="dev"
+    local RELATED=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -863,6 +979,7 @@ article_create() {
             --category)    CATEGORY="$2"; shift 2 ;;
             -f|--file)     CONTENT_FILE="$2"; shift 2 ;;
             -e|--env)      ENV="$2"; shift 2 ;;
+            --related)     RELATED="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -913,11 +1030,24 @@ article_create() {
     echo -e "  Category:   ${BLUE}${CATEGORY}${NC}"
     echo -e "  UUID:       ${GRAY}${ARTICLE_ID}${NC}"
     echo ""
+
+    # Link related articles if --related provided
+    if [ -n "$RELATED" ]; then
+        echo -e "${YELLOW}→ Linking related articles...${NC}"
+        IFS=',' read -ra RELATED_LIST <<< "$RELATED"
+        for RAW_ID in "${RELATED_LIST[@]}"; do
+            RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+            RELATED_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+            api_post "/articles/${ARTICLE_ID}/relations" "{"related_id": "${RELATED_UUID}"}" > /dev/null
+            echo -e "${GREEN}  ✓ Linked: ${RAW_ID}${NC}"
+        done
+    fi
 }
 
 article_update() {
     local ARTICLE_ID="$1"; shift
     local CONTENT_FILE="" TITLE="" ENV="dev"
+    local RELATED=""
 
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
 
@@ -926,6 +1056,7 @@ article_update() {
             -f|--file)  CONTENT_FILE="$2"; shift 2 ;;
             -t|--title) TITLE="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
+            --related)  RELATED="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -973,6 +1104,81 @@ article_update() {
 
     echo ""
     echo -e "${GREEN}✓ Article updated: ${ARTICLE_ID}${NC}"
+    echo ""
+
+    # Link related articles if --related provided
+    if [ -n "$RELATED" ]; then
+        echo -e "${YELLOW}→ Linking related articles...${NC}"
+        IFS=',' read -ra RELATED_LIST <<< "$RELATED"
+        for RAW_ID in "${RELATED_LIST[@]}"; do
+            RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+            RELATED_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+            api_post "/articles/${UPDATED_ID}/relations" "{"related_id": "${RELATED_UUID}"}" > /dev/null
+            echo -e "${GREEN}  ✓ Linked: ${RAW_ID}${NC}"
+        done
+    fi
+}
+
+# ─────────────────────────────────────────────
+# ARTICLE RELATE / UNRELATE
+# ─────────────────────────────────────────────
+article_relate() {
+    local ARTICLE_ID="$1"; shift
+    local RELATED="" ENV="dev"
+    [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --related)  RELATED="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    [ -z "$RELATED" ] && echo -e "${RED}✗ --related is required${NC}" && exit 1
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — article relate"
+    ensure_auth
+    # Resolve source article
+    if [[ "$ARTICLE_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        ARTICLE_UUID=$(resolve_article_identifier "$ARTICLE_ID") || exit 1
+    else
+        ARTICLE_UUID="$ARTICLE_ID"
+    fi
+    confirm_prod "About to link related articles to: ${ARTICLE_ID}"
+    echo -e "${YELLOW}→ Linking related articles...${NC}"
+    IFS=',' read -ra RELATED_LIST <<< "$RELATED"
+    for RAW_ID in "${RELATED_LIST[@]}"; do
+        RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+        RELATED_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+        api_post "/articles/${ARTICLE_UUID}/relations" "{"related_id": "${RELATED_UUID}"}" > /dev/null
+        echo -e "${GREEN}  ✓ Linked: ${RAW_ID}${NC}"
+    done
+    echo ""
+}
+
+article_unrelate() {
+    local ARTICLE_ID="$1"; shift
+    local RELATED="" ENV="dev"
+    [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --related)  RELATED="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    [ -z "$RELATED" ] && echo -e "${RED}✗ --related is required${NC}" && exit 1
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — article unrelate"
+    ensure_auth
+    if [[ "$ARTICLE_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        ARTICLE_UUID=$(resolve_article_identifier "$ARTICLE_ID") || exit 1
+    else
+        ARTICLE_UUID="$ARTICLE_ID"
+    fi
+    RELATED_UUID=$(resolve_article_identifier "$RELATED") || exit 1
+    confirm_prod "About to unlink ${RELATED} from ${ARTICLE_ID}"
+    api_delete "/articles/${ARTICLE_UUID}/relations/${RELATED_UUID}" > /dev/null
+    echo -e "${GREEN}✓ Unlinked: ${RELATED} from ${ARTICLE_ID}${NC}"
     echo ""
 }
 
@@ -1029,16 +1235,18 @@ case "$DOMAIN" in
         shift 2 || true
         case "$COMMAND" in
             -h|--help) ticket_usage ;;
-            create)  ticket_create "$@" ;;
-            update)  ticket_update "$@" ;;
-            comment) ticket_comment "$@" ;;
-            resolve) ticket_resolve "$@" ;;
-            list)    ticket_list "$@" ;;
-            show)    ticket_show "$@" ;;
-            delete)  ticket_delete "$@" ;;
+            create)   ticket_create "$@" ;;
+            update)   ticket_update "$@" ;;
+            comment)  ticket_comment "$@" ;;
+            resolve)  ticket_resolve "$@" ;;
+            list)     ticket_list "$@" ;;
+            show)     ticket_show "$@" ;;
+            delete)   ticket_delete "$@" ;;
+            relate)   ticket_relate "$@" ;;
+            unrelate) ticket_unrelate "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, comment, resolve, list, show, delete"
+                echo "  Valid commands: create, update, comment, resolve, list, show, delete, relate, unrelate"
                 exit 1
                 ;;
         esac
@@ -1076,13 +1284,15 @@ case "$DOMAIN" in
     article)
         shift 2 || true
         case "$COMMAND" in
-            -h|--help) article_usage ;;
-            create)  article_create "$@" ;;
-            update)  article_update "$@" ;;
-            show)    article_show "$@" ;;
+            -h|--help)  article_usage ;;
+            create)    article_create "$@" ;;
+            update)    article_update "$@" ;;
+            show)      article_show "$@" ;;
+            relate)    article_relate "$@" ;;
+            unrelate)  article_unrelate "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown article command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, show"
+                echo "  Valid commands: create, update, show, relate, unrelate"
                 exit 1
                 ;;
         esac
