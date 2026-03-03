@@ -2,7 +2,7 @@
 # sanctum.sh v1.0 — Unified CLI for Sanctum Core
 # Usage: sanctum.sh <domain> <command> [options]
 #
-# Domains:  ticket, article
+# Domains:  ticket, milestone, invoice, article
 # Sources:  scripts/lib/sanctum_common.sh
 #
 # Examples:
@@ -28,48 +28,141 @@ usage() {
     echo ""
     echo "Usage: sanctum.sh <domain> <command> [options]"
     echo ""
-    echo -e "${YELLOW}TICKET COMMANDS${NC}"
-    echo "  ticket create   -s <subject> -p <project> [-m <milestone>] [--type <type>] [--priority <priority>] [-d <description>] [-e dev|prod]"
-    echo "  ticket update   <id> [-s <subject>] [-d <description>] [--status <status>] [--priority <priority>] [--type <type>] [-e dev|prod]"
-    echo "  ticket comment  <id> -b <body> [--status <status>] [-e dev|prod]"
-    echo "  ticket resolve  <id> -b <body> [-e dev|prod]"
-    echo "  ticket list     [-m <milestone>] [-p <project>] [--status <status>] [-e dev|prod]
-  ticket show     <id> [-e dev|prod]"
-    echo "  ticket delete   <id> [-e dev|prod]"
-    echo ""
-    echo -e "${YELLOW}MILESTONE COMMANDS${NC}"
-    echo "  milestone create  -p <project> -n <name> [--due-date <date>] [--billable <amount>] [--sequence <n>] [-e dev|prod]"
-    echo "  milestone update  <id> [-n <name>] [--status <status>] [--due-date <date>] [--billable <amount>] [--sequence <n>] [-e dev|prod]"
-    echo "  milestone list    -p <project> [-e dev|prod]"
-    echo "  milestone show    <id> [-e dev|prod]"
-    echo ""
-    echo -e "${YELLOW}INVOICE COMMANDS${NC}" 
-    echo "  invoice create  -a <account> [-s <status>] [--description <desc>] [--amount <amount>] [-e dev|prod]"
-    echo "  invoice update  <id> --status <status> [-e dev|prod]"
-    echo "  invoice delete  <id> [--ticket <ticket_id>] [-e dev|prod]"
-    echo "  invoice show    <id> [-e dev|prod]"
-    echo ""
-    echo -e "${YELLOW}ARTICLE COMMANDS${NC}"
-    echo "  article create  -t <title> --slug <slug> --category <category> [-f <file>] [-e dev|prod]"
-    echo "  article update  <uuid|identifier> [-f <file>] [-e dev|prod]"
-    echo "  article show    <slug|identifier> [-c] [-e dev|prod]"
+    echo -e "${YELLOW}DOMAINS${NC}"
+    echo "  ticket     Manage tickets (create, update, comment, resolve, list, show, delete)"
+    echo "  milestone  Manage project milestones (create, update, list, show)"
+    echo "  invoice    Manage invoices (create, update, delete, show)"
+    echo "  article    Manage knowledge base articles (create, update, show)"
     echo ""
     echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
     echo "  -e, --env       dev | prod (default: dev)"
-    echo "  -h, --help      Show this help"
-    echo ""
-    echo -e "${YELLOW}TICKET TYPES${NC}"
-    echo "  support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test"
-    echo ""
-    echo -e "${YELLOW}TICKET STATUSES${NC}"
-    echo "  new, open, pending, qa, resolved"
-    echo ""
-    echo -e "${YELLOW}ARTICLE CATEGORIES${NC}"
-    echo "  Standard Operating Procedure, System Documentation, Developer Documentation,"
-    echo "  Troubleshooting Guide, General Knowledge, Template"
+    echo "  -h, --help      Show domain-specific help (e.g., sanctum.sh ticket --help)"
     echo ""
     echo -e "${YELLOW}AUTH${NC}"
     echo "  Set SANCTUM_API_TOKEN for zero-friction auth. Falls back to saved JWT or interactive prompt."
+    echo ""
+    exit 0
+}
+
+ticket_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh ticket — Manage Tickets${NC}"
+    echo ""
+    echo "Usage: sanctum.sh ticket <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  create   Create a new ticket"
+    echo "  update   Update an existing ticket"
+    echo "  comment  Add a comment to a ticket"
+    echo "  resolve  Resolve a ticket (adds comment + updates status)"
+    echo "  list     List tickets, optionally filtered"
+    echo "  show     Show ticket details"
+    echo "  delete   Soft-delete (archive) a ticket"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  create:  -s|--subject <text>, -p|--project <name> OR -a|--account <name>,"
+    echo "[-m|--milestone <name>], [--type <type>], [--priority <priority>],"
+    echo "[-d|--description <text>], [-e|--env dev|prod]"
+    echo "  update:  <id>, [-s|--subject], [-d|--description], [--status <status>],"
+    echo "           [--priority <priority>], [--type <type>],[-m|--milestone <name>], [-e|--env]"
+    echo "  comment: <id>, -b|--body <text>, [--status <status>], [--visibility internal|public], [-e|--env]"
+    echo "  resolve: <id>, -b|--body <text>, [--visibility internal|public],[-e|--env]"
+    echo "  list:    [-p|--project <name>],[-m|--milestone <name>], [--status <status>], [-e|--env]"
+    echo "  show:    <id>, [-e|--env]"
+    echo "  delete:  <id>,[-e|--env]"
+    echo ""
+    echo -e "${YELLOW}ENUMERATIONS${NC}"
+    echo "  Types:     support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test"
+    echo "  Priorities: low, normal, high, critical"
+    echo "  Statuses:  new, open, pending, qa, resolved"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh ticket create -s \"Fix login\" -p \"Sanctum Core\" -m \"Phase 65\" --type bug"
+    echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
+    echo ""
+    exit 0
+}
+
+milestone_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh milestone — Manage Milestones${NC}"
+    echo ""
+    echo "Usage: sanctum.sh milestone <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  create   Create a milestone under a project"
+    echo "  update   Update milestone metadata"
+    echo "  list     List all milestones for a project"
+    echo "  show     Show milestone details"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  create:  -p|--project <name>, -n|--name <text>,"
+    echo "           [--due-date <YYYY-MM-DD>],[--billable <amount>],"
+    echo "           [--sequence <n>], [--description <text>], [-e|--env]"
+    echo "  update:  <id>, [-n|--name],[--status <status>], [--due-date <YYYY-MM-DD>],"
+    echo "[--billable <amount>], [--sequence <n>], [--description <text>], [-e|--env]"
+    echo "  list:    -p|--project <name>, [-e|--env]"
+    echo "  show:    <id>, [-e|--env]"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh milestone create -p \"Sanctum Core\" -n \"Phase 67\" --sequence 49"
+    echo "  sanctum.sh milestone list -p \"Naked Tech Website\""
+    echo ""
+    exit 0
+}
+
+invoice_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh invoice — Manage Invoices${NC}"
+    echo ""
+    echo "Usage: sanctum.sh invoice <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  create   Create a test invoice with a single line item"
+    echo "  update   Update invoice metadata (status, due date, terms)"
+    echo "  delete   Void and soft-delete an invoice"
+    echo "  show     Show invoice details"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  create:  -a|--account <name>, [-s|--status], [-d|--description],"
+    echo "           [--amount <num>], [-e|--env]"
+    echo "  update:  <id>, [--status <status>],[--due-date <YYYY-MM-DD>],"
+    echo "[--payment-terms <terms>], [-e|--env]"
+    echo "  delete:  <id>,[--ticket <ticket_id>], [-e|--env]"
+    echo "  show:    <id>,[-e|--env]"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh invoice create -a \"Digital Sanctum\" -d \"QA Test\" --amount 150"
+    echo "  sanctum.sh invoice delete 8b4a2c -e prod"
+    echo ""
+    exit 0
+}
+
+article_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh article — Manage Knowledge Base Articles${NC}"
+    echo ""
+    echo "Usage: sanctum.sh article <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  create   Create a new article"
+    echo "  update   Update an existing article"
+    echo "  show     Show article details"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  create:  -t|--title <text>, --slug <text>, --category <category>,"
+    echo "           [-f|--file <path>], [-e|--env]"
+    echo "  update:  <uuid|identifier>, [-f|--file <path>], [-t|--title <text>],[-e|--env]"
+    echo "  show:    <slug|identifier>, [-c|--content],[-e|--env]"
+    echo ""
+    echo -e "${YELLOW}CATEGORIES${NC}"
+    echo "  Standard Operating Procedure, System Documentation, Developer Documentation,"
+    echo "  Troubleshooting Guide, General Knowledge, Template"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md"
+    echo "  sanctum.sh article update DOC-012 -f updated_doc.md"
+    echo "  sanctum.sh article show DOC-012 -c"
     echo ""
     exit 0
 }
@@ -935,6 +1028,7 @@ case "$DOMAIN" in
     ticket)
         shift 2 || true
         case "$COMMAND" in
+            -h|--help) ticket_usage ;;
             create)  ticket_create "$@" ;;
             update)  ticket_update "$@" ;;
             comment) ticket_comment "$@" ;;
@@ -952,6 +1046,7 @@ case "$DOMAIN" in
     milestone)
         shift 2 || true
         case "$COMMAND" in
+            -h|--help) milestone_usage ;;
             create)  milestone_create "$@" ;;
             update)  milestone_update "$@" ;;
             list)    milestone_list "$@" ;;
@@ -966,6 +1061,7 @@ case "$DOMAIN" in
     invoice)
         shift 2 || true
         case "$COMMAND" in
+            -h|--help) invoice_usage ;;
             create)  invoice_create "$@" ;;
             update)  invoice_update "$@" ;;
             delete)  invoice_delete "$@" ;;
@@ -980,6 +1076,7 @@ case "$DOMAIN" in
     article)
         shift 2 || true
         case "$COMMAND" in
+            -h|--help) article_usage ;;
             create)  article_create "$@" ;;
             update)  article_update "$@" ;;
             show)    article_show "$@" ;;
@@ -992,7 +1089,7 @@ case "$DOMAIN" in
         ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, article"
+        echo "  Valid domains: ticket, milestone, invoice, article"
         exit 1
         ;;
 esac

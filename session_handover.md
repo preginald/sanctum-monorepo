@@ -1,7 +1,7 @@
-# Session Handover — 2026-03-02
-**Session Name:** Phase 67: The Ledger (Part 2) + Phase 66 Admin Carry-over
-**Duration:** ~1 hour
-**Status:** 3 tickets resolved, Phase 67 one ticket from completion
+# Session Handover — 2026-03-03
+**Session Name:** CLI Tooling & Milestone Backfill
+**Duration:** ~1.5 hours
+**Status:** 2 tickets resolved, 1 new feature ticket created
 
 ---
 
@@ -9,58 +9,41 @@
 
 | Ticket | Subject | Status |
 |---|---|---|
-| #302 | ProjectDetail: surface milestone descriptions and improve milestone display | ✅ Resolved |
-| #289 | Portal: Project view with milestones for clients | ✅ Resolved |
+| #307 | Google Calendar synchronization | 🆕 Created |
+| #308 | Backfill milestone descriptions and correct sequences | ✅ Resolved |
+| #309 | Add comprehensive `--help` documentation to sanctum.sh | ✅ Resolved |
 
-### #302 — ProjectDetail milestone descriptions
-- Added `description: ''` to both `setMsForm` initialisers in Add Milestone button handlers
-- Added `description: msForm.description || null` to `handleSaveMilestone` API payload
-- Added description textarea to milestone modal (below Name, above Billable Value)
-- Description renders on milestone card when present (italic, subtle)
-- Sequence ordering confirmed already in place — no change needed
-- Commit: `1f262b9`
+### #308 — Milestone Backfill & Sequence Correction
+- Wrote and executed `scripts/admin/fix_milestones.py` against production.
+- Intelligently re-indexed sequences for all milestones based on chronological 'Phase X' extraction.
+- Inferred and backfilled contextually rich descriptions for 67 milestones across all projects by parsing linked ticket objectives and resolutions.
 
-### #289 — Portal: Project view with milestones
-- `portal.py`: added `description` and `sequence` to milestone serializer, milestones sorted by sequence
-- `PortalProjectDetail.jsx`: sequence number renders on timeline dot (replacing empty circle), description renders below milestone name when present
-- Note: first JSX patch attempt failed due to trailing whitespace — resolved with exact string match via `cat -A` recon
-- Commit: `aea6126`
+### #309 — sanctum.sh `--help` Documentation
+- Surgically refactored `scripts/dev/sanctum.sh` to include a clean global domain list.
+- Added comprehensive, domain-specific `--help` blocks for `ticket`, `milestone`, `invoice`, and `article`.
+- Integrated proper command dispatching to capture the `--help` flag for each domain.
 
 ---
 
 ## 1. CURRENT STATE
 
 ### Git
-- All commits pushed to `main`
-- Production deployed ✅
-- Latest commits:
-  - `1f262b9` — feat(#302): surface milestone descriptions in ProjectDetail modal and card
-  - `aea6126` — feat(#289): surface milestone description and sequence in portal project view
+- `scripts/dev/sanctum.sh` and `scripts/admin/fix_milestones.py` committed and pushed to `main`.
+- CLI script in production environment is fully up to date with new help docs.
 
-### Production KB Articles
-No KB updates this session — pending after Phase 67 completes.
+### Database
+- All historical milestones now have accurate descriptions and conflict-free sequence numbers.
 
 ---
 
 ## 2. FULL BACKLOG
-
-### Phase 67: The Ledger (1 remaining)
-| Ticket | Subject | Type | Priority |
-|---|---|---|---|
-| #292 | Financial planning view | feature | normal |
-
-### Knowledge Base Housekeeping (2 open)
-| Ticket | Subject | Type |
-|---|---|---|
-| #287 | ArticleDetail: shortcode embeds render as `<div>` | bug |
-| #288 | ArticleDetail: copy metadata missing article ID | bug |
 
 ### Phase 55: UX & Stability
 | Ticket | Subject | Type |
 |---|---|---|
 | #249 | Layout: Responsive Header wrapping | bug |
 | #220 | Unify view toggle into Layout header | feature |
-| #185 | API token authentication (Personal Access Tokens) | feature |
+| #185 | API token authentication (Personal Access Tokens) [UI implementation] | feature |
 | #182 | Intelligence Dossier refactoring | refactor |
 | #290 | Backend: Review and improve project detail view | feature |
 | #291 | Vendors: All vendors list view | feature |
@@ -73,82 +56,57 @@ No KB updates this session — pending after Phase 67 completes.
 | #293 | Domain expiry: send warning email (unmanaged domains) | feature |
 | #294 | Domain asset: prompt to send email when expiry date missing | feature |
 
-### Future Milestones (tabled)
-| Item | Milestone |
-|---|---|
-| Client asset snapshot email report | Phase 69: The Herald |
-| Move hardcoded automation to The Weaver | Phase 69: The Herald |
-| Related articles (many-to-many) | Phase 70: The Archivist |
-| Interaction log (phone calls, meetings) | Phase 70: The Archivist |
-| Omnisearch fuzzy matching (`pg_trgm`) | Phase 71: The Oracle v2 |
-| Client intimacy intelligence | Phase 71: The Oracle v2 |
-| Real-time push (WebSockets/SSE) | Phase 72: The Grid |
+### Phase 73: The Scheduler
+| Ticket | Subject | Type |
+|---|---|---|
+| #307 | Google Calendar synchronization | feature |
 
 ---
 
 ## 3. RECOMMENDED NEXT SPRINT
 
-**Complete Phase 67: The Ledger** with #292 — Financial planning view. This is the largest remaining item in the phase and has been deferred twice. Completing it closes Phase 67 entirely.
+**Topic:** Phase 73: The Scheduler (#307 Google Calendar Sync)
+**Context:** The user wants to pull Google Calendar events into the ERP and optionally link them to tickets, accounts, or contacts (e.g., remote support sessions). 
+**Suggested Approach:**
+1. Determine OAuth vs Service Account architecture.
+2. Create database models (`Appointment` or `CalendarEvent`).
+3. Build the backend integration (`app/routers/calendar.py` + Google API client).
+4. Build the frontend dashboard/calendar view to display synced events.
 
-Alternatively, clear KB bugs #287 and #288 as quick wins before #292.
-
----
-
-## 4. KEY FILE REFERENCES
-
-| File | Notes |
-|---|---|
-| `sanctum-web/src/pages/ProjectDetail.jsx` | #302 — milestone description in modal + card |
-| `sanctum-core/app/routers/portal.py` | #289 — milestone serializer updated |
-| `sanctum-web/src/pages/PortalProjectDetail.jsx` | #289 — sequence + description on timeline |
+Alternatively, you can knock out **Phase 68: The Steward v2** (Tickets #293 and #294) to wrap up the domain expiry notification flow.
 
 ---
 
-## 5. KNOWN ISSUES / TECH DEBT
+## 4. KNOWN ISSUES / TECH DEBT
 
-- **#249** — Responsive header wrapping still unresolved (Phase 55 carry-over)
-- **#185** — API token auth UI still pending (Phase 63 carry-over)
-- **#287/#288** — ArticleDetail copy bugs still open (KB Housekeeping)
-- **PDF italic fallback** — Prod has no `DejaVuSans-Oblique.ttf`. Italic renders upright. Low priority.
+- **#249** — Responsive header wrapping is still pending.
+- **#185** — API token auth UI remains unbuilt (backend works).
 
 ---
 
-## 6. HANDOVER CHECKLIST
+## 5. HANDOVER CHECKLIST
 
-- [x] #302 ProjectDetail milestone descriptions resolved
-- [x] #289 Portal project view with milestones resolved
-- [x] All commits pushed to main
-- [x] Production deployed
-- [x] Session handover committed
-
----
-
-## 7. IMPORTANT NOTES FOR NEXT AI SESSION
-
-- **Auth:** `export SANCTUM_API_TOKEN=sntm_6f29146e796e53a8eb8a2cd18a92c01839ea351b` — re-export if starting a new terminal.
-- **sanctum.sh copies to clipboard natively** — never pipe to `srun`.
-- **srun + Python heredocs** — do NOT pipe Python heredoc scripts to `srun`.
-- **Delivery doctrine:** Recon before edit. Always `grep -n` and `sed -n` before proposing changes. Use `cat -A` before Python patches on JSX — trailing whitespace will break string matching.
-- **Ticket workflow:** Request ticket → wait for ID → add description → implement → resolve with comment.
-- **Resolving tickets:** Use `ticket resolve` not `ticket update --comment` — the latter doesn't exist.
-- **#292 Financial planning view:** No recon done yet. Start by checking if any backend analytics/financial endpoints exist before designing the frontend.
+-[x] #308 Milestone Backfill complete
+- [x] #309 sanctum.sh help documentation complete
+- [x] #307 Calendar sync ticket created
+- [x] Scripts committed and pushed
 
 ---
 
-## 8. COMMANDS FOR NEXT SESSION
+## 6. IMPORTANT NOTES FOR NEXT AI SESSION
+
+- **Delivery Doctrine:** Always `grep -n` and `sed -n` before proposing changes. 
+- **Cost Efficiency:** The session cost roughly $0.60 AUD for 81k tokens. Excellent ROI on data parsing scripts.
+- **Python Patches over Bash:** For multi-line text replacement (like the `sanctum.sh` help block), continue using Python `replace()` scripts. It avoids the quoting nightmares of `sed`.
+
+---
+
+## 7. COMMANDS FOR NEXT SESSION
 
 ```bash
-# Verify auth
-echo $SANCTUM_API_TOKEN
+# To check the Calendar Sync ticket
+./scripts/dev/sanctum.sh ticket show 307 -e prod
 
-# Check remaining Phase 67 ticket
-./scripts/dev/sanctum.sh ticket show 292 -e prod
-
-# Check KB bug tickets
-./scripts/dev/sanctum.sh ticket show 287 -e prod
-./scripts/dev/sanctum.sh ticket show 288 -e prod
-
-# Recon for #292 — check existing financial/analytics endpoints
-grep -n "financial\|budget\|revenue\|forecast" sanctum-core/app/routers/analytics.py
-grep -rn "financial\|planning" sanctum-web/src/pages/
-```
+# To check Domain Expiry tickets
+./scripts/dev/sanctum.sh ticket show 293 -e prod
+./scripts/dev/sanctum.sh ticket show 294 -e prod
