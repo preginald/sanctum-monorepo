@@ -1038,7 +1038,7 @@ article_create() {
         for RAW_ID in "${RELATED_LIST[@]}"; do
             RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
             RELATED_UUID=$(resolve_article_identifier "$RAW_ID") || continue
-            api_post "/articles/${ARTICLE_ID}/relations" "{"related_id": "${RELATED_UUID}"}" > /dev/null
+            api_post "/articles/${ARTICLE_ID}/relations" "$(jq -n --arg id "${RELATED_UUID}" '{"related_id": $id}')" > /dev/null
             echo -e "${GREEN}  ✓ Linked: ${RAW_ID}${NC}"
         done
     fi
@@ -1113,7 +1113,7 @@ article_update() {
         for RAW_ID in "${RELATED_LIST[@]}"; do
             RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
             RELATED_UUID=$(resolve_article_identifier "$RAW_ID") || continue
-            api_post "/articles/${UPDATED_ID}/relations" "{"related_id": "${RELATED_UUID}"}" > /dev/null
+            api_post "/articles/${UPDATED_ID}/relations" "$(jq -n --arg id "${RELATED_UUID}" '{"related_id": $id}')" > /dev/null
             echo -e "${GREEN}  ✓ Linked: ${RAW_ID}${NC}"
         done
     fi
@@ -1149,7 +1149,7 @@ article_relate() {
     for RAW_ID in "${RELATED_LIST[@]}"; do
         RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
         RELATED_UUID=$(resolve_article_identifier "$RAW_ID") || continue
-        api_post "/articles/${ARTICLE_UUID}/relations" "{"related_id": "${RELATED_UUID}"}" > /dev/null
+        api_post "/articles/${ARTICLE_UUID}/relations" "$(jq -n --arg id "${RELATED_UUID}" '{"related_id": $id}')" > /dev/null
         echo -e "${GREEN}  ✓ Linked: ${RAW_ID}${NC}"
     done
     echo ""
