@@ -2,13 +2,38 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate } from 'lucide-react';
+import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate, Link2, Unlink } from 'lucide-react';
+import SearchableSelect from '../components/ui/SearchableSelect';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
 import { useToast } from '../context/ToastContext';
 
 export default function ArticleDetail() {
+  const fetchAllArticles = async () => {
+    try {
+      const res = await api.get('/articles');
+      setAllArticles(res.data);
+    } catch(e) { console.error("Failed to load articles", e); }
+  };
+  const handleLinkRelation = async (relatedId) => {
+    try {
+      await api.post(`/articles/${article.id}/relations`, { related_id: relatedId });
+      const res = await api.get(`/articles/${article.slug}?resolve_embeds=true`);
+      setRelatedArticles(res.data.related_articles || []);
+      setRelationSelectKey(k => k + 1);
+      addToast("Related article linked", "success");
+    } catch(e) {
+      addToast("Failed to link article", "danger");
+    }
+  };
+  const handleRemoveRelation = async (relatedId) => {
+    try {
+      await api.delete(`/articles/${article.id}/relations/${relatedId}`);
+      setRelatedArticles(prev => prev.filter(r => r.id !== relatedId));
+      addToast("Relation removed", "success");
+    } catch(e) { addToast("Failed to remove relation", "danger"); }
+  };
   const handleRefresh = () => { setRefreshKey(prev => prev + 1); };
   const handleCopyMeta = () => {
     if (!article) return "";
@@ -38,6 +63,11 @@ Client: Digital Sanctum HQ`;
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [emailForm, setEmailForm] = useState({ to_email: '', cc_emails: '', subject: '', message: '' });
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [relatedArticles, setRelatedArticles] = useState([]);
+  const [allArticles, setAllArticles] = useState([]);
+  const [selectedRelation, setSelectedRelation] = useState(null);
+  const [addingRelation, setAddingRelation] = useState(false);
+  const [relationSelectKey, setRelationSelectKey] = useState(0);
 
   const handleEmailArticle = async () => {
     if (!emailForm.to_email.trim()) return addToast("Recipient email required", "danger");
@@ -68,8 +98,10 @@ Client: Digital Sanctum HQ`;
             api.get(`/articles/${slug}?inline_embeds=true`)
         ]);
         setArticle(res.data);
+        setRelatedArticles(res.data.related_articles || []);
         setRawContent(rawRes.data.content || '');
         fetchHistory(res.data.id);
+        fetchAllArticles();
     } catch(e) { 
         console.error(e); 
         navigate('/wiki'); 
@@ -170,7 +202,9 @@ Client: Digital Sanctum HQ`;
         </div>
       }
     >
-      <div className="max-w-5xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* LEFT — MAIN CONTENT */}
+        <div className="lg:col-span-2">
 
         {/* TABS */}
         <div className="flex gap-6 mb-8 border-b border-slate-800 pb-0">
@@ -218,6 +252,84 @@ Client: Digital Sanctum HQ`;
                 </div>
             </div>
         )}
+        </div>
+
+        {/* RIGHT — SIDEBAR */}
+        <div className="space-y-6">
+
+          {/* RELATED ARTICLES */}
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3 flex items-center gap-2">
+              <Link2 size={14} /> Related Articles
+            </h3>
+            {relatedArticles.length === 0 ? (
+              <p className="text-xs opacity-40 mb-3">No related articles linked.</p>
+            ) : (
+              <div className="space-y-2 mb-3">
+                {relatedArticles.map(r => (
+                  <div key={r.id} className="flex items-center justify-between p-2 bg-black/30 rounded-lg group">
+                    <button
+                      onClick={() => navigate(`/wiki/${r.slug}`)}
+                      className="text-left flex-1 min-w-0"
+                    >
+                      {r.identifier && (
+                        <span className="text-[10px] font-mono text-sanctum-gold opacity-70 block">{r.identifier}</span>
+                      )}
+                      <span className="text-xs text-white hover:text-sanctum-gold transition-colors truncate block">{r.title}</span>
+                    </button>
+                    <button
+                      onClick={() => handleRemoveRelation(r.id)}
+                      className="ml-2 p-1 opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all text-slate-500"
+                      title="Unlink"
+                    >
+                      <Unlink size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="mt-2">
+              <SearchableSelect
+                key={relationSelectKey}
+                items={allArticles.filter(a => a.id !== article?.id && !relatedArticles.find(r => r.id === a.id))}
+                onSelect={(item) => handleLinkRelation(item.id)}
+                selectedIds={relatedArticles.map(r => r.id)}
+                placeholder="Search articles to link..."
+                labelKey="title"
+                subLabelKey="identifier"
+                icon={Link2}
+              />
+            </div>
+          </div>
+
+          {/* METADATA */}
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3">Metadata</h3>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="opacity-50">Author</span>
+                <span>{article.author_name || 'Unknown'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="opacity-50">Version</span>
+                <span className="font-mono text-sanctum-gold">{article.version}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="opacity-50">Created</span>
+                <span>{new Date(article.created_at).toLocaleDateString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="opacity-50">Updated</span>
+                <span>{article.updated_at ? new Date(article.updated_at).toLocaleDateString() : '—'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="opacity-50">ID</span>
+                <span className="font-mono opacity-40 text-[10px]">{article.id}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
       {/* EMAIL MODAL */}
       {showEmailModal && (
