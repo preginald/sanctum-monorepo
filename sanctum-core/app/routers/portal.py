@@ -120,6 +120,7 @@ def get_portal_dashboard(
                 models.Ticket.is_deleted == False
             ).order_by(desc(models.Ticket.created_at)).all()
 
+    for t in tickets: t.related_tickets = []
     invoices = db.query(models.Invoice).options(joinedload(models.Invoice.items))\
         .filter(models.Invoice.account_id == aid).order_by(desc(models.Invoice.generated_at)).all()
     
@@ -428,6 +429,32 @@ def get_portal_ticket(
         "category": a.category
     } for a in ticket.articles]
 
+    from sqlalchemy import text as sa_text
+    relations_raw = db.execute(sa_text("""
+        SELECT t.id, t.subject, t.status,
+               tr.relation_type, tr.ticket_id as source_id
+        FROM ticket_relations tr
+        JOIN tickets t ON (
+            CASE WHEN tr.ticket_id = :tid THEN tr.related_id ELSE tr.ticket_id END = t.id
+        )
+        WHERE (tr.ticket_id = :tid OR tr.related_id = :tid)
+          AND tr.visibility = 'public'
+    """), {"tid": ticket.id}).fetchall()
+
+    formatted_related = []
+    for row in relations_raw:
+        relation_type = row.relation_type
+        if row.relation_type == "blocks" and row.source_id != ticket.id:
+            relation_type = "blocked_by"
+        elif row.relation_type == "duplicates" and row.source_id != ticket.id:
+            relation_type = "duplicate_of"
+        formatted_related.append({
+            "id": row.id,
+            "subject": row.subject,
+            "status": row.status,
+            "relation_type": relation_type.replace("_", " ")
+        })
+
     return {
         "id": ticket.id,
         "subject": ticket.subject,
@@ -440,7 +467,8 @@ def get_portal_ticket(
         "brand_affinity": ticket.account.brand_affinity if ticket.account else 'ds',
         "comments": formatted_comments,
         "assets": formatted_assets,
-        "articles": formatted_articles
+        "articles": formatted_articles,
+        "related_tickets": formatted_related
     }
 
 @router.post("/tickets/{ticket_id}/comments")

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../lib/api'; 
 import { formatDate, formatCurrency } from '../lib/formatters';
-import { ArrowLeft, FileText, Download, CheckCircle, AlertCircle, Loader2, Server, MessageSquare, Send, BookOpen } from 'lucide-react';
+import { ArrowLeft, FileText, Download, CheckCircle, AlertCircle, Loader2, Server, MessageSquare, Send, BookOpen, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import usePortalNav from '../hooks/usePortalNav';
 
@@ -297,6 +297,38 @@ const PortalTicketDetail = () => {
                 </div>
               )}
             </div>
+
+            {/* RELATED TICKETS CARD */}
+            {ticket.related_tickets?.length > 0 && (
+              <div className={`rounded-xl border ${theme.card} overflow-hidden`}>
+                <div className={`p-4 border-b ${isNaked ? 'border-slate-200' : 'border-slate-700'} flex items-center justify-between`}>
+                  <h3 className="font-bold text-sm uppercase tracking-widest opacity-70 flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" />
+                    Related Tickets
+                  </h3>
+                </div>
+                <div className={`divide-y ${isNaked ? 'divide-slate-200' : 'divide-slate-700'}`}>
+                  {ticket.related_tickets.map(rel => (
+                    <div
+                      key={rel.id}
+                      onClick={() => portalNav(`/portal/tickets/${rel.id}`)}
+                      className="p-4 flex items-center justify-between gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`p-2 rounded shrink-0 ${isNaked ? 'bg-slate-100' : 'bg-white/5'}`}>
+                          <LinkIcon size={16} className="opacity-50"/>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm truncate" title={rel.subject}>{rel.subject}</div>
+                          <div className="text-xs opacity-50 uppercase">{rel.status}</div>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono opacity-50 shrink-0 capitalize">{rel.relation_type}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* LINKED ARTICLES CARD */}
             {ticket.articles?.length > 0 && (
