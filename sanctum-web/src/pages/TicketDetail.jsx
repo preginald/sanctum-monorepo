@@ -61,6 +61,8 @@ export default function TicketDetail() {
 
   // KNOWLEDGE BASE UI
   const [showLinkArticle, setShowLinkArticle] = useState(false);
+  const [showLinkTicket, setShowLinkTicket] = useState(false);
+  const [allTickets, setAllTickets] = useState([]);
   const [articleSearchQuery, setArticleSearchQuery] = useState(''); 
 
   // FORM DATA (For Edit Mode)
@@ -128,6 +130,9 @@ export default function TicketDetail() {
   };
   const fetchCatalog = async () => { try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { } };
   const fetchArticles = async () => { try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {} };
+  const fetchTickets = async () => { try { const res = await api.get('/tickets'); setAllTickets(res.data); } catch(e) {} };
+  const handleLinkTicket = async (relatedId) => { try { await api.post(`/tickets/${id}/relations`, { related_id: relatedId, relation_type: 'relates_to', visibility: 'internal' }); fetchTicket(); setShowLinkTicket(false); } catch(e) {} };
+  const handleUnlinkTicket = async (e, relatedId) => { e.stopPropagation(); try { await api.delete(`/tickets/${id}/relations/${relatedId}`); fetchTicket(); } catch(e) {} };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -366,6 +371,31 @@ export default function TicketDetail() {
             onLinkContact={handleLinkContact} onUnlinkContact={handleUnlinkContact} onUpdateTech={handleUpdateTech} showQuickTech={showQuickTech} setShowQuickTech={setShowQuickTech}
             showQuickMilestone={showQuickMilestone} setShowQuickMilestone={setShowQuickMilestone} onUpdateMilestone={handleUpdateMilestone}
           />
+          {/* Related Tickets Section */}
+          <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+              <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-sm font-bold uppercase tracking-widest flex items-center gap-2"><LinkIcon className="w-4 h-4 text-amber-400" /> Related Tickets</h3>
+                  {!showLinkTicket && <button onClick={() => { setShowLinkTicket(true); if (allTickets.length === 0) fetchTickets(); }} className="text-xs bg-white/5 hover:bg-white/10 px-2 py-1 rounded flex items-center gap-1"><LinkIcon size={12}/> Link Ticket</button>}
+              </div>
+              {showLinkTicket && (
+                  <div className="mb-4 p-3 bg-black/30 rounded border border-amber-500/30">
+                      <div className="flex justify-end mb-2"><button onClick={() => setShowLinkTicket(false)} className="text-slate-500 hover:text-white"><X size={16}/></button></div>
+                      <SearchableSelect items={allTickets.filter(t => t.id !== ticket.id)} onSelect={(item) => handleLinkTicket(item.id)} selectedIds={ticket.related_tickets?.map(t => t.id) || []} placeholder="Search tickets..." labelKey="subject" subLabelKey="id" icon={LinkIcon} />
+                  </div>
+              )}
+              <div className="space-y-2">
+                  {ticket.related_tickets?.length > 0 ? ticket.related_tickets.map(rel => (
+                      <div key={rel.id} onClick={() => navigate(`/tickets/${rel.id}`)} className="flex items-center justify-between p-3 bg-amber-900/10 border border-amber-500/20 hover:bg-amber-900/20 rounded cursor-pointer transition-colors group relative pr-8">
+                          <div className="flex items-center gap-3">
+                              <span className="text-xs font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded">#{rel.id}</span>
+                              <span className="text-sm font-bold text-white group-hover:text-amber-200">{rel.subject}</span>
+                              <span className="text-xs text-slate-400 capitalize">{rel.relation_type.replace(/_/g, ' ')}</span>
+                          </div>
+                          <button onClick={(e) => handleUnlinkTicket(e, rel.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
+                      </div>
+                  )) : <p className="text-xs opacity-30 italic">No related tickets.</p>}
+              </div>
+          </div>
           {/* KB Section */}
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
               <div className="flex justify-between items-center mb-4">

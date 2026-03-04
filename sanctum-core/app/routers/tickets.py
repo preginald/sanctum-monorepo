@@ -108,6 +108,7 @@ def create_ticket(
     new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
     new_ticket.account_name = new_ticket.account.name 
     
+    new_ticket.related_tickets = []
     event_bus.emit("ticket_created", new_ticket, background_tasks)
     
     if new_ticket.assigned_tech_id:
@@ -243,6 +244,7 @@ def update_ticket(
     if ticket.status == 'resolved' and not was_resolved:
         event_bus.emit("ticket_resolved", ticket, background_tasks)
 
+    ticket.related_tickets = []
     response_data = schemas.TicketResponse.model_validate(ticket)
 
     if resolve_embeds:
