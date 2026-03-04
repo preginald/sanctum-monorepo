@@ -386,11 +386,11 @@ export default function TicketDetail() {
               <div className="space-y-2">
                   {ticket.related_tickets?.length > 0 ? ticket.related_tickets.map(rel => (
                       <div key={rel.id} onClick={() => navigate(`/tickets/${rel.id}`)} className="flex items-center justify-between p-3 bg-amber-900/10 border border-amber-500/20 hover:bg-amber-900/20 rounded cursor-pointer transition-colors group relative pr-8">
-                          <div className="flex items-center gap-3">
-                              <span className="text-xs font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded">#{rel.id}</span>
-                              <span className="text-sm font-bold text-white group-hover:text-amber-200">{rel.subject}</span>
-                              <span className="text-xs text-slate-400 capitalize">{rel.relation_type.replace(/_/g, ' ')}</span>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <span className="text-xs font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">#{rel.id}</span>
+                              <span className="text-sm font-bold text-white group-hover:text-amber-200 truncate">{rel.subject}</span>
                           </div>
+                          <span className="text-xs font-mono bg-slate-700/50 text-slate-400 px-1.5 py-0.5 rounded capitalize shrink-0 mr-6">{rel.relation_type.replace(/_/g, ' ')}</span>
                           <button onClick={(e) => handleUnlinkTicket(e, rel.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
                       </div>
                   )) : <p className="text-xs opacity-30 italic">No related tickets.</p>}
