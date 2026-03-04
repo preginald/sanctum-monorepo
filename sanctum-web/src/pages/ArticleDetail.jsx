@@ -191,8 +191,7 @@ Client: Digital Sanctum HQ`;
         { value: 'card', icon: <LayoutTemplate size={14} /> }
       ]}
       title={article.title}
-      subtitle={<>{article.identifier && <span className="font-mono opacity-70">{article.identifier}</span>} • {article.category} • <span className="font-mono">{article.version}</span> • <span className="flex inline-flex items-center gap-1"><User size={12}/> {article.author_name || 'Unknown'}</span></>}
-      badge={{ label: article.category, className: categoryColor(article.category) }}
+      badge={null}
       breadcrumb={[{ label: 'Library', path: '/wiki' }, { label: article.category }]}
       actions={
         <div className="flex items-center gap-2">
@@ -334,6 +333,12 @@ Client: Digital Sanctum HQ`;
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
             <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3">Metadata</h3>
             <div className="space-y-2 text-xs">
+              {article.identifier && (
+                <div className="flex justify-between items-center">
+                  <span className="opacity-50">Identifier</span>
+                  <span className="font-mono text-sanctum-gold text-[11px]">{article.identifier}</span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="opacity-50">Author</span>
                 <span>{article.author_name || 'Unknown'}</span>
