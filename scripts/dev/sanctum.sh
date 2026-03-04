@@ -222,6 +222,7 @@ ticket_create() {
             --priority)       PRIORITY="$2"; shift 2 ;;
             --type)           TICKET_TYPE="$2"; shift 2 ;;
             --articles)       ARTICLES="$2"; shift 2 ;;
+            --relate-tickets) RELATE_TICKETS="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -294,6 +295,24 @@ ticket_create() {
             ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || continue
             api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
             echo -e "${GREEN}  Linked article: ${RAW_ID}${NC}"
+        done
+    fi
+    # Link related tickets if --relate-tickets provided
+    if [ -n "$RELATE_TICKETS" ]; then
+        echo -e "${YELLOW}-> Linking related tickets...${NC}"
+        IFS=',' read -ra RELATE_LIST <<< "$RELATE_TICKETS"
+        for RELATED_ID in "${RELATE_LIST[@]}"; do
+            RELATED_ID=$(echo "$RELATED_ID" | tr -d ' ')
+            PAYLOAD=$(jq -n --arg rid "$RELATED_ID" '{"related_id": ($rid | tonumber), "relation_type": "relates_to", "visibility": "internal"}')
+            RESULT=$(api_post "/tickets/${TICKET_ID}/relations" "$PAYLOAD")
+            REL_STATUS=$(echo "$RESULT" | jq -r '.status // "error"')
+            if [ "$REL_STATUS" = "linked" ]; then
+                echo -e "${GREEN}  Linked ticket: #${RELATED_ID}${NC}"
+            elif [ "$REL_STATUS" = "already_exists" ]; then
+                echo -e "${YELLOW}  Already linked: #${RELATED_ID}${NC}"
+            else
+                echo -e "${RED}  Failed to link: #${RELATED_ID}${NC}"
+            fi
         done
     fi
 }
@@ -534,6 +553,7 @@ ticket_update() {
             -m|--milestone)   MILESTONE_NAME="$2"; shift 2 ;;
             -e|--env)         ENV="$2"; shift 2 ;;
             --articles)       ARTICLES="$2"; shift 2 ;;
+            --relate-tickets) RELATE_TICKETS="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -584,6 +604,24 @@ ticket_update() {
             ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || continue
             api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
             echo -e "${GREEN}  Linked article: ${RAW_ID}${NC}"
+        done
+    fi
+    # Link related tickets if --relate-tickets provided
+    if [ -n "$RELATE_TICKETS" ]; then
+        echo -e "${YELLOW}-> Linking related tickets...${NC}"
+        IFS=',' read -ra RELATE_LIST <<< "$RELATE_TICKETS"
+        for RELATED_ID in "${RELATE_LIST[@]}"; do
+            RELATED_ID=$(echo "$RELATED_ID" | tr -d ' ')
+            PAYLOAD=$(jq -n --arg rid "$RELATED_ID" '{"related_id": ($rid | tonumber), "relation_type": "relates_to", "visibility": "internal"}')
+            RESULT=$(api_post "/tickets/${TICKET_ID}/relations" "$PAYLOAD")
+            REL_STATUS=$(echo "$RESULT" | jq -r '.status // "error"')
+            if [ "$REL_STATUS" = "linked" ]; then
+                echo -e "${GREEN}  Linked ticket: #${RELATED_ID}${NC}"
+            elif [ "$REL_STATUS" = "already_exists" ]; then
+                echo -e "${YELLOW}  Already linked: #${RELATED_ID}${NC}"
+            else
+                echo -e "${RED}  Failed to link: #${RELATED_ID}${NC}"
+            fi
         done
     fi
 }
