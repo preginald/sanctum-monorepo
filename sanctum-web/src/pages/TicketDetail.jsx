@@ -15,6 +15,7 @@ import TicketBilling from '../components/tickets/TicketBilling';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import ResolveModal from '../components/tickets/ResolveModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import TruncatedText from '../components/ui/TruncatedText';
 import InvoiceList from '../components/invoices/InvoiceList'; // NEW IMPORT
 
 export default function TicketDetail() {
@@ -388,7 +389,7 @@ export default function TicketDetail() {
                       <div key={rel.id} onClick={() => navigate(`/tickets/${rel.id}`)} className="flex items-center justify-between p-3 bg-amber-900/10 border border-amber-500/20 hover:bg-amber-900/20 rounded cursor-pointer transition-colors group relative pr-8">
                           <div className="flex items-center gap-3 flex-1 min-w-0">
                               <span className="text-xs font-mono text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded shrink-0">#{rel.id}</span>
-                              <span className="text-sm font-bold text-white group-hover:text-amber-200 truncate">{rel.subject}</span>
+                              <TruncatedText text={rel.subject} className="text-sm font-bold text-white group-hover:text-amber-200" />
                           </div>
                           <span className="text-xs font-mono bg-slate-700/50 text-slate-400 px-1.5 py-0.5 rounded capitalize shrink-0 mr-6">{rel.relation_type.replace(/_/g, ' ')}</span>
                           <button onClick={(e) => handleUnlinkTicket(e, rel.id)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all"><X size={14} /></button>
