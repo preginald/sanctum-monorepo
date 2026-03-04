@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
@@ -16,9 +16,9 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         .options(
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
             joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
-            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.invoice), # NEW: Load Invoice
+            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.invoice),
             joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
-            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.invoice), # NEW: Load Invoice
+            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.invoice),
             joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
             joinedload(models.Ticket.contacts),
             joinedload(models.Ticket.articles),
@@ -36,7 +36,6 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
 
     tickets = query.order_by(models.Ticket.id.desc()).all()
     
-    # Enrichment
     results = []
     for t in tickets:
         t_dict = t.__dict__.copy() 
@@ -46,13 +45,8 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         t_dict['articles'] = t.articles
         t_dict['assets'] = t.assets 
         
-        # Manually map invoice status to time/materials
-        # We must convert SQLAlchemy objects to dicts to inject the new field
         enriched_time = []
         for te in t.time_entries:
-            # Note: Do not use __dict__ directly if possible, but here we need to inject a field
-            # Pydantic from_attributes usually handles object attributes, 
-            # but 'invoice_status' isn't on the model. We'll set it on the object dynamically.
             if te.invoice:
                 setattr(te, 'invoice_status', te.invoice.status)
             enriched_time.append(te)
@@ -146,8 +140,40 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session =
         if ticket.milestone.project:
             ticket.project_id = ticket.milestone.project.id
             ticket.project_name = ticket.milestone.project.name
+
+    ticket.related_tickets = []
     response_data = schemas.TicketResponse.model_validate(ticket)
-    
+
+    # Build related_tickets from ticket_relations join table (both directions)
+    relations_raw = db.execute(sa_text("""
+        SELECT t.id, t.subject, t.status, t.priority, t.ticket_type,
+               tr.relation_type, tr.visibility,
+               tr.ticket_id as source_id
+        FROM ticket_relations tr
+        JOIN tickets t ON (
+            CASE WHEN tr.ticket_id = :tid THEN tr.related_id ELSE tr.ticket_id END = t.id
+        )
+        WHERE tr.ticket_id = :tid OR tr.related_id = :tid
+    """), {"tid": ticket_id}).fetchall()
+
+    related = []
+    for row in relations_raw:
+        relation_type = row.relation_type
+        if row.relation_type == "blocks" and row.source_id != ticket_id:
+            relation_type = "blocked_by"
+        elif row.relation_type == "duplicates" and row.source_id != ticket_id:
+            relation_type = "duplicate_of"
+        related.append(schemas.TicketRelationResponse(
+            id=row.id,
+            subject=row.subject,
+            status=row.status,
+            priority=row.priority,
+            ticket_type=row.ticket_type,
+            relation_type=relation_type,
+            visibility=row.visibility
+        ))
+    response_data.related_tickets = related
+
     if resolve_embeds:
         try:
             from ..services.content_engine import resolve_content
@@ -218,7 +244,7 @@ def update_ticket(
         event_bus.emit("ticket_resolved", ticket, background_tasks)
 
     response_data = schemas.TicketResponse.model_validate(ticket)
-    
+
     if resolve_embeds:
         try:
             from ..services.content_engine import resolve_content
@@ -336,6 +362,36 @@ def unlink_article_from_ticket(ticket_id: int, article_id: str, db: Session = De
     if article in ticket.articles:
         ticket.articles.remove(article)
         db.commit()
+    return {"status": "unlinked"}
+
+@router.post("/{ticket_id}/relations")
+def link_ticket_relation(ticket_id: int, body: dict, db: Session = Depends(get_db)):
+    related_id = body.get("related_id")
+    relation_type = body.get("relation_type", "relates_to")
+    visibility = body.get("visibility", "internal")
+    if not related_id:
+        raise HTTPException(status_code=422, detail="related_id is required")
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    related = db.query(models.Ticket).filter(models.Ticket.id == related_id).first()
+    if not ticket or not related:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    existing = db.execute(sa_text(
+        "SELECT 1 FROM ticket_relations WHERE (ticket_id = :a AND related_id = :b) OR (ticket_id = :b AND related_id = :a)"
+    ), {"a": ticket_id, "b": related_id}).first()
+    if existing:
+        return {"status": "already_exists"}
+    db.execute(sa_text(
+        "INSERT INTO ticket_relations (ticket_id, related_id, relation_type, visibility) VALUES (:a, :b, :rt, :v)"
+    ), {"a": ticket_id, "b": related_id, "rt": relation_type, "v": visibility})
+    db.commit()
+    return {"status": "linked"}
+
+@router.delete("/{ticket_id}/relations/{related_id}")
+def unlink_ticket_relation(ticket_id: int, related_id: int, db: Session = Depends(get_db)):
+    db.execute(sa_text(
+        "DELETE FROM ticket_relations WHERE (ticket_id = :a AND related_id = :b) OR (ticket_id = :b AND related_id = :a)"
+    ), {"a": ticket_id, "b": related_id})
+    db.commit()
     return {"status": "unlinked"}
 
 @router.post("/{ticket_id}/assets/{asset_id}")

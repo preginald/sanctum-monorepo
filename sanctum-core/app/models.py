@@ -30,6 +30,13 @@ article_relations = Table('article_relations', Base.metadata,
     Column('related_id', UUID(as_uuid=True), ForeignKey('articles.id'), primary_key=True)
 )
 
+ticket_relations = Table('ticket_relations', Base.metadata,
+    Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
+    Column('related_id', Integer, ForeignKey('tickets.id'), primary_key=True),
+    Column('relation_type', SAEnum('relates_to', 'blocks', 'duplicates', name='ticket_relation_type'), nullable=False, default='relates_to'),
+    Column('visibility', SAEnum('internal', 'public', name='ticket_relation_visibility'), nullable=False, default='internal')
+)
+
 ticket_assets = Table('ticket_assets', Base.metadata,
     Column('ticket_id', Integer, ForeignKey('tickets.id'), primary_key=True),
     Column('asset_id', UUID(as_uuid=True), ForeignKey('assets.id'), primary_key=True)
@@ -240,6 +247,13 @@ class Ticket(Base):
         post_update=True 
     )
     assets = relationship("Asset", secondary=ticket_assets, backref="tickets")
+    related_tickets = relationship(
+        "Ticket",
+        secondary=ticket_relations,
+        primaryjoin="Ticket.id == ticket_relations.c.ticket_id",
+        secondaryjoin="Ticket.id == ticket_relations.c.related_id",
+        overlaps="related_tickets"
+    )
 
     @property
     def total_hours(self):

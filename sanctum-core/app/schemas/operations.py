@@ -80,6 +80,15 @@ class TicketUpdate(SanctumBase):
     contact_id: Optional[UUID] = None 
     resolution_comment_id: Optional[UUID] = None
 
+class TicketRelationResponse(SanctumBase):
+    id: int
+    subject: str
+    status: str
+    priority: str
+    ticket_type: str
+    relation_type: str
+    visibility: str
+
 class TicketResponse(TicketCreate):
     resolved_description: Optional[str] = None
     id: int
@@ -101,6 +110,7 @@ class TicketResponse(TicketCreate):
     materials: List[TicketMaterialResponse] = [] 
     articles: List[ArticleLite] = []
     assets: List[AssetLite] = [] 
+    related_tickets: List[TicketRelationResponse] = []
 
     total_hours: float = 0.0
     resolution_comment_id: Optional[UUID] = None

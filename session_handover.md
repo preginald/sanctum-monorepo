@@ -1,112 +1,160 @@
-# Session Handover — 2026-03-03
-**Session Name:** CLI Tooling & Milestone Backfill
-**Duration:** ~1.5 hours
-**Status:** 2 tickets resolved, 1 new feature ticket created
+# Session Handover — Knowledge Graph Expansion (#310–#317)
+
+## Session Name
+Knowledge Graph Expansion — Article & Ticket Relations (#310–#317)
+
+## Completed This Session
+
+### Tickets Resolved
+| # | Subject |
+|---|---|
+| ✅ #310 | Feature: Related articles — knowledge graph (full stack) |
+| ✅ #312 | Feature: sanctum.sh article relate/unrelate CLI |
+| ✅ #313 | Feature: sanctum.sh ticket article linking CLI |
+
+### Key Deliverables
+- `article_relations` bidirectional join table + migration (`fc78ff647823`)
+- `POST /articles/{id}/relations` and `DELETE /articles/{id}/relations/{related_id}` endpoints
+- `ArticleDetail.jsx` — Related Articles sidebar card (link/unlink, SearchableSelect)
+- `PortalArticleView.jsx` — read-only Related Articles section
+- `sanctum.sh` — `article relate`, `article unrelate`, `--related` flag on create/update
+- `sanctum.sh` — `ticket relate`, `ticket unrelate`, `--articles` flag on create/update
+- `resolve_article_identifier` shared helper (identifier → UUID resolution)
+- Fixed article relations payload bug (jq-built JSON, commit `e5fd1ef`)
+- DOC-001 updated — new Section 4: Linking Articles to Tickets
+- DOC-002 updated — new Section 4: Managing Related Articles (knowledge graph standard)
+- TPL-001 updated to v1.4 — new Section 7 (sticky UX patterns) + Section 8 (knowledge graph)
+
+### Commits
+- `5c41b64` — Backend: article relations
+- `102c57d` — ArticleDetail sidebar
+- `561830d` — Portal read-only section
+- `ea9f2fa` — Fix SearchableSelect selectedIds limit
+- `fc42a4b` — sanctum.sh article/ticket relate CLI + help docs
+- `e5fd1ef` — Fix article relations payload (jq)
 
 ---
 
-## 0. WHAT WE ACCOMPLISHED
-
-| Ticket | Subject | Status |
-|---|---|---|
-| #307 | Google Calendar synchronization | 🆕 Created |
-| #308 | Backfill milestone descriptions and correct sequences | ✅ Resolved |
-| #309 | Add comprehensive `--help` documentation to sanctum.sh | ✅ Resolved |
-
-### #308 — Milestone Backfill & Sequence Correction
-- Wrote and executed `scripts/admin/fix_milestones.py` against production.
-- Intelligently re-indexed sequences for all milestones based on chronological 'Phase X' extraction.
-- Inferred and backfilled contextually rich descriptions for 67 milestones across all projects by parsing linked ticket objectives and resolutions.
-
-### #309 — sanctum.sh `--help` Documentation
-- Surgically refactored `scripts/dev/sanctum.sh` to include a clean global domain list.
-- Added comprehensive, domain-specific `--help` blocks for `ticket`, `milestone`, `invoice`, and `article`.
-- Integrated proper command dispatching to capture the `--help` flag for each domain.
-
----
-
-## 1. CURRENT STATE
-
-### Git
-- `scripts/dev/sanctum.sh` and `scripts/admin/fix_milestones.py` committed and pushed to `main`.
-- CLI script in production environment is fully up to date with new help docs.
-
-### Database
-- All historical milestones now have accurate descriptions and conflict-free sequence numbers.
-
----
-
-## 2. FULL BACKLOG
+## Open Backlog
 
 ### Phase 55: UX & Stability
-| Ticket | Subject | Type |
+| # | Subject | Type |
 |---|---|---|
-| #249 | Layout: Responsive Header wrapping | bug |
-| #220 | Unify view toggle into Layout header | feature |
-| #185 | API token authentication (Personal Access Tokens) [UI implementation] | feature |
-| #182 | Intelligence Dossier refactoring | refactor |
 | #290 | Backend: Review and improve project detail view | feature |
 | #291 | Vendors: All vendors list view | feature |
 | #295 | Screenshot capture: full page with download option | feature |
 | #296 | Accounts: default technician assignment per client | feature |
+| #311 | Audit all detail pages against Intelligence Dossier standard | refactor |
+| #314 | Bug: Seamless embed style renders as card — hardcoded Tailwind in content_engine.py | bug |
+| #315 | UX: Contextual sticky nav + stacked sticky sidebar on detail pages | feature |
+| #316 | Bug/UX: ProjectDetail — milestone descriptions not rendered + redesign | feature |
 
 ### Phase 68: The Steward v2
-| Ticket | Subject | Type |
+| # | Subject | Type |
 |---|---|---|
-| #293 | Domain expiry: send warning email (unmanaged domains) | feature |
-| #294 | Domain asset: prompt to send email when expiry date missing | feature |
+| #293 | Domain expiry warning email | feature |
+| #294 | Domain asset: prompt when expiry date missing | feature |
 
 ### Phase 73: The Scheduler
-| Ticket | Subject | Type |
+| # | Subject | Type |
 |---|---|---|
 | #307 | Google Calendar synchronization | feature |
 
----
-
-## 3. RECOMMENDED NEXT SPRINT
-
-**Topic:** Phase 73: The Scheduler (#307 Google Calendar Sync)
-**Context:** The user wants to pull Google Calendar events into the ERP and optionally link them to tickets, accounts, or contacts (e.g., remote support sessions). 
-**Suggested Approach:**
-1. Determine OAuth vs Service Account architecture.
-2. Create database models (`Appointment` or `CalendarEvent`).
-3. Build the backend integration (`app/routers/calendar.py` + Google API client).
-4. Build the frontend dashboard/calendar view to display synced events.
-
-Alternatively, you can knock out **Phase 68: The Steward v2** (Tickets #293 and #294) to wrap up the domain expiry notification flow.
+### Knowledge Base 2.0
+| # | Subject | Type |
+|---|---|---|
+| #317 | Ticket knowledge graph — typed relations + visibility | feature |
 
 ---
 
-## 4. KNOWN ISSUES / TECH DEBT
+## Next Session Focus — #317 + CLI + Docs
 
-- **#249** — Responsive header wrapping is still pending.
-- **#185** — API token auth UI remains unbuilt (backend works).
+### Ticket #317: Ticket Knowledge Graph
+
+**Full scope:**
+
+#### Backend
+- New `ticket_relations` join table:
+  ```
+  ticket_id       UUID FK → tickets.id
+  related_id      UUID FK → tickets.id
+  relation_type   ENUM: relates_to | blocks | duplicates
+  visibility      ENUM: internal | public (default: internal)
+  PRIMARY KEY (ticket_id, related_id)
+  ```
+- Alembic migration
+- `POST /tickets/{id}/relations` — body: `{related_id, relation_type, visibility}`
+- `DELETE /tickets/{id}/relations/{related_id}`
+- `GET /tickets/{id}` — include `related_tickets` in response
+- `PortalTicketView` — only expose `public` visibility relations
+
+#### Frontend — TicketDetail.jsx (Admin)
+- Related Tickets card in **main content area**, above Linked Knowledge Articles card
+- Shows relation type badge + visibility indicator per linked ticket
+- SearchableSelect to link tickets — same pattern as ArticleDetail Related Articles
+- Unlink on hover (×)
+- Relation type selector: `relates_to` | `blocks` | `duplicates`
+- Visibility toggle: `internal` | `public`
+
+#### Frontend — Portal
+- Read-only, only `public` relations visible
+- Plain language labels: "Related", "Blocked by", "Duplicate of"
+
+#### CLI — sanctum.sh
+- `ticket relate {id} --tickets {id1,id2,...} [--type relates_to] [--visibility internal]`
+- `ticket unrelate {id} --ticket {id1}` (note: conflicts with existing `--article` unrelate — use `--ticket` flag)
+- `--tickets` flag on `ticket create` and `ticket update`
+- `--help` docs updated for ticket domain
+
+#### Documentation
+- DOC-001 (API Guide: Tickets) — new section: Ticket Relations (knowledge graph)
+
+### Key Architectural Notes
+- Bidirectional: store once, query both directions (same as `article_relations`)
+- `relation_type` and `visibility` stored on the relation row
+- Reverse direction: when A blocks B, B is "blocked by" A — derive label from direction
+- Portal visibility: filter `related_tickets` by `visibility = 'public'` in portal endpoint
+- CLI uses `resolve_ticket_id` helper (tickets use integer IDs not identifiers, so no resolution needed — pass directly)
+
+### Files to Touch
+**Backend:**
+- `sanctum-core/app/models.py`
+- `sanctum-core/app/schemas/tickets.py`
+- `sanctum-core/app/schemas/__init__.py`
+- `sanctum-core/app/routers/tickets.py`
+- `sanctum-core/app/routers/portal.py`
+- `sanctum-core/alembic/versions/` (new migration)
+
+**Frontend:**
+- `sanctum-web/src/pages/TicketDetail.jsx`
+- `sanctum-web/src/pages/PortalTicketView.jsx` (confirm exists)
+
+**CLI:**
+- `scripts/dev/sanctum.sh`
+
+**KB:**
+- DOC-001 — API Guide: Tickets
+
+### Reference
+- `article_relations` pattern: `sanctum-core/app/models.py`, `sanctum-core/app/routers/wiki.py`
+- `ArticleDetail.jsx` Related Articles sidebar — reference for SearchableSelect link/unlink pattern
+- `PortalArticleView.jsx` — reference for portal read-only relations
+- Auth: `$SANCTUM_API_TOKEN` (sntm_6f29146...)
+- Environment: Production
+- Workflow: Surgical Reconnaissance — recon before patching
 
 ---
 
-## 5. HANDOVER CHECKLIST
+## Standards & Conventions
 
--[x] #308 Milestone Backfill complete
-- [x] #309 sanctum.sh help documentation complete
-- [x] #307 Calendar sync ticket created
-- [x] Scripts committed and pushed
+### KB Article Rules (established this session)
+- Never include a manually typed `## Related` section in article content
+- Relations managed exclusively via sidebar UI or `sanctum.sh article relate`
+- Always use `--articles` / `--related` flags when creating/updating tickets and articles that reference other docs
 
----
+### sanctum.sh Patterns
+- `resolve_article_identifier` helper resolves `DOC-012` style identifiers to UUIDs
+- Ticket IDs are integers — passed directly, no resolution needed
+- All relation payloads must use `jq -n --arg` to build JSON safely (raw string interpolation breaks)
+- `api_post` passes `$2` directly to curl `-d` — malformed JSON silently fails with API error
 
-## 6. IMPORTANT NOTES FOR NEXT AI SESSION
-
-- **Delivery Doctrine:** Always `grep -n` and `sed -n` before proposing changes. 
-- **Cost Efficiency:** The session cost roughly $0.60 AUD for 81k tokens. Excellent ROI on data parsing scripts.
-- **Python Patches over Bash:** For multi-line text replacement (like the `sanctum.sh` help block), continue using Python `replace()` scripts. It avoids the quoting nightmares of `sed`.
-
----
-
-## 7. COMMANDS FOR NEXT SESSION
-
-```bash
-# To check the Calendar Sync ticket
-./scripts/dev/sanctum.sh ticket show 307 -e prod
-
-# To check Domain Expiry tickets
-./scripts/dev/sanctum.sh ticket show 293 -e prod
-./scripts/dev/sanctum.sh ticket show 294 -e prod
