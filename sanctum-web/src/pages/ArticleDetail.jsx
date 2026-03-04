@@ -47,7 +47,7 @@ Client: Digital Sanctum HQ`;
   const headerSentinelRef = useRef(null);
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
-    const scrollContainer = headerSentinelRef.current?.closest('main');
+    const scrollContainer = document.querySelector('main');
     if (!scrollContainer) return;
     const handleScroll = () => setIsScrolled(scrollContainer.scrollTop > 60);
     scrollContainer.addEventListener('scroll', handleScroll);
