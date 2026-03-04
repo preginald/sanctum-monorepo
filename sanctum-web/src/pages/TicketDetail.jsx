@@ -131,7 +131,7 @@ export default function TicketDetail() {
   };
   const fetchCatalog = async () => { try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { } };
   const fetchArticles = async () => { try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {} };
-  const fetchTickets = async () => { try { const res = await api.get('/tickets'); setAllTickets(res.data); } catch(e) {} };
+  const fetchTickets = async () => { try { const res = await api.get('/tickets'); setAllTickets(res.data.map(t => ({ ...t, display_subject: `#${t.id} — ${t.subject}` }))); } catch(e) {} };
   const handleLinkTicket = async (relatedId) => { try { await api.post(`/tickets/${id}/relations`, { related_id: relatedId, relation_type: 'relates_to', visibility: 'internal' }); fetchTicket(); setShowLinkTicket(false); } catch(e) {} };
   const handleUnlinkTicket = async (e, relatedId) => { e.stopPropagation(); try { await api.delete(`/tickets/${id}/relations/${relatedId}`); fetchTicket(); } catch(e) {} };
 
@@ -381,7 +381,7 @@ export default function TicketDetail() {
               {showLinkTicket && (
                   <div className="mb-4 p-3 bg-black/30 rounded border border-amber-500/30">
                       <div className="flex justify-end mb-2"><button onClick={() => setShowLinkTicket(false)} className="text-slate-500 hover:text-white"><X size={16}/></button></div>
-                      <SearchableSelect items={allTickets.filter(t => t.id !== ticket.id)} onSelect={(item) => handleLinkTicket(item.id)} selectedIds={ticket.related_tickets?.map(t => t.id) || []} placeholder="Search tickets..." labelKey="subject" subLabelKey="status" icon={LinkIcon} />
+                      <SearchableSelect items={allTickets.filter(t => t.id !== ticket.id)} onSelect={(item) => handleLinkTicket(item.id)} selectedIds={ticket.related_tickets?.map(t => t.id) || []} placeholder="Search tickets..." labelKey="display_subject" subLabelKey="status" icon={LinkIcon} />
                   </div>
               )}
               <div className="space-y-2">
