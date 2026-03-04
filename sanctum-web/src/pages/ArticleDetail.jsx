@@ -47,12 +47,11 @@ Client: Digital Sanctum HQ`;
   const headerSentinelRef = useRef(null);
   const [isScrolled, setIsScrolled] = useState(false);
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => setIsScrolled(!entry.isIntersecting),
-      { threshold: 0 }
-    );
-    if (headerSentinelRef.current) observer.observe(headerSentinelRef.current);
-    return () => observer.disconnect();
+    const scrollContainer = headerSentinelRef.current?.closest('main');
+    if (!scrollContainer) return;
+    const handleScroll = () => setIsScrolled(scrollContainer.scrollTop > 60);
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
   const { slug } = useParams();
   const navigate = useNavigate();
