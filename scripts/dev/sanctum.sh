@@ -405,14 +405,15 @@ ticket_resolve() {
 
 ticket_show() {
     local TICKET_ID="$1"; shift
-    local ENV="dev"
+    local ENV="dev" SHOW_CONTENT=false SHOW_RELATIONS=false
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env)     ENV="$2"; shift 2 ;;
-            -c|--content) SHOW_CONTENT=true; shift ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            -c|--content)   SHOW_CONTENT=true; shift ;;
+            -r|--relations) SHOW_RELATIONS=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -424,19 +425,20 @@ ticket_show() {
     RESULT=$(api_get "/tickets/${TICKET_ID}")
 
     echo ""
-    echo "$RESULT" | jq '{
-        id,
-        subject,
-        status,
-        priority,
-        ticket_type,
-        account_name,
-        milestone_name,
-        project_name,
-        assigned_tech_id,
-        created_at,
-        updated_at
-    }'
+    BASE_FIELDS='{id, subject, status, priority, ticket_type, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at}'
+    CONTENT_FIELDS='{id, subject, status, priority, ticket_type, description, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at}'
+    RELATION_FIELDS='{id, subject, status, priority, ticket_type, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at, related_tickets, articles}'
+    FULL_FIELDS='{id, subject, status, priority, ticket_type, description, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at, related_tickets, articles}'
+
+    if [ "$SHOW_CONTENT" = true ] && [ "$SHOW_RELATIONS" = true ]; then
+        echo "$RESULT" | jq "$FULL_FIELDS"
+    elif [ "$SHOW_CONTENT" = true ]; then
+        echo "$RESULT" | jq "$CONTENT_FIELDS"
+    elif [ "$SHOW_RELATIONS" = true ]; then
+        echo "$RESULT" | jq "$RELATION_FIELDS"
+    else
+        echo "$RESULT" | jq "$BASE_FIELDS"
+    fi
     echo ""
 }
 
@@ -494,8 +496,7 @@ ticket_delete() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env)     ENV="$2"; shift 2 ;;
-            -c|--content) SHOW_CONTENT=true; shift ;;
+            -e|--env) ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -617,6 +618,61 @@ ticket_relate() {
     echo ""
 }
 
+ticket_relate_tickets() {
+    local TICKET_ID="$1"; shift
+    local TICKETS="" RELATION_TYPE="relates_to" VISIBILITY="internal" ENV="dev"
+    [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --tickets)      TICKETS="$2"; shift 2 ;;
+            --type)         RELATION_TYPE="$2"; shift 2 ;;
+            --visibility)   VISIBILITY="$2"; shift 2 ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    [ -z "$TICKETS" ] && echo -e "${RED}✗ --tickets is required${NC}" && exit 1
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket relate-tickets"
+    ensure_auth
+    confirm_prod "About to link tickets to ticket #${TICKET_ID}"
+    echo -e "${YELLOW}→ Linking tickets...${NC}"
+    IFS=',' read -ra TICKET_LIST <<< "$TICKETS"
+    for RELATED_ID in "${TICKET_LIST[@]}"; do
+        RELATED_ID=$(echo "$RELATED_ID" | tr -d ' ')
+        PAYLOAD=$(jq -n --arg rid "$RELATED_ID" --arg rt "$RELATION_TYPE" --arg vis "$VISIBILITY"             '{"related_id": ($rid | tonumber), "relation_type": $rt, "visibility": $vis}')
+        RESULT=$(api_post "/tickets/${TICKET_ID}/relations" "$PAYLOAD")
+        STATUS=$(echo "$RESULT" | jq -r '.status // "error"')
+        if [ "$STATUS" = "linked" ]; then
+            echo -e "${GREEN}  Linked: #${RELATED_ID}${NC}"
+        elif [ "$STATUS" = "already_exists" ]; then
+            echo -e "${YELLOW}  Already linked: #${RELATED_ID}${NC}"
+        else
+            echo -e "${RED}  Failed: #${RELATED_ID}${NC}"
+        fi
+    done
+    echo ""
+}
+ticket_unrelate_ticket() {
+    local TICKET_ID="$1"; shift
+    local RELATED_ID="" ENV="dev"
+    [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --ticket)   RELATED_ID="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    [ -z "$RELATED_ID" ] && echo -e "${RED}✗ --ticket is required${NC}" && exit 1
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket unrelate-ticket"
+    ensure_auth
+    confirm_prod "About to unlink ticket #${RELATED_ID} from ticket #${TICKET_ID}"
+    api_delete "/tickets/${TICKET_ID}/relations/${RELATED_ID}" > /dev/null
+    echo -e "${GREEN}✓ Unlinked: #${RELATED_ID} from ticket #${TICKET_ID}${NC}"
+    echo ""
+}
 ticket_unrelate() {
     local TICKET_ID="$1"; shift
     local ARTICLE="" ENV="dev"
@@ -1242,11 +1298,13 @@ case "$DOMAIN" in
             list)     ticket_list "$@" ;;
             show)     ticket_show "$@" ;;
             delete)   ticket_delete "$@" ;;
-            relate)   ticket_relate "$@" ;;
-            unrelate) ticket_unrelate "$@" ;;
+            relate)          ticket_relate "$@" ;;
+            unrelate)        ticket_unrelate "$@" ;;
+            relate-tickets)  ticket_relate_tickets "$@" ;;
+            unrelate-ticket) ticket_unrelate_ticket "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, comment, resolve, list, show, delete, relate, unrelate"
+                echo "  Valid commands: create, update, comment, resolve, list, show, delete, relate, unrelate, relate-tickets, unrelate-ticket"
                 exit 1
                 ;;
         esac
