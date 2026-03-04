@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
@@ -44,6 +44,16 @@ Version: ${article.version || 'v1.0'}
 Client: Digital Sanctum HQ`;
   };
 
+  const headerSentinelRef = useRef(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsScrolled(!entry.isIntersecting),
+      { threshold: 0 }
+    );
+    if (headerSentinelRef.current) observer.observe(headerSentinelRef.current);
+    return () => observer.disconnect();
+  }, []);
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast(); // Initialize toast
@@ -202,6 +212,25 @@ Client: Digital Sanctum HQ`;
         </div>
       }
     >
+      {/* STICKY NAV */}
+      <div className={`fixed top-16 left-0 right-0 z-20 transition-all duration-200 ${isScrolled ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className="bg-slate-900/95 backdrop-blur border-b border-slate-700 px-6 py-2 flex items-center justify-between">
+          <span className="text-sm font-bold truncate text-white">
+            {article.identifier && <span className="text-sanctum-gold font-mono mr-2">{article.identifier}</span>}
+            {article.title}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <button onClick={handleDownloadPdf} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors text-slate-300 hover:text-white">
+              <Download size={13} /> PDF
+            </button>
+            <button onClick={() => navigate(`/wiki/${article.id}/edit`)} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors text-slate-300 hover:text-white">
+              <Edit2 size={13} /> Edit
+            </button>
+          </div>
+        </div>
+      </div>
+      {/* HEADER SENTINEL */}
+      <div ref={headerSentinelRef} className="h-0 w-full" />
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* LEFT — MAIN CONTENT */}
         <div className="lg:col-span-2">
@@ -255,7 +284,7 @@ Client: Digital Sanctum HQ`;
         </div>
 
         {/* RIGHT — SIDEBAR */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start">
 
           {/* RELATED ARTICLES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
