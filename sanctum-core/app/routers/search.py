@@ -22,6 +22,12 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
         "new wiki":   {"id": -2, "type": "action", "title": "Create New Article", "subtitle": "Add Knowledge Base Entry", "link": "/wiki/new"},
         "new client": {"id": -3, "type": "action", "title": "Onboard Client", "subtitle": "Start Onboarding Wizard", "link": "/clients/new"},
         "my profile": {"id": -4, "type": "action", "title": "My Profile", "subtitle": "Manage Account", "link": "/profile"},
+        "new project":  {"id": -5, "type": "action", "title": "Create New Project", "subtitle": "Start a new project", "link": "/projects/new"},
+        "new deal":     {"id": -6, "type": "action", "title": "Create New Deal", "subtitle": "Add to pipeline", "link": "/deals/new"},
+        "new asset":    {"id": -7, "type": "action", "title": "Create New Asset", "subtitle": "Add to CMDB", "link": "/assets/new"},
+        "new contact":  {"id": -8, "type": "action", "title": "Create New Contact", "subtitle": "Add a contact to a client", "link": "/contacts/new"},
+        "new invoice":  {"id": -9, "type": "action", "title": "Create New Invoice", "subtitle": "Draft an invoice", "link": "/invoices/new"},
+        "new campaign": {"id": -10, "type": "action", "title": "Create New Campaign", "subtitle": "Launch a campaign", "link": "/campaigns/new"},
     }
     
     # Exact Action Match
