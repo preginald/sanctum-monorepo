@@ -1,160 +1,119 @@
-# Session Handover — Knowledge Graph Expansion (#310–#317)
+# Session Handover — Phase 55 / Phase 74 Continuation
+**Date:** 2026-03-05
+**Session:** Phase 55: UX & Stability + Phase 74: The Foreman (new)
 
-## Session Name
-Knowledge Graph Expansion — Article & Ticket Relations (#310–#317)
+---
 
-## Completed This Session
+## Session Summary
 
-### Tickets Resolved
-| # | Subject |
+This session had two main streams: backlog grooming (new ticket creation from user ideas) and implementation of three tickets.
+
+---
+
+## Tickets Created This Session
+
+### Appointments (Phase 69: The Herald + Phase 73: The Scheduler)
+| Ticket | Subject |
 |---|---|
-| ✅ #310 | Feature: Related articles — knowledge graph (full stack) |
-| ✅ #312 | Feature: sanctum.sh article relate/unrelate CLI |
-| ✅ #313 | Feature: sanctum.sh ticket article linking CLI |
+| #343 | Feature: Appointments — parent ticket |
+| #344 | Feature: Appointments — backend model and API endpoints |
+| #345 | Feature: Appointments — frontend UI (admin + portal) |
+| #346 | Feature: Appointments — Google Calendar sync (future) |
+| #347 | Feature: Appointments — client-facing booking link / Calendly-style (future) |
 
-### Key Deliverables
-- `article_relations` bidirectional join table + migration (`fc78ff647823`)
-- `POST /articles/{id}/relations` and `DELETE /articles/{id}/relations/{related_id}` endpoints
-- `ArticleDetail.jsx` — Related Articles sidebar card (link/unlink, SearchableSelect)
-- `PortalArticleView.jsx` — read-only Related Articles section
-- `sanctum.sh` — `article relate`, `article unrelate`, `--related` flag on create/update
-- `sanctum.sh` — `ticket relate`, `ticket unrelate`, `--articles` flag on create/update
-- `resolve_article_identifier` shared helper (identifier → UUID resolution)
-- Fixed article relations payload bug (jq-built JSON, commit `e5fd1ef`)
-- DOC-001 updated — new Section 4: Linking Articles to Tickets
-- DOC-002 updated — new Section 4: Managing Related Articles (knowledge graph standard)
-- TPL-001 updated to v1.4 — new Section 7 (sticky UX patterns) + Section 8 (knowledge graph)
+**Key decisions:**
+- Appointments linked to account + contacts (mandatory), ticket (optional)
+- Types: call, onsite, remote
+- Both scheduled (future) and retrospective (past) entries
+- Visible in client portal
+- Google Calendar sync and booking link are future phase placeholders
 
-### Commits
-- `5c41b64` — Backend: article relations
-- `102c57d` — ArticleDetail sidebar
-- `561830d` — Portal read-only section
-- `ea9f2fa` — Fix SearchableSelect selectedIds limit
-- `fc42a4b` — sanctum.sh article/ticket relate CLI + help docs
-- `e5fd1ef` — Fix article relations payload (jq)
+### sanctum.sh (Phase 68: The Steward v2)
+| Ticket | Subject |
+|---|---|
+| #348 | Feature: sanctum.sh milestone list — filtering and format options ✅ RESOLVED |
 
----
+### Knowledge Base / Articles (Phase 70: The Archivist)
+| Ticket | Subject |
+|---|---|
+| #349 | Feature: ArticleDetail — table of contents sidebar card (H2/H3, 3+ headings, above Related Articles) |
+| #350 | Investigation: shortcode-embedded articles — auto-link as related articles |
 
-## Open Backlog
-
-### Phase 55: UX & Stability
-| # | Subject | Type |
-|---|---|---|
-| #290 | Backend: Review and improve project detail view | feature |
-| #291 | Vendors: All vendors list view | feature |
-| #295 | Screenshot capture: full page with download option | feature |
-| #296 | Accounts: default technician assignment per client | feature |
-| #311 | Audit all detail pages against Intelligence Dossier standard | refactor |
-| #314 | Bug: Seamless embed style renders as card — hardcoded Tailwind in content_engine.py | bug |
-| #315 | UX: Contextual sticky nav + stacked sticky sidebar on detail pages | feature |
-| #316 | Bug/UX: ProjectDetail — milestone descriptions not rendered + redesign | feature |
-
-### Phase 68: The Steward v2
-| # | Subject | Type |
-|---|---|---|
-| #293 | Domain expiry warning email | feature |
-| #294 | Domain asset: prompt when expiry date missing | feature |
-
-### Phase 73: The Scheduler
-| # | Subject | Type |
-|---|---|---|
-| #307 | Google Calendar synchronization | feature |
-
-### Knowledge Base 2.0
-| # | Subject | Type |
-|---|---|---|
-| #317 | Ticket knowledge graph — typed relations + visibility | feature |
+### Phase 74: The Foreman (NEW MILESTONE — sequence 57)
+| Ticket | Subject |
+|---|---|
+| #289 | Portal: Project view with milestones for clients (moved from Phase 67) |
+| #290 | Backend: Review and improve project detail view (moved from Phase 55) |
+| #351 | Feature: MilestoneDetail — dedicated milestone dossier page |
+| #352 | Refactor: ProjectDetail — industry-standard project management view |
+| #353 | Backend: GET /projects/{id} — include tickets nested under milestones ✅ RESOLVED |
+| #354 | Investigation: audit inefficient fetch patterns across frontend pages |
+| #355 | Refactor: ProjectDetail — remove redundant GET /tickets fetch ✅ RESOLVED |
 
 ---
 
-## Next Session Focus — #317 + CLI + Docs
+## Implemented This Session
 
-### Ticket #317: Ticket Knowledge Graph
+### #353 — Nested tickets under milestones in GET /projects/{id}
+**Commit:** b88113d
+- Added `TicketBrief` schema to `sanctum-core/app/schemas/strategy.py`
+- Added `tickets: List[TicketBrief] = []` to `MilestoneResponse`
+- Updated `get_project_detail` query to use `joinedload(Project.milestones).selectinload(Milestone.tickets)`
+- Added `selectinload` to sqlalchemy imports in `projects.py`
+- Exported `TicketBrief` from `schemas/__init__.py`
+- Verified on prod — tickets correctly nested under milestones
 
-**Full scope:**
+### #355 — ProjectDetail redundant fetch refactor
+**Commit:** dbc382c
+- Removed `const [tickets, setTickets] = useState([])` from ProjectDetail.jsx
+- Removed `api.get('/tickets')` from Promise.all — now single `api.get('/projects/{id}')` call
+- Updated `getTicketsForMilestone` to read from `project?.milestones?.find(m => m.id === msId)?.tickets || []`
+- Noticeably faster page load confirmed on prod
 
-#### Backend
-- New `ticket_relations` join table:
-  ```
-  ticket_id       UUID FK → tickets.id
-  related_id      UUID FK → tickets.id
-  relation_type   ENUM: relates_to | blocks | duplicates
-  visibility      ENUM: internal | public (default: internal)
-  PRIMARY KEY (ticket_id, related_id)
-  ```
-- Alembic migration
-- `POST /tickets/{id}/relations` — body: `{related_id, relation_type, visibility}`
-- `DELETE /tickets/{id}/relations/{related_id}`
-- `GET /tickets/{id}` — include `related_tickets` in response
-- `PortalTicketView` — only expose `public` visibility relations
-
-#### Frontend — TicketDetail.jsx (Admin)
-- Related Tickets card in **main content area**, above Linked Knowledge Articles card
-- Shows relation type badge + visibility indicator per linked ticket
-- SearchableSelect to link tickets — same pattern as ArticleDetail Related Articles
-- Unlink on hover (×)
-- Relation type selector: `relates_to` | `blocks` | `duplicates`
-- Visibility toggle: `internal` | `public`
-
-#### Frontend — Portal
-- Read-only, only `public` relations visible
-- Plain language labels: "Related", "Blocked by", "Duplicate of"
-
-#### CLI — sanctum.sh
-- `ticket relate {id} --tickets {id1,id2,...} [--type relates_to] [--visibility internal]`
-- `ticket unrelate {id} --ticket {id1}` (note: conflicts with existing `--article` unrelate — use `--ticket` flag)
-- `--tickets` flag on `ticket create` and `ticket update`
-- `--help` docs updated for ticket domain
-
-#### Documentation
-- DOC-001 (API Guide: Tickets) — new section: Ticket Relations (knowledge graph)
-
-### Key Architectural Notes
-- Bidirectional: store once, query both directions (same as `article_relations`)
-- `relation_type` and `visibility` stored on the relation row
-- Reverse direction: when A blocks B, B is "blocked by" A — derive label from direction
-- Portal visibility: filter `related_tickets` by `visibility = 'public'` in portal endpoint
-- CLI uses `resolve_ticket_id` helper (tickets use integer IDs not identifiers, so no resolution needed — pass directly)
-
-### Files to Touch
-**Backend:**
-- `sanctum-core/app/models.py`
-- `sanctum-core/app/schemas/tickets.py`
-- `sanctum-core/app/schemas/__init__.py`
-- `sanctum-core/app/routers/tickets.py`
-- `sanctum-core/app/routers/portal.py`
-- `sanctum-core/alembic/versions/` (new migration)
-
-**Frontend:**
-- `sanctum-web/src/pages/TicketDetail.jsx`
-- `sanctum-web/src/pages/PortalTicketView.jsx` (confirm exists)
-
-**CLI:**
-- `scripts/dev/sanctum.sh`
-
-**KB:**
-- DOC-001 — API Guide: Tickets
-
-### Reference
-- `article_relations` pattern: `sanctum-core/app/models.py`, `sanctum-core/app/routers/wiki.py`
-- `ArticleDetail.jsx` Related Articles sidebar — reference for SearchableSelect link/unlink pattern
-- `PortalArticleView.jsx` — reference for portal read-only relations
-- Auth: `$SANCTUM_API_TOKEN` (sntm_6f29146...)
-- Environment: Production
-- Workflow: Surgical Reconnaissance — recon before patching
+### #348 — sanctum.sh milestone list enhancements
+**Commits:** 7ed0123 (help), earlier commit (function)
+- Replaced `milestone_list()` function entirely (had non-ASCII em-dash characters)
+- Added `--milestone-status open|closed|all` (open = pending + active)
+- Added `--ticket-status open|closed|all|<csv>` (open = new + open + pending + qa)
+- Added `--with-tickets` flag
+- Added `--format text|json` flag
+- Consumes nested tickets from #353 — no new API endpoint needed
+- Updated `--help` text in sanctum.sh
+- Updated DOC-009 → v1.4 (full milestone list section with flag table + examples)
+- Updated DOC-019 → v1.1 (nested ticket response shape + CLI flag table)
 
 ---
 
-## Standards & Conventions
+## Phase 74: The Foreman
+**ID:** 4944627a-aa52-4f3f-9a3b-3ca78b1731bd
+**Sequence:** 57
+**Status:** pending
+**Purpose:** Project management improvements — MilestoneDetail, ProjectDetail overhaul, portal project view, nested ticket API
 
-### KB Article Rules (established this session)
-- Never include a manually typed `## Related` section in article content
-- Relations managed exclusively via sidebar UI or `sanctum.sh article relate`
-- Always use `--articles` / `--related` flags when creating/updating tickets and articles that reference other docs
+---
 
-### sanctum.sh Patterns
-- `resolve_article_identifier` helper resolves `DOC-012` style identifiers to UUIDs
-- Ticket IDs are integers — passed directly, no resolution needed
-- All relation payloads must use `jq -n --arg` to build JSON safely (raw string interpolation breaks)
-- `api_post` passes `$2` directly to curl `-d` — malformed JSON silently fails with API error
+## Next Session
 
+### Priority: #330
+Ticket #330 is next in queue. Load it with:
+```bash
+./scripts/dev/sanctum.sh ticket show 330 -e prod
+```
+
+### Remaining open tickets of note
+- #349 ArticleDetail ToC card (Phase 70)
+- #350 Shortcode embeds investigation (Phase 70)
+- #351 MilestoneDetail page (Phase 74)
+- #352 ProjectDetail overhaul (Phase 74)
+- #354 Inefficient fetch patterns audit (Phase 55)
+- #311 Intelligence Dossier audit parent — 9 child tickets #333–341 all new
+
+---
+
+## Doctrine Reminders
+- Surgical Reconnaissance: `grep -n` and `sed -n` before edits; `cat -A` on JSX for trailing whitespace
+- Prefer `str_replace` tool over Python patch scripts where possible
+- Non-ASCII characters in sanctum.sh — use line-number based Python replacement, not string matching
+- Python file writes preferred over heredocs for markdown (avoids backtick escaping)
+- Never pipe sanctum.sh to srun — it handles clipboard natively
+- Auth: `export SANCTUM_API_TOKEN=sntm_...`
