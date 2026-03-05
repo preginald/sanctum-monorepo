@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from typing import List
 from .. import models, schemas, auth
 from ..database import get_db
@@ -82,7 +82,10 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
     
     # --- CLIENTS ---
     if mode in [None, 'client']:
-        acc_query = db.query(models.Account).filter(models.Account.name.ilike(term))
+        acc_query = db.query(models.Account).filter(or_(
+            models.Account.name.ilike(term),
+            func.word_similarity(term_str, models.Account.name) > 0.3
+        ))
         if current_user.access_scope == 'nt_only': acc_query = acc_query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
         elif current_user.access_scope == 'ds_only': acc_query = acc_query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
         
@@ -109,7 +112,11 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
         # Standard Text Search
         tick_query = db.query(models.Ticket).filter(or_(
             models.Ticket.subject.ilike(term),
-            models.Ticket.id.cast(models.String).ilike(term)
+            models.Ticket.description.ilike(term),
+            models.Ticket.resolution.ilike(term),
+            models.Ticket.id.cast(models.String).ilike(term),
+            func.word_similarity(term_str, models.Ticket.subject) > 0.3,
+            func.word_similarity(term_str, models.Ticket.description) > 0.3
         ))
         if current_user.role == 'client': tick_query = tick_query.filter(models.Ticket.account_id == current_user.account_id)
         
@@ -126,7 +133,9 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
         con_query = db.query(models.Contact).filter(or_(
             models.Contact.first_name.ilike(term),
             models.Contact.last_name.ilike(term),
-            models.Contact.email.ilike(term)
+            models.Contact.email.ilike(term),
+            func.word_similarity(term_str, models.Contact.first_name) > 0.3,
+            func.word_similarity(term_str, models.Contact.last_name) > 0.3
         ))
         for c in con_query.limit(3).all():
             results.append({
@@ -138,7 +147,9 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
     if mode in [None, 'wiki'] and current_user.role != 'client':
         wiki_query = db.query(models.Article).filter(or_(
             models.Article.title.ilike(term),
-            models.Article.identifier.ilike(term)
+            models.Article.identifier.ilike(term),
+            models.Article.content.ilike(term),
+            func.word_similarity(term_str, models.Article.title) > 0.3
         ))
         for w in wiki_query.limit(5).all():
             results.append({
@@ -151,13 +162,57 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
         asset_query = db.query(models.Asset).filter(or_(
             models.Asset.name.ilike(term),
             models.Asset.ip_address.ilike(term),
-            models.Asset.serial_number.ilike(term)
+            models.Asset.serial_number.ilike(term),
+            func.word_similarity(term_str, models.Asset.name) > 0.3
         ))
         for a in asset_query.limit(5).all():
             results.append({
                 "id": a.id, "type": "asset", "title": a.name, 
                 "subtitle": a.ip_address or a.asset_type, 
                 "link": f"/clients/{a.account_id}" 
+            })
+
+    # --- PROJECTS ---
+    if mode in [None, 'project']:
+        proj_query = db.query(models.Project).filter(or_(
+            models.Project.name.ilike(term),
+            func.word_similarity(term_str, models.Project.name) > 0.3
+        )).filter(models.Project.is_deleted == False)
+        if current_user.role == 'client':
+            proj_query = proj_query.filter(models.Project.account_id == current_user.account_id)
+        for p in proj_query.limit(3).all():
+            results.append({
+                "id": p.id, "type": "project", "title": p.name,
+                "subtitle": p.status, "link": f"/projects/{p.id}"
+            })
+
+    # --- MILESTONES ---
+    if mode in [None, 'milestone']:
+        ms_query = db.query(models.Milestone).join(
+            models.Project, models.Milestone.project_id == models.Project.id
+        ).filter(or_(
+            models.Milestone.name.ilike(term),
+            func.word_similarity(term_str, models.Milestone.name) > 0.3
+        )).filter(models.Project.is_deleted == False)
+        if current_user.role == 'client':
+            ms_query = ms_query.filter(models.Project.account_id == current_user.account_id)
+        for ms in ms_query.limit(3).all():
+            results.append({
+                "id": ms.id, "type": "milestone", "title": ms.name,
+                "subtitle": ms.status, "link": f"/projects/{ms.project_id}"
+            })
+
+    # --- PRODUCTS (CATALOG) ---
+    if mode in [None, 'product'] and current_user.role != 'client':
+        prod_query = db.query(models.Product).filter(or_(
+            models.Product.name.ilike(term),
+            models.Product.description.ilike(term),
+            func.word_similarity(term_str, models.Product.name) > 0.3
+        )).filter(models.Product.is_active == True)
+        for p in prod_query.limit(3).all():
+            results.append({
+                "id": p.id, "type": "product", "title": p.name,
+                "subtitle": p.type, "link": f"/catalog/{p.id}"
             })
 
     return results

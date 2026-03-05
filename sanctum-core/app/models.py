@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
@@ -790,3 +790,22 @@ class TemplateApplication(Base):
 
     def __repr__(self):
         return f"<TemplateApplication template={self.template_id} entity={self.entity_type}/{self.entity_id}>"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# TRIGRAM INDEXES (pg_trgm)
+# Phase 75: The Omnisearch — fuzzy search support
+# ─────────────────────────────────────────────────────────────────────────────
+Index('ix_trgm_ticket_subject',      Ticket.subject,      postgresql_using='gin', postgresql_ops={'subject': 'gin_trgm_ops'})
+Index('ix_trgm_ticket_description',  Ticket.description,  postgresql_using='gin', postgresql_ops={'description': 'gin_trgm_ops'})
+Index('ix_trgm_ticket_resolution',   Ticket.resolution,   postgresql_using='gin', postgresql_ops={'resolution': 'gin_trgm_ops'})
+Index('ix_trgm_article_title',       Article.title,       postgresql_using='gin', postgresql_ops={'title': 'gin_trgm_ops'})
+Index('ix_trgm_article_content',     Article.content,     postgresql_using='gin', postgresql_ops={'content': 'gin_trgm_ops'})
+Index('ix_trgm_account_name',        Account.name,        postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
+Index('ix_trgm_contact_first_name',  Contact.first_name,  postgresql_using='gin', postgresql_ops={'first_name': 'gin_trgm_ops'})
+Index('ix_trgm_contact_last_name',   Contact.last_name,   postgresql_using='gin', postgresql_ops={'last_name': 'gin_trgm_ops'})
+Index('ix_trgm_asset_name',          Asset.name,          postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
+Index('ix_trgm_project_name',        Project.name,        postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
+Index('ix_trgm_milestone_name',      Milestone.name,      postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
+Index('ix_trgm_product_name',        Product.name,        postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
+Index('ix_trgm_product_description', Product.description, postgresql_using='gin', postgresql_ops={'description': 'gin_trgm_ops'})
