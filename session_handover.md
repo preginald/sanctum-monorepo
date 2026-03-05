@@ -1,119 +1,148 @@
-# Session Handover — Phase 55 / Phase 74 Continuation
+# Session Handover — Phase 75: The Omnisearch
 **Date:** 2026-03-05
-**Session:** Phase 55: UX & Stability + Phase 74: The Foreman (new)
+**Session:** Phase 75: The Omnisearch (complete) + DOC-019 update + ticket grooming
 
 ---
 
-## Session Summary
+## 0. SESSION HANDOVER (READ FIRST)
 
-This session had two main streams: backlog grooming (new ticket creation from user ideas) and implementation of three tickets.
-
----
-
-## Tickets Created This Session
-
-### Appointments (Phase 69: The Herald + Phase 73: The Scheduler)
-| Ticket | Subject |
-|---|---|
-| #343 | Feature: Appointments — parent ticket |
-| #344 | Feature: Appointments — backend model and API endpoints |
-| #345 | Feature: Appointments — frontend UI (admin + portal) |
-| #346 | Feature: Appointments — Google Calendar sync (future) |
-| #347 | Feature: Appointments — client-facing booking link / Calendly-style (future) |
-
-**Key decisions:**
-- Appointments linked to account + contacts (mandatory), ticket (optional)
-- Types: call, onsite, remote
-- Both scheduled (future) and retrospective (past) entries
-- Visible in client portal
-- Google Calendar sync and booking link are future phase placeholders
-
-### sanctum.sh (Phase 68: The Steward v2)
-| Ticket | Subject |
-|---|---|
-| #348 | Feature: sanctum.sh milestone list — filtering and format options ✅ RESOLVED |
-
-### Knowledge Base / Articles (Phase 70: The Archivist)
-| Ticket | Subject |
-|---|---|
-| #349 | Feature: ArticleDetail — table of contents sidebar card (H2/H3, 3+ headings, above Related Articles) |
-| #350 | Investigation: shortcode-embedded articles — auto-link as related articles |
-
-### Phase 74: The Foreman (NEW MILESTONE — sequence 57)
-| Ticket | Subject |
-|---|---|
-| #289 | Portal: Project view with milestones for clients (moved from Phase 67) |
-| #290 | Backend: Review and improve project detail view (moved from Phase 55) |
-| #351 | Feature: MilestoneDetail — dedicated milestone dossier page |
-| #352 | Refactor: ProjectDetail — industry-standard project management view |
-| #353 | Backend: GET /projects/{id} — include tickets nested under milestones ✅ RESOLVED |
-| #354 | Investigation: audit inefficient fetch patterns across frontend pages |
-| #355 | Refactor: ProjectDetail — remove redundant GET /tickets fetch ✅ RESOLVED |
-
----
-
-## Implemented This Session
-
-### #353 — Nested tickets under milestones in GET /projects/{id}
-**Commit:** b88113d
-- Added `TicketBrief` schema to `sanctum-core/app/schemas/strategy.py`
-- Added `tickets: List[TicketBrief] = []` to `MilestoneResponse`
-- Updated `get_project_detail` query to use `joinedload(Project.milestones).selectinload(Milestone.tickets)`
-- Added `selectinload` to sqlalchemy imports in `projects.py`
-- Exported `TicketBrief` from `schemas/__init__.py`
-- Verified on prod — tickets correctly nested under milestones
-
-### #355 — ProjectDetail redundant fetch refactor
-**Commit:** dbc382c
-- Removed `const [tickets, setTickets] = useState([])` from ProjectDetail.jsx
-- Removed `api.get('/tickets')` from Promise.all — now single `api.get('/projects/{id}')` call
-- Updated `getTicketsForMilestone` to read from `project?.milestones?.find(m => m.id === msId)?.tickets || []`
-- Noticeably faster page load confirmed on prod
-
-### #348 — sanctum.sh milestone list enhancements
-**Commits:** 7ed0123 (help), earlier commit (function)
-- Replaced `milestone_list()` function entirely (had non-ASCII em-dash characters)
-- Added `--milestone-status open|closed|all` (open = pending + active)
-- Added `--ticket-status open|closed|all|<csv>` (open = new + open + pending + qa)
-- Added `--with-tickets` flag
-- Added `--format text|json` flag
-- Consumes nested tickets from #353 — no new API endpoint needed
-- Updated `--help` text in sanctum.sh
-- Updated DOC-009 → v1.4 (full milestone list section with flag table + examples)
-- Updated DOC-019 → v1.1 (nested ticket response shape + CLI flag table)
-
----
-
-## Phase 74: The Foreman
-**ID:** 4944627a-aa52-4f3f-9a3b-3ca78b1731bd
-**Sequence:** 57
-**Status:** pending
-**Purpose:** Project management improvements — MilestoneDetail, ProjectDetail overhaul, portal project view, nested ticket API
-
----
-
-## Next Session
-
-### Priority: #330
-Ticket #330 is next in queue. Load it with:
+Next session priority: **#366** — DOC-021 str_replace update. Load with:
 ```bash
-./scripts/dev/sanctum.sh ticket show 330 -e prod
+./scripts/dev/sanctum.sh ticket show 366 -c -e prod
 ```
 
-### Remaining open tickets of note
-- #349 ArticleDetail ToC card (Phase 70)
-- #350 Shortcode embeds investigation (Phase 70)
-- #351 MilestoneDetail page (Phase 74)
-- #352 ProjectDetail overhaul (Phase 74)
-- #354 Inefficient fetch patterns audit (Phase 55)
-- #311 Intelligence Dossier audit parent — 9 child tickets #333–341 all new
+---
+
+## 1. WHAT WE ACCOMPLISHED ✅
+
+### DOC-019 Updated (v1.1 → v1.2)
+- Added `--description` flag to milestone `create` and `update`
+- Updated CLI command table, response shape, and full options reference block
+- Added note on when description is recommended
+
+### Phase 75: The Omnisearch — Milestone Created
+- ID: `b3333840-6fb0-4e4d-8ad0-654cefcdc18d`
+- Sequence: 58
+
+### #330 — pg_trgm Fuzzy Search ✅
+- Alembic migration `32bf70f79f6c` — enables pg_trgm extension + 13 GIN trigram indexes
+- `word_similarity()` chosen over `similarity()` — better for multi-word fields (score dilution avoided)
+- Threshold: 0.3
+- Extended ticket search to `description` + `resolution`
+- Extended article search to `content`
+- Commit: `de7fdf8`
+
+### #356 — Extended Search Domains ✅
+- New query blocks: Projects, Milestones, Products (catalog)
+- Access scoping: clients see own projects/milestones only; products staff-only
+- Resolved as part of #330 (same commit)
+
+### #357 — Prefix Modes ✅
+- `p:` / `project:` → projects
+- `m:` / `milestone:` → milestones
+- `i:` / `inventory:` / `catalog` → products
+- Commit: `d8600c1`
+
+### #358–364 — Action Shortcuts ✅
+- 7 new shortcuts: `new project`, `new deal`, `new asset`, `new contact`, `new invoice`, `new campaign`
+- IDs -5 through -10 (negative int convention)
+- Commit: `276dd01`
+
+### #365 — DOC-025 Created ✅
+- "Omnisearch — Architecture, Prefix Modes, Action Shortcuts & Fuzzy Matching"
+- UUID: `ad2afd0a-a6ad-4815-98b4-90549aae4bed`
+- Slug: `omnisearch-architecture`
+- Related: DOC-001, DOC-002, DOC-019
+
+### #366 — Ticket Created (open)
+- DOC-021 update: document `str_replace` as preferred patching tool
 
 ---
 
-## Doctrine Reminders
-- Surgical Reconnaissance: `grep -n` and `sed -n` before edits; `cat -A` on JSX for trailing whitespace
-- Prefer `str_replace` tool over Python patch scripts where possible
-- Non-ASCII characters in sanctum.sh — use line-number based Python replacement, not string matching
-- Python file writes preferred over heredocs for markdown (avoids backtick escaping)
-- Never pipe sanctum.sh to srun — it handles clipboard natively
-- Auth: `export SANCTUM_API_TOKEN=sntm_...`
+## 2. CURRENT STATE
+
+### Git
+- Branch: `main`
+- Last commits:
+  - `276dd01` — action shortcuts (#358-364)
+  - `d8600c1` — prefix modes (#357)
+  - `de7fdf8` — fuzzy search + entity blocks (#330/#356)
+- All pushed; prod auto-deploys via GitHub Actions
+
+### Production
+- Migration `32bf70f79f6c` applied to prod (auto-deployed)
+- DOC-019 updated to v1.2
+- DOC-025 live
+
+### Ticket Status
+| # | Status |
+|---|---|
+| 330 | ✅ resolved |
+| 356 | ✅ resolved |
+| 357 | ✅ resolved |
+| 358–364 | ✅ resolved |
+| 365 | ✅ resolved |
+| 366 | 🔲 new |
+
+---
+
+## 3. KNOWN ISSUES / TECH DEBT
+
+- **Milestone search links** — currently point to `/projects/{project_id}` (parent project page). Should update to `/milestones/{id}` once #351 (MilestoneDetail page) is delivered. Noted in #356.
+- **Action shortcuts — no role filtering** — `new X` shortcuts are visible to all roles including clients. Should add staff-only guard. Low priority — clients don't have access to those routes anyway.
+- **word_similarity threshold** — 0.3 validated on local sparse data. May need tuning after prod usage observed.
+
+---
+
+## 4. NEXT SPRINT
+
+### Priority 1: #366 — DOC-021 str_replace update
+**Context:** `str_replace` tool is available in AI sessions with filesystem access and is superior to Python patch scripts for single-file edits — no temp file, no shell escaping, immediate feedback. DOC-021 needs a new section and updated decision table.
+
+**Approach:**
+1. Read DOC-021 current content
+2. Write updated markdown to `/tmp/doc-021-updated.md`
+3. Update via `sanctum.sh article update DOC-021 -f /tmp/doc-021-updated.md -e prod`
+
+### Priority 2: #351 — MilestoneDetail page (Phase 74: The Foreman)
+**Context:** Dedicated milestone dossier page. Once delivered, update milestone search result links in `search.py` from `/projects/{project_id}` to `/milestones/{id}`.
+
+### Priority 3: #352 — ProjectDetail overhaul (Phase 74: The Foreman)
+
+---
+
+## 5. HANDOVER CHECKLIST
+
+- [x] All Phase 75 tickets resolved
+- [x] DOC-025 created and linked
+- [x] DOC-019 updated
+- [x] All commits pushed
+- [x] Handover written
+- [ ] Handover committed and pushed
+- [ ] #366 open for next session
+
+---
+
+## 6. IMPORTANT NOTES FOR NEXT SESSION
+
+- **str_replace preferred** over Python patch scripts for local single-file edits — no temp file, no escaping
+- **Files go to `/tmp/`** not `/home/claude/`
+- **Don't pipe `sanctum.sh` to `srun`** — it's clipboard-native
+- **`word_similarity(query, field)`** — argument order is query first, field second (opposite of `similarity`)
+- **Milestone search** currently links to parent project — blocked by #351
+
+---
+
+## 7. COMMANDS FOR NEXT SESSION
+
+```bash
+# Load next ticket
+./scripts/dev/sanctum.sh ticket show 366 -c -e prod
+
+# Check Phase 75 milestone status
+./scripts/dev/sanctum.sh milestone list -p "Sanctum Core" --milestone-status open --with-tickets --ticket-status open -e prod
+
+# Verify search on prod after deploy
+curl -s -H "Authorization: Bearer $SANCTUM_API_TOKEN" \
+  "https://core.digitalsanctum.com.au/api/search?q=digtial" | jq
+```
