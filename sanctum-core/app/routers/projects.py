@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func
 from typing import List, Optional
 from datetime import datetime, timedelta
@@ -23,7 +23,7 @@ def get_projects(account_id: Optional[str] = None, current_user: models.User = D
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_detail(project_id: str, db: Session = Depends(get_db)):
-    project = db.query(models.Project).options(joinedload(models.Project.milestones), joinedload(models.Project.account)).filter(models.Project.id == project_id).first()
+    project = db.query(models.Project).options(joinedload(models.Project.milestones).selectinload(models.Milestone.tickets), joinedload(models.Project.account)).filter(models.Project.id == project_id).first()
     if not project: raise HTTPException(status_code=404, detail="Project not found")
     project.account_name = project.account.name
     return project

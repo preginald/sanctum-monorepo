@@ -102,10 +102,19 @@ class MilestoneUpdate(SanctumBase):
     invoice_id: Optional[UUID] = None
     description: Optional[str] = None
 
+class TicketBrief(SanctumBase):
+    id: int
+    subject: str
+    status: str
+    priority: str
+    ticket_type: str
+    milestone_id: Optional[UUID] = None
+
 class MilestoneResponse(MilestoneCreate):
     id: UUID
     project_id: UUID
     invoice_id: Optional[UUID] = None
+    tickets: List[TicketBrief] = []
 
 class ProjectCreate(SanctumBase):
     account_id: UUID

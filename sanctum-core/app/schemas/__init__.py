@@ -18,7 +18,7 @@ from .strategy import (
     CampaignTargetFilter, CampaignTargetAddResult, CampaignTargetResponse,
     CampaignCreate, CampaignUpdate, CampaignResponse,
     DealCreate, DealUpdate, DealResponse,
-    MilestoneReorderRequest, MilestoneCreate, MilestoneUpdate, MilestoneResponse,
+    MilestoneReorderRequest, MilestoneCreate, MilestoneUpdate, MilestoneResponse, TicketBrief,
     ProjectCreate, ProjectUpdate, ProjectResponse,
     AuditCreate, AuditUpdate, AuditResponse, AuditItem
 )
