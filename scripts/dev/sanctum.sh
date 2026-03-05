@@ -109,12 +109,15 @@ milestone_usage() {
     echo "           [--sequence <n>], [--description <text>], [-e|--env]"
     echo "  update:  <id>, [-n|--name],[--status <status>], [--due-date <YYYY-MM-DD>],"
     echo "[--billable <amount>], [--sequence <n>], [--description <text>], [-e|--env]"
-    echo "  list:    -p|--project <name>, [-e|--env]"
+    echo "  list:    -p|--project <name>, [--milestone-status open|closed|all],"
+    echo "           [--ticket-status open|closed|all|<csv>], [--with-tickets],"
+    echo "           [--format text|json], [-e|--env]"
     echo "  show:    <id>, [-e|--env]"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh milestone create -p \"Sanctum Core\" -n \"Phase 67\" --sequence 49"
-    echo "  sanctum.sh milestone list -p \"Naked Tech Website\""
+    echo "  sanctum.sh milestone list -p \"Sanctum Core\" --milestone-status open --with-tickets"
+    echo "  sanctum.sh milestone list -p \"Sanctum Core\" --ticket-status open --format json"
     echo ""
     exit 0
 }
