@@ -17,7 +17,7 @@ export default function ProjectDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [project, setProject] = useState(null);
-  const [tickets, setTickets] = useState([]); 
+
   const [loading, setLoading] = useState(true);
   // PERSISTED STATE
 const [showCompletedMs, setShowCompletedMs] = useState(() => {
@@ -41,13 +41,9 @@ const toggleShowCompleted = (e) => {
 
   const fetchProject = async () => {
     try {
-      const [pRes, tRes] = await Promise.all([
-          api.get(`/projects/${id}`),
-          api.get('/tickets') 
-      ]);
+      const pRes = await api.get(`/projects/${id}`);
       if (pRes.data.milestones) pRes.data.milestones.sort((a, b) => a.sequence - b.sequence);
       setProject(pRes.data);
-      setTickets(tRes.data);
     } catch (e) { console.error(e); } 
     finally { setLoading(false); }
   };
@@ -90,7 +86,7 @@ const toggleShowCompleted = (e) => {
   };
 
   // --- HELPERS ---
-  const getTicketsForMilestone = (msId) => tickets.filter(t => t.milestone_id === msId);
+  const getTicketsForMilestone = (msId) => project?.milestones?.find(m => m.id === msId)?.tickets || [];
 
   const statusColor = (s) => {
     const map = { planning: 'bg-blue-500/20 text-blue-400', active: 'bg-green-500/20 text-green-400', completed: 'bg-slate-500/20 text-slate-400', on_hold: 'bg-orange-500/20 text-orange-400' };
