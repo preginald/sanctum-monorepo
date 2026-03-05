@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import CommentStream from '../components/CommentStream';
@@ -76,6 +76,16 @@ export default function TicketDetail() {
   const [layoutMode, setLayoutMode] = useState(() => {
       return localStorage.getItem('sanctum_ticket_layout') || 'split';
   });
+  // STICKY NAV
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [metaExpanded, setMetaExpanded] = useState(() => localStorage.getItem('ds_metadata_expanded_ticket') === 'true');
+  useEffect(() => {
+    const scrollContainer = document.querySelector('main');
+    if (!scrollContainer) return;
+    const handleScroll = () => setIsScrolled(scrollContainer.scrollTop > 60);
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // --- INITIALIZATION ---
   useEffect(() => { 
@@ -310,11 +320,6 @@ export default function TicketDetail() {
     <Layout
       title={ticket.subject}
       breadcrumb={breadcrumb}
-      badges={[
-        { value: ticket.ticket_type, map: 'ticketType' },
-        { value: ticket.status, map: 'ticketStatus' },
-        { value: ticket.priority, map: 'priority' },
-      ]}
       onRefresh={() => { fetchTicket(); setRefreshKey(k => k + 1); }}
       onCopyMeta={() => `#${ticket.id} — ${ticket.subject}\nStatus: ${ticket.status}\nPriority: ${ticket.priority}\nClient: ${ticket.account_name}`}
       viewMode={layoutMode}
@@ -346,6 +351,26 @@ export default function TicketDetail() {
         </div>
       }
     >
+      {/* STICKY NAV */}
+      <div className={`fixed top-16 left-0 right-0 z-20 transition-all duration-200 ${isScrolled ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className="bg-slate-900/95 backdrop-blur border-b border-slate-700 px-6 py-2 flex items-center justify-between">
+          <span className="text-sm font-bold truncate text-white">
+            <span className="text-sanctum-gold font-mono mr-2">#{ticket.id}</span>
+            {ticket.subject}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {ticket.status !== 'resolved' && (
+              <button onClick={() => setShowResolveModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-green-600 hover:bg-green-500 text-xs font-bold text-white transition-colors">
+                <CheckCircle size={13} /> Resolve
+              </button>
+            )}
+            <button onClick={() => setIsEditing(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors">
+              <Edit2 size={13} /> Edit
+            </button>
+          </div>
+        </div>
+      </div>
+
       <ConfirmationModal 
         isOpen={modal.isOpen} 
         onClose={() => setModal({...modal, isOpen: false})} 
@@ -450,9 +475,68 @@ export default function TicketDetail() {
           
           {/* NEW: Related Invoices Section */}
           <InvoiceList invoices={ticket.related_invoices || []} title="Related Invoices" />
+
+
           
         </div>
-        <div className="xl:col-span-2 h-[800px] xl:sticky xl:top-8">
+        <div className="xl:col-span-2 xl:sticky xl:top-20 xl:self-start">
+            {/* METADATA STRIP */}
+            <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden mb-4">
+              <button
+                onClick={() => {
+                  const next = !metaExpanded;
+                  setMetaExpanded(next);
+                  localStorage.setItem('ds_metadata_expanded_ticket', String(next));
+                }}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs hover:bg-white/5 transition-colors"
+              >
+                {metaExpanded ? (
+                  <span className="text-xs font-bold uppercase tracking-wider opacity-70">Metadata</span>
+                ) : (
+                  <span className="flex items-center gap-2 flex-wrap">
+                    <span className="font-mono text-sanctum-gold font-bold">#{ticket.id}</span>
+                    <span className="opacity-40">·</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketTypeStyles[ticket.ticket_type] || 'bg-white/10 text-slate-300'}`}>{ticket.ticket_type}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketStatusStyles[ticket.status] || 'bg-white/10 text-slate-300'}`}>{ticket.status}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${priorityStyles[ticket.priority] || 'bg-white/10 text-slate-300'}`}>{ticket.priority}</span>
+                    <span className="opacity-40">·</span>
+                    <span className="opacity-50">{new Date(ticket.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                  </span>
+                )}
+                <span className="opacity-30 text-[10px] shrink-0 ml-2">{metaExpanded ? '▲' : '▼'}</span>
+              </button>
+              {metaExpanded && (
+                <div className="px-4 pb-4 text-xs border-t border-slate-700/50 pt-3 space-y-3">
+                  <div className="flex gap-2 flex-wrap">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketTypeStyles[ticket.ticket_type] || 'bg-white/10 text-slate-300'}`}>{ticket.ticket_type}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketStatusStyles[ticket.status] || 'bg-white/10 text-slate-300'}`}>{ticket.status}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${priorityStyles[ticket.priority] || 'bg-white/10 text-slate-300'}`}>{ticket.priority}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="opacity-50 block mb-0.5">Created</span>
+                      <span>{new Date(ticket.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                    </div>
+                    <div>
+                      <span className="opacity-50 block mb-0.5">Updated</span>
+                      <span>{ticket.updated_at ? new Date(ticket.updated_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
+                    </div>
+                  </div>
+                  {ticket.closed_at && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <span className="opacity-50 block mb-0.5">Closed</span>
+                        <span>{new Date(ticket.closed_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <span className="opacity-50 block mb-0.5">ID</span>
+                    <span className="font-mono opacity-40 text-[10px]">{ticket.id}</span>
+                  </div>
+                </div>
+              )}
+            </div>
             <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} refreshKey={refreshKey} />
         </div>
       </div>
