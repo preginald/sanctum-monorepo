@@ -48,7 +48,10 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
         't:': 'ticket', 'tic': 'ticket', 'ticket': 'ticket', 'ticket:': 'ticket',
         'c:': 'client', 'client': 'client', 'client:': 'client',
         'u:': 'contact', 'user': 'contact', 'contact': 'contact',
-        'a:': 'asset', 'asset': 'asset', 'asset:': 'asset'
+        'a:': 'asset', 'asset': 'asset', 'asset:': 'asset',
+        'p:': 'project', 'project': 'project', 'project:': 'project',
+        'm:': 'milestone', 'milestone': 'milestone', 'milestone:': 'milestone',
+        'i:': 'product', 'inventory': 'product', 'catalog': 'product'
     }
     
     mode = None
