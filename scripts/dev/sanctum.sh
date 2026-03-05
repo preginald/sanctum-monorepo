@@ -837,31 +837,65 @@ milestone_update() {
 }
 
 milestone_list() {
-    local PROJECT_NAME="" ENV="dev"
-
+    local PROJECT_NAME="" ENV="dev" MS_STATUS="all" TICKET_STATUS="all" WITH_TICKETS=false FORMAT="text"
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -p|--project)   PROJECT_NAME="$2"; shift 2 ;;
-            -e|--env)       ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            -p|--project)          PROJECT_NAME="$2"; shift 2 ;;
+            -e|--env)              ENV="$2"; shift 2 ;;
+            --milestone-status)    MS_STATUS="$2"; shift 2 ;;
+            --ticket-status)       TICKET_STATUS="$2"; shift 2 ;;
+            --with-tickets)        WITH_TICKETS=true; shift ;;
+            --format)              FORMAT="$2"; shift 2 ;;
+            *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
-
-    [ -z "$PROJECT_NAME" ] && echo -e "${RED}✗ -p/--project is required${NC}" && exit 1
-
+    [ -z "$PROJECT_NAME" ] && echo -e "${RED}-p/--project is required${NC}" && exit 1
     resolve_env "$ENV"
-    print_env_banner "sanctum.sh — milestone list"
+    print_env_banner "sanctum.sh -- milestone list"
     ensure_auth
     resolve_project "$PROJECT_NAME" || exit 1
-
     RESULT=$(api_get "/projects/${PROJECT_ID}")
+
+    # Build milestone status filter
+    if [ "$MS_STATUS" = "open" ]; then
+        MS_FILTER='select(.status == "pending" or .status == "active")'
+    elif [ "$MS_STATUS" = "closed" ]; then
+        MS_FILTER='select(.status == "completed")'
+    else
+        MS_FILTER='select(true)'
+    fi
+
+    # Build ticket status filter
+    if [ "$TICKET_STATUS" = "open" ]; then
+        T_FILTER='select(.status == "new" or .status == "open" or .status == "pending" or .status == "qa")'
+    elif [ "$TICKET_STATUS" = "closed" ]; then
+        T_FILTER='select(.status == "resolved")'
+    else
+        T_FILTER='select(true)'
+    fi
+
+    if [ "$FORMAT" = "json" ]; then
+        echo "$RESULT" | jq "[.milestones | sort_by(.sequence) | .[] | $MS_FILTER | .tickets = (.tickets // [] | [ .[] | $T_FILTER ])]"
+        return
+    fi
+
     echo ""
     echo -e "${BLUE}Milestones: ${PROJECT_DISPLAY}${NC}"
     echo ""
-    echo "$RESULT" | jq -r '.milestones | sort_by(.sequence) | .[] | "  [\(.sequence)] \(.name) — \(.status) (ID: \(.id))"'
+
+    while IFS= read -r ms; do
+        MS_NAME=$(echo "$ms" | jq -r '.name')
+        MS_SEQ=$(echo "$ms" | jq -r '.sequence')
+        MS_STAT=$(echo "$ms" | jq -r '.status')
+        MS_ID=$(echo "$ms" | jq -r '.id')
+        echo -e "  ${BLUE}[${MS_SEQ}]${NC} ${MS_NAME} -- ${MS_STAT} ${GRAY}(${MS_ID})${NC}"
+        if [ "$WITH_TICKETS" = true ]; then
+            echo "$ms" | jq -r '.tickets // [] | [ .[] | '"$T_FILTER"' ] | .[] | "      #\(.id) [\(.status)] \(.subject)"'
+        fi
+    done < <(echo "$RESULT" | jq -c ".milestones | sort_by(.sequence) | .[] | $MS_FILTER")
+
     echo ""
 }
-
 milestone_show() {
     local MILESTONE_ID="$1"; shift
     local ENV="dev"
