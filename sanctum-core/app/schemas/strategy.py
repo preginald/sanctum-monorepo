@@ -117,6 +117,7 @@ class MilestoneResponse(MilestoneCreate):
     created_at: Optional[datetime] = None
     project_name: Optional[str] = None
     account_id: Optional[UUID] = None
+    account_name: Optional[str] = None
     tickets: List[TicketBrief] = []
 
 class ProjectCreate(SanctumBase):

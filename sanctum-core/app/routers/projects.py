@@ -87,11 +87,12 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
 def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
     ms = db.query(models.Milestone).options(
         joinedload(models.Milestone.tickets),
-        joinedload(models.Milestone.project)
+        joinedload(models.Milestone.project).joinedload(models.Project.account)
     ).filter(models.Milestone.id == milestone_id).first()
     if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
     ms.project_name = ms.project.name if ms.project else None
     ms.account_id = ms.project.account_id if ms.project else None
+    ms.account_name = ms.project.account.name if ms.project and ms.project.account else None
     return ms
 
 @router.post("/projects/{project_id}/milestones/reorder")

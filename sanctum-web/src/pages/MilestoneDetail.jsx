@@ -102,7 +102,7 @@ export default function MilestoneDetail() {
     <Layout
       title={milestone.name}
       breadcrumb={[
-        // account not on milestone response — use project_name + project_id for now
+        { label: milestone.account_name, path: `/clients/${milestone.account_id}` },
         { label: milestone.project_name, path: `/projects/${milestone.project_id}` },
         { label: 'Milestones' },
       ]}
