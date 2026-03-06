@@ -36,6 +36,7 @@ import AdminClientDiscovery from './pages/AdminClientDiscovery'; // <--- IMPORT 
 // --- STRATEGY MODULE ---
 import ProjectIndex from './pages/ProjectIndex';
 import ProjectDetail from './pages/ProjectDetail';
+import MilestoneDetail from './pages/MilestoneDetail';
 import TemplateLibrary from './pages/TemplateLibrary';
 import TemplateDetail from './pages/TemplateDetail';
 import Deals from './pages/Deals';
@@ -143,6 +144,7 @@ function App() {
                               {/* STRATEGY */}
                               <Route path="/projects" element={<ProjectIndex />} />
                               <Route path="/projects/:id" element={<ProjectDetail />} />
+                              <Route path="/milestones/:id" element={<MilestoneDetail />} />
                               <Route path="/templates" element={<TemplateLibrary />} />
                               <Route path="/templates/:id" element={<TemplateDetail />} />
                               <Route path="/deals" element={<Deals />} />

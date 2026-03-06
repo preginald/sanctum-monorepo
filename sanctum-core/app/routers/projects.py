@@ -91,6 +91,7 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
     ).filter(models.Milestone.id == milestone_id).first()
     if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
     ms.project_name = ms.project.name if ms.project else None
+    ms.account_id = ms.project.account_id if ms.project else None
     return ms
 
 @router.post("/projects/{project_id}/milestones/reorder")
