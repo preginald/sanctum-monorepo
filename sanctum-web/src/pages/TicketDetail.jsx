@@ -17,6 +17,7 @@ import ResolveModal from '../components/tickets/ResolveModal';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import TruncatedText from '../components/ui/TruncatedText';
 import InvoiceList from '../components/invoices/InvoiceList'; // NEW IMPORT
+import MetadataStrip from '../components/ui/MetadataStrip';
 
 export default function TicketDetail() {
   const handleDescriptionChange = (e) => {
@@ -78,7 +79,7 @@ export default function TicketDetail() {
   });
   // STICKY NAV
   const [isScrolled, setIsScrolled] = useState(false);
-  const [metaExpanded, setMetaExpanded] = useState(() => localStorage.getItem('ds_metadata_expanded_ticket') === 'true');
+
   useEffect(() => {
     const scrollContainer = document.querySelector('main');
     if (!scrollContainer) return;
@@ -481,62 +482,30 @@ export default function TicketDetail() {
         </div>
         <div className="xl:col-span-2 xl:sticky xl:top-20 xl:self-start">
             {/* METADATA STRIP */}
-            <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden mb-4">
-              <button
-                onClick={() => {
-                  const next = !metaExpanded;
-                  setMetaExpanded(next);
-                  localStorage.setItem('ds_metadata_expanded_ticket', String(next));
-                }}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-xs hover:bg-white/5 transition-colors"
-              >
-                {metaExpanded ? (
-                  <span className="text-xs font-bold uppercase tracking-wider opacity-70">Metadata</span>
-                ) : (
-                  <span className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sanctum-gold font-bold">#{ticket.id}</span>
-                    <span className="opacity-40">·</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketTypeStyles[ticket.ticket_type] || 'bg-white/10 text-slate-300'}`}>{ticket.ticket_type}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketStatusStyles[ticket.status] || 'bg-white/10 text-slate-300'}`}>{ticket.status}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${priorityStyles[ticket.priority] || 'bg-white/10 text-slate-300'}`}>{ticket.priority}</span>
-                    <span className="opacity-40">·</span>
-                    <span className="opacity-50">{new Date(ticket.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                  </span>
-                )}
-                <span className="opacity-30 text-[10px] shrink-0 ml-2">{metaExpanded ? '▲' : '▼'}</span>
-              </button>
-              {metaExpanded && (
-                <div className="px-4 pb-4 text-xs border-t border-slate-700/50 pt-3 space-y-3">
-                  <div className="flex gap-2 flex-wrap">
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketTypeStyles[ticket.ticket_type] || 'bg-white/10 text-slate-300'}`}>{ticket.ticket_type}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketStatusStyles[ticket.status] || 'bg-white/10 text-slate-300'}`}>{ticket.status}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${priorityStyles[ticket.priority] || 'bg-white/10 text-slate-300'}`}>{ticket.priority}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <span className="opacity-50 block mb-0.5">Created</span>
-                      <span>{new Date(ticket.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                    </div>
-                    <div>
-                      <span className="opacity-50 block mb-0.5">Updated</span>
-                      <span>{ticket.updated_at ? new Date(ticket.updated_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}</span>
-                    </div>
-                  </div>
-                  {ticket.closed_at && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <span className="opacity-50 block mb-0.5">Closed</span>
-                        <span>{new Date(ticket.closed_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                      </div>
-                    </div>
-                  )}
-                  <div>
-                    <span className="opacity-50 block mb-0.5">ID</span>
-                    <span className="font-mono opacity-40 text-[10px]">{ticket.id}</span>
-                  </div>
-                </div>
-              )}
-            </div>
+            <MetadataStrip
+              className="mb-4"
+              storageKey="ds_metadata_expanded_ticket"
+              collapsed={<>
+                <span className="font-mono text-sanctum-gold bg-sanctum-gold/10 border border-sanctum-gold/20 px-1.5 py-0.5 rounded text-[10px]">#{ticket.id}</span>
+                <span className="opacity-40">·</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketTypeStyles[ticket.ticket_type] || 'bg-white/10 text-slate-300'}`}>{ticket.ticket_type}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${ticketStatusStyles[ticket.status] || 'bg-white/10 text-slate-300'}`}>{ticket.status}</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${priorityStyles[ticket.priority] || 'bg-white/10 text-slate-300'}`}>{ticket.priority}</span>
+                <span className="opacity-40">·</span>
+                <span className="opacity-50">{new Date(ticket.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+              </>}
+              badges={[
+                { label: `#${ticket.id}`, mono: true },
+                { label: ticket.ticket_type, className: ticketTypeStyles[ticket.ticket_type] || 'bg-white/10 text-slate-300' },
+                { label: ticket.status, className: ticketStatusStyles[ticket.status] || 'bg-white/10 text-slate-300' },
+                { label: ticket.priority, className: priorityStyles[ticket.priority] || 'bg-white/10 text-slate-300' },
+              ]}
+              dates={[
+                { label: 'Created', value: ticket.created_at },
+                { label: 'Updated', value: ticket.updated_at },
+                { label: 'Closed', value: ticket.closed_at },
+              ]}
+            />
             <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} refreshKey={refreshKey} />
         </div>
       </div>

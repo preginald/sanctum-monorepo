@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
 import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate, Link2, Unlink } from 'lucide-react';
 import SearchableSelect from '../components/ui/SearchableSelect';
+import MetadataStrip from '../components/ui/MetadataStrip';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
@@ -73,6 +74,7 @@ Client: Digital Sanctum HQ`;
   const [emailForm, setEmailForm] = useState({ to_email: '', cc_emails: '', subject: '', message: '' });
   const [sendingEmail, setSendingEmail] = useState(false);
   const [relatedArticles, setRelatedArticles] = useState([]);
+
   const [allArticles, setAllArticles] = useState([]);
   const [selectedRelation, setSelectedRelation] = useState(null);
   const [addingRelation, setAddingRelation] = useState(false);
@@ -284,6 +286,30 @@ Client: Digital Sanctum HQ`;
         {/* RIGHT — SIDEBAR */}
         <div className="space-y-6 lg:sticky lg:top-20 lg:self-start">
 
+          {/* METADATA STRIP */}
+          <MetadataStrip
+            storageKey="ds_metadata_expanded_article"
+            collapsed={<>
+              {article.identifier && <span className="font-mono text-sanctum-gold bg-sanctum-gold/10 border border-sanctum-gold/20 px-1.5 py-0.5 rounded text-[10px]">{article.identifier}</span>}
+              {article.identifier && <span className="opacity-40">·</span>}
+              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-white/10 text-slate-300">{article.category}</span>
+              <span className="opacity-40">·</span>
+              <span className="opacity-50">{new Date(article.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+            </>}
+            badges={[
+              ...(article.identifier ? [{ label: article.identifier, mono: true }] : []),
+              { label: article.category, className: 'bg-white/10 text-slate-300' },
+              { label: article.version, className: 'bg-sanctum-gold/10 text-sanctum-gold border border-sanctum-gold/20' },
+              { label: article.author_name || 'Unknown', className: 'bg-white/10 text-slate-300' },
+            ]}
+            rows={[]}
+            dates={[
+              { label: 'Created', value: article.created_at },
+              { label: 'Updated', value: article.updated_at },
+            ]}
+            id={article.id}
+          />
+
           {/* RELATED ARTICLES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
             <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3 flex items-center gap-2">
@@ -329,38 +355,7 @@ Client: Digital Sanctum HQ`;
             </div>
           </div>
 
-          {/* METADATA */}
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3">Metadata</h3>
-            <div className="space-y-2 text-xs">
-              {article.identifier && (
-                <div className="flex justify-between items-center">
-                  <span className="opacity-50">Identifier</span>
-                  <span className="font-mono text-sanctum-gold text-[11px]">{article.identifier}</span>
-                </div>
-              )}
-              <div className="flex justify-between">
-                <span className="opacity-50">Author</span>
-                <span>{article.author_name || 'Unknown'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="opacity-50">Version</span>
-                <span className="font-mono text-sanctum-gold">{article.version}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="opacity-50">Created</span>
-                <span>{new Date(article.created_at).toLocaleDateString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="opacity-50">Updated</span>
-                <span>{article.updated_at ? new Date(article.updated_at).toLocaleDateString() : '—'}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="opacity-50">ID</span>
-                <span className="font-mono opacity-40 text-[10px]">{article.id}</span>
-              </div>
-            </div>
-          </div>
+
 
         </div>
       </div>
