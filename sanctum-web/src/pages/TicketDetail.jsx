@@ -309,11 +309,10 @@ export default function TicketDetail() {
   // --- CALCULATE UNBILLED ITEMS ---
   const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
 
-  const ticketProject = accountProjects.find(p => p.milestones?.some(m => m.id === ticket.milestone_id));
   const breadcrumb = [
     { label: ticket?.account_name, path: ticket?.account_id ? `/clients/${ticket.account_id}` : '/clients' },
-    ...(ticketProject ? [{ label: ticketProject.name, path: `/projects/${ticketProject.id}` }] : []),
-    ...(ticket?.milestone_name ? [{ label: ticket.milestone_name }] : []),
+    ...(ticket?.project_name ? [{ label: ticket.project_name, path: `/projects/${ticket.project_id}` }] : []),
+    ...(ticket?.milestone_name ? [{ label: ticket.milestone_name, path: ticket.milestone_id ? `/milestones/${ticket.milestone_id}` : undefined }] : []),
     { label: 'Tickets', path: '/tickets' },
   ];
 
