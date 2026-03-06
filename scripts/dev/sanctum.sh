@@ -112,12 +112,15 @@ milestone_usage() {
     echo "  list:    -p|--project <name>, [--milestone-status open|closed|all],"
     echo "           [--ticket-status open|closed|all|<csv>], [--with-tickets],"
     echo "           [--format text|json], [-e|--env]"
-    echo "  show:    <id>, [-e|--env]"
+    echo "  show:    <id|name>, [--ticket-status open|closed|all], [--no-tickets], [-e|--env]"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh milestone create -p \"Sanctum Core\" -n \"Phase 67\" --sequence 49"
     echo "  sanctum.sh milestone list -p \"Sanctum Core\" --milestone-status open --with-tickets"
     echo "  sanctum.sh milestone list -p \"Sanctum Core\" --ticket-status open --format json"
+    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" -e prod"
+    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" --ticket-status open -e prod"
+    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" --no-tickets -e prod"
     echo ""
     exit 0
 }
@@ -900,15 +903,16 @@ milestone_list() {
     echo ""
 }
 milestone_show() {
-    local MILESTONE_ID="$1"; shift
-    local ENV="dev"
+    local QUERY="$1"; shift
+    local ENV="dev" TICKET_STATUS="all" WITH_TICKETS=true
 
-    [ -z "$MILESTONE_ID" ] && echo -e "${RED}✗ Milestone ID is required${NC}" && exit 1
+    [ -z "$QUERY" ] && echo -e "${RED}✗ Milestone ID or name is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
-            -e|--env)     ENV="$2"; shift 2 ;;
-            -c|--content) SHOW_CONTENT=true; shift ;;
+            -e|--env)          ENV="$2"; shift 2 ;;
+            --ticket-status)   TICKET_STATUS="$2"; shift 2 ;;
+            --no-tickets)      WITH_TICKETS=false; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -917,19 +921,64 @@ milestone_show() {
     print_env_banner "sanctum.sh — milestone show"
     ensure_auth
 
-    # Milestone show — fetch via project list and find by ID
-    echo -e "${YELLOW}→ Looking up milestone ${MILESTONE_ID}...${NC}"
+    echo -e "${YELLOW}→ Looking up milestone: ${QUERY}...${NC}"
     PROJECTS=$(api_get "/projects")
-    MILESTONE=$(echo "$PROJECTS" | jq -r --arg mid "$MILESTONE_ID"         '[.[].milestones[] | select(.id == $mid)] | first // empty')
 
-    if [ -z "$MILESTONE" ] || [ "$MILESTONE" = "null" ]; then
-        echo -e "${RED}✗ Milestone not found: ${MILESTONE_ID}${NC}"
+    # Try UUID match first, then name match
+    if [[ "$QUERY" =~ ^[0-9a-f-]{36}$ ]]; then
+        MILESTONE=$(echo "$PROJECTS" | jq -c --arg q "$QUERY" '[.[].milestones[] | select(.id == $q)] | first // empty')
+    else
+        MILESTONE=$(echo "$PROJECTS" | jq -c --arg q "$QUERY" '[.[].milestones[] | select(.name == $q)] | first // empty')
+    fi
+
+    if [ -z "$MILESTONE" ] || [ "$MILESTONE" = "null" ] || [ "$MILESTONE" = "" ]; then
+        echo -e "${RED}✗ Milestone not found: ${QUERY}${NC}"
         exit 1
     fi
 
+    MS_NAME=$(echo "$MILESTONE" | jq -r '.name')
+    MS_STATUS=$(echo "$MILESTONE" | jq -r '.status')
+    MS_SEQ=$(echo "$MILESTONE" | jq -r '.sequence')
+    MS_DUE=$(echo "$MILESTONE" | jq -r '.due_date // "—"')
+    MS_BILLABLE=$(echo "$MILESTONE" | jq -r '.billable_amount // "0"')
+    MS_DESC=$(echo "$MILESTONE" | jq -r '.description // ""')
+    MS_ID=$(echo "$MILESTONE" | jq -r '.id')
+
     echo ""
-    echo "$MILESTONE" | jq '{id, name, status, due_date, billable_amount, sequence}'
+    echo -e "${BLUE}========================================${NC}"
+    echo -e "${BLUE}  ${MS_NAME}${NC}"
+    echo -e "${BLUE}========================================${NC}"
+    echo -e "  Status:   ${MS_STATUS}"
+    echo -e "  Sequence: ${MS_SEQ}"
+    echo -e "  Due:      ${MS_DUE}"
+    echo -e "  Billable: \$${MS_BILLABLE}"
+    [ -n "$MS_DESC" ] && echo -e "  Desc:     ${MS_DESC}"
+    echo -e "  ID:       ${GRAY}${MS_ID}${NC}"
     echo ""
+
+    if [ "$WITH_TICKETS" = true ]; then
+        # Build ticket status filter
+        if [ "$TICKET_STATUS" = "open" ]; then
+            T_FILTER='select(.status == "new" or .status == "open" or .status == "pending" or .status == "qa")'
+        elif [ "$TICKET_STATUS" = "closed" ]; then
+            T_FILTER='select(.status == "resolved")'
+        else
+            T_FILTER='select(true)'
+        fi
+
+        TICKETS=$(echo "$MILESTONE" | jq -c "[.tickets // [] | .[] | $T_FILTER]")
+        TICKET_COUNT=$(echo "$TICKETS" | jq 'length')
+
+        echo -e "${YELLOW}Tickets (${TICKET_COUNT}):${NC}"
+        echo ""
+
+        if [ "$TICKET_COUNT" = "0" ]; then
+            echo -e "  ${GRAY}No tickets found.${NC}"
+        else
+            echo "$TICKETS" | jq -r '.[] | "  #\(.id) [\(.status)] [\(.priority)] \(.subject)"'
+        fi
+        echo ""
+    fi
 }
 
 # ─────────────────────────────────────────────
