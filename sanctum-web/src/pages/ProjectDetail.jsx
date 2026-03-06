@@ -1,25 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { handleSmartWrap } from '../lib/textUtils';
 import {
-  Loader2, Plus, Receipt, Calendar, Flag, Clipboard,
-  X, Edit2, ChevronUp, ChevronDown, CheckCircle, Circle,
-  BarChart2, Layers
+  Loader2, Plus, Receipt, Flag,
+  X, Edit2, ChevronUp, ChevronDown,
+  BarChart2
 } from 'lucide-react';
 import api from '../lib/api';
 
 import ProjectStats from '../components/projects/ProjectStats';
-import TicketList from '../components/tickets/TicketList';
 import MetadataStrip from '../components/ui/MetadataStrip';
 
-import { TICKET_TYPES, TICKET_PRIORITIES } from '../lib/constants';
-import { TicketTypeIcon } from '../components/tickets/TicketBadges';
 import { projectStatusStyles } from '../lib/statusStyles';
 
 export default function ProjectDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -36,10 +31,8 @@ export default function ProjectDetail() {
 
   // MODALS
   const [showMsModal, setShowMsModal] = useState(false);
-  const [showTicketModal, setShowTicketModal] = useState(false);
   const [editingMsId, setEditingMsId] = useState(null);
   const [msForm, setMsForm] = useState({ name: '', description: '', billable_amount: '', due_date: '', sequence: 1 });
-  const [ticketForm, setTicketForm] = useState({ subject: '', priority: 'normal', ticket_type: 'task', milestone_id: '' });
 
   // STICKY NAV
   useEffect(() => {
@@ -79,15 +72,6 @@ export default function ProjectDetail() {
     } catch (e) { alert("Failed"); }
   };
 
-  const handleCreateTicket = async (e) => {
-    e.preventDefault();
-    try {
-      await api.post('/tickets', { ...ticketForm, account_id: project.account_id });
-      setShowTicketModal(false);
-      fetchProject();
-    } catch (e) { alert("Failed"); }
-  };
-
   const updateMilestoneStatus = async (mid, st) => {
     try { await api.put(`/milestones/${mid}`, { status: st }); fetchProject(); }
     catch (e) { alert("Failed"); }
@@ -117,22 +101,11 @@ export default function ProjectDetail() {
   };
 
   // --- HELPERS ---
-  const getTicketsForMilestone = (msId) => project?.milestones?.find(m => m.id === msId)?.tickets || [];
-
   const getMilestoneProgress = (ms) => {
     const tickets = ms.tickets || [];
     if (tickets.length === 0) return { done: 0, total: 0, pct: 0 };
     const done = tickets.filter(t => t.status === 'resolved').length;
     return { done, total: tickets.length, pct: Math.round((done / tickets.length) * 100) };
-  };
-
-  const milestoneStatusColor = (s) => {
-    const map = {
-      pending: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
-      active: 'bg-green-500/20 text-green-400 border-green-500/30',
-      completed: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    };
-    return map[s] || 'bg-white/10 text-slate-300';
   };
 
   if (loading || !project) return <Layout title="Loading..."><Loader2 className="animate-spin" /></Layout>;
@@ -258,90 +231,70 @@ export default function ProjectDetail() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               {visibleMilestones.length > 0 ? visibleMilestones.map((ms) => {
                 const progress = getMilestoneProgress(ms);
                 return (
-                  <div key={ms.id} className="p-4 bg-black/20 rounded border border-white/5">
-                    {/* MILESTONE HEADER */}
-                    <div className="flex justify-between items-start mb-3">
-                      <div className="flex items-center gap-3">
-                        {/* REORDER */}
-                        <div className="flex flex-col gap-0.5">
-                          <button onClick={() => moveMilestone(ms.id, -1)} className="text-slate-600 hover:text-white"><ChevronUp size={12} /></button>
-                          <button onClick={() => moveMilestone(ms.id, 1)} className="text-slate-600 hover:text-white"><ChevronDown size={12} /></button>
-                        </div>
-                        {/* SEQUENCE BUBBLE */}
-                        <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-xs border border-slate-600 shrink-0">
-                          {ms.sequence}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            {/* MILESTONE NAME — link to MilestoneDetail */}
-                            <Link
-                              to={`/milestones/${ms.id}`}
-                              className={`font-bold hover:text-sanctum-gold transition-colors ${ms.status === 'completed' ? 'text-slate-500 line-through' : 'text-white'}`}
-                              onClick={e => e.stopPropagation()}
-                            >
-                              {ms.name}
-                            </Link>
-                            <button onClick={() => { setEditingMsId(ms.id); setMsForm(ms); setShowMsModal(true); }} className="text-slate-500 hover:text-sanctum-gold shrink-0">
-                              <Edit2 size={12} />
-                            </button>
-                          </div>
-                          {ms.description && <p className="text-xs text-slate-400 italic mt-0.5">{ms.description}</p>}
-                          <div className="flex items-center gap-3 mt-1 text-xs opacity-50">
-                            <span>Due: {ms.due_date || 'TBD'}</span>
-                            <span>•</span>
-                            <span>${parseFloat(ms.billable_amount || 0).toLocaleString()}</span>
-                            <span>•</span>
-                            <span>{progress.done}/{progress.total} tasks</span>
-                          </div>
-                        </div>
-                      </div>
+                  <div key={ms.id} className="flex items-center gap-3 px-3 py-2.5 bg-black/20 rounded border border-white/5 hover:border-white/10 group transition-colors">
 
-                      {/* CONTROLS */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <select
-                          className="bg-slate-800 border border-slate-600 text-xs rounded p-1 text-white uppercase font-bold"
-                          value={ms.status}
-                          onChange={(e) => updateMilestoneStatus(ms.id, e.target.value)}
-                          disabled={!!ms.invoice_id}
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="active">Active</option>
-                          <option value="completed">Completed</option>
-                        </select>
-                        {!ms.invoice_id
-                          ? <button onClick={() => generateInvoice(ms.id)} className="flex items-center gap-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded"><Receipt size={14} /> Bill</button>
-                          : <span className="flex items-center gap-1.5 text-xs font-bold text-green-500 border border-green-500/30 px-3 py-1 rounded bg-green-500/10"><Receipt size={14} /> Billed</span>
-                        }
-                      </div>
+                    {/* REORDER */}
+                    <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button onClick={() => moveMilestone(ms.id, -1)} className="text-slate-600 hover:text-white"><ChevronUp size={11} /></button>
+                      <button onClick={() => moveMilestone(ms.id, 1)} className="text-slate-600 hover:text-white"><ChevronDown size={11} /></button>
                     </div>
 
-                    {/* PROGRESS BAR */}
-                    {progress.total > 0 && (
-                      <div className="mb-3 px-1">
-                        <div className="flex justify-between text-[10px] opacity-40 mb-1">
-                          <span>{progress.done} of {progress.total} resolved</span>
-                          <span>{progress.pct}%</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${progress.pct === 100 ? 'bg-green-500' : 'bg-sanctum-gold/70'}`}
-                            style={{ width: `${progress.pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                    {/* SEQUENCE */}
+                    <div className="w-6 h-6 rounded-full bg-slate-700 flex items-center justify-center font-bold text-white text-[10px] border border-slate-600 shrink-0">
+                      {ms.sequence}
+                    </div>
 
-                    {/* TICKETS */}
-                    <div className="mt-3 pl-4 border-l-2 border-slate-800">
-                      <TicketList
-                        tickets={getTicketsForMilestone(ms.id)}
-                        embedded={true}
-                        onAdd={() => { setTicketForm({ ...ticketForm, milestone_id: ms.id }); setShowTicketModal(true); }}
-                      />
+                    {/* NAME + DESCRIPTION */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          to={`/milestones/${ms.id}`}
+                          className={`font-semibold text-sm hover:text-sanctum-gold transition-colors truncate ${ms.status === 'completed' ? 'text-slate-500 line-through' : 'text-white'}`}
+                        >
+                          {ms.name}
+                        </Link>
+                        <button
+                          onClick={() => { setEditingMsId(ms.id); setMsForm(ms); setShowMsModal(true); }}
+                          className="text-slate-600 hover:text-sanctum-gold opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                        >
+                          <Edit2 size={11} />
+                        </button>
+                      </div>
+                      {/* PROGRESS BAR */}
+                      {progress.total > 0 && (
+                        <div className="flex items-center gap-2 mt-1">
+                          <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${progress.pct === 100 ? 'bg-green-500' : 'bg-sanctum-gold/60'}`}
+                              style={{ width: `${progress.pct}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] opacity-40 shrink-0">{progress.done}/{progress.total}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* STATUS + BILLING */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <select
+                        className="bg-slate-800 border border-slate-600 text-[10px] rounded p-1 text-white uppercase font-bold"
+                        value={ms.status}
+                        onChange={(e) => updateMilestoneStatus(ms.id, e.target.value)}
+                        disabled={!!ms.invoice_id}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                      </select>
+                      {parseFloat(ms.billable_amount || 0) > 0 && (
+                        !ms.invoice_id
+                          ? <button onClick={() => generateInvoice(ms.id)} className="flex items-center gap-1 text-[10px] font-bold bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded"><Receipt size={12} /> Bill</button>
+                          : <span className="flex items-center gap-1 text-[10px] font-bold text-green-500 border border-green-500/30 px-2 py-1 rounded bg-green-500/10"><Receipt size={12} /> Billed</span>
+                      )}
                     </div>
                   </div>
                 );
@@ -401,42 +354,7 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {/* TICKET MODAL */}
-      {showTicketModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-md relative">
-            <button onClick={() => setShowTicketModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20} /></button>
-            <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Clipboard size={20} className="text-sanctum-gold" /> Add Task</h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs opacity-50 block mb-1">Type</label>
-                  <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm capitalize" value={ticketForm.ticket_type} onChange={e => setTicketForm({ ...ticketForm, ticket_type: e.target.value })}>
-                    {TICKET_TYPES.map(type => <option key={type} value={type}>{type}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs opacity-50 block mb-1">Priority</label>
-                  <select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm capitalize" value={ticketForm.priority} onChange={e => setTicketForm({ ...ticketForm, priority: e.target.value })}>
-                    {TICKET_PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-              </div>
-              <div><label className="text-xs opacity-50 block mb-1">Subject</label><input autoFocus required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={ticketForm.subject} onChange={e => setTicketForm({ ...ticketForm, subject: e.target.value })} /></div>
-              <div>
-                <label className="text-xs opacity-50 block mb-1">Description</label>
-                <textarea
-                  className="w-full p-2 h-24 rounded bg-black/40 border border-slate-600 text-white text-sm font-mono"
-                  value={ticketForm.description || ''}
-                  onChange={e => setTicketForm({ ...ticketForm, description: e.target.value })}
-                  onKeyDown={(e) => handleSmartWrap(e, ticketForm.description, (v) => setTicketForm({ ...ticketForm, description: v }))}
-                />
-              </div>
-              <button onClick={handleCreateTicket} className="w-full py-2 bg-sanctum-gold text-slate-900 font-bold rounded">Create Task</button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </Layout>
   );
 }
