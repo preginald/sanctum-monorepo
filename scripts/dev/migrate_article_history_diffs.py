@@ -30,14 +30,17 @@ from dotenv import load_dotenv
 # Load correct .env based on env flag early
 def load_env(env):
     base = os.path.join(os.path.dirname(__file__), '..', '..', 'sanctum-core')
-    env_file = '.env.prod' if env == 'prod' else '.env'
-    path = os.path.join(base, env_file)
-    if os.path.exists(path):
-        load_dotenv(path, override=True)
-        print(f"  Loaded: {path}")
-    else:
-        load_dotenv(override=True)
-        print(f"  Warning: {path} not found, using default .env")
+    # On local dev: .env.prod exists for prod, .env for dev
+    # On prod server: only .env exists — use it regardless of env flag
+    candidates = ['.env.prod', '.env'] if env == 'prod' else ['.env']
+    for env_file in candidates:
+        env_path = os.path.join(base, env_file)
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=True)
+            print(f"  Loaded: {env_path}")
+            return
+    print(f"  ✗ No .env file found in {base}")
+    sys.exit(1)
 
 def parse_sections(content):
     """
