@@ -8,7 +8,9 @@
 # Examples:
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" -m "Phase 65" --type bug
 #   sanctum.sh ticket update  256 -d "New description" --status open
-#   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
+#   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" --relate-tickets "374:blocks,375"
+  sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to" -e prod
+  sanctum.sh ticket resolve 250 -b "Fixed and deployed."
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
 #   sanctum.sh article create -t "My Article" --slug "my-article" --category "System Documentation" -f content.md
@@ -64,10 +66,11 @@ ticket_usage() {
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
     echo "  create:  -s|--subject <text>, -p|--project <name> OR -a|--account <name>,"
     echo "           [-m|--milestone <name>], [--type <type>], [--priority <priority>],"
-    echo "           [-d|--description <text>], [--articles <id1,id2,...>], [-e|--env dev|prod]"
+    echo "           [-d|--description <text>], [--articles <id1,id2,...>],
+           [--relate-tickets <id[:type],...>], [-e|--env dev|prod]"
     echo "  update:  <id>, [-s|--subject], [-d|--description], [--status <status>],"
     echo "           [--priority <priority>], [--type <type>], [-m|--milestone <name>],"
-    echo "           [--articles <id1,id2,...>], [-e|--env]"
+    echo "           [--articles <id1,id2,...>], [--relate-tickets <id[:type],...>], [-e|--env]"
     echo "  comment: <id>, -b|--body <text>, [--status <status>], [--visibility internal|public], [-e|--env]"
     echo "  resolve: <id>, -b|--body <text>, [--visibility internal|public], [-e|--env]"
     echo "  list:    [-p|--project <name>], [-m|--milestone <name>], [--status <status>], [-e|--env]"
@@ -309,15 +312,19 @@ ticket_create() {
         IFS=',' read -ra RELATE_LIST <<< "$RELATE_TICKETS"
         for RELATED_ID in "${RELATE_LIST[@]}"; do
             RELATED_ID=$(echo "$RELATED_ID" | tr -d ' ')
-            PAYLOAD=$(jq -n --arg rid "$RELATED_ID" '{"related_id": ($rid | tonumber), "relation_type": "relates_to", "visibility": "internal"}')
+            # Parse optional :type suffix (e.g. "374:blocks" → id=374, type=blocks)
+            RELATED_BARE="${RELATED_ID%%:*}"
+            RELATION_TYPE="${RELATED_ID##*:}"
+            [ "$RELATION_TYPE" = "$RELATED_BARE" ] && RELATION_TYPE="relates_to"
+            PAYLOAD=$(jq -n --arg rid "$RELATED_BARE" --arg rt "$RELATION_TYPE" '{"related_id": ($rid | tonumber), "relation_type": $rt, "visibility": "internal"}')
             RESULT=$(api_post "/tickets/${TICKET_ID}/relations" "$PAYLOAD")
             REL_STATUS=$(echo "$RESULT" | jq -r '.status // "error"')
             if [ "$REL_STATUS" = "linked" ]; then
-                echo -e "${GREEN}  Linked ticket: #${RELATED_ID}${NC}"
+                echo -e "${GREEN}  Linked ticket: #${RELATED_BARE} (${RELATION_TYPE})${NC}"
             elif [ "$REL_STATUS" = "already_exists" ]; then
-                echo -e "${YELLOW}  Already linked: #${RELATED_ID}${NC}"
+                echo -e "${YELLOW}  Already linked: #${RELATED_BARE}${NC}"
             else
-                echo -e "${RED}  Failed to link: #${RELATED_ID}${NC}"
+                echo -e "${RED}  Failed to link: #${RELATED_BARE}${NC}"
             fi
         done
     fi
@@ -618,15 +625,19 @@ ticket_update() {
         IFS=',' read -ra RELATE_LIST <<< "$RELATE_TICKETS"
         for RELATED_ID in "${RELATE_LIST[@]}"; do
             RELATED_ID=$(echo "$RELATED_ID" | tr -d ' ')
-            PAYLOAD=$(jq -n --arg rid "$RELATED_ID" '{"related_id": ($rid | tonumber), "relation_type": "relates_to", "visibility": "internal"}')
+            # Parse optional :type suffix (e.g. "374:blocks" → id=374, type=blocks)
+            RELATED_BARE="${RELATED_ID%%:*}"
+            RELATION_TYPE="${RELATED_ID##*:}"
+            [ "$RELATION_TYPE" = "$RELATED_BARE" ] && RELATION_TYPE="relates_to"
+            PAYLOAD=$(jq -n --arg rid "$RELATED_BARE" --arg rt "$RELATION_TYPE" '{"related_id": ($rid | tonumber), "relation_type": $rt, "visibility": "internal"}')
             RESULT=$(api_post "/tickets/${TICKET_ID}/relations" "$PAYLOAD")
             REL_STATUS=$(echo "$RESULT" | jq -r '.status // "error"')
             if [ "$REL_STATUS" = "linked" ]; then
-                echo -e "${GREEN}  Linked ticket: #${RELATED_ID}${NC}"
+                echo -e "${GREEN}  Linked ticket: #${RELATED_BARE} (${RELATION_TYPE})${NC}"
             elif [ "$REL_STATUS" = "already_exists" ]; then
-                echo -e "${YELLOW}  Already linked: #${RELATED_ID}${NC}"
+                echo -e "${YELLOW}  Already linked: #${RELATED_BARE}${NC}"
             else
-                echo -e "${RED}  Failed to link: #${RELATED_ID}${NC}"
+                echo -e "${RED}  Failed to link: #${RELATED_BARE}${NC}"
             fi
         done
     fi
