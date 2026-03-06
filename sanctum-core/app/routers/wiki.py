@@ -146,12 +146,17 @@ def update_article(
     if not article: raise HTTPException(status_code=404, detail="Article not found")
     
     # 1. HISTORY SNAPSHOT
+    # Capture old content before overwrite
+    old_content = article.content
     history_entry = models.ArticleHistory(
         article_id=article.id,
-        author_id=article.author_id, 
+        author_id=article.author_id,
         title=article.title,
         content=article.content,
-        version=article.version
+        version=article.version,
+        section_heading=None,
+        diff_before=old_content,
+        diff_after=None  # populated post-commit via update_article_history_after
     )
     db.add(history_entry)
     
@@ -173,6 +178,10 @@ def update_article(
         setattr(article, key, value)
     
     article.author_id = current_user.id
+    # Capture diff_after now that content has been updated
+    if update_data.get("content"):
+        history_entry.diff_after = article.content
+
     
     db.commit()
     db.refresh(article)
@@ -209,12 +218,18 @@ def patch_article_section(
         raise HTTPException(status_code=404, detail="Section not found: " + patch.heading)
 
     # 1. HISTORY SNAPSHOT
+    # Capture old section content before overwrite
+    old_section_match = section_re.search(article.content)
+    old_section_body = old_section_match.group(2) if old_section_match else ""
     history_entry = models.ArticleHistory(
         article_id=article.id,
         author_id=article.author_id,
         title=article.title,
         content=article.content,
-        version=article.version
+        version=article.version,
+        section_heading=patch.heading,
+        diff_before=old_section_body,
+        diff_after=patch.content
     )
     db.add(history_entry)
 

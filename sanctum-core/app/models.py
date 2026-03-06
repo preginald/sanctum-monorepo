@@ -491,6 +491,9 @@ class ArticleHistory(Base):
     author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     title = Column(String)
     content = Column(Text)
+    section_heading = Column(String, nullable=True)  # None = whole-article change
+    diff_before = Column(Text, nullable=True)
+    diff_after = Column(Text, nullable=True)
     version = Column(String) 
     snapshot_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 

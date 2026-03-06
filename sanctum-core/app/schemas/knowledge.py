@@ -45,8 +45,10 @@ class ArticleHistoryResponse(SanctumBase):
     title: str
     version: str
     snapshot_at: datetime
-    author_name: Optional[str] = None # For UI display
-    # Content is usually heavy, maybe load only on detail, but for now include it
+    author_name: Optional[str] = None
+    section_heading: Optional[str] = None  # None = whole-article change
+    diff_before: Optional[str] = None
+    diff_after: Optional[str] = None
 
 class RelatedArticleResponse(SanctumBase):
     id: UUID

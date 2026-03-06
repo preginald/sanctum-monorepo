@@ -257,20 +257,29 @@ Client: Digital Sanctum HQ`;
             <div className="animate-in slide-in-from-left-2 duration-200">
                 <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
                     {history.length > 0 ? history.map((h, i) => (
-                        <div key={h.id} className="p-4 border-b border-slate-800 last:border-0 flex justify-between items-center hover:bg-white/5 transition-colors">
-                            <div>
-                                <div className="flex items-center gap-3 mb-1">
-                                    <span className="font-mono text-sm text-sanctum-gold font-bold">{h.version}</span>
-                                    <span className="text-white font-bold text-sm">{h.title}</span>
+                        <div key={h.id} className="p-4 border-b border-slate-800 last:border-0 hover:bg-white/5 transition-colors">
+                            <div className="flex justify-between items-start">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className="font-mono text-sm text-sanctum-gold font-bold">{h.version}</span>
+                                        <span className="text-white font-bold text-sm">{h.title}</span>
+                                        {h.section_heading ? (
+                                            <span className="text-[10px] font-bold uppercase bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-mono">{h.section_heading}</span>
+                                        ) : (
+                                            <span className="text-[10px] font-bold uppercase bg-slate-500/20 text-slate-400 px-1.5 py-0.5 rounded">Full article</span>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-slate-500 flex items-center gap-3">
+                                        <span className="flex items-center gap-1"><User size={12}/> {h.author_name || 'System'}</span>
+                                        <span className="flex items-center gap-1"><Clock size={12}/> {new Date(h.snapshot_at).toLocaleString()}</span>
+                                    </div>
+                                    {h.diff_before && h.diff_after && (
+                                        <div className="mt-2 grid grid-cols-2 gap-2">
+                                            <div className="bg-red-500/10 border border-red-500/20 rounded p-2 text-[10px] font-mono text-red-400 line-clamp-2 whitespace-pre-wrap">{h.diff_before}</div>
+                                            <div className="bg-green-500/10 border border-green-500/20 rounded p-2 text-[10px] font-mono text-green-400 line-clamp-2 whitespace-pre-wrap">{h.diff_after}</div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="text-xs text-slate-500 flex items-center gap-3">
-                                    <span className="flex items-center gap-1"><User size={12}/> {h.author_name || 'System'}</span>
-                                    <span className="flex items-center gap-1"><Clock size={12}/> {new Date(h.snapshot_at).toLocaleString()}</span>
-                                </div>
-                            </div>
-                            {/* Future: Add "Restore" button here */}
-                            <div className="text-xs text-slate-600 font-mono uppercase tracking-widest">
-                                Snapshot
                             </div>
                         </div>
                     )) : (
