@@ -9,8 +9,8 @@
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" -m "Phase 65" --type bug
 #   sanctum.sh ticket update  256 -d "New description" --status open
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" --relate-tickets "374:blocks,375"
-  sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to" -e prod
-  sanctum.sh ticket resolve 250 -b "Fixed and deployed."
+#   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
+#   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to" -e prod
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
 #   sanctum.sh article create -t "My Article" --slug "my-article" --category "System Documentation" -f content.md
@@ -172,7 +172,7 @@ article_usage() {
     echo "  create:  -t|--title <text>, --slug <text>, --category <category>,"
     echo "           [-f|--file <path>], [--related <id1,id2,...>], [-e|--env]"
     echo "  update:  <uuid|identifier>, [-f|--file <path>], [-t|--title <text>],"
-    echo "           [--related <id1,id2,...>], [-e|--env]"
+    echo "           [--related <id1,id2,...>], [--section <heading>], [-e|--env]"
     echo "  show:    <slug|identifier>, [-c|--content], [-e|--env]"
     echo "  relate:  <uuid|identifier> --related <id1,id2,...>, [-e|--env]"
     echo "  unrelate:<uuid|identifier> --related <id>, [-e|--env]"
@@ -185,6 +185,7 @@ article_usage() {
     echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md"
     echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md --related \"DOC-001,WIKI-002\""
     echo "  sanctum.sh article update DOC-012 -f updated_doc.md --related \"DOC-001\""
+    echo "  sanctum.sh article update DOC-009 --section \"## Milestone Commands\" -f /tmp/section.md -e prod"
     echo "  sanctum.sh article relate DOC-012 --related \"DOC-001,WIKI-002\" -e prod"
     echo "  sanctum.sh article unrelate DOC-012 --related DOC-001 -e prod"
     echo "  sanctum.sh article show DOC-012 -c"
@@ -1237,7 +1238,7 @@ article_create() {
 
 article_update() {
     local ARTICLE_ID="$1"; shift
-    local CONTENT_FILE="" TITLE="" ENV="dev"
+    local CONTENT_FILE="" TITLE="" ENV="dev" SECTION=""
     local RELATED=""
 
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
@@ -1248,6 +1249,7 @@ article_update() {
             -t|--title) TITLE="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
             --related)  RELATED="$2"; shift 2 ;;
+            --section)    SECTION="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -1256,16 +1258,18 @@ article_update() {
     if [ -n "$CONTENT_FILE" ]; then
         [ ! -f "$CONTENT_FILE" ] && echo -e "${RED}✗ File not found: ${CONTENT_FILE}${NC}" && exit 1
         CONTENT=$(cat "$CONTENT_FILE")
-    else
+    elif [ -z "$SECTION" ]; then
         echo -e "${YELLOW}→ No -f/--file provided. Reading content from stdin (Ctrl+D to finish):${NC}"
         CONTENT=$(cat)
+    else
+        echo -e "${RED}✗ --section requires -f/--file${NC}" && exit 1
     fi
 
     resolve_env "$ENV"
     print_env_banner "sanctum.sh — article update"
     ensure_auth
     # Resolve identifier (e.g. DOC-012) to UUID if needed
-    if [[ "$ARTICLE_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+    if [[ ! "$ARTICLE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
         echo -e "${YELLOW}→ Resolving identifier: ${ARTICLE_ID}...${NC}"
         ARTICLES=$(api_get "/articles")
         RESOLVED=$(echo "$ARTICLES" | jq -r --arg id "$ARTICLE_ID" '.[] | select(.identifier == $id) | .id // empty')
@@ -1279,12 +1283,24 @@ article_update() {
     fi
     confirm_prod "About to update article: ${ARTICLE_ID}"
 
-    PAYLOAD=$(jq -n \
-        --arg content "$CONTENT" \
-        --arg title "$TITLE" \
-        '{content: $content} | if $title != "" then .title = $title else . end')
+    # Section-level PATCH or full PUT
+    if [ -n "$SECTION" ]; then
+        echo -e "${YELLOW}→ Patching section: ${SECTION}...${NC}"
+        PAYLOAD=$(jq -n --arg heading "$SECTION" --arg content "$CONTENT" \
+            '{"heading": $heading, "content": $content}')
+        RESULT=$(curl -s -X PATCH \
+            -H "Authorization: Bearer $_SANCTUM_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "${API_BASE}/articles/${ARTICLE_ID}/sections")
+    else
+        PAYLOAD=$(jq -n \
+            --arg content "$CONTENT" \
+            --arg title "$TITLE" \
+            '{content: $content} | if $title != "" then .title = $title else . end')
+        RESULT=$(api_put "/articles/${ARTICLE_ID}" "$PAYLOAD")
+    fi
 
-    RESULT=$(api_put "/articles/${ARTICLE_ID}" "$PAYLOAD")
     UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
 
     if [ -z "$UPDATED_ID" ]; then
@@ -1294,7 +1310,11 @@ article_update() {
     fi
 
     echo ""
-    echo -e "${GREEN}✓ Article updated: ${ARTICLE_ID}${NC}"
+    if [ -n "$SECTION" ]; then
+        echo -e "${GREEN}✓ Section patched in ${ARTICLE_ID}: ${SECTION}${NC}"
+    else
+        echo -e "${GREEN}✓ Article updated: ${ARTICLE_ID}${NC}"
+    fi
     echo ""
 
     # Link related articles if --related provided
@@ -1329,7 +1349,7 @@ article_relate() {
     print_env_banner "sanctum.sh — article relate"
     ensure_auth
     # Resolve source article
-    if [[ "$ARTICLE_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+    if [[ ! "$ARTICLE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
         ARTICLE_UUID=$(resolve_article_identifier "$ARTICLE_ID") || exit 1
     else
         ARTICLE_UUID="$ARTICLE_ID"
@@ -1361,7 +1381,7 @@ article_unrelate() {
     resolve_env "$ENV"
     print_env_banner "sanctum.sh — article unrelate"
     ensure_auth
-    if [[ "$ARTICLE_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+    if [[ ! "$ARTICLE_ID" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]]; then
         ARTICLE_UUID=$(resolve_article_identifier "$ARTICLE_ID") || exit 1
     else
         ARTICLE_UUID="$ARTICLE_ID"

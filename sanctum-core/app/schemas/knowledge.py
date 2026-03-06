@@ -35,6 +35,10 @@ class ArticleUpdate(SanctumBase):
     identifier: Optional[str] = None
     version: Optional[str] = None
 
+class ArticleSectionPatch(SanctumBase):
+    heading: str  # Exact heading string e.g. "## Milestone Commands"
+    content: str  # New section content (excluding the heading line itself)
+
 class ArticleHistoryResponse(SanctumBase):
     id: UUID
     article_id: UUID

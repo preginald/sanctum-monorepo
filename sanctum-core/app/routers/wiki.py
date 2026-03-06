@@ -179,6 +179,61 @@ def update_article(
     return article
 
 
+@router.patch("/articles/{article_id}/sections", response_model=schemas.ArticleResponse)
+def patch_article_section(
+    article_id: str,
+    patch: schemas.ArticleSectionPatch,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    # Determine heading level (e.g. "## " -> level 2)
+    heading_match = re.match(r'^(#{1,6})\s', patch.heading)
+    if not heading_match:
+        raise HTTPException(status_code=400, detail="heading must start with one or more # characters")
+    level = len(heading_match.group(1))
+    hashes = '#' * level
+    heading_pattern = re.escape(patch.heading)
+
+    # Match from heading line to next heading of same or higher level (or end of string)
+    stop_pattern = '(?=^' + hashes[0] + '{1,' + str(level) + '}[^#]|\Z)'
+    section_re = re.compile(
+        '(^' + heading_pattern + '\n)(.*?)' + stop_pattern,
+        re.MULTILINE | re.DOTALL
+    )
+
+    if not section_re.search(article.content):
+        raise HTTPException(status_code=404, detail="Section not found: " + patch.heading)
+
+    # 1. HISTORY SNAPSHOT
+    history_entry = models.ArticleHistory(
+        article_id=article.id,
+        author_id=article.author_id,
+        title=article.title,
+        content=article.content,
+        version=article.version
+    )
+    db.add(history_entry)
+
+    # 2. REPLACE SECTION — heading line preserved, body replaced
+    new_body = patch.content.strip('\n') + '\n'
+    article.content = section_re.sub(
+        lambda m: patch.heading + '\n' + new_body,
+        article.content,
+        count=1
+    )
+
+    # 3. VERSION BUMP
+    article.version = _increment_version(article.version)
+    article.author_id = current_user.id
+
+    db.commit()
+    db.refresh(article)
+    return article
+
 @router.get("/articles/{article_id}/history", response_model=List[schemas.ArticleHistoryResponse])
 def get_article_history(article_id: str, db: Session = Depends(get_db)):
     history = db.query(models.ArticleHistory).options(joinedload(models.ArticleHistory.author))\

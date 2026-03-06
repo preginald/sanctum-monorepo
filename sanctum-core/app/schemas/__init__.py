@@ -29,7 +29,7 @@ from .operations import (
 )
 from .knowledge import (
     CommentCreate, CommentResponse,
-    ArticleCreate, ArticleUpdate, ArticleResponse, ArticleHistoryResponse, ArticleEmailRequest,
+    ArticleCreate, ArticleUpdate, ArticleSectionPatch, ArticleResponse, ArticleHistoryResponse, ArticleEmailRequest,
     RelatedArticleResponse
 )
 
