@@ -114,6 +114,8 @@ class MilestoneResponse(MilestoneCreate):
     id: UUID
     project_id: UUID
     invoice_id: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    project_name: Optional[str] = None
     tickets: List[TicketBrief] = []
 
 class ProjectCreate(SanctumBase):

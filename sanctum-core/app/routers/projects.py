@@ -77,8 +77,20 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
     if update.billable_amount is not None: ms.billable_amount = update.billable_amount
     if update.due_date: ms.due_date = update.due_date
     if update.sequence is not None: ms.sequence = update.sequence
+    if update.description is not None: ms.description = update.description
     db.commit()
     db.refresh(ms)
+    ms.project_name = ms.project.name if ms.project else None
+    return ms
+
+@router.get("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
+def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
+    ms = db.query(models.Milestone).options(
+        joinedload(models.Milestone.tickets),
+        joinedload(models.Milestone.project)
+    ).filter(models.Milestone.id == milestone_id).first()
+    if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    ms.project_name = ms.project.name if ms.project else None
     return ms
 
 @router.post("/projects/{project_id}/milestones/reorder")
