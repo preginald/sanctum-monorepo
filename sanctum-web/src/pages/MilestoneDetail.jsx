@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { handleSmartWrap } from '../lib/textUtils';
 import {
-  Loader2, Plus, Receipt, Flag, X, Clipboard,
+  Loader2, Plus, Receipt, Flag, X, Clipboard, Edit2,
   Hash, DollarSign, Calendar, FileText
 } from 'lucide-react';
 import api from '../lib/api';
@@ -23,6 +23,8 @@ export default function MilestoneDetail() {
   // MODALS
   const [showTicketModal, setShowTicketModal] = useState(false);
   const [ticketForm, setTicketForm] = useState({ subject: '', description: '', priority: 'normal', ticket_type: 'task' });
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editForm, setEditForm] = useState({});
 
   // STICKY NAV
   useEffect(() => {
@@ -41,6 +43,21 @@ export default function MilestoneDetail() {
       setMilestone(res.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const handleSaveMilestone = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/milestones/${id}`, {
+        name: editForm.name,
+        description: editForm.description || null,
+        billable_amount: parseFloat(editForm.billable_amount) || 0,
+        sequence: parseInt(editForm.sequence) || 1,
+        due_date: editForm.due_date || null,
+      });
+      setShowEditModal(false);
+      fetchMilestone();
+    } catch (e) { alert("Failed to save milestone"); }
   };
 
   const handleCreateTicket = async (e) => {
@@ -80,6 +97,15 @@ export default function MilestoneDetail() {
   const resolvedTickets = milestone.tickets?.filter(t => t.status === 'resolved').length || 0;
   const canBill = billable > 0 && !milestone.invoice_id;
 
+  const editButton = (
+    <button
+      onClick={() => { setEditForm({ name: milestone.name, description: milestone.description || '', billable_amount: milestone.billable_amount, due_date: milestone.due_date || '', sequence: milestone.sequence }); setShowEditModal(true); }}
+      className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded font-bold text-sm"
+    >
+      <Edit2 size={16} /> Edit
+    </button>
+  );
+
   const addTicketButton = (
     <button
       onClick={() => setShowTicketModal(true)}
@@ -108,7 +134,7 @@ export default function MilestoneDetail() {
       ]}
       onRefresh={fetchMilestone}
       onCopyMeta={() => `${milestone.name}\nProject: ${milestone.project_name}\nStatus: ${milestone.status}\nTickets: ${totalTickets}`}
-      actions={<>{addTicketButton}{billButton}</>}
+      actions={<>{editButton}{addTicketButton}{billButton}</>}
     >
 
       {/* STICKY NAV */}
@@ -119,6 +145,12 @@ export default function MilestoneDetail() {
             {milestone.name}
           </span>
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => { setEditForm({ name: milestone.name, description: milestone.description || '', billable_amount: milestone.billable_amount, due_date: milestone.due_date || '', sequence: milestone.sequence }); setShowEditModal(true); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded font-bold text-xs"
+            >
+              <Edit2 size={14} /> Edit
+            </button>
             <button
               onClick={() => setShowTicketModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-sanctum-gold text-slate-900 rounded font-bold text-xs"
@@ -262,6 +294,24 @@ export default function MilestoneDetail() {
 
         </div>
       </div>
+
+      {/* EDIT MILESTONE MODAL */}
+      {showEditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-sm relative">
+            <button onClick={() => setShowEditModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20} /></button>
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit2 size={18} className="text-sanctum-gold" /> Edit Milestone</h2>
+            <div className="space-y-3">
+              <div><label className="text-xs opacity-50 block mb-1">Sequence</label><input type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={editForm.sequence} onChange={e => setEditForm({ ...editForm, sequence: e.target.value })} /></div>
+              <div><label className="text-xs opacity-50 block mb-1">Name</label><input required className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></div>
+              <div><label className="text-xs opacity-50 block mb-1">Description</label><textarea placeholder="Optional notes..." className="w-full p-2 h-20 rounded bg-black/40 border border-slate-600 text-white text-sm font-mono" value={editForm.description || ''} onChange={e => setEditForm({ ...editForm, description: e.target.value })} /></div>
+              <div><label className="text-xs opacity-50 block mb-1">Billable Value ($)</label><input type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={editForm.billable_amount} onChange={e => setEditForm({ ...editForm, billable_amount: e.target.value })} /></div>
+              <div><label className="text-xs opacity-50 block mb-1">Target Date</label><input type="date" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={editForm.due_date || ''} onChange={e => setEditForm({ ...editForm, due_date: e.target.value })} /></div>
+              <button onClick={handleSaveMilestone} className="w-full py-2 bg-sanctum-gold rounded text-sm text-slate-900 font-bold mt-2">Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ADD TICKET MODAL */}
       {showTicketModal && (
