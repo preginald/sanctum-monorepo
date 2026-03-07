@@ -249,16 +249,29 @@ def patch_article_section(
     db.refresh(article)
     return article
 
-@router.get("/articles/{article_id}/history", response_model=List[schemas.ArticleHistoryResponse])
-def get_article_history(article_id: str, db: Session = Depends(get_db)):
-    history = db.query(models.ArticleHistory).options(joinedload(models.ArticleHistory.author))\
-        .filter(models.ArticleHistory.article_id == article_id)\
-        .order_by(models.ArticleHistory.snapshot_at.desc()).all()
-        
-    for h in history:
+@router.get("/articles/{article_id}/history", response_model=schemas.Page[schemas.ArticleHistoryResponse])
+def get_article_history(
+    article_id: str,
+    page: int = 1,
+    page_size: int = 20,
+    section_heading: str = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(models.ArticleHistory).options(joinedload(models.ArticleHistory.author))\
+        .filter(models.ArticleHistory.article_id == article_id)
+    if section_heading:
+        query = query.filter(models.ArticleHistory.section_heading == section_heading)
+    total = query.count()
+    items = query.order_by(models.ArticleHistory.snapshot_at.desc())\
+        .offset((page - 1) * page_size).limit(page_size).all()
+    for h in items:
         if h.author: h.author_name = h.author.full_name
-        
-    return history
+    return schemas.Page(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=items
+    )
 
 @router.get("/articles/{article_id}/pdf")
 def download_article_pdf(article_id: str, db: Session = Depends(get_db)):

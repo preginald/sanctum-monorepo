@@ -1,4 +1,4 @@
-from .shared import InvoiceLite, ArticleLite, SearchResult
+from .shared import InvoiceLite, ArticleLite, SearchResult, Page
 from .auth import (
     Token, TokenData, UserResponse, ClientUserCreate, 
     TwoFASetupResponse, TwoFAVerify,

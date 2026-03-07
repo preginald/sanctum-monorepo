@@ -2,7 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate, Link2, Unlink } from 'lucide-react';
+import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate, Link2, Unlink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { diffWords } from 'diff';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import MetadataStrip from '../components/ui/MetadataStrip';
 import api from '../lib/api';
@@ -61,6 +62,11 @@ Client: Digital Sanctum HQ`;
   const [article, setArticle] = useState(null);
   const [rawContent, setRawContent] = useState('');
   const [history, setHistory] = useState([]);
+  const [historyTotal, setHistoryTotal] = useState(0);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyPageSize] = useState(20);
+  const [historySectionFilter, setHistorySectionFilter] = useState('');
+  const [historySections, setHistorySections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [activeTab, setActiveTab] = useState('content');
@@ -121,10 +127,20 @@ Client: Digital Sanctum HQ`;
     }
   };
 
-  const fetchHistory = async (id) => {
+  const fetchHistory = async (id, page = 1, sectionFilter = '') => {
       try {
-          const res = await api.get(`/articles/${id}/history`);
-          setHistory(res.data);
+          const params = new URLSearchParams({ page, page_size: 20 });
+          if (sectionFilter) params.append('section_heading', sectionFilter);
+          const res = await api.get(`/articles/${id}/history?${params}`);
+          setHistory(res.data.items);
+          setHistoryTotal(res.data.total);
+          setHistoryPage(res.data.page);
+          // Build unique section list from first page load (no filter)
+          if (!sectionFilter && page === 1) {
+              const allRes = await api.get(`/articles/${id}/history?page=1&page_size=200`);
+              const sections = [...new Set(allRes.data.items.map(h => h.section_heading).filter(Boolean))];
+              setHistorySections(sections);
+          }
       } catch(e) { console.error("Failed to load history", e); }
   };
 
@@ -241,7 +257,7 @@ Client: Digital Sanctum HQ`;
             <FileText size={14} /> Content
           </button>
           <button onClick={() => setActiveTab('history')} className={`pb-3 text-sm font-bold uppercase tracking-widest border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'history' ? 'border-sanctum-gold text-sanctum-gold' : 'border-transparent text-slate-500 hover:text-white'}`}>
-            <History size={14} /> History ({history.length})
+            <History size={14} /> History ({historyTotal > 0 ? historyTotal : history.length})
           </button>
         </div>
 
@@ -255,12 +271,28 @@ Client: Digital Sanctum HQ`;
         {/* HISTORY TAB */}
         {activeTab === 'history' && (
             <div className="animate-in slide-in-from-left-2 duration-200">
+                {/* Section filter + pagination header */}
+                <div className="flex items-center justify-between mb-3 gap-3">
+                    <select
+                        value={historySectionFilter}
+                        onChange={e => { setHistorySectionFilter(e.target.value); fetchHistory(article.id, 1, e.target.value); }}
+                        className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded px-2 py-1.5 focus:outline-none focus:border-sanctum-gold"
+                    >
+                        <option value="">All sections</option>
+                        {historySections.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <span className="text-xs text-slate-500">{historyTotal} entries</span>
+                </div>
                 <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-                    {history.length > 0 ? history.map((h, i) => (
+                    {history.length > 0 ? history.map((h) => {
+                        const wordDiff = h.diff_before != null && h.diff_after != null
+                            ? diffWords(h.diff_before, h.diff_after)
+                            : null;
+                        return (
                         <div key={h.id} className="p-4 border-b border-slate-800 last:border-0 hover:bg-white/5 transition-colors">
                             <div className="flex justify-between items-start">
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3 mb-1">
+                                    <div className="flex items-center gap-3 mb-1 flex-wrap">
                                         <span className="font-mono text-sm text-sanctum-gold font-bold">{h.version}</span>
                                         <span className="text-white font-bold text-sm">{h.title}</span>
                                         {h.section_heading ? (
@@ -269,25 +301,50 @@ Client: Digital Sanctum HQ`;
                                             <span className="text-[10px] font-bold uppercase bg-slate-500/20 text-slate-400 px-1.5 py-0.5 rounded">Full article</span>
                                         )}
                                     </div>
-                                    <div className="text-xs text-slate-500 flex items-center gap-3">
+                                    <div className="text-xs text-slate-500 flex items-center gap-3 mb-2">
                                         <span className="flex items-center gap-1"><User size={12}/> {h.author_name || 'System'}</span>
                                         <span className="flex items-center gap-1"><Clock size={12}/> {new Date(h.snapshot_at).toLocaleString()}</span>
                                     </div>
-                                    {h.diff_before && h.diff_after && (
-                                        <div className="mt-2 grid grid-cols-2 gap-2">
-                                            <div className="bg-red-500/10 border border-red-500/20 rounded p-2 text-[10px] font-mono text-red-400 line-clamp-2 whitespace-pre-wrap">{h.diff_before}</div>
-                                            <div className="bg-green-500/10 border border-green-500/20 rounded p-2 text-[10px] font-mono text-green-400 line-clamp-2 whitespace-pre-wrap">{h.diff_after}</div>
+                                    {wordDiff && (
+                                        <div className="mt-1 bg-slate-800 border border-slate-700 rounded p-2 text-[11px] font-mono leading-relaxed whitespace-pre-wrap break-words">
+                                            {wordDiff.map((part, idx) => (
+                                                <span
+                                                    key={idx}
+                                                    className={
+                                                        part.added ? 'bg-green-500/25 text-green-300' :
+                                                        part.removed ? 'bg-red-500/25 text-red-300 line-through' :
+                                                        'text-slate-400'
+                                                    }
+                                                >{part.value}</span>
+                                            ))}
                                         </div>
                                     )}
                                 </div>
                             </div>
                         </div>
-                    )) : (
+                        );
+                    }) : (
                         <div className="p-8 text-center text-slate-500 italic">
                             No history records found. Edit the article to create a snapshot.
                         </div>
                     )}
                 </div>
+                {/* Pagination controls */}
+                {historyTotal > historyPageSize && (
+                    <div className="flex items-center justify-between mt-3">
+                        <button
+                            onClick={() => { const p = historyPage - 1; setHistoryPage(p); fetchHistory(article.id, p, historySectionFilter); }}
+                            disabled={historyPage <= 1}
+                            className="flex items-center gap-1 text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        ><ChevronLeft size={14}/> Prev</button>
+                        <span className="text-xs text-slate-500">Page {historyPage} of {Math.ceil(historyTotal / historyPageSize)}</span>
+                        <button
+                            onClick={() => { const p = historyPage + 1; setHistoryPage(p); fetchHistory(article.id, p, historySectionFilter); }}
+                            disabled={historyPage >= Math.ceil(historyTotal / historyPageSize)}
+                            className="flex items-center gap-1 text-xs text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                        >Next <ChevronRight size={14}/></button>
+                    </div>
+                )}
             </div>
         )}
         </div>

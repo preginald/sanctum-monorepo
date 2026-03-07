@@ -1,5 +1,5 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
-from typing import Optional, List
+from typing import Optional, List, Generic, TypeVar
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
@@ -8,6 +8,16 @@ from decimal import Decimal
 # Pydantic V2 Configuration Mixin
 class SanctumBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
+# --- GENERIC PAGINATION ---
+T = TypeVar("T")
+
+class Page(SanctumBase, Generic[T]):
+    total: int
+    page: int
+    page_size: int
+    items: list[T] = []
+
 
 # --- SHARED LITE MODELS ---
 # Used to break circular dependencies (e.g. Account listing its Invoices)
