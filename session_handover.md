@@ -1,140 +1,95 @@
-# Session Handover — Phase 74: The Foreman
-**Date:** 2026-03-06
-**Last commit:** `c4d0e1a` — feat: MilestoneDetail — add edit milestone modal (#382)
-**Environment:** Production (https://core.digitalsanctum.com.au/api)
+# Session Handover — Phase 74/75: The Foreman + DevOps Foundation
+Date: 2026-03-07
 
----
+## What We Accomplished
 
-## Session Summary
+### #383 — Article History Tab: Pagination + Inline Word Diff ✅
+- Generic `Page[T]` schema added to `sanctum-core/app/schemas/shared.py`
+- `GET /articles/{id}/history` now paginated (page, page_size, section_heading params)
+- `ArticleDetail.jsx` — inline word-level diff using `jsdiff`, section filter dropdown, pagination controls
+- `diff` npm package installed in sanctum-web
+- Commit: `d6b8213`
 
-Phase 74 delivered a full project management suite overhaul — from a basic milestone checklist to a proper two-level navigation model. The key philosophical shift: **ProjectDetail is a dashboard (navigate), MilestoneDetail is a workspace (work).**
+### #384 — Generic Pagination Rollout Ticket ✅ (created, open)
+- Tracks rolling out `Page[T]` to all list endpoints (tickets, articles, invoices, etc.)
 
----
+### Phase 75: DevOps & Automation — Milestone + Tickets Created ✅
+- Milestone: Phase 75: DevOps & Automation (85eb520e)
+- #385 — sanctum.sh omnisearch integration (open — next session)
+- #386 — Pre-commit hook sanity checks (open)
+- #387 — Deploy script ✅ resolved
+- #388 — Dev/prod schema drift detection (open)
 
-## Tickets Resolved
+### #387 — Deploy Script ✅
+- `scripts/ops/deploy.sh` delivered — manual fallback deployment script
+- Steps: SSH check → git pull --ff-only → migration check/apply → pip install → npm build → systemctl restart sanctum-api → health check → deploy log
+- `--dry-run` flag supported
+- Health endpoint confirmed: `/api/system/health`
+- Commit: `edc373a`
 
-### #290 — Backend: Review and improve project detail view
-- Fixed `update_milestone` handler — `description` field was in schema but silently dropped
-- Added `GET /milestones/{milestone_id}` endpoint with eager-loaded tickets and project
-- Added to `MilestoneResponse`: `created_at`, `project_name`, `account_id`, `account_name`
-- Chained joinedload: `Milestone → Project → Account` (zero extra queries)
+### SSH Alias ✅
+- `sanctum-prod` alias added to `~/.ssh/config` (host: 159.223.82.75, user: preginald)
+- DOC-028 created — SSH Configuration & Server Access
+- DOC-029 created — Manual Deployment — Fallback Deploy Script
 
-### #352 — Refactor: ProjectDetail — industry-standard project management view
-- Fixed inverted grid (milestones now lg:col-span-2 left, sidebar right)
-- Health summary card: total tickets, resolved, milestone completion ratio, billed vs billable
-- Compact milestone rows: sequence bubble + name link + progress bar + ticket count + status + bill button
-- Milestone names link to `/milestones/{id}`
-- Sticky nav (scroll > 60px) + sticky sidebar
-- MetadataStrip as first sidebar card (storageKey: `ds_metadata_expanded_project`)
-- ProjectStats Timeline card removed (redundant with MetadataStrip)
-- `billable_amount` string-to-float bug fixed in ProjectStats
-- Ticket creation modal removed — moved to MilestoneDetail
-- Inline TicketList removed from milestone rows
+### Divergent Branch Issue Resolved ✅
+- `scripts/dev/migrate_article_history_diffs.py` removed from repo (one-off script, already run)
+- Merge conflict on prod resolved via `git rm` + push
 
-### #351 — Feature: MilestoneDetail — dedicated milestone dossier page
-- New page at `/milestones/:id`
-- Full TicketList (History toggle, compact/expanded view modes)
-- Properties sidebar card: sequence, billable amount, invoice link, description (conditional), progress bar, status select
-- Parent project card with gold link
-- MetadataStrip first sidebar card (storageKey: `ds_metadata_expanded_milestone`)
-- Sticky nav: project name + Add Ticket + Bill (conditional)
-- Ticket creation modal (moved from ProjectDetail) — pre-fills milestone_id and account_id
-- Breadcrumb: `Client Name › Project Name › Milestones`
-- Route registered in App.jsx
+## Current State
 
-### #381 — TicketDetail: Link milestone breadcrumb to MilestoneDetail
-- Milestone crumb in TicketDetail breadcrumb now links to `/milestones/{id}`
-- Eliminated breadcrumb pop-in — `project_name`/`project_id` were already on TicketResponse (eager-loaded via milestone→project chain). Frontend was redundantly fetching `GET /projects?account_id=...` to resolve project name. Now uses ticket fields directly on first render.
+- Git: `main` branch, commit `edc373a`, clean
+- Prod: fully deployed and healthy
+- Phase 75 milestone seeded with 4 tickets (#385–#388)
+- SOP-099: v2.29 (needs update — see below)
 
-### #379 — Documentation: Project Management Workflow Guide
-- Created DOC-027 — "Project Management — Workflow Guide"
-- Category: System Documentation
-- Covers: philosophy, ProjectDetail health summary and milestone list, MilestoneDetail workspace and billing, TicketDetail, full navigation chain
-- Linked to DOC-001 and TPL-001
+## Open Tickets (This Session)
 
-### #382 — MilestoneDetail: Add edit milestone modal
-- Edit button added to header actions and sticky nav
-- Modal pre-fills current milestone values (name, description, billable amount, due date, sequence)
-- Calls `PUT /milestones/{id}` on save, refreshes page
-
----
-
-## Standards Decisions
-
-### Deprecated (platform-wide)
-- **`subtitle` prop on Layout** — context belongs in MetadataStrip
-- **`badge`/`badges` props on Layout** — status badges belong in MetadataStrip
-
-### Retained
-- **`breadcrumb` prop on Layout** — stays for all client-scoped pages
-- Format: `{ label, path }` (uses `path` key, not `to`)
-- Client-scoped breadcrumb pattern: `Client Name › Section Name`
-- For MilestoneDetail: `Client Name › Project Name › Milestones`
-- For TicketDetail: `Client Name › Project Name › Milestone Name › Tickets`
-
-### MetadataStrip rules (updated)
-- Always first sidebar card
-- Collapsed by default
-- storageKey convention: `ds_metadata_expanded_{page}`
-
----
-
-## New Tickets Created (open)
-
-| # | Subject | Type |
-|---|---------|------|
-| #377 | Standards update: Deprecate subtitle/breadcrumb/Layout badges in favour of MetadataStrip — update TPL-001 to v1.8, DOC-008 to v1.1 | task |
-| #378 | Sweep: Remove subtitle/breadcrumb/Layout badges from all detail pages (9 pages: TicketDetail, ArticleDetail, AssetDetail, ClientDetail, InvoiceDetail, DealDetail, AuditDetail, CampaignDetail, TemplateDetail) | refactor |
-
----
-
-## New Articles Created
-
-| Identifier | Title | Category |
+| # | Subject | Milestone |
 |---|---|---|
-| DOC-027 | Project Management — Workflow Guide | System Documentation |
+| #384 | Generic pagination — roll out Page[T] to all list endpoints | Phase 55 |
+| #385 | sanctum.sh omnisearch integration | Phase 75 |
+| #386 | Pre-commit hook — sanity checks | Phase 75 |
+| #388 | Dev/prod schema drift detection | Phase 75 |
 
----
+## Next Session: #385 — sanctum.sh Omnisearch Integration
 
-## New Status Styles Added
-- `milestoneStatusStyles` added to `sanctum-web/src/lib/statusStyles.js`
-  - pending: slate
-  - active: green
-  - completed: blue
+Add `sanctum.sh search <query>` subcommand hitting `GET /search?q=<query>`.
+- Scope results with optional `--type` flag (tickets, articles, milestones, etc.)
+- Format results in readable CLI table grouped by type
+- Will also fix the pain point of needing to list all milestones just to find one by keyword
+- Related: #328 (Omnisearch fuzzy matching accuracy — separate issue)
 
----
+## SOP-099 Updates Needed (v2.30)
 
-## Key Files Modified
+1. Add `deploy.sh` to Section 4 or Appendix — document the fallback deploy workflow
+2. Add `sanctum-prod` SSH alias setup to Section 4 or Appendix
+3. Add to Appendix D accelerators:
+   - ✅ Write content to `/tmp/` before `sanctum.sh article create/update -f` to avoid token-costly heredoc retries
+   - ✅ Check DOC-009 before using any sanctum.sh subcommand — never guess flags
+   - ✅ `git push 2>&1 | srun` — git push writes to stderr, pipe both streams
+   - ✅ Deploy script as fallback when GitHub Actions fails
+4. Add to Appendix D anti-patterns:
+   - ❌ Direct SSH edits to tracked files on prod — causes divergent branch on next deploy
+   - ❌ Plain `git pull` in deploy contexts — use `--ff-only` to abort on divergence
 
-| File | Changes |
-|---|---|
-| `sanctum-core/app/routers/projects.py` | milestone description fix, GET /milestones/{id}, account_name via chained joinedload |
-| `sanctum-core/app/schemas/strategy.py` | MilestoneResponse: created_at, project_name, account_id, account_name |
-| `sanctum-web/src/pages/ProjectDetail.jsx` | Full Intelligence Dossier refactor, compact milestone rows |
-| `sanctum-web/src/pages/MilestoneDetail.jsx` | New page |
-| `sanctum-web/src/pages/TicketDetail.jsx` | Breadcrumb pop-in fix, milestone link |
-| `sanctum-web/src/components/projects/ProjectStats.jsx` | Timeline card removed, float fix |
-| `sanctum-web/src/lib/statusStyles.js` | milestoneStatusStyles added |
-| `sanctum-web/src/App.jsx` | MilestoneDetail import + route registered |
+## Key Patterns Established This Session
 
----
+- `Page[T]` generic pagination schema — reuse for all future paginated endpoints
+- `sanctum-prod` SSH alias — use in all scripts and remote commands
+- `deploy.sh` as emergency fallback — GitHub Actions remains primary pipeline
+- All tickets must include `--articles` and typed `--relate-tickets` on creation to maintain knowledge graph integrity
 
-## Commits This Session
+## Commands for Next Session
+```bash
+# Start dev environment
+cd sanctum-core && source venv/bin/activate && uvicorn app.main:app --reload
+cd sanctum-web && npm run dev
 
-| Hash | Message |
-|---|---|
-| `d347655` | fix: milestone description patch, GET /milestones/{id}, created_at + project_name in schema (#290) |
-| `6fa1fd2` | refactor: ProjectDetail — Intelligence Dossier standard, health summary, milestone progress, MetadataStrip, sticky nav (#352) |
-| `20036c8` | refactor: ProjectDetail — compact milestone rows, remove inline TicketList and ticket modal (#352) |
-| `eaec3f5` | feat: MilestoneDetail page, account_id on MilestoneResponse, milestoneStatusStyles (#351) |
-| `192e287` | fix: MilestoneDetail breadcrumb — add client name via eager-loaded account, account_name on MilestoneResponse (#351) |
-| `40f4b85` | fix: TicketDetail breadcrumb — use ticket.project_name directly, eliminate pop-in; link milestone to MilestoneDetail (#381) |
-| `c4d0e1a` | feat: MilestoneDetail — add edit milestone modal (#382) |
+# Check #385 ticket
+./scripts/dev/sanctum.sh ticket show 385 -e prod
 
----
-
-## Next Session Priorities
-
-1. **#377** — Update TPL-001 (v1.8) and DOC-008 (v1.1) to reflect deprecated Layout props
-2. **#378** — Sweep all 9 detail pages to remove subtitle/badges/breadcrumb from Layout props and ensure MetadataStrip is first sidebar card
-3. Any remaining Phase 74 backlog or Phase 75 planning
+# Test omnisearch endpoint before CLI work
+curl -s "https://core.digitalsanctum.com.au/api/search?q=devops" \
+  -H "Authorization: Bearer $SANCTUM_API_TOKEN" | jq '.'
+```
