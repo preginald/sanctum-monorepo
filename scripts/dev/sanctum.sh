@@ -1396,6 +1396,8 @@ article_unrelate() {
 article_show() {
     local QUERY="$1"; shift
     local ENV="dev"
+    local SHOW_CONTENT=false
+    local SHOW_HEADINGS=false
 
     [ -z "$QUERY" ] && echo -e "${RED}✗ Slug or identifier is required${NC}" && exit 1
 
@@ -1403,6 +1405,7 @@ article_show() {
         case $1 in
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
+            --headings)     SHOW_HEADINGS=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -1425,7 +1428,9 @@ article_show() {
         exit 1
     fi
     echo ""
-    if [ "$SHOW_CONTENT" = true ]; then
+    if [ "$SHOW_HEADINGS" = true ]; then
+        echo "$RESULT" | jq -r '.content' | grep '^#\+ '
+    elif [ "$SHOW_CONTENT" = true ]; then
         echo "$RESULT" | jq '{id, identifier, title, slug, category, version, author_id, created_at, updated_at, content}'
     else
         echo "$RESULT" | jq '{id, identifier, title, slug, category, version, author_id, created_at, updated_at}'
