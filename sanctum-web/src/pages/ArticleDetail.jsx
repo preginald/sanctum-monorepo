@@ -305,6 +305,14 @@ Client: Digital Sanctum HQ`;
                                         <span className="flex items-center gap-1"><User size={12}/> {h.author_name || 'System'}</span>
                                         <span className="flex items-center gap-1"><Clock size={12}/> {new Date(h.snapshot_at).toLocaleString()}</span>
                                     </div>
+                                    {h.change_comment && (
+                                        <div className="text-xs text-slate-400 italic mb-2 flex items-center gap-1.5">
+                                            <span className="text-slate-600">—</span> {h.change_comment}
+                                        </div>
+                                    )}
+                                    <div className="flex gap-2 mb-2">
+                                        <button onClick={() => { if(window.confirm(`Revert article to ${h.version}?`)) { api.post(`/articles/${id}/revert/${h.id}`, { change_comment: `Reverted to ${h.version}` }).then(() => { addToast("Article reverted", "success"); fetchArticle(); fetchHistory(article.id, historyPage, historySectionFilter); }).catch(() => addToast("Revert failed", "danger")); }}} className="text-[10px] px-2 py-0.5 rounded bg-sanctum-gold/10 text-sanctum-gold border border-sanctum-gold/20 hover:bg-sanctum-gold/20 transition-colors">Revert to this version</button>
+                                    </div>
                                     {wordDiff && (
                                         <div className="mt-1 bg-slate-800 border border-slate-700 rounded p-2 text-[11px] font-mono leading-relaxed whitespace-pre-wrap break-words">
                                             {wordDiff.map((part, idx) => (
