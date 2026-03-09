@@ -156,11 +156,13 @@ def update_article(
         version=article.version,
         section_heading=None,
         diff_before=old_content,
-        diff_after=None  # populated post-commit via update_article_history_after
+        diff_after=None,  # populated post-commit via update_article_history_after
+        change_comment=update.change_comment
     )
     db.add(history_entry)
     
     update_data = update.model_dump(exclude_unset=True)
+    update_data.pop("change_comment", None)  # not an article field
 
     # 2. AUTOMATION: Smart Versioning
     # If version is missing OR matches the current DB version, we auto-increment
@@ -229,7 +231,8 @@ def patch_article_section(
         version=article.version,
         section_heading=patch.heading,
         diff_before=old_section_body,
-        diff_after=patch.content
+        diff_after=patch.content,
+        change_comment=patch.change_comment
     )
     db.add(history_entry)
 
@@ -272,6 +275,61 @@ def get_article_history(
         page_size=page_size,
         items=items
     )
+
+@router.post("/articles/{article_id}/revert/{history_id}", response_model=schemas.ArticleResponse)
+def revert_article(
+    article_id: str,
+    history_id: str,
+    revert_request: schemas.ArticleRevertRequest = None,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    
+    history_entry = db.query(models.ArticleHistory).filter(
+        models.ArticleHistory.id == history_id,
+        models.ArticleHistory.article_id == article_id
+    ).first()
+    if not history_entry:
+        raise HTTPException(status_code=404, detail="History entry not found for this article")
+    
+    fields = (revert_request.fields if revert_request and revert_request.fields else ["content", "title"])
+    valid_fields = {"content", "title"}
+    if not set(fields).issubset(valid_fields):
+        raise HTTPException(status_code=400, detail=f"Invalid fields. Allowed: {valid_fields}")
+    
+    # 1. HISTORY SNAPSHOT (capture current state before revert)
+    default_comment = f"Reverted to {history_entry.version}"
+    change_comment = (revert_request.change_comment if revert_request and revert_request.change_comment else default_comment)
+    snapshot = models.ArticleHistory(
+        article_id=article.id,
+        author_id=article.author_id,
+        title=article.title,
+        content=article.content,
+        version=article.version,
+        section_heading=None,
+        diff_before=article.content,
+        diff_after=history_entry.content if "content" in fields else article.content,
+        change_comment=change_comment
+    )
+    db.add(snapshot)
+    
+    # 2. APPLY REVERT
+    if "content" in fields:
+        article.content = history_entry.content
+    if "title" in fields:
+        article.title = history_entry.title
+    
+    # 3. VERSION BUMP
+    article.version = _increment_version(article.version)
+    article.author_id = current_user.id
+    
+    db.commit()
+    db.refresh(article)
+    return article
+
 
 @router.get("/articles/{article_id}/pdf")
 def download_article_pdf(article_id: str, db: Session = Depends(get_db)):

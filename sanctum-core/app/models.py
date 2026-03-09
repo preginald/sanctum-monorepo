@@ -495,6 +495,7 @@ class ArticleHistory(Base):
     diff_before = Column(Text, nullable=True)
     diff_after = Column(Text, nullable=True)
     version = Column(String) 
+    change_comment = Column(Text, nullable=True)
     snapshot_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     article = relationship("Article", backref="history")

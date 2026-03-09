@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from .shared import SanctumBase
@@ -34,10 +34,12 @@ class ArticleUpdate(SanctumBase):
     category: Optional[str] = None
     identifier: Optional[str] = None
     version: Optional[str] = None
+    change_comment: Optional[str] = None
 
 class ArticleSectionPatch(SanctumBase):
     heading: str  # Exact heading string e.g. "## Milestone Commands"
     content: str  # New section content (excluding the heading line itself)
+    change_comment: Optional[str] = None
 
 class ArticleHistoryResponse(SanctumBase):
     id: UUID
@@ -49,6 +51,11 @@ class ArticleHistoryResponse(SanctumBase):
     section_heading: Optional[str] = None  # None = whole-article change
     diff_before: Optional[str] = None
     diff_after: Optional[str] = None
+    change_comment: Optional[str] = None
+
+class ArticleRevertRequest(SanctumBase):
+    fields: Optional[List[str]] = None  # ["content", "title"] — defaults to both if omitted
+    change_comment: Optional[str] = None
 
 class RelatedArticleResponse(SanctumBase):
     id: UUID
