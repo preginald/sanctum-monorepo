@@ -166,7 +166,9 @@ article_usage() {
     echo "  update   Update an existing article"
     echo "  show     Show article details"
     echo "  relate   Link one or more related articles"
-    echo "  unrelate Unlink a related article"
+    echo "  unrelate Unlink a related article
+  history  List version history for an article
+  revert   Revert an article to a previous version"
     echo ""
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
     echo "  create:  -t|--title <text>, --slug <text>, --category <category>,"
@@ -176,6 +178,9 @@ article_usage() {
     echo "  show:    <slug|identifier>, [-c|--content], [-e|--env]"
     echo "  relate:  <uuid|identifier> --related <id1,id2,...>, [-e|--env]"
     echo "  unrelate:<uuid|identifier> --related <id>, [-e|--env]"
+    echo "  history: <slug|identifier>, [-n|--page-size <n>], [-e|--env]"
+    echo "  revert:  <slug|identifier>, --history-id <id>|--to-version <ver>,"
+    echo "           [--fields content,title], [--comment <text>], [-e|--env]"
     echo ""
     echo -e "${YELLOW}CATEGORIES${NC}"
     echo "  Standard Operating Procedure, System Documentation, Developer Documentation,"
@@ -188,6 +193,9 @@ article_usage() {
     echo "  sanctum.sh article update DOC-009 --section \"## Milestone Commands\" -f /tmp/section.md -e prod"
     echo "  sanctum.sh article relate DOC-012 --related \"DOC-001,WIKI-002\" -e prod"
     echo "  sanctum.sh article unrelate DOC-012 --related DOC-001 -e prod"
+    echo "  sanctum.sh article history DOC-012 -e prod"
+    echo "  sanctum.sh article revert DOC-012 --to-version v1.3 -e prod"
+    echo "  sanctum.sh article revert DOC-012 --history-id abc123 --fields content --comment 'Rolling back' -e prod"
     echo "  sanctum.sh article show DOC-012 -c"
     echo ""
     exit 0
@@ -1393,6 +1401,124 @@ article_unrelate() {
     echo ""
 }
 
+article_history() {
+    local QUERY="$1"; shift
+    local ENV="dev"
+    local PAGE_SIZE=10
+    [ -z "$QUERY" ] && echo -e "${RED}✗ Identifier or slug is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -e|--env)       ENV="$2"; shift 2 ;;
+            -n|--page-size) PAGE_SIZE="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — article history"
+    ensure_auth
+    # Resolve identifier to UUID
+    if [[ "$QUERY" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        echo -e "${YELLOW}→ Looking up by identifier: ${QUERY}...${NC}"
+        ARTICLE_JSON=$(api_get "/articles" | jq --arg id "$QUERY" '.[] | select(.identifier == $id)')
+    else
+        echo -e "${YELLOW}→ Looking up by slug: ${QUERY}...${NC}"
+        ARTICLE_JSON=$(api_get "/articles/${QUERY}")
+    fi
+    if [ -z "$ARTICLE_JSON" ] || [ "$ARTICLE_JSON" = "null" ]; then
+        echo -e "${RED}✗ Article not found: ${QUERY}${NC}"
+        exit 1
+    fi
+    local ARTICLE_ID=$(echo "$ARTICLE_JSON" | jq -r '.id')
+    local ARTICLE_TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
+    echo -e "${GREEN}✓ ${ARTICLE_TITLE}${NC}"
+    echo ""
+    RESULT=$(api_get "/articles/${ARTICLE_ID}/history?page_size=${PAGE_SIZE}")
+    TOTAL=$(echo "$RESULT" | jq '.total')
+    echo -e "${YELLOW}History entries (${TOTAL} total, showing up to ${PAGE_SIZE}):${NC}"
+    echo ""
+    echo "$RESULT" | jq -r '.items[] | "  \(.version) — \(.snapshot_at) — \(.author_name // "System") — \(if .section_heading then "[" + .section_heading + "]" else "[Full article]" end) — \(if .change_comment then .change_comment else "" end)\n    ID: \(.id)"'
+    echo ""
+}
+
+article_revert() {
+    local QUERY="$1"; shift
+    local ENV="dev"
+    local HISTORY_ID=""
+    local TO_VERSION=""
+    local FIELDS=""
+    local COMMENT=""
+    [ -z "$QUERY" ] && echo -e "${RED}✗ Identifier or slug is required${NC}" && exit 1
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -e|--env)         ENV="$2"; shift 2 ;;
+            --history-id)     HISTORY_ID="$2"; shift 2 ;;
+            --to-version)     TO_VERSION="$2"; shift 2 ;;
+            --fields)         FIELDS="$2"; shift 2 ;;
+            --comment)        COMMENT="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — article revert"
+    ensure_auth
+    # Resolve identifier to UUID
+    if [[ "$QUERY" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        echo -e "${YELLOW}→ Looking up by identifier: ${QUERY}...${NC}"
+        ARTICLE_JSON=$(api_get "/articles" | jq --arg id "$QUERY" '.[] | select(.identifier == $id)')
+    else
+        echo -e "${YELLOW}→ Looking up by slug: ${QUERY}...${NC}"
+        ARTICLE_JSON=$(api_get "/articles/${QUERY}")
+    fi
+    if [ -z "$ARTICLE_JSON" ] || [ "$ARTICLE_JSON" = "null" ]; then
+        echo -e "${RED}✗ Article not found: ${QUERY}${NC}"
+        exit 1
+    fi
+    local ARTICLE_ID=$(echo "$ARTICLE_JSON" | jq -r '.id')
+    local ARTICLE_TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
+    local CURRENT_VERSION=$(echo "$ARTICLE_JSON" | jq -r '.version')
+    # If --to-version given, resolve it to a history ID
+    if [ -n "$TO_VERSION" ] && [ -z "$HISTORY_ID" ]; then
+        echo -e "${YELLOW}→ Resolving version ${TO_VERSION}...${NC}"
+        HISTORY_ID=$(api_get "/articles/${ARTICLE_ID}/history?page_size=200" | jq -r --arg v "$TO_VERSION" '.items[] | select(.version == $v) | .id' | head -1)
+        if [ -z "$HISTORY_ID" ] || [ "$HISTORY_ID" = "null" ]; then
+            echo -e "${RED}✗ No history entry found for version: ${TO_VERSION}${NC}"
+            exit 1
+        fi
+    fi
+    if [ -z "$HISTORY_ID" ]; then
+        echo -e "${RED}✗ Either --history-id or --to-version is required${NC}"
+        exit 1
+    fi
+    # Build JSON body
+    local BODY="{}"
+    if [ -n "$FIELDS" ]; then
+        BODY=$(echo "$BODY" | jq --arg f "$FIELDS" '.fields = ($f | split(","))')
+    fi
+    if [ -n "$COMMENT" ]; then
+        BODY=$(echo "$BODY" | jq --arg c "$COMMENT" '.change_comment = $c')
+    fi
+    echo ""
+    echo -e "${BOLD}  Article:  ${ARTICLE_TITLE}${NC}"
+    echo -e "  Current:  ${CURRENT_VERSION}"
+    echo -e "  Revert to: ${HISTORY_ID}"
+    [ -n "$FIELDS" ] && echo -e "  Fields:   ${FIELDS}"
+    [ -n "$COMMENT" ] && echo -e "  Comment:  ${COMMENT}"
+    echo ""
+    confirm_prod
+    RESULT=$(curl -s -X POST "${API_BASE}/articles/${ARTICLE_ID}/revert/${HISTORY_ID}" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d "$BODY")
+    local NEW_VERSION=$(echo "$RESULT" | jq -r '.version')
+    if [ -n "$NEW_VERSION" ] && [ "$NEW_VERSION" != "null" ]; then
+        echo -e "${GREEN}✓ Article reverted${NC}"
+        echo -e "  New version: ${NEW_VERSION}"
+    else
+        echo -e "${RED}✗ Revert failed${NC}"
+        echo "$RESULT" | jq .
+    fi
+    echo ""
+}
 article_show() {
     local QUERY="$1"; shift
     local ENV="dev"
@@ -1508,9 +1634,11 @@ case "$DOMAIN" in
             show)      article_show "$@" ;;
             relate)    article_relate "$@" ;;
             unrelate)  article_unrelate "$@" ;;
+            history)   article_history "$@" ;;
+            revert)    article_revert "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown article command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, show, relate, unrelate"
+                echo "  Valid commands: create, update, show, relate, unrelate, history, revert"
                 exit 1
                 ;;
         esac
