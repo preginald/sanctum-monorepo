@@ -22,10 +22,12 @@ def _generate_identifier(db: Session, category: str) -> str:
     Template -> TPL-001
     """
     prefix_map = {
-        'sop': 'SOP',
-        'troubleshooting': 'TRB',
-        'wiki': 'WIKI',
-        'template': 'TPL'
+        'standard operating procedure': 'SOP',
+        'system documentation': 'SYS',
+        'developer documentation': 'DOC',
+        'troubleshooting guide': 'TRB',
+        'general knowledge': 'WIKI',
+        'template': 'TPL',
     }
     prefix = prefix_map.get(category.lower(), 'DOC')
     
