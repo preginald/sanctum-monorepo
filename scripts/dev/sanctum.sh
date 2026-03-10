@@ -35,6 +35,7 @@ usage() {
     echo "  milestone  Manage project milestones (create, update, list, show)"
     echo "  invoice    Manage invoices (create, update, delete, show)"
     echo "  article    Manage knowledge base articles (create, update, show)"
+    echo "  search     Omnisearch — cross-entity fuzzy search"
     echo ""
     echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
     echo "  -e, --env       dev | prod (default: dev)"
@@ -197,6 +198,26 @@ article_usage() {
     echo "  sanctum.sh article revert DOC-012 --to-version v1.3 -e prod"
     echo "  sanctum.sh article revert DOC-012 --history-id abc123 --fields content --comment 'Rolling back' -e prod"
     echo "  sanctum.sh article show DOC-012 -c"
+    echo ""
+    exit 0
+}
+
+search_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh search — Omnisearch CLI${NC}"
+    echo ""
+    echo "Usage: sanctum.sh search <query> [options]"
+    echo ""
+    echo -e "${YELLOW}OPTIONS${NC}"
+    echo "  -t|--type <type>   Scope search to entity type (ticket, wiki, client, contact, asset, project, milestone, product)"
+    echo "  -l|--limit <n>     Max results per entity type (default: 5, max: 20)"
+    echo "  -e|--env           dev | prod (default: dev)"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh search phoenix -e prod"
+    echo "  sanctum.sh search login --type ticket -e prod"
+    echo "  sanctum.sh search "office 365" --type product --limit 10 -e prod"
+    echo "  sanctum.sh search DOC-009 --type wiki -e prod"
     echo ""
     exit 0
 }
@@ -1168,6 +1189,20 @@ invoice_show() {
 # ─────────────────────────────────────────────
 # ARTICLE DOMAIN
 # ─────────────────────────────────────────────
+
+# Translate human labels to API keys (Ticket #403)
+map_category_to_key() {
+    case "$1" in
+        "Developer Documentation")     echo "developer-docs" ;;
+        "System Documentation")        echo "system-docs" ;;
+        "Standard Operating Procedure") echo "sop" ;;
+        "Troubleshooting Guide")       echo "troubleshooting" ;;
+        "General Knowledge")           echo "wiki" ;;
+        "Template")                    echo "template" ;;
+        *)                             echo "$1" ;; # Fallback
+    esac
+}
+
 article_create() {
     local TITLE="" SLUG="" CATEGORY="" CONTENT_FILE="" ENV="dev"
     local RELATED=""
@@ -1205,7 +1240,7 @@ article_create() {
     PAYLOAD=$(jq -n \
         --arg title "$TITLE" \
         --arg slug "$SLUG" \
-        --arg category "$CATEGORY" \
+        --arg category "$(map_category_to_key "$CATEGORY")" \
         --arg content "$CONTENT" \
         '{title: $title, slug: $slug, category: $category, content: $content}')
 
@@ -1564,6 +1599,107 @@ article_show() {
     echo ""
 }
 # ─────────────────────────────────────────────
+# SEARCH DOMAIN
+# ─────────────────────────────────────────────
+search_query() {
+    local QUERY="" TYPE="" LIMIT=5 ENV="dev"
+
+    # First arg is the query (if not a flag)
+    if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; then
+        QUERY="$1"; shift
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -t|--type)   TYPE="$2"; shift 2 ;;
+            -l|--limit)  LIMIT="$2"; shift 2 ;;
+            -e|--env)    ENV="$2"; shift 2 ;;
+            *) 
+                # Append to query if not a flag
+                if [[ ! "$1" =~ ^- ]]; then
+                    QUERY="$QUERY $1"; shift
+                else
+                    echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1
+                fi
+                ;;
+        esac
+    done
+
+    [ -z "$QUERY" ] && echo -e "${RED}✗ Search query is required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — search"
+    ensure_auth
+
+    # Prepend scope prefix if --type provided
+    local PREFIX_MAP_TYPE=""
+    case "$TYPE" in
+        ticket)    PREFIX_MAP_TYPE="t:" ;;
+        wiki)      PREFIX_MAP_TYPE="w:" ;;
+        client)    PREFIX_MAP_TYPE="c:" ;;
+        contact)   PREFIX_MAP_TYPE="u:" ;;
+        asset)     PREFIX_MAP_TYPE="a:" ;;
+        project)   PREFIX_MAP_TYPE="p:" ;;
+        milestone) PREFIX_MAP_TYPE="m:" ;;
+        product)   PREFIX_MAP_TYPE="i:" ;;
+        "") ;;
+        *) echo -e "${RED}✗ Invalid type: ${TYPE}. Valid: ticket, wiki, client, contact, asset, project, milestone, product${NC}"; exit 1 ;;
+    esac
+
+    local SEARCH_QUERY="$QUERY"
+    if [ -n "$PREFIX_MAP_TYPE" ]; then
+        SEARCH_QUERY="${PREFIX_MAP_TYPE} ${QUERY}"
+    fi
+
+    local ENCODED_QUERY
+    ENCODED_QUERY=$(python3 -c "import urllib.parse; print(urllib.parse.quote('$SEARCH_QUERY'))")
+
+    echo -e "${YELLOW}→ Searching: ${SEARCH_QUERY}${NC}"
+    echo ""
+
+    RESULT=$(api_get "/search?q=${ENCODED_QUERY}&limit=${LIMIT}")
+    COUNT=$(echo "$RESULT" | jq 'length')
+
+    if [ "$COUNT" = "0" ]; then
+        echo -e "  ${GRAY}No results found.${NC}"
+        echo ""
+        return
+    fi
+
+    echo -e "${GREEN}${COUNT} result(s):${NC}"
+    echo ""
+    printf "  ${GRAY}%-6s %-12s %-50s %s${NC}
+" "SCORE" "TYPE" "TITLE" "SUBTITLE"
+    printf "  ${GRAY}%-6s %-12s %-50s %s${NC}
+" "─────" "──────────" "──────────────────────────────────────────────────" "────────────"
+
+    echo "$RESULT" | jq -r '.[] | "\(.score // 0)|\(.type)|\(.title)|\(.subtitle // "-")|\(.link)"' | while IFS='|' read -r SCORE TYPE TITLE SUBTITLE LINK; do
+        # Color by type
+        case "$TYPE" in
+            action)    COLOR="$GREEN" ;;
+            ticket)    COLOR="$YELLOW" ;;
+            wiki)      COLOR="[0;35m" ;;
+            client)    COLOR="$BLUE" ;;
+            asset)     COLOR="[0;36m" ;;
+            contact)   COLOR="$GREEN" ;;
+            project)   COLOR="$BLUE" ;;
+            milestone) COLOR="$BLUE" ;;
+            product)   COLOR="$GRAY" ;;
+            *)         COLOR="$NC" ;;
+        esac
+
+        # Truncate title if too long
+        if [ ${#TITLE} -gt 48 ]; then
+            TITLE="${TITLE:0:45}..."
+        fi
+
+        printf "  %-6s ${COLOR}%-12s${NC} %-50s ${GRAY}%s${NC}
+" "$SCORE" "$TYPE" "$TITLE" "$SUBTITLE"
+    done
+    echo ""
+}
+
+# ─────────────────────────────────────────────
 # DISPATCH
 # ─────────────────────────────────────────────
 DOMAIN="${1:-}"
@@ -1643,9 +1779,16 @@ case "$DOMAIN" in
                 ;;
         esac
         ;;
+    search)
+        shift
+        case "${1:-}" in
+            -h|--help) search_usage ;;
+            *)         search_query "$@" ;;
+        esac
+        ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, milestone, invoice, article"
+        echo "  Valid domains: ticket, milestone, invoice, article, search"
         exit 1
         ;;
 esac
