@@ -35,10 +35,11 @@ class ArticleLite(SanctumBase):
 
 class SearchResult(SanctumBase):
     id: UUID | int
-    type: str # 'ticket', 'client', 'contact', 'wiki'
+    type: str # 'ticket', 'client', 'contact', 'wiki', 'asset', 'project', 'milestone', 'product', 'action'
     title: str
     subtitle: Optional[str] = None
     link: str
+    score: Optional[float] = None
 
 class AssetLite(SanctumBase):
     id: UUID
