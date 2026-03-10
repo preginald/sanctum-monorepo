@@ -178,7 +178,7 @@ def global_search(q: str, db: Session = Depends(get_db), current_user: models.Us
             results.append({
                 "id": a.id, "type": "asset", "title": a.name, 
                 "subtitle": a.ip_address or a.asset_type, 
-                "link": f"/clients/{a.account_id}" 
+                "link": f"/assets/{a.id}" 
             })
 
     # --- PROJECTS ---
