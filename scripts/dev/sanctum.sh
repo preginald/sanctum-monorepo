@@ -1506,7 +1506,7 @@ article_revert() {
     echo ""
     confirm_prod
     RESULT=$(curl -s -X POST "${API_BASE}/articles/${ARTICLE_ID}/revert/${HISTORY_ID}" \
-        -H "Authorization: Bearer ${TOKEN}" \
+        -H "Authorization: Bearer ${_SANCTUM_AUTH_TOKEN}" \
         -H "Content-Type: application/json" \
         -d "$BODY")
     local NEW_VERSION=$(echo "$RESULT" | jq -r '.version')
