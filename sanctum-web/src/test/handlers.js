@@ -39,7 +39,7 @@ export const handlers = [
   http.get('*/accounts/:id', () => HttpResponse.json({ contacts: [] })),
   http.get('*/products', () => HttpResponse.json([])),
   http.get('*/articles', () => HttpResponse.json([])),
-  
+
   // 3. Mock comments to prevent the Right Column from crashing
   http.get('*/comments', () => HttpResponse.json([])),
 

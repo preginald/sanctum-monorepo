@@ -18,9 +18,9 @@ export default function InvoiceList({ invoices = [], title = "Recent Invoices", 
             )}
             <div className="space-y-2">
                 {invoices.map(inv => (
-                    <div 
-                        key={inv.id} 
-                        onClick={() => navigate(`/invoices/${inv.id}`)} 
+                    <div
+                        key={inv.id}
+                        onClick={() => navigate(`/invoices/${inv.id}`)}
                         className="flex justify-between items-center p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer transition-colors"
                     >
                         <div>

@@ -1,11 +1,11 @@
 import React from 'react';
-import Modal from '../ui/Modal'; 
+import Modal from '../ui/Modal';
 import { Loader2 } from 'lucide-react';
 // NEW IMPORT
 import { CONTACT_PERSONAS } from '../../lib/constants';
 
 export default function ClientModals({ activeModal, onClose, onSubmit, loading, forms, setForms }) {
-  
+
   const handleChange = (formName, field, value) => {
       setForms(prev => ({
           ...prev,
@@ -46,13 +46,13 @@ export default function ClientModals({ activeModal, onClose, onSubmit, loading, 
                   <div><label className="text-xs opacity-50 block mb-1">Email</label><input required type="email" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={forms.contact.email} onChange={e => handleChange('contact', 'email', e.target.value)} /></div>
                   <div><label className="text-xs opacity-50 block mb-1">Phone</label><input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={forms.contact.phone} onChange={e => handleChange('contact', 'phone', e.target.value)} /></div>
               </div>
-              
+
               {/* UPDATED: Persona Dropdown */}
               <div>
                   <label className="text-xs opacity-50 block mb-1">Role / Persona</label>
-                  <select 
-                      className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" 
-                      value={forms.contact.persona || ''} 
+                  <select
+                      className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white"
+                      value={forms.contact.persona || ''}
                       onChange={e => handleChange('contact', 'persona', e.target.value)}
                   >
                       <option value="">-- Select Role --</option>
@@ -65,8 +65,8 @@ export default function ClientModals({ activeModal, onClose, onSubmit, loading, 
               {/* PORTAL INVITE TOGGLE */}
               {!forms.contact.id && ( // Only show on Create, not Edit (simplifies logic)
                   <div className="flex items-center gap-3 p-3 bg-slate-800/50 rounded border border-slate-700">
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         id="portal_access"
                         className="w-4 h-4 accent-purple-500 rounded cursor-pointer"
                         checked={forms.contact.enable_portal_access || false}
@@ -78,7 +78,7 @@ export default function ClientModals({ activeModal, onClose, onSubmit, loading, 
                       </label>
                   </div>
               )}
-              
+
               <button type="submit" disabled={loading} className="w-full py-2 bg-sanctum-blue text-white font-bold rounded flex justify-center items-center gap-2">{loading && <Loader2 className="animate-spin" size={16}/>} Save Contact</button>
           </form>
       </Modal>

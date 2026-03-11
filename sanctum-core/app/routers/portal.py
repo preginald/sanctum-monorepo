@@ -39,10 +39,10 @@ def get_current_contact(user: models.User, db: Session, account_id: UUID = None)
     aid = account_id or user.account_id
     if user.role != 'client':
         return None  # Admin impersonating — no contact match needed
-    
+
     if not aid:
         raise HTTPException(status_code=403, detail="Portal access only.")
-    
+
     contact = db.query(Contact).filter(
         Contact.account_id == aid,
         Contact.email == user.email
@@ -50,7 +50,7 @@ def get_current_contact(user: models.User, db: Session, account_id: UUID = None)
 
     if not contact:
         raise HTTPException(status_code=403, detail="No Contact profile found.")
-    
+
     return contact
 
 
@@ -68,7 +68,7 @@ def verify_ticket_access(ticket_id: int, user: models.User, db: Session, imperso
         return ticket, None
 
     contact = get_current_contact(user, db)
-    
+
     ticket = db.query(Ticket).options(joinedload(Ticket.account))\
         .outerjoin(ticket_contacts).filter(
         Ticket.id == ticket_id,
@@ -81,29 +81,29 @@ def verify_ticket_access(ticket_id: int, user: models.User, db: Session, imperso
 
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found or access denied.")
-    
+
     return ticket, contact
 
 # --- DASHBOARD ---
 @router.get("/dashboard", response_model=schemas.PortalDashboard)
 def get_portal_dashboard(
     impersonate: UUID = None,
-    current_user: models.User = Depends(auth.get_current_active_user), 
+    current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
     aid = resolve_portal_account_id(current_user, impersonate)
     account = db.query(models.Account).filter(models.Account.id == aid).first()
-    
+
     if not account:
         raise HTTPException(status_code=404, detail="Account not found.")
-    
+
     contact = get_current_contact(current_user, db, aid)
-    
+
     if contact:
         tickets = db.query(models.Ticket).outerjoin(ticket_contacts)\
             .options(joinedload(models.Ticket.time_entries), joinedload(models.Ticket.materials))\
             .filter(
-                models.Ticket.account_id == aid, 
+                models.Ticket.account_id == aid,
                 models.Ticket.is_deleted == False,
                 or_(
                     models.Ticket.contact_id == contact.id,
@@ -123,10 +123,10 @@ def get_portal_dashboard(
     for t in tickets: t.related_tickets = []
     invoices = db.query(models.Invoice).options(joinedload(models.Invoice.items))\
         .filter(models.Invoice.account_id == aid).order_by(desc(models.Invoice.generated_at)).all()
-    
+
     projects = db.query(models.Project).options(joinedload(models.Project.milestones))\
         .filter(models.Project.account_id == aid, models.Project.is_deleted == False).all()
-    
+
     # PHASE 60A: Get all audits grouped by category
     audits = db.query(models.AuditReport)\
         .options(joinedload(models.AuditReport.template))\
@@ -134,17 +134,17 @@ def get_portal_dashboard(
             models.AuditReport.account_id == aid,
             models.AuditReport.template_id.isnot(None)
         ).order_by(desc(models.AuditReport.created_at)).all()
-    
+
     # Build category assessments map (all assessments per category, not just latest)
     category_assessments = {}  # {security: [{id, template_name, status, score, created_at}, ...]}
-    
+
     # Status priority for sorting (finalized > in_progress > draft)
     status_priority = {'finalized': 3, 'in_progress': 2, 'draft': 1}
-    
+
     for audit in audits:
         if audit.template and audit.template.category:
             cat = audit.template.category
-            
+
             # Determine score based on category
             if cat == 'security':
                 score = audit.security_score or 0
@@ -152,7 +152,7 @@ def get_portal_dashboard(
                 score = audit.infrastructure_score or 0
             else:
                 score = audit.security_score or 0
-            
+
             assessment_data = {
                 'id': str(audit.id),
                 'template_name': audit.template.name,
@@ -161,38 +161,38 @@ def get_portal_dashboard(
                 'score': score,
                 'created_at': audit.created_at.isoformat() if audit.created_at else None
             }
-            
+
             if cat not in category_assessments:
                 category_assessments[cat] = []
-            
+
             category_assessments[cat].append(assessment_data)
-    
+
     # Sort each category's assessments by status priority (finalized first, then in_progress, then draft)
     for cat in category_assessments:
         category_assessments[cat].sort(
             key=lambda x: (status_priority.get(x['status'], 0), x['score']),
             reverse=True
         )
-    
+
     # Legacy fields: Use primary (first) assessment from security category
     security_assessments = category_assessments.get('security', [])
     security_score = security_assessments[0]['score'] if security_assessments else 0
     security_audit_id = security_assessments[0]['id'] if security_assessments else None
-    
+
     # PHASE 61A: Account lifecycle detection
     needs_questionnaire = account_needs_questionnaire(account, db)
     lifecycle_stage = get_account_lifecycle_stage(account, db)
-    
-    return { 
-        "account": account, 
+
+    return {
+        "account": account,
         "security_score": security_score,  # Legacy field
         "audit_id": security_audit_id,  # Legacy field
         "category_assessments": category_assessments,  # Phase 60A
         "needs_questionnaire": needs_questionnaire,  # Phase 61A
         "lifecycle_stage": lifecycle_stage,  # Phase 61A
-        "open_tickets": tickets, 
-        "invoices": invoices, 
-        "projects": projects 
+        "open_tickets": tickets,
+        "invoices": invoices,
+        "projects": projects
     }
 
 # --- PHASE 61A: QUESTIONNAIRE ENDPOINTS ---
@@ -205,21 +205,21 @@ def get_questionnaire_status(
     """Get questionnaire status and existing responses if completed"""
     if current_user.role != 'client' or not current_user.account_id:
         raise HTTPException(status_code=403, detail="Portal access only.")
-    
+
     account = db.query(models.Account).filter(
         models.Account.id == current_user.account_id
     ).first()
-    
+
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+
     needs_questionnaire = account_needs_questionnaire(account, db)
     lifecycle_stage = get_account_lifecycle_stage(account, db)
-    
+
     scoping_responses = None
     if account.audit_data and account.audit_data.get('scoping_responses'):
         scoping_responses = account.audit_data.get('scoping_responses')
-    
+
     return {
         "needs_questionnaire": needs_questionnaire,
         "lifecycle_stage": lifecycle_stage,
@@ -239,11 +239,11 @@ def submit_questionnaire(
     """
     if current_user.role != 'client' or not current_user.account_id:
         raise HTTPException(status_code=403, detail="Portal access only.")
-    
+
     account = db.query(models.Account).filter(
         models.Account.id == current_user.account_id
     ).first()
-    
+
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
 
@@ -255,11 +255,11 @@ def submit_questionnaire(
         submitted_by_user_id=current_user.id,
         create_tickets=True
     )
-    
+
     # Fire event for notifications
     if result.get('ticket'):
         event_bus.emit("questionnaire_completed", result['ticket'], background_tasks)
-    
+
     return {
         "status": "success",
         "message": "Questionnaire submitted successfully",
@@ -283,25 +283,25 @@ def request_assessment(
     """
     Client requests an assessment. Creates:
     1. Draft audit report (status='draft')
-    2. Support ticket (type='assessment') 
+    2. Support ticket (type='assessment')
     """
     if current_user.role != 'client' or not current_user.account_id:
         raise HTTPException(status_code=403, detail="Portal access only.")
-    
+
     # Get template details
     template = db.query(models.AuditTemplate).filter(
         models.AuditTemplate.id == payload.template_id
     ).first()
-    
+
     if not template:
         raise HTTPException(status_code=404, detail="Template not found.")
-    
+
     # Get contact
     contact = db.query(Contact).filter(
         Contact.account_id == current_user.account_id,
         Contact.email == current_user.email
     ).first()
-    
+
     # Create draft audit
     new_audit = models.AuditReport(
         account_id=current_user.account_id,
@@ -311,7 +311,7 @@ def request_assessment(
     )
     db.add(new_audit)
     db.flush()  # Get audit ID
-    
+
     # Create tracking ticket
     ticket_subject = f"Assessment Request: {template.name}"
     ticket_description = f"""Client has requested a {template.name} assessment.
@@ -326,7 +326,7 @@ Next Steps:
 
 Audit ID: {new_audit.id}
 """
-    
+
     new_ticket = Ticket(
         account_id=current_user.account_id,
         contact_id=contact.id if contact else None,
@@ -338,7 +338,7 @@ Audit ID: {new_audit.id}
     )
     db.add(new_ticket)
     db.flush()
-    
+
     # Link ticket to contacts (M:N)
     if contact:
         db.execute(
@@ -347,14 +347,14 @@ Audit ID: {new_audit.id}
                 contact_id=contact.id
             )
         )
-    
+
     db.commit()
     db.refresh(new_audit)
     db.refresh(new_ticket)
-    
+
     # Fire event for notifications/emails
     event_bus.emit("ticket_created", new_ticket, background_tasks)
-    
+
     return {
         "success": True,
         "audit_id": str(new_audit.id),
@@ -366,19 +366,19 @@ Audit ID: {new_audit.id}
 # --- TICKET LIST ---
 @router.get("/tickets")
 def get_portal_tickets(
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     contact = get_current_contact(current_user, db)
-    
+
     tickets = db.query(Ticket).outerjoin(ticket_contacts).filter(
         Ticket.account_id == current_user.account_id,
         or_(
-            Ticket.contact_id == contact.id, 
+            Ticket.contact_id == contact.id,
             ticket_contacts.c.contact_id == contact.id
         )
     ).distinct().order_by(desc(Ticket.created_at)).all()
-    
+
     return [
         {
             "id": t.id,
@@ -393,9 +393,9 @@ def get_portal_tickets(
 # --- TICKET DETAIL (ENRICHED) ---
 @router.get("/tickets/{ticket_id}")
 def get_portal_ticket(
-    ticket_id: int, 
+    ticket_id: int,
     impersonate: UUID = None,
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     ticket, contact = verify_ticket_access(ticket_id, current_user, db, impersonate)
@@ -474,26 +474,26 @@ def get_portal_ticket(
 @router.post("/tickets/{ticket_id}/comments")
 def create_portal_comment(
     ticket_id: int,
-    payload: schemas.CommentCreate, 
+    payload: schemas.CommentCreate,
     background_tasks: BackgroundTasks,
     impersonate: UUID = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     ticket, contact = verify_ticket_access(ticket_id, current_user, db, impersonate)
-    
+
     new_comment = Comment(
         ticket_id=ticket.id,
         author_id=current_user.id,
         body=payload.body,
-        visibility='public' 
+        visibility='public'
     )
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
-    
+
     event_bus.emit("ticket_comment_created", ticket, background_tasks)
-    
+
     return {
         "id": new_comment.id,
         "body": new_comment.body,
@@ -532,7 +532,7 @@ def get_portal_ticket_invoices(
 @router.get("/assets")
 def get_portal_assets(
     impersonate: UUID = None,
-    db: Session = Depends(get_db), 
+    db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     aid = resolve_portal_account_id(current_user, impersonate)
@@ -620,14 +620,14 @@ def download_portal_invoice(
 
     base_path = os.getcwd()
     clean_path = invoice.pdf_path.lstrip('/')
-    
+
     if os.path.isabs(invoice.pdf_path) and os.path.exists(invoice.pdf_path):
         return FileResponse(invoice.pdf_path, media_type='application/pdf', filename=f"Invoice_{invoice.id}.pdf")
 
     candidates = [
-        os.path.join(base_path, "app", clean_path),      
-        os.path.join(base_path, clean_path),             
-        os.path.join(base_path, "app", "static", "reports", os.path.basename(clean_path)) 
+        os.path.join(base_path, "app", clean_path),
+        os.path.join(base_path, clean_path),
+        os.path.join(base_path, "app", "static", "reports", os.path.basename(clean_path))
     ]
 
     final_path = None
@@ -635,7 +635,7 @@ def download_portal_invoice(
         if os.path.exists(path):
             final_path = path
             break
-    
+
     if not final_path:
         raise HTTPException(status_code=404, detail="Invoice PDF file missing on server.")
 

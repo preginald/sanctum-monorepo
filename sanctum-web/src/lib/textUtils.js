@@ -1,7 +1,7 @@
 /**
  * Handles "Smart Wrap" logic for textareas.
  * If text is selected and a wrapper key is pressed, it wraps the text.
- * 
+ *
  * @param {Event} e - The keydown event
  * @param {String} value - Current text value
  * @param {Function} setValue - State setter function (v) => ...
@@ -30,14 +30,14 @@ export const handleSmartWrap = (e, value, setValue) => {
     // 3. Check if key is a wrapper
     if (pairs[e.key]) {
         e.preventDefault(); // Stop the character from replacing the text
-        
+
         const open = e.key;
         const close = pairs[e.key];
         const selectedText = value.substring(start, end);
         const replacement = `${open}${selectedText}${close}`;
-        
+
         const newValue = value.substring(0, start) + replacement + value.substring(end);
-        
+
         // 4. Update State
         setValue(newValue);
 

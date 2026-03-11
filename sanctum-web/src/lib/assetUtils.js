@@ -105,13 +105,13 @@ export const getAssetPlaceholder = (type) => {
         case 'software': return 'e.g. Adobe Creative Cloud';
         case 'license': return 'e.g. AutoCAD 2024';
         case 'security software': return 'e.g. CrowdStrike Falcon';
-        
+
         // Mobile
         case 'iphone': return 'e.g. CEO iPhone 15';
         case 'android phone': return 'e.g. Site Manager Pixel';
         case 'ipad': return 'e.g. Reception Kiosk iPad';
         case 'android tablet': return 'e.g. Warehouse Tablet';
-        
+
         // Hardware
         case 'laptop': return 'e.g. J.Smith MacBook Pro';
         case 'workstation': return 'e.g. Reception PC';
@@ -119,7 +119,7 @@ export const getAssetPlaceholder = (type) => {
         case 'printer': return 'e.g. Office Canon MFP';
         case 'firewall': return 'e.g. GATEWAY-01';
         case 'network': return 'e.g. Core Switch';
-        
+
         default: return 'e.g. Asset Name';
     }
 };

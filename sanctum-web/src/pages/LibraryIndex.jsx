@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
-import { 
-  BookOpen, ShieldCheck, Download, Loader2, Plus, Wrench, 
-  LayoutGrid, List, CheckSquare, FolderInput, Trash2 
+import {
+  BookOpen, ShieldCheck, Download, Loader2, Plus, Wrench,
+  LayoutGrid, List, CheckSquare, FolderInput, Trash2
 } from "lucide-react";
 import api from "../lib/api";
 import ArticleCard from "../components/knowledge/ArticleCard";
@@ -29,7 +29,7 @@ export default function LibraryIndex() {
   useEffect(() => {
     localStorage.setItem("kb_view_mode", viewMode);
   }, [viewMode, refreshKey]);
-  
+
   // Selection State
   const [selectedIds, setSelectedIds] = useState([]);
   const [processing, setProcessing] = useState(false);
@@ -80,7 +80,7 @@ export default function LibraryIndex() {
 
   const handleBulkCategory = async (newCategory) => {
     if (!window.confirm(`Move ${selectedIds.length} articles to ${newCategory}?`)) return;
-    
+
     setProcessing(true);
     try {
       // Execute sequentially to avoid rate limits/race conditions
@@ -106,10 +106,10 @@ export default function LibraryIndex() {
           <span className="text-sm font-bold text-sanctum-gold mr-2">
             {selectedIds.length} Selected
           </span>
-          
+
           <div className="h-6 w-px bg-slate-700 mx-2"></div>
 
-          <button 
+          <button
             disabled={processing}
             onClick={() => handleBulkCategory("sop")}
             className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded flex items-center gap-2 transition-colors text-white"
@@ -117,7 +117,7 @@ export default function LibraryIndex() {
             <ShieldCheck size={14} className="text-sanctum-gold" /> To SOP
           </button>
 
-          <button 
+          <button
             disabled={processing}
             onClick={() => handleBulkCategory("wiki")}
             className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded flex items-center gap-2 transition-colors text-white"
@@ -125,7 +125,7 @@ export default function LibraryIndex() {
             <BookOpen size={14} className="text-blue-400" /> To Wiki
           </button>
 
-          <button 
+          <button
             disabled={processing}
             onClick={() => handleBulkCategory("template")}
             className="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-600 px-3 py-1.5 rounded flex items-center gap-2 transition-colors text-white"
@@ -133,7 +133,7 @@ export default function LibraryIndex() {
             <Download size={14} className="text-purple-400" /> To Template
           </button>
 
-          <button 
+          <button
             disabled={processing}
             onClick={() => setSelectedIds([])}
             className="ml-2 text-slate-500 hover:text-white text-xs"
@@ -173,7 +173,7 @@ export default function LibraryIndex() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
           {/* LEFT COLUMN */}
           <div className="space-y-12">
-            
+
             {/* SOP REGISTRY */}
             <div>
               <h2 className="text-lg font-bold flex items-center gap-2 mb-6 border-b border-slate-800 pb-2">
@@ -194,11 +194,11 @@ export default function LibraryIndex() {
               </h2>
               <div className="grid grid-cols-1 gap-4">
                 {troubleshooting.map(guide => (
-                  <ArticleCard 
-                    key={guide.id} 
-                    article={guide} 
+                  <ArticleCard
+                    key={guide.id}
+                    article={guide}
                     colorClass="bg-red-900/10 border-red-900/30 hover:border-red-500/50"
-                    textClass="text-white group-hover:text-red-300" 
+                    textClass="text-white group-hover:text-red-300"
                   />
                 ))}
                 {troubleshooting.length === 0 && <div className="text-slate-500 italic">No guides found.</div>}
@@ -230,9 +230,9 @@ export default function LibraryIndex() {
               </h2>
               <div className="grid grid-cols-1 gap-4">
                 {wikis.map(wiki => (
-                  <ArticleCard 
-                    key={wiki.id} 
-                    article={wiki} 
+                  <ArticleCard
+                    key={wiki.id}
+                    article={wiki}
                     colorClass="bg-slate-800/50 border-slate-700 hover:border-slate-500"
                   />
                 ))}
@@ -249,7 +249,7 @@ export default function LibraryIndex() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]">
-                  <Checkbox 
+                  <Checkbox
                     checked={selectedIds.length === articles.length && articles.length > 0}
                     onCheckedChange={handleSelectAll}
                   />
@@ -264,14 +264,14 @@ export default function LibraryIndex() {
             </TableHeader>
             <TableBody>
               {articles.map((article) => (
-                <TableRow 
-                  key={article.id} 
+                <TableRow
+                  key={article.id}
                   onClick={() => navigate(`/wiki/${article.slug}`)}
                   className="group cursor-pointer hover:bg-slate-800/50"
                   data-state={selectedIds.includes(article.id) ? "selected" : ""}
                 >
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Checkbox 
+                    <Checkbox
                       checked={selectedIds.includes(article.id)}
                       onCheckedChange={(checked) => handleSelectRow(article.id, checked)}
                     />

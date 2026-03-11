@@ -15,11 +15,11 @@ def get_assets(account_id: Optional[UUID] = None, db: Session = Depends(get_db),
     query = db.query(models.Asset)
     if account_id:
         query = query.filter(models.Asset.account_id == account_id)
-    
+
     # Scope Security
     if current_user.role == 'client':
         query = query.filter(models.Asset.account_id == current_user.account_id)
-        
+
     return query.all()
 
 @router.post("", response_model=schemas.AssetResponse)
@@ -40,7 +40,7 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), curr
 def update_asset(asset_id: UUID, update: schemas.AssetUpdate, db: Session = Depends(get_db)):
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not asset: raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     # Capture state before update
     old_expires_at = asset.expires_at
     had_pending_renewal = asset.pending_renewal_invoice_id

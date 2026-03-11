@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo, useEffect } from 'react';
-import ReactFlow, { 
-  Background, 
-  Controls, 
-  useNodesState, 
+import ReactFlow, {
+  Background,
+  Controls,
+  useNodesState,
   useEdgesState,
-  Handle, 
-  Position 
+  Handle,
+  Position
 } from 'reactflow';
 import dagre from 'dagre';
 import 'reactflow/dist/style.css';
@@ -40,13 +40,13 @@ const CustomNode = ({ data }) => {
   return (
     <div className={`px-4 py-3 shadow-xl rounded-lg border-2 ${borderColor} ${bgColor} min-w-[200px] text-center`}>
       <Handle type="target" position={Position.Top} className="!bg-slate-400" />
-      
+
       <div className={`text-[10px] uppercase font-bold tracking-widest mb-1 inline-block px-2 py-0.5 rounded ${badgeColor}`}>
         {data.persona || 'Unknown'}
       </div>
       <div className="font-bold text-white text-sm">{data.name}</div>
       <div className="text-xs text-slate-400">{data.role}</div>
-      
+
       <Handle type="source" position={Position.Bottom} className="!bg-slate-400" />
     </div>
   );

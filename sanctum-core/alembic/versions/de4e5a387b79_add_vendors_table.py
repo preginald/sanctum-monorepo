@@ -40,7 +40,7 @@ def upgrade():
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
         sa.Column('updated_at', sa.TIMESTAMP(timezone=True), onupdate=sa.func.now())
     )
-    
+
     # Add index on category for faster filtering
     op.create_index('idx_vendors_category', 'vendors', ['category'])
     op.create_index('idx_vendors_name', 'vendors', ['name'])

@@ -5,8 +5,8 @@ export default function ArticleCard({ article, colorClass = "bg-slate-900 border
   const navigate = useNavigate();
 
   return (
-    <div 
-        onClick={() => navigate(`/wiki/${article.slug}`)} 
+    <div
+        onClick={() => navigate(`/wiki/${article.slug}`)}
         className={`p-4 border rounded-lg cursor-pointer transition-all group ${colorClass}`}
     >
       <div className="flex justify-between items-start mb-2">

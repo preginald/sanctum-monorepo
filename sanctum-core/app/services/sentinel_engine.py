@@ -26,15 +26,15 @@ class SentinelEngine:
                 browser = await p.chromium.launch(headless=True)
                 context = await browser.new_context(ignore_https_errors=True)
                 page = await context.new_page()
-                
+
                 await page.goto(url, wait_until="domcontentloaded", timeout=45000)
                 content = await page.content()
                 soup = BeautifulSoup(content, 'html.parser')
-                
+
                 # SEO Infiltration
                 title = soup.title.string if soup.title else "Missing Title"
                 self._add_item("SEO", "Page Title", "Green" if len(title) > 10 else "Amber", f"Title: {title}")
-                
+
                 # Tech Stack Recon
                 platform = "Shopify" if "cdn.shopify.com" in content else "Custom CMS"
                 self._add_item("Tech Stack", "Platform", "Green", platform)

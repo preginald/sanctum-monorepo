@@ -24,7 +24,7 @@ VENDOR_SEED_DATA = [
     # ========================================
     # SAAS PLATFORMS (80+ entries)
     # ========================================
-    
+
     # Productivity & Collaboration
     {
         'name': 'Microsoft 365',
@@ -83,7 +83,7 @@ VENDOR_SEED_DATA = [
         'description': 'Video conferencing and webinars',
         'tags': ['video', 'meetings', 'popular']
     },
-    
+
     # Accounting & Finance (Australian focus)
     {
         'name': 'Xero',
@@ -132,7 +132,7 @@ VENDOR_SEED_DATA = [
         'description': 'Invoicing and accounting for service businesses',
         'tags': ['accounting', 'invoicing', 'sme']
     },
-    
+
     # CRM & Sales
     {
         'name': 'Salesforce',
@@ -171,7 +171,7 @@ VENDOR_SEED_DATA = [
         'description': 'Comprehensive CRM solution',
         'tags': ['crm', 'sme']
     },
-    
+
     # Project Management
     {
         'name': 'Asana',
@@ -218,7 +218,7 @@ VENDOR_SEED_DATA = [
         'description': 'All-in-one productivity platform',
         'tags': ['project_management']
     },
-    
+
     # Marketing & Email
     {
         'name': 'Mailchimp',
@@ -247,7 +247,7 @@ VENDOR_SEED_DATA = [
         'description': 'Email marketing platform',
         'tags': ['marketing', 'email', 'australian']
     },
-    
+
     # E-commerce
     {
         'name': 'Shopify',
@@ -277,7 +277,7 @@ VENDOR_SEED_DATA = [
         'description': 'Enterprise e-commerce platform',
         'tags': ['ecommerce']
     },
-    
+
     # HR & Payroll (Australian)
     {
         'name': 'Employment Hero',
@@ -306,7 +306,7 @@ VENDOR_SEED_DATA = [
         'description': 'HR management software',
         'tags': ['hr']
     },
-    
+
     # Field Service (Australian)
     {
         'name': 'Servicem8',
@@ -326,7 +326,7 @@ VENDOR_SEED_DATA = [
         'description': 'Job management for contractors',
         'tags': ['field_service', 'australian']
     },
-    
+
     # Document Management
     {
         'name': 'DocuSign',
@@ -364,7 +364,7 @@ VENDOR_SEED_DATA = [
         'description': 'Enterprise content management',
         'tags': ['storage', 'enterprise']
     },
-    
+
     # Design & Creative
     {
         'name': 'Adobe Creative Cloud',
@@ -394,11 +394,11 @@ VENDOR_SEED_DATA = [
         'description': 'Collaborative interface design',
         'tags': ['design', 'collaboration']
     },
-    
+
     # ========================================
     # ANTIVIRUS & ENDPOINT SECURITY (30+ entries)
     # ========================================
-    
+
     # Enterprise EDR/XDR
     {
         'name': 'CrowdStrike Falcon',
@@ -454,7 +454,7 @@ VENDOR_SEED_DATA = [
         'description': 'Endpoint protection by VMware',
         'tags': ['enterprise', 'edr']
     },
-    
+
     # SMB Antivirus
     {
         'name': 'ESET Endpoint Protection',
@@ -528,7 +528,7 @@ VENDOR_SEED_DATA = [
         'description': 'Anti-malware protection',
         'tags': ['sme']
     },
-    
+
     # Built-in / Free
     {
         'name': 'Windows Defender',
@@ -548,11 +548,11 @@ VENDOR_SEED_DATA = [
         'description': 'Enterprise endpoint protection',
         'tags': ['enterprise', 'microsoft']
     },
-    
+
     # ========================================
     # AUSTRALIAN DOMAIN REGISTRARS (20+ entries)
     # ========================================
-    
+
     {
         'name': 'VentraIP',
         'category': 'registrar',
@@ -663,7 +663,7 @@ VENDOR_SEED_DATA = [
         'description': 'Australian domain registrar',
         'tags': ['australian']
     },
-    
+
     # International (but commonly used in Australia)
     {
         'name': 'GoDaddy',
@@ -692,11 +692,11 @@ VENDOR_SEED_DATA = [
         'description': 'At-cost domain registration',
         'tags': ['international', 'security']
     },
-    
+
     # ========================================
     # HOSTING PROVIDERS (40+ entries)
     # ========================================
-    
+
     # Australian Hosting
     {
         'name': 'VentraIP Australia',
@@ -734,7 +734,7 @@ VENDOR_SEED_DATA = [
         'description': 'Australian cloud hosting',
         'tags': ['australian', 'cloud']
     },
-    
+
     # Cloud Providers
     {
         'name': 'Amazon Web Services (AWS)',
@@ -790,7 +790,7 @@ VENDOR_SEED_DATA = [
         'description': 'High performance cloud compute',
         'tags': ['cloud']
     },
-    
+
     # WordPress Hosting
     {
         'name': 'WP Engine',
@@ -819,7 +819,7 @@ VENDOR_SEED_DATA = [
         'description': 'WordPress hosting for agencies',
         'tags': ['wordpress']
     },
-    
+
     # Shared/Budget Hosting
     {
         'name': 'Bluehost',
@@ -848,7 +848,7 @@ VENDOR_SEED_DATA = [
         'description': 'Web hosting and domains',
         'tags': ['shared']
     },
-    
+
     # Email Hosting
     {
         'name': 'Microsoft Exchange Online',
@@ -945,11 +945,11 @@ VENDOR_SEED_DATA = [
         'description': 'Premium managed hosting and dedicated servers.',
         'tags': ['managed', 'premium', 'support']
     },
-    
+
     # ========================================
     # BACKUP SOLUTIONS (20+ entries)
     # ========================================
-    
+
     {
         'name': 'Backblaze',
         'category': 'backup',
@@ -1041,11 +1041,11 @@ VENDOR_SEED_DATA = [
         'description': 'File sync and backup',
         'tags': ['cloud', 'popular']
     },
-    
+
     # ========================================
     # PASSWORD MANAGERS (15+ entries)
     # ========================================
-    
+
     {
         'name': '1Password Business',
         'category': 'password_manager',
@@ -1110,11 +1110,11 @@ VENDOR_SEED_DATA = [
         'description': 'Password and form manager',
         'tags': ['business']
     },
-    
+
     # ========================================
     # FIREWALL & NETWORK SECURITY (25+ entries)
     # ========================================
-    
+
     # Hardware Firewalls
     {
         'name': 'Fortinet FortiGate',
@@ -1179,7 +1179,7 @@ VENDOR_SEED_DATA = [
         'description': 'Next-gen firewall',
         'tags': ['enterprise', 'sme']
     },
-    
+
     # Cloud Firewalls
     {
         'name': 'Cloudflare',
@@ -1215,20 +1215,20 @@ def seed():
     """Main seed function to populate the Vendor table with multi-category support."""
     # This recreates the dropped table with the new ARRAY schema
     Base.metadata.create_all(bind=engine)
-    
+
     db = SessionLocal()
     print("🌱 Seeding Vendor Catalog (Multi-Category Support)...")
-    
+
     created_count = 0
     merged_count = 0
-    
+
     try:
         for vendor_data in VENDOR_SEED_DATA:
             v_name = vendor_data['name']
             new_cat = vendor_data['category'] # The string category from your list
 
             existing = db.query(Vendor).filter(Vendor.name == v_name).first()
-            
+
             if not existing:
                 # First time seeing this vendor: wrap category in a list
                 vendor_data['category'] = [new_cat]
@@ -1247,12 +1247,12 @@ def seed():
                     # SQLAlchemy needs a new list object to detect the change
                     existing.category = current_categories + [new_cat]
                     merged_count += 1
-            
+
             db.flush()
 
         db.commit()
         print(f"✅ Seeding Complete. Created: {created_count} | Merged/Updated: {merged_count}")
-        
+
     except Exception as e:
         print(f"❌ Error during vendor seeding: {e}")
         db.rollback()

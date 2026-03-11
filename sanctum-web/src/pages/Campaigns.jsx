@@ -30,7 +30,7 @@ export default function Campaigns() {
       try {
         const res = await api.get('/campaigns');
         setCampaigns(res.data);
-      } catch (e) { console.error(e); } 
+      } catch (e) { console.error(e); }
       finally { setLoading(false); }
     };
     if (token) fetch();
@@ -42,7 +42,7 @@ export default function Campaigns() {
           const res = await api.post('/campaigns', form);
           addToast("Campaign initialized", "success");
           navigate(`/campaigns/${res.data.id}`);
-      } catch (e) { 
+      } catch (e) {
           addToast("Failed to create campaign", "error");
       }
   };
@@ -66,8 +66,8 @@ export default function Campaigns() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaigns.map(c => (
-              <Card 
-                key={c.id} 
+              <Card
+                key={c.id}
                 className="hover:border-sanctum-gold/50 cursor-pointer transition-all group"
               >
                   <div onClick={() => navigate(`/campaigns/${c.id}`)}>
@@ -77,10 +77,10 @@ export default function Campaigns() {
                         </div>
                         <Badge variant={c.status === 'active' ? 'success' : 'default'}>{c.status}</Badge>
                     </div>
-                    
+
                     <h3 className="text-lg font-bold text-white mb-1 group-hover:text-sanctum-gold">{c.name}</h3>
                     <div className="text-xs text-slate-500 uppercase tracking-widest mb-4">{c.type} • {c.brand_affinity}</div>
-                    
+
                     <div className="pt-4 border-t border-slate-800 flex justify-between text-sm text-slate-400">
                         <div className="flex items-center gap-2"><Target size={14}/> {c.target_count} Targets</div>
                         <div className="flex items-center gap-2"><Mail size={14}/> {c.sent_count} Sent</div>
@@ -92,22 +92,22 @@ export default function Campaigns() {
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Initialize Campaign">
           <form onSubmit={handleCreate} className="space-y-4">
-              <Input 
-                required 
-                placeholder="Campaign Name" 
-                value={form.name} 
-                onChange={e => setForm({...form, name: e.target.value})} 
+              <Input
+                required
+                placeholder="Campaign Name"
+                value={form.name}
+                onChange={e => setForm({...form, name: e.target.value})}
               />
               <div className="grid grid-cols-2 gap-4">
-                  <Select 
-                    value={form.type} 
+                  <Select
+                    value={form.type}
                     onChange={e => setForm({...form, type: e.target.value})}
                   >
                       <option value="email">Email Blast</option>
                       <option value="linkedin">LinkedIn Outreach</option>
                   </Select>
-                  <Select 
-                    value={form.brand_affinity} 
+                  <Select
+                    value={form.brand_affinity}
                     onChange={e => setForm({...form, brand_affinity: e.target.value})}
                   >
                       <option value="ds">Digital Sanctum</option>

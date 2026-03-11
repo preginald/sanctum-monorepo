@@ -1,6 +1,6 @@
 import React from 'react';
-import { 
-    Bug, Zap, Clipboard, Lock, PenTool, Siren, 
+import {
+    Bug, Zap, Clipboard, Lock, PenTool, Siren,
     LifeBuoy, Flame, HelpCircle, Hammer, Beaker
 } from 'lucide-react';
 

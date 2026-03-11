@@ -1,0 +1,29 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-yaml
+    -   id: check-added-large-files
+
+-   repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.9.0.6
+    hooks:
+    -   id: shellcheck
+        name: ShellCheck (sanctum.sh, scopy, srun.sh)
+        files: ^scripts/.*\.sh$|^scripts/dev/scopy$
+
+-   repo: https://github.com/psf/black
+    rev: 24.2.0
+    hooks:
+    -   id: black
+        files: ^scripts/.*\.py$
+
+-   repo: local
+    hooks:
+    -   id: python-syntax-check
+        name: Python Syntax Check (Patch Scripts)
+        entry: python3 -m py_compile
+        language: python
+        files: ^scripts/.*\.py$|^/tmp/.*\.py$

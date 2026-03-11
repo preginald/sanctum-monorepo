@@ -8,7 +8,7 @@ from .shared import SanctumBase
 class ProductCreate(SanctumBase):
     name: str
     description: Optional[str] = None
-    type: str 
+    type: str
     unit_price: Decimal # FIXED: Decimal
     is_recurring: bool = False
     billing_frequency: Optional[str] = None
@@ -102,7 +102,7 @@ class InvoiceResponse(SanctumBase):
     # NEW: Payment Tracking
     paid_at: Optional[datetime] = None
     payment_method: Optional[str] = None
-    
+
     items: List[InvoiceItemSchema] = []
     delivery_logs: List[InvoiceDeliveryLogResponse] = []
     suggested_cc: List[str] = []

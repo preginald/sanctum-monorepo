@@ -40,7 +40,7 @@ DEFAULT_RULES = [
 def seed():
     db = SessionLocal()
     print("🌱 Seeding Automations...")
-    
+
     try:
         for rule_def in DEFAULT_RULES:
             exists = db.query(Automation).filter(Automation.event_type == rule_def['event_type']).first()
@@ -50,10 +50,10 @@ def seed():
                 db.add(rule)
             else:
                 print(f"   Skipping rule (exists): {rule_def['name']}")
-        
+
         db.commit()
         print("✅ Automation Seeding Complete.")
-        
+
     except Exception as e:
         print(f"❌ Error seeding automations: {e}")
         db.rollback()

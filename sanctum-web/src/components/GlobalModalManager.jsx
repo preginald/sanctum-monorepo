@@ -27,7 +27,7 @@ export default function GlobalModalManager() {
 
       // 3. NAVIGATION & CLEANUP
       closeModal();
-      
+
       // If we were in a deep link, clear URL to prevent loop
       if (location.pathname === '/tickets/new') {
           navigate('/tickets', { replace: true });
@@ -44,11 +44,11 @@ export default function GlobalModalManager() {
   return (
     <>
       {activeModal === 'TICKET_CREATE' && (
-        <TicketCreateModal 
-            isOpen={true} 
-            onClose={handleClose} 
+        <TicketCreateModal
+            isOpen={true}
+            onClose={handleClose}
             onSuccess={handleTicketSuccess}
-            {...modalProps} 
+            {...modalProps}
         />
       )}
     </>

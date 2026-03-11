@@ -1,6 +1,6 @@
 {
   "_comment": "Control ID → Remediation Product Mappings | Phase 60A: Multi-Category Expansion",
-  
+
   "essential8": {
     "e8_app_01": [
       {"product_name": "Application Whitelisting Implementation", "quantity": 1}
@@ -11,7 +11,7 @@
     "e8_app_03": [
       {"product_name": "Application Whitelisting Implementation", "quantity": 1}
     ],
-    
+
     "e8_patch_01": [
       {"product_name": "Emergency Patch Deployment", "quantity": 1}
     ],
@@ -21,7 +21,7 @@
     "e8_patch_03": [
       {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
     ],
-    
+
     "e8_macro_01": [
       {"product_name": "Microsoft Office Hardening Service", "quantity": 1}
     ],
@@ -31,7 +31,7 @@
     "e8_macro_03": [
       {"product_name": "Microsoft Office Hardening Service", "quantity": 1}
     ],
-    
+
     "e8_hard_01": [
       {"product_name": "Browser Security Hardening", "quantity": 1}
     ],
@@ -41,7 +41,7 @@
     "e8_hard_03": [
       {"product_name": "Browser Security Hardening", "quantity": 1}
     ],
-    
+
     "e8_admin_01": [
       {"product_name": "Privileged Access Workstation (PAW) Setup", "quantity": 1}
     ],
@@ -51,7 +51,7 @@
     "e8_admin_03": [
       {"product_name": "Just-In-Time (JIT) Admin Access Implementation", "quantity": 1}
     ],
-    
+
     "e8_os_01": [
       {"product_name": "Emergency Patch Deployment", "quantity": 1}
     ],
@@ -61,7 +61,7 @@
     "e8_os_03": [
       {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
     ],
-    
+
     "e8_mfa_01": [
       {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
     ],
@@ -72,7 +72,7 @@
       {"product_name": "Multi-Factor Authentication Setup", "quantity": 1},
       {"product_name": "FIDO2 Security Key (YubiKey 5 NFC)", "quantity": 5}
     ],
-    
+
     "e8_backup_01": [
       {"product_name": "Immutable Backup Solution (Monthly)", "quantity": 1}
     ],
@@ -83,7 +83,7 @@
       {"product_name": "Backup Restoration Testing Service", "quantity": 1}
     ]
   },
-  
+
   "nist-csf": {
     "nist_id_01": [
       {"product_name": "Software License Audit", "quantity": 1}
@@ -94,7 +94,7 @@
     "nist_id_03": [
       {"product_name": "Business Continuity Plan (BCP) Development", "quantity": 1}
     ],
-    
+
     "nist_pr_01": [
       {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
     ],
@@ -104,7 +104,7 @@
     "nist_pr_03": [
       {"product_name": "Multi-Factor Authentication Setup", "quantity": 1}
     ],
-    
+
     "nist_de_01": [
       {"product_name": "Endpoint Detection & Response (EDR) License", "quantity": 10}
     ],
@@ -114,7 +114,7 @@
     "nist_de_03": [
       {"product_name": "Endpoint Detection & Response (EDR) License", "quantity": 10}
     ],
-    
+
     "nist_rs_01": [
       {"product_name": "Incident Response Runbook Creation", "quantity": 1}
     ],
@@ -124,7 +124,7 @@
     "nist_rs_03": [
       {"product_name": "DR Testing & Tabletop Exercise", "quantity": 1}
     ],
-    
+
     "nist_rc_01": [
       {"product_name": "Disaster Recovery Plan Development", "quantity": 1}
     ],
@@ -132,7 +132,7 @@
       {"product_name": "DR Testing & Tabletop Exercise", "quantity": 1}
     ]
   },
-  
+
   "infrastructure": {
     "infra_up_01": [
       {"product_name": "Server Monitoring Solution (Monthly)", "quantity": 1}
@@ -143,7 +143,7 @@
     "infra_up_03": [
       {"product_name": "Server Monitoring Solution (Monthly)", "quantity": 1}
     ],
-    
+
     "infra_patch_01": [
       {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
     ],
@@ -153,7 +153,7 @@
     "infra_patch_03": [
       {"product_name": "Patch Management Service (Monthly)", "quantity": 1}
     ],
-    
+
     "infra_backup_01": [
       {"product_name": "Backup Infrastructure Upgrade", "quantity": 1}
     ],
@@ -163,7 +163,7 @@
     "infra_backup_03": [
       {"product_name": "Immutable Backup Solution (Monthly)", "quantity": 1}
     ],
-    
+
     "infra_cap_01": [
       {"product_name": "Server Monitoring Solution (Monthly)", "quantity": 1}
     ],
@@ -174,7 +174,7 @@
       {"product_name": "Storage Capacity Planning Service", "quantity": 1}
     ]
   },
-  
+
   "digital": {
     "digital_perf_01": [
       {"product_name": "Website Performance Optimization", "quantity": 1}
@@ -185,7 +185,7 @@
     "digital_perf_03": [
       {"product_name": "Image Optimization Service", "quantity": 1}
     ],
-    
+
     "digital_seo_01": [
       {"product_name": "SEO Metadata Implementation", "quantity": 1}
     ],
@@ -198,7 +198,7 @@
     "digital_seo_04": [
       {"product_name": "Broken Link Audit & Repair", "quantity": 1}
     ],
-    
+
     "digital_ssl_01": [
       {"product_name": "SSL Certificate Management (Yearly)", "quantity": 1}
     ],
@@ -212,7 +212,7 @@
       {"product_name": "Premium DNS Hosting (Monthly)", "quantity": 1}
     ]
   },
-  
+
   "efficiency": {
     "eff_lic_01": [
       {"product_name": "Software License Audit", "quantity": 1}
@@ -223,7 +223,7 @@
     "eff_lic_03": [
       {"product_name": "SaaS Optimization Review", "quantity": 1}
     ],
-    
+
     "eff_cost_01": [
       {"product_name": "Cloud Cost Optimization Service", "quantity": 1}
     ],
@@ -233,7 +233,7 @@
     "eff_cost_03": [
       {"product_name": "SaaS Optimization Review", "quantity": 1}
     ],
-    
+
     "eff_m365_01": [
       {"product_name": "M365 Feature Enablement Workshop", "quantity": 1}
     ],
@@ -243,12 +243,12 @@
     "eff_m365_03": [
       {"product_name": "Retention Policy Configuration", "quantity": 1}
     ],
-    
+
     "eff_auto_01": [
       {"product_name": "Process Automation Assessment", "quantity": 1}
     ]
   },
-  
+
   "continuity": {
     "cont_dr_01": [
       {"product_name": "Disaster Recovery Plan Development", "quantity": 1}
@@ -262,7 +262,7 @@
     "cont_dr_04": [
       {"product_name": "DR Testing & Tabletop Exercise", "quantity": 1}
     ],
-    
+
     "cont_ir_01": [
       {"product_name": "Incident Response Runbook Creation", "quantity": 1}
     ],
@@ -272,7 +272,7 @@
     "cont_ir_03": [
       {"product_name": "DR Testing & Tabletop Exercise", "quantity": 1}
     ],
-    
+
     "cont_alt_01": [
       {"product_name": "Work-From-Home Readiness Assessment", "quantity": 1}
     ],
@@ -283,7 +283,7 @@
       {"product_name": "Business Continuity Plan (BCP) Development", "quantity": 1}
     ]
   },
-  
+
   "ux": {
     "ux_supp_01": [
       {"product_name": "Help Desk SLA Monitoring & Reporting", "quantity": 1}
@@ -294,7 +294,7 @@
     "ux_supp_03": [
       {"product_name": "Help Desk SLA Monitoring & Reporting", "quantity": 1}
     ],
-    
+
     "ux_sat_01": [
       {"product_name": "Customer Satisfaction Survey Program", "quantity": 1}
     ],
@@ -304,7 +304,7 @@
     "ux_sat_03": [
       {"product_name": "Support Process Improvement Review", "quantity": 1}
     ],
-    
+
     "ux_kb_01": [
       {"product_name": "Knowledge Base Platform Setup", "quantity": 1}
     ],
@@ -314,7 +314,7 @@
     "ux_kb_03": [
       {"product_name": "End User Training Program (per user)", "quantity": 10}
     ],
-    
+
     "ux_port_01": [
       {"product_name": "Client Portal Onboarding Service", "quantity": 1}
     ]

@@ -82,7 +82,7 @@ export default function NotificationBell() {
 
   return (
     <div className="relative" ref={containerRef}>
-      <button 
+      <button
         onClick={toggleOpen}
         className="relative p-2 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
       >
@@ -102,11 +102,11 @@ export default function NotificationBell() {
                       </button>
                   )}
               </div>
-              
+
               <div className="max-h-96 overflow-y-auto">
                   {notifications.length > 0 ? notifications.map(n => (
-                      <div 
-                        key={n.id} 
+                      <div
+                        key={n.id}
                         onClick={() => handleNavigate(n)}
                         className={`p-3 border-b border-slate-800 last:border-0 hover:bg-white/5 cursor-pointer transition-colors relative group ${n.is_read ? 'opacity-50' : 'opacity-100'}`}
                       >
@@ -120,7 +120,7 @@ export default function NotificationBell() {
                                           {new Date(n.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                       </span>
                                       {!n.is_read && (
-                                          <button 
+                                          <button
                                             onClick={(e) => handleRead(e, n.id)}
                                             className="text-[10px] bg-slate-800 px-2 py-0.5 rounded text-slate-400 hover:text-white border border-slate-700 hover:border-slate-500"
                                           >

@@ -73,8 +73,8 @@ ensure_auth() {
     # Priority 3: Interactive authentication
     echo -e "${YELLOW}→ No valid token found. Authenticating...${NC}"
     echo ""
-    read -p "Email: " _AUTH_EMAIL
-    read -sp "Password: " _AUTH_PASSWORD
+    read -rp "Email: " _AUTH_EMAIL
+    read -rsp "Password: " _AUTH_PASSWORD
     echo ""
 
     local response
@@ -93,7 +93,7 @@ ensure_auth() {
             totp_code=$(oathtool --totp -b "$SANCTUM_TOTP_SECRET")
             echo -e "${GREEN}→ Auto-generated TOTP: ${totp_code}${NC}"
         else
-            read -p "Enter TOTP code: " totp_code
+            read -rp "Enter TOTP code: " totp_code
         fi
 
         response=$(curl -s -X POST "${API_BASE}/token" \
@@ -246,7 +246,7 @@ confirm_prod() {
     if [ "$_SANCTUM_ENV" = "prod" ]; then
         echo ""
         echo -e "${RED}⚠ $1 on PRODUCTION${NC}"
-        read -p "Continue? [y/N] " -n 1 -r
+        read -rp "Continue? [y/N] " -n 1 -r
         echo ""
         [[ ! $REPLY =~ ^[Yy]$ ]] && echo "Aborted." && exit 0
     fi

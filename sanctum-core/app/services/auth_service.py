@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy.orm import Session
 from ..models import PasswordToken, User
 from ..services.email_service import email_service
-from .. import auth 
+from .. import auth
 
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
@@ -22,11 +22,11 @@ class AuthService:
         db.query(PasswordToken).filter(PasswordToken.user_id == user.id).delete()
 
         # 3. Create Record
-        # We store raw_token in 'token' column because the current lookup logic 
-        # in auth.py uses equality check, not hash verification. 
+        # We store raw_token in 'token' column because the current lookup logic
+        # in auth.py uses equality check, not hash verification.
         # Ideally, we'd only store hash, but that requires refactoring /set-password too.
         expiry = datetime.now(timezone.utc) + timedelta(hours=24)
-        
+
         token_entry = PasswordToken(
             user_id=user.id,
             token=raw_token,

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Ticket, Clock, List, Rows, Flag } from 'lucide-react';
-import { TicketTypeIcon, PriorityBadge } from '../tickets/TicketBadges'; 
+import { TicketTypeIcon, PriorityBadge } from '../tickets/TicketBadges';
 
 export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets", icon: Icon = Ticket, embedded = false }) {
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
-  
+
   // VIEW MODE STATE (Persisted)
   const [viewMode, setViewMode] = useState(() => {
-      return localStorage.getItem('sanctum_ticket_view') || 'expanded'; 
+      return localStorage.getItem('sanctum_ticket_view') || 'expanded';
   });
 
   const toggleView = (mode) => {
@@ -27,18 +27,18 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
   return (
     // If embedded, remove padding/border/bg. If not, standard card style.
     <div className={embedded ? "" : "bg-slate-900 border border-slate-700 rounded-xl p-6"}>
-      
+
       {/* HEADER: Always show, even if embedded, so we can toggle History/View */}
       <div className="flex justify-between items-center mb-4">
         {/* Title Section: Hide if embedded to save space, OR allow overriding */}
         {embedded ? (
-             <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Tasks</div> 
+             <div className="text-xs font-bold uppercase tracking-widest text-slate-500">Tasks</div>
         ) : (
             <h3 className="font-bold flex items-center gap-2 text-sm uppercase tracking-widest text-slate-400">
               <Icon size={16} /> {title}
             </h3>
         )}
-        
+
         <div className="flex items-center gap-3">
             {/* VIEW TOGGLE */}
             <div className="flex bg-slate-800 rounded p-0.5 border border-slate-700 mr-2">
@@ -66,9 +66,9 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
       {/* LIST */}
       <div className="space-y-2">
         {visibleTickets.length > 0 ? visibleTickets.map(t => (
-          <div 
-            key={t.id} 
-            onClick={() => navigate(`/tickets/${t.id}`)} 
+          <div
+            key={t.id}
+            onClick={() => navigate(`/tickets/${t.id}`)}
             className="bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer group relative transition-colors"
           >
             {/* COMPACT */}
@@ -101,9 +101,9 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
                     </div>
                 </div>
             )}
-            
+
             {onDelete && (
-                <button 
+                <button
                   onClick={(e) => { e.stopPropagation(); onDelete(t.id); }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-500/20 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all z-10"
                 >

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { formatCurrency, formatDate } from './formatters';
 
 describe('formatters', () => {
-    
+
     describe('formatCurrency', () => {
         it('formats valid numbers to AUD', () => {
             // Note: Output depends on locale, but usually $1,234.56 or A$1,234.56
@@ -20,7 +20,7 @@ describe('formatters', () => {
             expect(formatCurrency(null)).toContain('0.00');
             expect(formatCurrency(undefined)).toContain('0.00');
         });
-        
+
         it('handles string inputs gracefully', () => {
             expect(formatCurrency("50.00")).toContain('50.00');
         });

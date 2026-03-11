@@ -24,7 +24,7 @@ def resolve_content(db: Session, text: str, portal_mode: bool = False, inline_mo
 
     # Filter out already seen to prevent infinite loops
     to_fetch = list(set([m for m in matches if m not in seen_slugs]))
-    
+
     if not to_fetch:
         return text
 
@@ -48,7 +48,7 @@ def resolve_content(db: Session, text: str, portal_mode: bool = False, inline_mo
         ref = match.group(1)
         if ref in seen_slugs:
             return f""
-        
+
         article = article_map.get(ref)
         if not article:
             return f""
@@ -56,10 +56,10 @@ def resolve_content(db: Session, text: str, portal_mode: bool = False, inline_mo
         # Add to seen list for this branch
         branch_seen = set(seen_slugs)
         branch_seen.add(ref)
-        
+
         # Recursively resolve text of the embedded article
         embedded_text = resolve_content(db, article.content, portal_mode=portal_mode, inline_mode=inline_mode, depth=depth + 1, max_depth=max_depth, seen_slugs=branch_seen)
-        
+
         # Inline mode — return pure markdown for copy/export
         if inline_mode:
             identifier = article.identifier or article.slug

@@ -5,7 +5,7 @@ from .crm import AccountResponse, ContactResponse
 from .operations import TicketResponse
 from .billing import InvoiceResponse
 from .strategy import ProjectResponse, DealResponse
-from .assets import AssetResponse 
+from .assets import AssetResponse
 
 # PHASE 62: Vendor Catalog Integration
 class QuestionnaireSubmit(SanctumBase):
@@ -16,14 +16,14 @@ class QuestionnaireSubmit(SanctumBase):
     domain_names: Optional[str] = None  # Tag input (newline-separated)
     hosting_providers: Optional[List[UUID]] = None  # PHASE 62: Array of vendor IDs
     saas_platforms: Optional[List[UUID]] = None  # PHASE 62: Array of vendor IDs
-    
+
     # Security questions (conditional)
     antivirus: Optional[List[UUID]] = None  # PHASE 62: Array of vendor IDs (usually 1)
     firewall_type: Optional[str] = None  # Free text selection
     password_management: Optional[str] = None  # Free text selection
     mfa_enabled: Optional[str] = None  # Free text selection
     backup_solution: Optional[str] = None  # Free text selection
-    
+
     # Section 2: Context (helps us serve better)
     primary_pain_point: Optional[str] = None # Relaxed: Legacy clients might not have a current pain point
     current_it_support: Optional[str] = None
@@ -48,6 +48,6 @@ class AccountDetail(AccountResponse):
     deals: List[DealResponse] = []
     tickets: List[TicketResponse] = []
     projects: List[ProjectResponse] = []
-    audit_data: Optional[Dict] = None 
+    audit_data: Optional[Dict] = None
     invoices: List[InvoiceResponse] = []
     assets: List[AssetResponse] = []

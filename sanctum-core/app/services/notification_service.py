@@ -5,10 +5,10 @@ from ..models import Notification, User, UserNotificationPreference
 from .email_service import email_service
 
 class NotificationDispatcher:
-    
+
     def enqueue(self, db: Session, recipients: list[dict], subject: str, message: str, link: str = None, event_payload: dict = {}, priority: str = 'normal'):
         """
-        The Entry Point. 
+        The Entry Point.
         1. Creates DB records for ALL recipients (User or External).
         2. Checks logic: External -> Send Now. User -> Check Prefs.
         """
@@ -30,18 +30,18 @@ class NotificationDispatcher:
             )
             db.add(note)
             db.flush() # Get ID
-            
+
             # 2. Dispatch Logic
             should_send_now = False
-            
+
             if r['type'] == 'external':
                 # Rule: External contacts always get Realtime (they have no portal to check)
                 should_send_now = True
-            
+
             elif r['type'] == 'user' and r['user_id']:
                 # Rule: Check User Preferences
                 prefs = db.query(UserNotificationPreference).filter(UserNotificationPreference.user_id == r['user_id']).first()
-                
+
                 if not prefs:
                     should_send_now = True # Default Realtime
                 elif priority == 'critical' and prefs.force_critical:
@@ -49,12 +49,12 @@ class NotificationDispatcher:
                 elif prefs.email_frequency == 'realtime':
                     should_send_now = True
                 # Else: Leave as 'pending' for the hourly worker
-            
+
             # 3. Execution
             if should_send_now:
                 self._send_immediate(db, note)
                 dispatched_count += 1
-            
+
         db.commit()
         return dispatched_count
 
@@ -64,7 +64,7 @@ class NotificationDispatcher:
         """
         try:
             html_content = self._render_html(note.title, note.message, note.link, note.priority)
-            
+
             success = email_service.send(
                 to_emails=[note.recipient_email],
                 subject=f"Sanctum: {note.title}",
@@ -76,7 +76,7 @@ class NotificationDispatcher:
                 note.sent_at = datetime.now(timezone.utc)
             else:
                 note.status = 'failed'
-                
+
         except Exception as e:
             print(f"Error dispatching notification {note.id}: {e}")
             note.status = 'failed'
@@ -89,7 +89,7 @@ class NotificationDispatcher:
         style_header = "background-color: #0f172a; color: #fff; padding: 15px; border-radius: 6px 6px 0 0; text-align: center;"
         style_body = "padding: 20px; color: #334155; line-height: 1.6;"
         style_footer = "text-align: center; font-size: 12px; color: #94a3b8; margin-top: 20px;"
-        
+
         btn_html = ""
         if link:
             # Hardcoded base URL for simplicity in this phase

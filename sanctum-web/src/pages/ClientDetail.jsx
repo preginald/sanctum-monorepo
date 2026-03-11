@@ -5,7 +5,7 @@ import api from '../lib/api';
 import useAuthStore from '../store/authStore';
 import { Loader2, Edit2, Activity, Ticket, Mail, Hash, ClipboardList, Eye } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
-import { recordVisit } from '../lib/history'; 
+import { recordVisit } from '../lib/history';
 
 // COMPONENTS
 import HumanSection from '../components/clients/HumanSection';
@@ -37,7 +37,7 @@ export default function ClientDetail() {
   const [users, setUsers] = useState([]);
   const [audits, setAudits] = useState([]);
   const [tickets, setTickets] = useState([]);
-  const [assets, setAssets] = useState([]); 
+  const [assets, setAssets] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [isEditingAccount, setIsEditingAccount] = useState(false);
@@ -64,10 +64,10 @@ export default function ClientDetail() {
 
   useEffect(() => {
       if (account?.id) {
-          recordVisit('clients', { 
-              id: account.id, 
-              name: account.name, 
-              type: account.type 
+          recordVisit('clients', {
+              id: account.id,
+              name: account.name,
+              type: account.type
           });
       }
   }, [account]);
@@ -78,13 +78,13 @@ export default function ClientDetail() {
               api.get(`/accounts/${id}`),
               api.get(`/audits?account_id=${id}`),
               api.get(`/accounts/${id}/users`),
-              api.get(`/assets?account_id=${id}`) 
+              api.get(`/assets?account_id=${id}`)
           ]);
           setAccount(accRes.data);
           setAudits(auditRes.data);
           setUsers(userRes.data);
           setAssets(assetRes.data);
-          
+
           if (accRes.data.tickets) {
               const sorted = accRes.data.tickets.sort((a, b) => b.id - a.id);
               setTickets(sorted);
@@ -96,9 +96,9 @@ export default function ClientDetail() {
   const saveAccount = async () => {
       setIsSaving(true);
       try {
-          await api.put(`/accounts/${id}`, { 
-              name: account.name, 
-              type: account.type, 
+          await api.put(`/accounts/${id}`, {
+              name: account.name,
+              type: account.type,
               brand_affinity: account.brand_affinity,
               status: account.status,
               billing_email: account.billing_email
@@ -131,16 +131,16 @@ export default function ClientDetail() {
               addToast("User provisioned", "success");
           }
           setActiveModal(null);
-          fetchAll(); 
-      } catch(e) { 
+          fetchAll();
+      } catch(e) {
           console.error("Modal Submit Error:", e);
           let errorMsg = "Action failed";
           if (e.response?.data?.detail) {
-              errorMsg = typeof e.response.data.detail === 'object' 
-                  ? JSON.stringify(e.response.data.detail) 
+              errorMsg = typeof e.response.data.detail === 'object'
+                  ? JSON.stringify(e.response.data.detail)
                   : e.response.data.detail;
           }
-          addToast(errorMsg, "danger"); 
+          addToast(errorMsg, "danger");
       } finally { setIsSaving(false); }
   };
 
@@ -168,7 +168,7 @@ export default function ClientDetail() {
   };
 
   const deleteContact = async (cid) => {
-      try { await api.delete(`/contacts/${cid}`); addToast("Contact removed", "info"); fetchAll(); } 
+      try { await api.delete(`/contacts/${cid}`); addToast("Contact removed", "info"); fetchAll(); }
       catch(e) { addToast("Failed to remove", "danger"); }
   };
 
@@ -220,34 +220,34 @@ export default function ClientDetail() {
         onConfirm={() => { addToast("Asset expiry updated", "success"); fetchAll(); }}
         isManual={true}
       />
-      <ConfirmationModal 
-        isOpen={confirmModal.isOpen} 
-        onClose={() => setConfirmModal({...confirmModal, isOpen: false})} 
-        onConfirm={confirmModal.action} 
-        title={confirmModal.title} 
-        message={confirmModal.message} 
+      <ConfirmationModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({...confirmModal, isOpen: false})}
+        onConfirm={confirmModal.action}
+        title={confirmModal.title}
+        message={confirmModal.message}
         isDangerous={confirmModal.isDangerous}
       />
 
-      <ClientModals 
-        activeModal={activeModal} 
-        onClose={() => setActiveModal(null)} 
-        onSubmit={handleModalSubmit} 
-        loading={isSaving} 
-        forms={forms} 
-        setForms={setForms} 
+      <ClientModals
+        activeModal={activeModal}
+        onClose={() => setActiveModal(null)}
+        onSubmit={handleModalSubmit}
+        loading={isSaving}
+        forms={forms}
+        setForms={setForms}
       />
 
-      <TicketCreateModal 
+      <TicketCreateModal
         isOpen={showTicketModal}
         onClose={() => setShowTicketModal(false)}
         onSuccess={() => { fetchAll(); addToast("Ticket created", "success"); }}
         preselectedAccountId={id}
       />
 
-      <AssetModal 
-        isOpen={showAssetModal} 
-        onClose={() => setShowAssetModal(false)} 
+      <AssetModal
+        isOpen={showAssetModal}
+        onClose={() => setShowAssetModal(false)}
         onSubmit={handleAssetSubmit}
         loading={isSaving}
         form={assetForm}
@@ -258,7 +258,7 @@ export default function ClientDetail() {
       {isEditingAccount && (
         <div className="mb-6 p-5 bg-slate-900 border border-sanctum-gold/30 rounded-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
           <h3 className="text-sm font-bold uppercase tracking-wider opacity-70">Edit Account</h3>
-          <input 
+          <input
             className="text-xl font-bold bg-transparent border-b border-white/20 w-full focus:outline-none focus:border-sanctum-gold pb-1"
             value={account.name}
             onChange={e => setAccount({...account, name: e.target.value})}
@@ -309,39 +309,39 @@ export default function ClientDetail() {
                   </div>
               </div>
 
-              <FinancialSection 
-                  deals={account.deals || []} 
-                  invoices={account.invoices || []} 
+              <FinancialSection
+                  deals={account.deals || []}
+                  invoices={account.invoices || []}
                   projects={account.projects || []}
                   isNaked={user?.scope === 'nt_only'}
                   onAddDeal={() => { setForms({...forms, deal: { title: '', amount: 0, stage: 'Infiltration', probability: 10 }}); setActiveModal('deal'); }}
                   onAddProject={() => { setForms({...forms, project: { name: '', budget: 0, due_date: '' }}); setActiveModal('project'); }}
               />
-              
-              <TicketList 
+
+              <TicketList
                 tickets={tickets}
                 onAdd={() => setShowTicketModal(true)}
                 onDelete={(tid) => confirmAction("Archive Ticket?", "This will hide the ticket.", () => deleteTicket(tid))}
                 title="Recent Tickets"
               />
 
-              <AssetList 
-                assets={assets} 
+              <AssetList
+                assets={assets}
                 onAdd={() => { setAssetForm({ name: '', asset_type: 'server', status: 'active', specs: {} }); setShowAssetModal(true); }}
                 onEdit={(a) => { setAssetForm(a); setShowAssetModal(true); }}
                 onDelete={(aid) => confirmAction("Retire Asset?", "This cannot be undone.", () => deleteAsset(aid))}
                 onRenew={(a) => { setRenewalAsset({ asset_id: a.id, account_id: id, asset_name: a.name, asset_type: a.asset_type, current_expires_at: a.expires_at, suggested_expires_at: a.expires_at, billing_frequency: a.linked_product?.billing_frequency || null }); setShowRenewalModal(true); }}
               />
 
-              <AuditList 
+              <AuditList
                   audits={audits}
                   onAdd={() => navigate(`/audit/new?account=${id}`)}
               />
           </div>
 
           <div>
-              <HumanSection 
-                  contacts={account.contacts || []} 
+              <HumanSection
+                  contacts={account.contacts || []}
                   users={users}
                   isEditing={isEditingAccount}
                   onAddContact={() => { setForms({...forms, contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' }}); setActiveModal('contact'); }}

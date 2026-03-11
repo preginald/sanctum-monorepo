@@ -20,7 +20,7 @@ class NotificationResponse(SanctumBase):
     link: Optional[str] = None
     is_read: bool
     created_at: datetime
-    
+
     # New Fields
     status: str
     priority: str

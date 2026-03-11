@@ -103,23 +103,23 @@ def process_audit_scans():
             try:
                 # 1. Execute the Engine
                 scan_results = asyncio.run(engine.perform_scan(audit.target_url))
-                
+
                 # 2. MERGE LOGIC: Don't overwrite, deduplicate
                 current_content = audit.content or {"items": []}
                 existing_items = current_content.get('items', [])
-                
+
                 # Create a map to avoid duplicate (Category + Item) pairs
                 item_map = { (i['category'], i['item']): i for i in existing_items }
-                
+
                 for new_item in scan_results:
                     item_map[(new_item['category'], new_item['item'])] = new_item
-                
+
                 # Save the merged list back to the audit
                 audit.content = {"items": list(item_map.values())}
-                
+
                 from sqlalchemy.orm.attributes import flag_modified
                 flag_modified(audit, "content")
-                
+
                 audit.scan_status = 'completed'
                 audit.last_scan_at = datetime.now(timezone.utc)
                 db.commit()

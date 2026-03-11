@@ -50,6 +50,7 @@ CACHE_DIR = os.path.join(os.path.expanduser("~"), ".sanctum", "article_cache")
 # ArticleCache — importable module interface
 # ─────────────────────────────────────────────
 
+
 class ArticleCache:
     """
     File-based article content cache keyed by identifier (e.g. DOC-023).
@@ -112,12 +113,12 @@ class ArticleCache:
 # CLI interface — for sanctum.sh integration
 # ─────────────────────────────────────────────
 
-CYAN  = "\033[0;36m"
+CYAN = "\033[0;36m"
 GREEN = "\033[0;32m"
 YELLOW = "\033[1;33m"
-RED   = "\033[0;31m"
-GRAY  = "\033[0;90m"
-NC    = "\033[0m"
+RED = "\033[0;31m"
+GRAY = "\033[0;90m"
+NC = "\033[0m"
 
 
 def _read_file(path: str) -> str:
@@ -134,7 +135,9 @@ def cmd_set(identifier: str, file_path: str) -> None:
     cache = ArticleCache()
     cache.set(identifier, content)
     size = len(content)
-    print(f"{GREEN}✓ Cached {identifier}{NC} {GRAY}({size} chars → {cache._path(identifier)}){NC}")
+    print(
+        f"{GREEN}✓ Cached {identifier}{NC} {GRAY}({size} chars → {cache._path(identifier)}){NC}"
+    )
     sys.exit(0)
 
 

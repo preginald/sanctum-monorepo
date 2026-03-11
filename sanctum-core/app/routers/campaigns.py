@@ -132,7 +132,7 @@ async def launch_campaign(campaign_id: str, background_tasks: BackgroundTasks, c
 def submit_public_lead(lead: schemas.LeadSchema, db: Session = Depends(get_db)):
     new_account = models.Account(name=lead.company, type="business", status="lead", brand_affinity="ds", audit_data={"size": lead.size, "challenge": lead.challenge, "initial_message": lead.message})
     db.add(new_account)
-    db.flush() 
+    db.flush()
     name_parts = lead.name.split(" ", 1)
     fname = name_parts[0]
     lname = name_parts[1] if len(name_parts) > 1 else ""

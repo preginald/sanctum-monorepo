@@ -6,7 +6,7 @@ import UpcomingRenewals from './UpcomingRenewals';
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
-    revenue_realized: 0, pipeline_value: 0, active_audits: 0, 
+    revenue_realized: 0, pipeline_value: 0, active_audits: 0,
     open_tickets: 0, critical_tickets: 0
   });
 
@@ -31,11 +31,11 @@ export default function AdminDashboard() {
         <StatCard title="Revenue (YTD)" value={formatCurrency(stats.revenue_realized)} icon={DollarSign} color="text-green-500" />
         <StatCard title="Pipeline" value={formatCurrency(stats.pipeline_value)} icon={Briefcase} color="text-blue-500" />
         <StatCard title="Active Audits" value={stats.active_audits} icon={Activity} color="text-purple-500" />
-        <StatCard 
-            title="Critical Issues" 
-            value={stats.critical_tickets} 
-            icon={AlertCircle} 
-            color="text-red-500" 
+        <StatCard
+            title="Critical Issues"
+            value={stats.critical_tickets}
+            icon={AlertCircle}
+            color="text-red-500"
             subtext={`${stats.open_tickets} total open tickets`}
         />
       </div>

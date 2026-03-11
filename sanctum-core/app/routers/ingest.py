@@ -15,7 +15,7 @@ def ingest_client_asset(token: UUID, payload: dict, db: Session = Depends(get_db
     """
     # Find account by token
     account = db.query(models.Account).filter(models.Account.ingest_token == token).first()
-    
+
     if not account:
         raise HTTPException(status_code=404, detail="Invalid ingest token")
 
@@ -29,13 +29,13 @@ def ingest_client_asset(token: UUID, payload: dict, db: Session = Depends(get_db
         specs=payload.get('specs', {}), # Our new JSONB column
         notes=f"Auto-ingested via script on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     )
-    
+
     db.add(new_asset)
     db.commit()
     db.refresh(new_asset)
-    
+
     return {
-        "status": "success", 
+        "status": "success",
         "asset_id": str(new_asset.id),
         "client": account.name
     }

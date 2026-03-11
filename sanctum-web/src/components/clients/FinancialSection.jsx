@@ -12,7 +12,7 @@ export default function FinancialSection({ deals, invoices, projects, isNaked, o
 
   return (
     <div className="space-y-6">
-        
+
         {/* DEALS */}
         <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
             <div className="flex justify-between items-center mb-4">

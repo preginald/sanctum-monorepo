@@ -4,7 +4,7 @@ from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
-from ..services.event_bus import event_bus 
+from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -22,7 +22,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
             joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
             joinedload(models.Ticket.contacts),
             joinedload(models.Ticket.articles),
-            joinedload(models.Ticket.assets) 
+            joinedload(models.Ticket.assets)
         )\
         .filter(models.Ticket.is_deleted == False)
 
@@ -30,21 +30,21 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
         query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
-    
+
     if current_user.role == 'client':
         query = query.filter(models.Ticket.account_id == current_user.account_id)
 
     tickets = query.order_by(models.Ticket.id.desc()).all()
-    
+
     results = []
     for t in tickets:
-        t_dict = t.__dict__.copy() 
+        t_dict = t.__dict__.copy()
         t_dict['account_name'] = t.account.name
-        t_dict['contacts'] = t.contacts 
+        t_dict['contacts'] = t.contacts
         t_dict['total_hours'] = t.total_hours
         t_dict['articles'] = t.articles
-        t_dict['assets'] = t.assets 
-        
+        t_dict['assets'] = t.assets
+
         enriched_time = []
         for te in t.time_entries:
             if te.invoice:
@@ -58,28 +58,28 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
                 setattr(tm, 'invoice_status', tm.invoice.status)
             enriched_materials.append(tm)
         t_dict['materials'] = enriched_materials
-        
+
         if t.milestone:
             t_dict['milestone_name'] = t.milestone.name
             if t.milestone.project:
                 t_dict['project_id'] = t.milestone.project.id
                 t_dict['project_name'] = t.milestone.project.name
-        
+
         linked_items = db.query(models.InvoiceItem).options(joinedload(models.InvoiceItem.invoice))\
             .filter(models.InvoiceItem.ticket_id == t.id).all()
         unique_invoices = {}
         for item in linked_items:
             if item.invoice: unique_invoices[item.invoice.id] = item.invoice
         t_dict['related_invoices'] = list(unique_invoices.values())
-            
+
         results.append(t_dict)
     return results
 
 @router.post("", response_model=schemas.TicketResponse)
 def create_ticket(
-    ticket: schemas.TicketCreate, 
-    background_tasks: BackgroundTasks, 
-    current_user: models.User = Depends(auth.get_current_active_user), 
+    ticket: schemas.TicketCreate,
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
     target_account_id = ticket.account_id
@@ -88,7 +88,7 @@ def create_ticket(
         ticket.assigned_tech_id = None
         ticket.milestone_id = None
         if not ticket.ticket_type: ticket.ticket_type = 'support'
-        
+
         linked_contact = db.query(models.Contact).filter(models.Contact.account_id == current_user.account_id, models.Contact.email == current_user.email).first()
         if linked_contact and linked_contact.id not in ticket.contact_ids:
             ticket.contact_ids.append(linked_contact.id)
@@ -99,18 +99,18 @@ def create_ticket(
         ticket_type=ticket.ticket_type, milestone_id=ticket.milestone_id
     )
 
-    if ticket.contact_ids: 
+    if ticket.contact_ids:
         new_ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ticket.contact_ids)).all()
-        
+
     db.add(new_ticket)
     db.commit()
     db.refresh(new_ticket)
     new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
-    new_ticket.account_name = new_ticket.account.name 
-    
+    new_ticket.account_name = new_ticket.account.name
+
     new_ticket.related_tickets = []
     event_bus.emit("ticket_created", new_ticket, background_tasks)
-    
+
     if new_ticket.assigned_tech_id:
         tech = db.query(models.User).filter(models.User.id == new_ticket.assigned_tech_id).first()
         if tech:
@@ -122,7 +122,7 @@ def create_ticket(
                 link=f"/tickets/{new_ticket.id}",
                 priority=new_ticket.priority
             )
-    
+
     return new_ticket
 
 
@@ -185,14 +185,14 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session =
                     comment.resolved_body = resolve_content(db, comment.body)
         except Exception as e:
             print(f"Content Engine failed: {e}")
-            
+
     return response_data
 
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
 def update_ticket(
-    ticket_id: int, 
-    ticket_update: schemas.TicketUpdate, 
-    background_tasks: BackgroundTasks, 
+    ticket_id: int,
+    ticket_update: schemas.TicketUpdate,
+    background_tasks: BackgroundTasks,
     resolve_embeds: bool = False, db: Session = Depends(get_db)
 ):
     ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)).filter(models.Ticket.id == ticket_id).first()
@@ -204,7 +204,7 @@ def update_ticket(
 
     # 1. HANDLE MANY-TO-MANY CONTACTS
     if 'contact_ids' in update_data:
-        ids = update_data.pop('contact_ids') 
+        ids = update_data.pop('contact_ids')
         if ids:
             ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ids)).all()
         else:
@@ -213,10 +213,10 @@ def update_ticket(
     # 2. STATUS CHECK
     if 'status' in update_data and update_data['status'] == 'resolved' and ticket.status != 'resolved':
         if 'closed_at' not in update_data: ticket.closed_at = func.now()
-    
+
     # 3. GENERIC FIELDS
     for key, value in update_data.items(): setattr(ticket, key, value)
-    
+
     db.commit()
     db.refresh(ticket)
     ticket.account_name = ticket.account.name if ticket.account else None
@@ -257,7 +257,7 @@ def update_ticket(
                     comment.resolved_body = resolve_content(db, comment.body)
         except Exception as e:
             print(f"CRITICAL: Content Engine failed on save: {e}")
-            
+
     return response_data
 
 @router.delete("/{ticket_id}")

@@ -60,13 +60,21 @@ def filter_traceback(text: str) -> str:
             if _is_noise_frame(line):
                 # Drop this frame line and its following code snippet line
                 i += 1  # skip frame
-                if i < len(lines) and not _FRAME_RE.match(lines[i]) and lines[i].strip():
+                if (
+                    i < len(lines)
+                    and not _FRAME_RE.match(lines[i])
+                    and lines[i].strip()
+                ):
                     i += 1  # skip code snippet
             else:
                 # Retain app-level frame and its code snippet
                 result.append(line)
                 i += 1
-                if i < len(lines) and not _FRAME_RE.match(lines[i]) and lines[i].strip():
+                if (
+                    i < len(lines)
+                    and not _FRAME_RE.match(lines[i])
+                    and lines[i].strip()
+                ):
                     result.append(lines[i])
                     i += 1
         else:

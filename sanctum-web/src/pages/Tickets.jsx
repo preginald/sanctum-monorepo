@@ -27,17 +27,17 @@ const COLUMNS = {
   'resolved': { id: 'resolved', label: 'Resolved', color: 'border-green-500' }
 };
 
-export default function Tickets({ autoCreate = false }) { 
+export default function Tickets({ autoCreate = false }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const navigate = useNavigate();
   const { token, user } = useAuthStore();
   const { addToast } = useToast();
   const { openModal } = useModalStore();
-  
+
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('list');
-  
+
   // Filters & Sort
   const [statusFilter, setStatusFilter] = useState('active');
   const [priorityFilter, setPriorityFilter] = useState('all');
@@ -53,10 +53,10 @@ export default function Tickets({ autoCreate = false }) {
     try {
       const res = await api.get('/tickets');
       setTickets(res.data);
-    } catch (e) { 
+    } catch (e) {
       console.error(e);
       addToast("Failed to load tickets", "error");
-    } 
+    }
     finally { setLoading(false); }
   };
 
@@ -110,16 +110,16 @@ export default function Tickets({ autoCreate = false }) {
     const { destination, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === result.source.droppableId && destination.index === result.source.index) return;
-    
+
     const newStatus = destination.droppableId;
     const ticketId = parseInt(draggableId);
-    
+
     // Optimistic Update
     setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
-    try { 
-      await api.put(`/tickets/${ticketId}`, { status: newStatus }); 
-    } catch (e) { 
-      fetchData(); 
+    try {
+      await api.put(`/tickets/${ticketId}`, { status: newStatus });
+    } catch (e) {
+      fetchData();
       addToast("Failed to update ticket status", "error");
     }
   };
@@ -150,7 +150,7 @@ export default function Tickets({ autoCreate = false }) {
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
 
-            
+
             <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-lg border border-slate-700">
                 <div className="px-2 text-slate-500"><Filter size={14}/></div>
                 <select className="bg-slate-900 text-sm text-white outline-none border-r border-slate-700 pr-2 cursor-pointer" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
@@ -198,12 +198,12 @@ export default function Tickets({ autoCreate = false }) {
           {sortedTickets.length === 0 && <div className="p-8 text-center opacity-30">No tickets match filters.</div>}
         </Card>
       ) : (
-          <KanbanBoard 
-            columns={COLUMNS} 
-            items={sortedTickets} 
+          <KanbanBoard
+            columns={COLUMNS}
+            items={sortedTickets}
             onDragEnd={onDragEnd}
             renderCard={(t) => (
-                <div 
+                <div
                     onClick={() => navigate(`/tickets/${t.id}`)}
                     className="p-4 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group"
                 >
@@ -216,7 +216,7 @@ export default function Tickets({ autoCreate = false }) {
                     </div>
                     <h4 className="font-bold text-sm mb-1 text-white group-hover:text-blue-300 line-clamp-2">{t.subject}</h4>
                     <div className="text-xs opacity-50 mb-2">{t.account_name}</div>
-                    
+
                     {t.milestone_name && (
                         <div className="mt-2 pt-2 border-t border-slate-700">
                             <Badge variant="info">{t.milestone_name}</Badge>

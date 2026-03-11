@@ -25,16 +25,16 @@ export default function SystemHealth() {
       try {
           // Trigger the download via Axios (keeps the Auth Token attached)
           const response = await api.get('/admin/users/backup', { responseType: 'blob' });
-          
+
           // Create a temporary URL for the file blob
           const url = window.URL.createObjectURL(new Blob([response.data]));
           const link = document.createElement('a');
           link.href = url;
-          
+
           // Timestamp filename
           const date = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
           link.setAttribute('download', `sanctum_backup_${date}.sql`);
-          
+
           // Trigger click and cleanup
           document.body.appendChild(link);
           link.click();
@@ -57,7 +57,7 @@ export default function SystemHealth() {
   return (
     <Layout title="System Watchtower">
       <div className="max-w-6xl mx-auto space-y-8">
-        
+
         {/* TOP HEADER */}
         <div className="flex justify-between items-center">
             <div className="flex items-center gap-4">
@@ -75,7 +75,7 @@ export default function SystemHealth() {
 
         {/* VITALS GRID */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            
+
             {/* DB LATENCY */}
             <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative overflow-hidden group">
                 <div className="absolute -right-4 -top-4 text-slate-800 group-hover:text-slate-700 transition-colors"><Database size={100} /></div>
@@ -132,7 +132,7 @@ export default function SystemHealth() {
                     Generate and download a full SQL snapshot of the database.
                 </p>
             </div>
-            <button 
+            <button
                 onClick={handleBackup}
                 className="flex items-center gap-2 px-6 py-3 bg-sanctum-gold hover:bg-yellow-500 text-slate-900 font-bold rounded shadow-lg transition-transform hover:-translate-y-0.5"
             >

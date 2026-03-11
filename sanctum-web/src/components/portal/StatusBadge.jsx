@@ -3,11 +3,11 @@ import { CheckCircle, Loader2, Clock, AlertCircle } from 'lucide-react';
 
 /**
  * StatusBadge - Displays status with appropriate icon and color
- * 
+ *
  * Supports: draft, in_progress, finalized, pending, resolved, etc.
  */
-export default function StatusBadge({ 
-  status, 
+export default function StatusBadge({
+  status,
   variant = 'default',
   size = 'md',
   showIcon = true,
@@ -42,7 +42,7 @@ export default function StatusBadge({
       icon: CheckCircle,
       color: 'bg-green-500/20 text-green-500 border-green-500/30'
     },
-    
+
     // Ticket statuses
     new: {
       label: 'New',
@@ -64,7 +64,7 @@ export default function StatusBadge({
       icon: CheckCircle,
       color: 'bg-green-500/20 text-green-500 border-green-500/30'
     },
-    
+
     // Generic
     success: {
       label: 'Success',
@@ -93,7 +93,7 @@ export default function StatusBadge({
   const label = customLabel || config.label;
 
   return (
-    <span 
+    <span
       className={`inline-flex items-center gap-1.5 ${sizeConfig.padding} ${sizeConfig.text} font-medium rounded-full border ${config.color}`}
     >
       {showIcon && (

@@ -42,7 +42,7 @@ def list_all_users(
 
 @user_router.post("", response_model=schemas.UserResponse)
 def create_user(
-    user_data: schemas.ClientUserCreate, 
+    user_data: schemas.ClientUserCreate,
     role: str = "tech", # 'tech' or 'admin' (clients created via ClientDetail)
     access_scope: str = "global",
     current_user: models.User = Depends(get_current_admin),
@@ -50,13 +50,13 @@ def create_user(
 ):
     if db.query(models.User).filter(models.User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
+
     hashed_pw = auth.get_password_hash(user_data.password)
     new_user = models.User(
-        email=user_data.email, 
-        password_hash=hashed_pw, 
-        full_name=user_data.full_name, 
-        role=role, 
+        email=user_data.email,
+        password_hash=hashed_pw,
+        full_name=user_data.full_name,
+        role=role,
         access_scope=access_scope
     )
     db.add(new_user)
@@ -66,31 +66,31 @@ def create_user(
 
 @user_router.put("/{user_id}", response_model=schemas.UserResponse)
 def admin_update_user(
-    user_id: str, 
+    user_id: str,
     update: UserUpdate, # We define this simple schema locally or in schemas
     current_user: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user: raise HTTPException(status_code=404, detail="User not found")
-    
+
     if update.full_name: user.full_name = update.full_name
     if update.email: user.email = update.email
-    
+
     db.commit()
     db.refresh(user)
     return user
 
 @user_router.put("/{user_id}/reset_password")
 def admin_reset_password(
-    user_id: str, 
+    user_id: str,
     payload: schemas.ClientUserCreate, # Reusing schema for convenience (just need password)
     current_user: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user: raise HTTPException(status_code=404, detail="User not found")
-    
+
     user.password_hash = auth.get_password_hash(payload.password)
     db.commit()
     return {"status": "password_reset"}
@@ -103,10 +103,10 @@ def admin_delete_user(
 ):
     if str(current_user.id) == user_id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
-        
+
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if not user: raise HTTPException(status_code=404, detail="User not found")
-    
+
     db.delete(user)
     db.commit()
     return {"status": "deleted"}
@@ -176,8 +176,8 @@ def download_database_backup(
 
     # 5. Serve File
     return FileResponse(
-        path=filepath, 
-        filename=filename, 
+        path=filepath,
+        filename=filename,
         media_type='application/sql'
     )
 
@@ -199,18 +199,18 @@ def list_questionnaire_responses(
     accounts = db.query(models.Account).filter(
         models.Account.audit_data['scoping_responses'].isnot(None)
     ).all()
-    
+
     result = []
     for account in accounts:
         scoping = account.audit_data.get('scoping_responses', {})
-        
+
         # Count draft assets created from questionnaire
         draft_count = db.query(models.Asset).filter(
             models.Asset.account_id == account.id,
             models.Asset.status == 'draft',
             models.Asset.notes.like('%Captured from Questionnaire%')
         ).count()
-        
+
         result.append({
             "account_id": str(account.id),
             "account_name": account.name,
@@ -221,10 +221,10 @@ def list_questionnaire_responses(
             "referral_source": scoping.get('referral_source'),
             "draft_assets_count": draft_count
         })
-    
+
     # Sort by submitted_at descending (most recent first)
     result.sort(key=lambda x: x['submitted_at'] or '', reverse=True)
-    
+
     return result
 
 @account_router.delete("/{account_id}/questionnaire")
@@ -236,12 +236,12 @@ def reset_questionnaire(
     """
     Reset/delete questionnaire data for an account.
     """
-    
+
     # Get account
     account = db.query(models.Account).filter(models.Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+
     summary = {
         "account_id": str(account_id),
         "account_name": account.name,
@@ -249,7 +249,7 @@ def reset_questionnaire(
         "draft_assets_deleted": 0,
         "intake_tickets_deleted": 0
     }
-    
+
     # 1. Clear questionnaire responses (FIXED: Proper JSONB handling)
     if account.audit_data and account.audit_data.get('scoping_responses'):
         # Copy, modify, reassign
@@ -258,30 +258,30 @@ def reset_questionnaire(
         account.audit_data = new_data
         flag_modified(account, 'audit_data') # Tell SQLAlchemy the JSONB changed
         summary["questionnaire_cleared"] = True
-    
+
     # 2. Delete draft assets created from questionnaire
     draft_assets = db.query(models.Asset).filter(
         models.Asset.account_id == account_id,
         models.Asset.status == 'draft',
         models.Asset.notes.like('%Captured from Questionnaire%')
     ).all()
-    
+
     for asset in draft_assets:
         db.delete(asset)
         summary["draft_assets_deleted"] += 1
-    
+
     # 3. Delete intake tickets
     intake_tickets = db.query(models.Ticket).filter(
         models.Ticket.account_id == account_id,
         models.Ticket.subject.like('%[AUDIT INTAKE]%')
     ).all()
-    
+
     for ticket in intake_tickets:
         db.delete(ticket)
         summary["intake_tickets_deleted"] += 1
-    
+
     db.commit()
-    
+
     return {
         "status": "success",
         "message": f"Questionnaire data reset for {account.name}",
@@ -303,15 +303,15 @@ def update_account_audit_data(
     account = db.query(models.Account).filter(models.Account.id == account_id).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-        
+
     result = process_questionnaire_submission(
         db=db,
         account=account,
         payload=payload,
         submitted_by_user_id=current_user.id,
-        create_tickets=False 
+        create_tickets=False
     )
-    
+
     return {
         "status": "success",
         "message": "Discovery data saved and assets created.",

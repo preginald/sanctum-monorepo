@@ -7,7 +7,7 @@ import ProgressBar from './ProgressBar';
 
 /**
  * HealthScoreWidget - Expandable health score widget with multi-assessment support
- * 
+ *
  * Features:
  * - Shows primary assessment when collapsed
  * - Badge count for multiple assessments
@@ -26,7 +26,7 @@ export default function HealthScoreWidget({
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const navigate = useNavigate();
-  
+
   const hasAssessments = assessments.length > 0;
   const primary = assessments[0]; // Highest priority assessment
   const additionalCount = assessments.length - 1;
@@ -46,7 +46,7 @@ export default function HealthScoreWidget({
   // Determine display content for primary assessment
   let primaryDisplay = null;
   let isClickable = false;
-  
+
   if (!hasAssessments) {
     // No assessments
     primaryDisplay = <span className="text-2xl opacity-30">Not Assessed</span>;
@@ -107,13 +107,13 @@ export default function HealthScoreWidget({
       {/* COLLAPSED VIEW */}
       {!isExpanded && (
         <>
-          <div 
+          <div
             className={`flex items-end gap-2 mb-2 ${isClickable ? 'cursor-pointer' : ''}`}
             onClick={handlePrimaryClick}
           >
             {primaryDisplay}
           </div>
-          
+
           {hasAssessments && (
             <div className="flex items-center justify-between gap-2 mt-1">
               <div className="text-xs opacity-70 flex items-center gap-1">
@@ -122,7 +122,7 @@ export default function HealthScoreWidget({
                 {primary.status === 'draft' && <span className="text-yellow-500">📝</span>}
                 {primary.template_name}
               </div>
-              
+
               {isClickable && (
                 <button
                   onClick={(e) => {
@@ -136,7 +136,7 @@ export default function HealthScoreWidget({
               )}
             </div>
           )}
-          
+
           {additionalCount > 0 && (
             <button
               onClick={() => setIsExpanded(true)}
@@ -159,10 +159,10 @@ export default function HealthScoreWidget({
             <ChevronUp size={14} />
             Collapse
           </button>
-          
+
           {assessments.map((assessment) => {
             const canView = assessment.status === 'finalized';
-            
+
             return (
               <div
                 key={assessment.id}
@@ -185,7 +185,7 @@ export default function HealthScoreWidget({
                       )}
                     </div>
                   </div>
-                  
+
                   {canView && (
                     <button
                       onClick={() => {
@@ -201,11 +201,11 @@ export default function HealthScoreWidget({
                     </button>
                   )}
                 </div>
-                
+
                 {assessment.status === 'finalized' && (
                   <div className="mt-2">
-                    <ProgressBar 
-                      score={assessment.score} 
+                    <ProgressBar
+                      score={assessment.score}
                       colorMode="score"
                       height="h-2"
                     />

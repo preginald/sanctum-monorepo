@@ -33,7 +33,7 @@ export const recordVisit = (type, item) => {
 
 /**
  * Retrieves the history list for a type.
- * @param {string} type 
+ * @param {string} type
  * @returns {Array} List of items
  */
 export const getRecent = (type) => {
@@ -62,12 +62,12 @@ export const sortByRecency = (masterList, type) => {
 
         if (aRecent && !bRecent) return -1; // a comes first
         if (!aRecent && bRecent) return 1;  // b comes first
-        
+
         // If both recent, sort by index in recent list (most recent first)
         if (aRecent && bRecent) {
             return recents.findIndex(r => r.id === a.id) - recents.findIndex(r => r.id === b.id);
         }
-        
+
         return 0; // Keep original order
     });
 };

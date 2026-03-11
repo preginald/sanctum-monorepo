@@ -62,18 +62,18 @@ export default function AdminQuestionnaireList() {
     if (filter.companySize !== 'all' && r.company_size !== filter.companySize) return false;
     if (filter.timeline !== 'all' && r.timeline !== filter.timeline) return false;
     if (filter.assessmentType !== 'all' && r.assessment_interest !== filter.assessmentType) return false;
-    
+
     // Date range filter
     if (filter.dateRange !== 'all') {
       const submittedDate = new Date(r.submitted_at);
       const now = new Date();
       const daysDiff = Math.floor((now - submittedDate) / (1000 * 60 * 60 * 24));
-      
+
       if (filter.dateRange === 'week' && daysDiff > 7) return false;
       if (filter.dateRange === 'month' && daysDiff > 30) return false;
       if (filter.dateRange === 'quarter' && daysDiff > 90) return false;
     }
-    
+
     return true;
   });
 
@@ -96,7 +96,7 @@ export default function AdminQuestionnaireList() {
   return (
     <Layout>
       <div className="p-8 max-w-7xl mx-auto">
-        
+
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <div>

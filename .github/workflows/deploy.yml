@@ -17,34 +17,34 @@ jobs:
           script: |
             # 1. STOP ON ERROR
             set -e
-            
+
             # 2. PULL LATEST CODE
             echo "📥 Pulling latest code..."
             cd ~/DigitalSanctum
             git pull origin main
-            
+
             # 3. UPDATE BACKEND
             echo "🐍 Updating Backend..."
             cd sanctum-core
             source venv/bin/activate
             pip install -r requirements.txt
-            
+
             # 3.5 RUN DATABASE MIGRATIONS (NEW)
             echo "🏗️ Running Database Migrations..."
             alembic upgrade head
-            
+
             # Restart Service (No Sudo Password needed due to sudoers config)
             echo "🔄 Restarting API Service..."
             sudo systemctl restart sanctum-api
-            
+
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
             cd ../sanctum-web
             npm install
             npm run build
-            
+
             # Copy Files (No Sudo needed due to chown)
             echo "🚀 Deploying Static Assets..."
             cp -r dist/* /var/www/sanctum-core/
-            
+
             echo "✅ Deployment Complete."

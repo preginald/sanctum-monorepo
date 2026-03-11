@@ -10,7 +10,7 @@ import SetPassword from './pages/SetPassword';
 
 // --- PORTAL PAGES ---
 import PortalDashboard from './pages/PortalDashboard';
-import PortalTicketDetail from './pages/PortalTicketDetail'; 
+import PortalTicketDetail from './pages/PortalTicketDetail';
 import PortalAssets from './pages/PortalAssets';
 import PortalProjectDetail from './pages/PortalProjectDetail';
 import PortalAuditReport from './pages/PortalAuditReport'; // PHASE 60A: Renamed & category-aware
@@ -26,7 +26,7 @@ import PortalKnowledgeBase from './pages/PortalKnowledgeBase';
 // --- CORE MODULES ---
 import Dashboard from './pages/Dashboard';
 import Catalog from './pages/Catalog';
-import Diagnostics from './pages/Diagnostics'; 
+import Diagnostics from './pages/Diagnostics';
 
 // --- CRM MODULE ---
 import Clients from './pages/Clients';
@@ -105,22 +105,22 @@ function App() {
   return (
     <ToastProvider>
       <BrowserRouter>
-        <GlobalModalManager /> 
+        <GlobalModalManager />
         <Routes>
-          
+
           {/* === PUBLIC ROUTES === */}
           <Route path="/login" element={<Login />} />
-          <Route path="/set-password" element={<SetPassword />} /> 
-          
+          <Route path="/set-password" element={<SetPassword />} />
+
           {/* === SECURE ZONE === */}
           <Route path="/*" element={<ProtectedRoute><Routes>
-                  
+
                   {/* CLIENT PORTAL (Explicit) */}
                   <Route path="/portal" element={<PortalDashboard />} />
                   <Route path="/portal/assessments" element={<PortalAssessments />} /> {/* PHASE 60A: Assessment catalog */}
                   <Route path="/portal/audit/:category" element={<PortalAuditReport />} /> {/* PHASE 60A: Category-aware */}
                   <Route path="/portal/security" element={<Navigate to="/portal/audit/security" replace />} /> {/* Legacy redirect */}
-                  <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} /> 
+                  <Route path="/portal/tickets/:id" element={<PortalTicketDetail />} />
                   <Route path="/portal/wiki/:slug" element={<PortalArticleView />} />
                   <Route path="/portal/assets" element={<PortalAssets />} />
                   <Route path="/portal/projects/:id" element={<PortalProjectDetail />} />
@@ -140,7 +140,7 @@ function App() {
                               <Route path="/clients" element={<Clients />} />
                               <Route path="/clients/:id" element={<ClientDetail />} />
                               <Route path="/clients/:id/discovery" element={<AdminClientDiscovery />} /> {/* <--- ADD ROUTE */}
-                              
+
                               {/* STRATEGY */}
                               <Route path="/projects" element={<ProjectIndex />} />
                               <Route path="/projects/:id" element={<ProjectDetail />} />
@@ -149,16 +149,16 @@ function App() {
                               <Route path="/templates/:id" element={<TemplateDetail />} />
                               <Route path="/deals" element={<Deals />} />
                               <Route path="/deals/:id" element={<DealDetail />} />
-                              
+
                               {/* OPERATIONS */}
                               <Route path="/tickets" element={<Tickets />} />
-                              <Route path="/tickets/new" element={<Tickets autoCreate={true} />} /> 
+                              <Route path="/tickets/new" element={<Tickets autoCreate={true} />} />
                               <Route path="/tickets/:id" element={<TicketDetail />} />
-                              
+
                               <Route path="/audit" element={<AuditIndex />} />
                               <Route path="/audit/new" element={<AuditDetail />} />
                               <Route path="/audit/:id" element={<AuditDetail />} />
-                              
+
                               <Route path="/catalog" element={<Catalog />} />
                               <Route path="/assets/lifecycle" element={<AssetLifecycle />} />
                               <Route path="/assets/:assetId" element={<AssetDetail />} />
@@ -190,7 +190,7 @@ function App() {
                               {/* DIAGNOSTICS */}
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/system/health" element={<SystemHealth />} />
-                              
+
                           </Routes>
                       </AdminRoute>
                   } />

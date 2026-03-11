@@ -27,7 +27,7 @@ export default function ResolveModal({ isOpen, onClose, onResolve, loading, init
 
         <div>
           <label className="text-xs opacity-50 block mb-1">Resolution Details (Markdown Supported)</label>
-          <textarea 
+          <textarea
             autoFocus
             required
             className="w-full p-4 h-48 bg-slate-800 border border-slate-600 rounded text-white font-mono text-sm leading-relaxed"
@@ -38,16 +38,16 @@ export default function ResolveModal({ isOpen, onClose, onResolve, loading, init
         </div>
 
         <div className="flex justify-end gap-2">
-          <button 
-            type="button" 
-            onClick={onClose} 
+          <button
+            type="button"
+            onClick={onClose}
             className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-white text-sm"
           >
             Cancel
           </button>
-          <button 
-            type="submit" 
-            disabled={loading || !resolution.trim()} 
+          <button
+            type="submit"
+            disabled={loading || !resolution.trim()}
             className="flex items-center gap-2 px-6 py-2 rounded bg-green-600 hover:bg-green-500 text-white font-bold text-sm shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? <Loader2 size={16} className="animate-spin"/> : <><CheckCircle size={16}/> Confirm Resolution</>}

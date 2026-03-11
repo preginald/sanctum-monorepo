@@ -17,11 +17,11 @@ export default function InvoiceDetail() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { addToast } = useToast();
-  
+
   // === STATE ===
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Track updates to force PDF refresh
   const [lastUpdate, setLastUpdate] = useState(Date.now());
 
@@ -30,7 +30,7 @@ export default function InvoiceDetail() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [renewalAsset, setRenewalAsset] = useState(null);
   const [showRenewalModal, setShowRenewalModal] = useState(false);
-  
+
   // NOTE: Removed confirmDelete state in favor of window.confirm for direct action
   const [confirmVoid, setConfirmVoid] = useState(false);
 
@@ -58,12 +58,12 @@ export default function InvoiceDetail() {
       const res = await api.get(`/invoices/${id}`);
       setInvoice(res.data);
       setLastUpdate(Date.now());
-      
+
       const isPaid = res.data.status === 'paid';
-      const subjectLine = isPaid 
+      const subjectLine = isPaid
           ? `Receipt: Invoice #${res.data.id.slice(0,8).toUpperCase()} - PAID`
           : `Invoice #${res.data.id.slice(0,8).toUpperCase()} from Digital Sanctum`;
-      
+
       if(res.data.account_id) {
           api.get(`/accounts/${res.data.account_id}`).then(accRes => {
               const contacts = accRes.data.contacts || [];
@@ -73,7 +73,7 @@ export default function InvoiceDetail() {
           setComputedSubject(subjectLine);
       }
 
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
@@ -106,7 +106,7 @@ export default function InvoiceDetail() {
     try {
         const payload = { [field]: value };
         await api.put(`/invoices/items/${itemId}`, payload);
-        setLastUpdate(Date.now()); 
+        setLastUpdate(Date.now());
     } catch (e) { console.error("Failed to update item"); fetchInvoice(); }
   };
 
@@ -136,13 +136,13 @@ export default function InvoiceDetail() {
       if (!window.confirm("Are you sure you want to delete this draft invoice? This action cannot be undone.")) {
           return;
       }
-      
+
       console.log("Attempting to delete invoice:", id);
       try {
           await api.delete(`/invoices/${id}`);
           console.log("Delete success, navigating...");
           addToast("Invoice deleted", "info");
-          
+
           // Small delay to ensure toast is seen before nav
           setTimeout(() => {
               navigate(`/clients/${invoice.account_id}`);
@@ -155,10 +155,10 @@ export default function InvoiceDetail() {
   };
 
   // --- PAYMENT LOGIC ---
-  
+
   const openPaymentModal = () => {
       setPaymentForm({
-          paid_at: new Date().toISOString().slice(0, 16), 
+          paid_at: new Date().toISOString().slice(0, 16),
           payment_method: 'bank_transfer'
       });
       setShowPaymentModal(true);
@@ -175,7 +175,7 @@ export default function InvoiceDetail() {
   const handleMarkPaid = async (e) => {
       e.preventDefault();
       try {
-          const payload = { 
+          const payload = {
               status: 'paid',
               paid_at: new Date(paymentForm.paid_at).toISOString(),
               payment_method: paymentForm.payment_method
@@ -183,18 +183,18 @@ export default function InvoiceDetail() {
 
           const res = await api.put(`/invoices/${id}`, payload);
           setInvoice(res.data);
-          setLastUpdate(Date.now()); 
+          setLastUpdate(Date.now());
           setShowPaymentModal(false);
           addToast("Payment Details Updated", "success");
           if (res.data.renewal_asset) {
               setRenewalAsset(res.data.renewal_asset);
               setShowRenewalModal(true);
           }
-          
+
           setComputedSubject(`Receipt: Invoice #${res.data.id.slice(0,8).toUpperCase()} - PAID`);
           if (paymentForm.send_receipt) setShowSendModal(true);
-      } catch (e) { 
-          addToast("Payment update failed", "danger"); 
+      } catch (e) {
+          addToast("Payment update failed", "danger");
       }
   };
 
@@ -313,7 +313,7 @@ export default function InvoiceDetail() {
         onConfirm={() => addToast("Asset expiry updated", "success")}
         isManual={false}
     />
-    <ConfirmationModal 
+    <ConfirmationModal
           isOpen={confirmVoid} onClose={() => setConfirmVoid(false)} onConfirm={handleVoid}
           title="Void Invoice?" message="Release items back to pool?" isDangerous={true}
       />
@@ -433,7 +433,7 @@ export default function InvoiceDetail() {
                                   <option value="Due on Receipt">Due on Receipt</option>
                               </select>
                           ) : <span>{invoice.payment_terms}</span>}
-                          
+
                           <p className="mt-4 text-xs font-mono">
                               Bank: Sanctum Bank<br/>BSB: 063 010<br/>ACC: 1149 9520
                           </p>
@@ -478,14 +478,14 @@ export default function InvoiceDetail() {
             <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-md relative animate-in fade-in zoom-in-95">
                 <button onClick={() => setShowPaymentModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><CheckCircle size={20} className="text-green-400"/> Record Payment</h2>
-                
+
                 <form onSubmit={handleMarkPaid} className="space-y-4">
                     <div>
                         <label className="text-xs opacity-50 block mb-1">Date Paid</label>
                         <div className="relative">
                             <Calendar className="absolute left-2.5 top-2.5 text-slate-500" size={14} />
-                            <input 
-                                required type="datetime-local" 
+                            <input
+                                required type="datetime-local"
                                 className="w-full bg-slate-800 border border-slate-600 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-green-500"
                                 value={paymentForm.paid_at}
                                 onChange={e => setPaymentForm({...paymentForm, paid_at: e.target.value})}
@@ -497,7 +497,7 @@ export default function InvoiceDetail() {
                         <label className="text-xs opacity-50 block mb-1">Payment Method</label>
                         <div className="relative">
                             <CreditCard className="absolute left-2.5 top-2.5 text-slate-500" size={14} />
-                            <select 
+                            <select
                                 className="w-full bg-slate-800 border border-slate-600 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-green-500 appearance-none"
                                 value={paymentForm.payment_method}
                                 onChange={e => setPaymentForm({...paymentForm, payment_method: e.target.value})}
@@ -530,7 +530,7 @@ export default function InvoiceDetail() {
             <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative animate-in fade-in zoom-in-95">
                 <button onClick={() => setShowSendModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4 flex items-center gap-2"><Send size={20} className="text-blue-400"/> {getSendLabel()}</h2>
-                
+
                 <form onSubmit={handleSendEmail} className="space-y-4">
                     <SendNotificationForm
                         accountId={invoice.account_id}

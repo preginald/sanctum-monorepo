@@ -25,6 +25,6 @@ def test_notification_flow(client, admin_token_headers, db):
     # 3. Mark as Read (Updated Path to include /read)
     nid = data[0]["id"]
     res = client.put(f"/notifications/{nid}/read", headers=admin_token_headers)
-    
+
     assert res.status_code == 200
     assert res.json()["status"] == "updated" # Matches the router return value

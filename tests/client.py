@@ -9,7 +9,7 @@ class SanctumClient:
     def authenticate(self, email, password, totp_secret=None):
         # OAuth2 password grant format
         payload = {"username": email, "password": password}
-        
+
         # Step 1: Login
         res = self.session.post(f"{self.base_url}/token", data=payload)
         data = res.json()
@@ -25,6 +25,6 @@ class SanctumClient:
         token = data.get("access_token")
         if not token:
             raise Exception(f"Auth failed: {data}")
-            
+
         self.session.headers.update({"Authorization": f"Bearer {token}"})
         return data

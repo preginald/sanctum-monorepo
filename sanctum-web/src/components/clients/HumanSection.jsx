@@ -2,10 +2,10 @@ import React from 'react';
 import { User, Shield, Edit2, Trash2, UserPlus, Key } from 'lucide-react';
 
 export default function HumanSection({ contacts, users, onAddContact, onEditContact, onDeleteContact, onAddUser, onRevokeUser, isEditing }) {
-  
+
   return (
     <div className="space-y-6">
-      
+
       {/* CONTACTS LIST */}
       <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
         <div className="flex justify-between items-center mb-4">
@@ -18,7 +18,7 @@ export default function HumanSection({ contacts, users, onAddContact, onEditCont
             </button>
           )}
         </div>
-        
+
         <div className="space-y-3">
           {contacts.map(contact => (
             <div key={contact.id} className="flex justify-between items-center p-3 bg-slate-800/50 rounded border border-slate-700 group hover:border-slate-600 transition-colors">
@@ -53,7 +53,7 @@ export default function HumanSection({ contacts, users, onAddContact, onEditCont
             </button>
           )}
         </div>
-        
+
         <div className="space-y-3">
           {users.map(u => (
             <div key={u.id} className="flex justify-between items-center p-3 bg-slate-800/50 rounded border border-slate-700 group">
@@ -61,8 +61,8 @@ export default function HumanSection({ contacts, users, onAddContact, onEditCont
                 <div className="font-bold text-white">{u.full_name}</div>
                 <div className="text-xs text-slate-500 font-mono">{u.email}</div>
               </div>
-              <button 
-                onClick={() => onRevokeUser(u.id)} 
+              <button
+                onClick={() => onRevokeUser(u.id)}
                 className="text-xs text-red-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity px-2 py-1 hover:bg-red-900/20 rounded"
               >
                 Revoke

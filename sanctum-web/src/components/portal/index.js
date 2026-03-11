@@ -1,6 +1,6 @@
 /**
  * Portal Components - Reusable UI components for client portal
- * 
+ *
  * Foundation components for consistent portal UX
  */
 

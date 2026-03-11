@@ -3,7 +3,7 @@ def test_create_ticket(client, admin_token_headers):
     acc = client.post("/accounts", headers=admin_token_headers, json={
         "name": "Acme Corp", "type": "business", "brand_affinity": "nt"
     }).json()
-    
+
     # ACT
     response = client.post(
         "/tickets",
@@ -13,10 +13,10 @@ def test_create_ticket(client, admin_token_headers):
             "subject": "Server Down",
             "description": "It is on fire.",
             "priority": "critical",
-            "ticket_type": "bug" 
+            "ticket_type": "bug"
         },
     )
-    
+
     # ASSERT
     assert response.status_code == 200
     data = response.json()
@@ -28,12 +28,12 @@ def test_resolve_ticket(client, admin_token_headers):
     acc = client.post("/accounts", headers=admin_token_headers, json={
         "name": "Ticket Corp", "type": "business", "brand_affinity": "nt"
     }).json()
-    
+
     t_res = client.post("/tickets", headers=admin_token_headers, json={
         "account_id": acc["id"], "subject": "To Resolve", "priority": "normal"
     }).json()
     tid = t_res["id"]
-    
+
     # ACT: Resolve
     response = client.put(
         f"/tickets/{tid}",
@@ -43,7 +43,7 @@ def test_resolve_ticket(client, admin_token_headers):
             "resolution": "Used fire extinguisher."
         }
     )
-    
+
     # ASSERT
     assert response.status_code == 200
     assert response.json()["status"] == "resolved"

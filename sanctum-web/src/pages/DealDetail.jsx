@@ -10,11 +10,11 @@ export default function DealDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-   
+
   const [deal, setDeal] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-   
+
   const [formData, setFormData] = useState({
     title: '',
     amount: 0,
@@ -34,15 +34,15 @@ export default function DealDetail() {
         stage: res.data.stage,
         probability: res.data.probability
       });
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
   const handleSave = async () => {
     try {
       await api.put(`/deals/${id}`, formData);
-      await fetchDeal(); 
-      setIsEditing(false); 
+      await fetchDeal();
+      setIsEditing(false);
       addToast("Deal updated successfully", "success");
     } catch (e) { addToast("Update failed", "danger"); }
   };
@@ -80,11 +80,11 @@ export default function DealDetail() {
       )}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* LEFT COLUMN: DEAL DATA */}
         <div className="lg:col-span-2 space-y-6">
           <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl relative">
-            
+
             {/* READ MODE */}
             {!isEditing && (
               <div className="space-y-6">

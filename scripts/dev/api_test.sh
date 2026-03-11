@@ -150,10 +150,10 @@ if [ "$VERBOSE" == "true" ]; then
     echo -e "${GRAY}────────────────────────────────${NC}"
     echo -e "${GRAY}Log: ${LOG_FILE}${NC}"
     echo -e "${GRAY}Curl Time: ${CURL_TIME}s${NC}"
-    
+
     # Show token file location
     if [ -f "${TOKEN_DIR}/${PROFILE}.json" ]; then
-        TOKEN_AGE=$(cat "${TOKEN_DIR}/${PROFILE}.json" | jq -r '.created_at')
+        TOKEN_AGE=$(jq < "${TOKEN_DIR}/${PROFILE}.json" -r '.created_at')
         echo -e "${GRAY}Token Created: ${TOKEN_AGE}${NC}"
     fi
 fi

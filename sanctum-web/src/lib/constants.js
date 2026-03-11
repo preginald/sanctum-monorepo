@@ -29,7 +29,7 @@ export const TICKET_STATUSES = [
     "new",
     "open",
     "pending",
-    "qa",       
+    "qa",
     "resolved"
 ];
 
@@ -37,11 +37,11 @@ export const TICKET_TYPES = [
     "support",
     "bug",
     "feature",
-    "refactor",     
+    "refactor",
     "task",
-    "access",       
-    "maintenance",  
-    "alert",         
+    "access",
+    "maintenance",
+    "alert",
     "hotfix",
     "test"
 ];
@@ -71,10 +71,10 @@ export const ASSET_TYPES = [
     "hosting email",
     "saas",
     "security software",
-    "iphone",           
-    "android phone",    
-    "ipad",             
-    "android tablet"    
+    "iphone",
+    "android phone",
+    "ipad",
+    "android tablet"
 ];
 
 export const ASSET_STATUSES = [
@@ -92,8 +92,8 @@ export const ASSET_STATUSES = [
 export const PRODUCT_TYPES = [
     { value: "service", label: "Service (Labor)", color: "info" },
     { value: "hardware", label: "Hardware (Goods)", color: "warning" },
-    { value: "hosting", label: "Hosting / Cloud", color: "purple" }, 
-    { value: "license", label: "Software License", color: "pink" }   
+    { value: "hosting", label: "Hosting / Cloud", color: "purple" },
+    { value: "license", label: "Software License", color: "pink" }
 ];
 
 // BILLING & FINANCE

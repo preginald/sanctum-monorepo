@@ -2,9 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/Table';
-import { 
-  Loader2, Users, Filter, CheckCircle, Save, Mail, Rocket, 
-  RefreshCw, DollarSign, Target, TrendingUp 
+import {
+  Loader2, Users, Filter, CheckCircle, Save, Mail, Rocket,
+  RefreshCw, DollarSign, Target, TrendingUp
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -20,12 +20,12 @@ export default function CampaignDetail() {
   const [campaign, setCampaign] = useState(null);
   const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('targets'); 
+  const [activeTab, setActiveTab] = useState('targets');
 
   // MODAL & FORM STATES
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filterForm, setFilterForm] = useState({ account_status: '', brand_affinity: '' });
-  
+
   // CONTENT STATE
   const [contentForm, setContentForm] = useState({ subject: '', body: '' });
   const [isSaving, setIsSaving] = useState(false);
@@ -40,10 +40,10 @@ export default function CampaignDetail() {
           subject: res.data.subject_template || '',
           body: res.data.body_template || ''
       });
-      
+
       const tRes = await api.get(`/campaigns/${id}/targets`);
       setTargets(tRes.data);
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
@@ -81,20 +81,20 @@ export default function CampaignDetail() {
   const handleLaunch = async () => {
       const count = targets.filter(t => t.status === 'targeted').length;
       if(!confirm(`LAUNCH WARNING:\n\nYou are about to email ${count} people.\n\nThis cannot be undone. Proceed?`)) return;
-      
-      setIsSaving(true); 
+
+      setIsSaving(true);
       try {
           // Now returns immediately with status "processing"
           await api.post(`/campaigns/${id}/launch`);
           alert("Launch Sequence Initiated. Emails are sending in the background.");
           setActiveTab('targets');
-          
+
           // Re-fetch shortly to show initial progress
           setTimeout(fetchCampaign, 2000);
-      } catch(e) { 
-          alert("Launch failed or partial success."); 
-      } finally { 
-          setIsSaving(false); 
+      } catch(e) {
+          alert("Launch failed or partial success.");
+      } finally {
+          setIsSaving(false);
       }
   };
 
@@ -109,8 +109,8 @@ export default function CampaignDetail() {
   };
 
   // ROI Calculation
-  const roi = campaign.budget_cost > 0 
-    ? ((campaign.total_deal_value - campaign.budget_cost) / campaign.budget_cost) * 100 
+  const roi = campaign.budget_cost > 0
+    ? ((campaign.total_deal_value - campaign.budget_cost) / campaign.budget_cost) * 100
     : (campaign.total_deal_value > 0 ? 100 : 0);
 
   return (
@@ -121,7 +121,7 @@ export default function CampaignDetail() {
     >
       {/* SCOREBOARD (ROI DASHBOARD) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          
+
           <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
               <div className="flex items-center gap-2 text-xs font-bold uppercase text-slate-500 mb-2">
                   <Target size={14} /> Reach
@@ -153,7 +153,7 @@ export default function CampaignDetail() {
               </div>
               <div className="text-xs opacity-50 mt-1">Cost: {formatCurrency(campaign.budget_cost)}</div>
           </div>
-          
+
            {/* CTA to link deals */}
            <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-center">
               <Button variant="secondary" onClick={() => navigate('/deals')} size="sm">View Linked Deals</Button>
@@ -206,13 +206,13 @@ export default function CampaignDetail() {
       {/* --- TAB: CONTENT --- */}
       {activeTab === 'content' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              
+
               <div className="lg:col-span-2 space-y-4">
                   <Card title="Email Blueprint">
                       <div className="space-y-4">
                           <div>
                               <label className="text-xs uppercase opacity-50 block mb-1">Subject</label>
-                              <input 
+                              <input
                                 className="w-full p-3 bg-black/20 border border-slate-600 rounded text-white"
                                 value={contentForm.subject}
                                 onChange={e => setContentForm({...contentForm, subject: e.target.value})}
@@ -221,7 +221,7 @@ export default function CampaignDetail() {
                           </div>
                           <div>
                               <label className="text-xs uppercase opacity-50 block mb-1">Body (HTML Supported)</label>
-                              <textarea 
+                              <textarea
                                 className="w-full p-3 h-64 bg-black/20 border border-slate-600 rounded text-white font-mono text-sm"
                                 value={contentForm.body}
                                 onChange={e => setContentForm({...contentForm, body: e.target.value})}
@@ -250,9 +250,9 @@ export default function CampaignDetail() {
                               <h3 className="text-lg font-bold text-white">Ready to Fire?</h3>
                               <p className="text-sm opacity-50">This will email {targets.filter(t => t.status === 'targeted').length} targets immediately.</p>
                           </div>
-                          <Button 
-                            variant="danger" 
-                            className="w-full py-4 text-lg" 
+                          <Button
+                            variant="danger"
+                            className="w-full py-4 text-lg"
                             onClick={handleLaunch}
                             loading={isSaving}
                             disabled={targets.length === 0}

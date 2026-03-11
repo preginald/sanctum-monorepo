@@ -21,10 +21,10 @@ export default function AdminClientDiscovery() {
       // FIX: Use the standard CRM endpoint, not the non-existent /admin/ endpoint
       // This endpoint returns the full Account object including audit_data
       const res = await api.get(`/accounts/${id}`);
-      
+
       setClientName(res.data.name);
-      
-      // If client has existing audit data (scoping_responses), load it. 
+
+      // If client has existing audit data (scoping_responses), load it.
       if (res.data.audit_data && res.data.audit_data.scoping_responses) {
         setInitialData(res.data.audit_data.scoping_responses);
       }
@@ -39,7 +39,7 @@ export default function AdminClientDiscovery() {
     // Admin submitting on behalf of client
     // We use a specific admin endpoint to update the audit_data blob
     await api.patch(`/admin/accounts/${id}/audit-data`, formData); // Send formData directly, schema expects QuestionnaireSubmit
-    
+
     // Redirect back to client detail
     navigate(`/clients/${id}`);
   };
@@ -65,8 +65,8 @@ export default function AdminClientDiscovery() {
                 Recording infrastructure details for <strong className="text-white">{clientName}</strong>
             </p>
         </div>
-        
-        <QuestionnaireForm 
+
+        <QuestionnaireForm
           initialData={initialData}
           onSubmit={handleSubmit}
           mode="admin"

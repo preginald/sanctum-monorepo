@@ -1,7 +1,7 @@
 """baseline_schema_v1_7
 
 Revision ID: 85a9a4b51bdf
-Revises: 
+Revises:
 Create Date: 2026-01-14 17:17:38.807676
 
 """

@@ -1,17 +1,17 @@
 from .shared import InvoiceLite, ArticleLite, SearchResult, Page
 from .auth import (
-    Token, TokenData, UserResponse, ClientUserCreate, 
+    Token, TokenData, UserResponse, ClientUserCreate,
     TwoFASetupResponse, TwoFAVerify,
-    PasswordSetRequest, InviteRequest 
+    PasswordSetRequest, InviteRequest
 )
 from .billing import (
-    ProductCreate, ProductUpdate, ProductResponse, 
-    InvoiceItemCreate, InvoiceItemUpdate, InvoiceItemSchema, 
-    InvoiceDeliveryLogResponse, InvoiceSendRequest, 
+    ProductCreate, ProductUpdate, ProductResponse,
+    InvoiceItemCreate, InvoiceItemUpdate, InvoiceItemSchema,
+    InvoiceDeliveryLogResponse, InvoiceSendRequest,
     InvoiceCreate, InvoiceUpdate, InvoiceResponse, BulkMarkPaidRequest, BulkMarkPaidRecipient
 )
 from .crm import (
-    AccountCreate, AccountUpdate, AccountResponse, 
+    AccountCreate, AccountUpdate, AccountResponse,
     ContactCreate, ContactUpdate, ContactResponse
 )
 from .strategy import (
@@ -43,15 +43,15 @@ from .automation import (
 
 # UPDATED: Added PreferenceUpdate and PreferenceResponse
 from .notification import (
-    NotificationResponse, NotificationUpdate, 
+    NotificationResponse, NotificationUpdate,
     PreferenceUpdate, PreferenceResponse
 )
 
 # Analytics
 from pydantic import BaseModel
 class DashboardStats(BaseModel):
-    revenue_realized: float    
-    pipeline_value: float      
+    revenue_realized: float
+    pipeline_value: float
     active_audits: int
     open_tickets: int
     critical_tickets: int

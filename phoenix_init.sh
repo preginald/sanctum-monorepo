@@ -12,7 +12,7 @@ echo "🔥 Generating Phoenix Boot Payload..."
     echo "Generated: $(date)"
     echo "Project Root: $(pwd)"
     echo ""
-    
+
     # 1. SESSION HANDOVER (If you have an active task list)
     if [ -f "$HANDOVER_FILE" ]; then
         echo "## 0. CURRENT SESSION STATE"
@@ -29,21 +29,21 @@ echo "🔥 Generating Phoenix Boot Payload..."
     tree -L 3 -I 'node_modules|venv|.venv|dist|.git|__pycache__|*.log|*.pyc|static|tests'
     echo '```'
     echo ""
-    
+
     # 3. CORE DNA (The Logic)
     # We use scopy here to handle the formatting/highlighting for us
     echo "## 2. CORE CODEBASE DNA"
     echo ""
-    
+
     # Selecting the 4 most critical "Anchor" files based on your tree:
     # 1. Models (Database Schema)
     # 2. Main (API Entry/Middleware)
     # 3. API Lib (Frontend communication)
     # 4. Auth (Security context)
-    
+
     # Note: We use 'bash' to run scopy inside the block to append to our output
     # but we redirect scopy's clipboard copy to null so it doesn't overwrite yet.
-    
+
     files=(
         "sanctum-core/app/models.py"
         "sanctum-core/app/main.py"

@@ -7,7 +7,7 @@
 set -e
 
 REMOTE="sanctum-prod"
-APP_DIR="~/DigitalSanctum"
+APP_DIR="$HOME/DigitalSanctum"
 SERVICE="sanctum-api"
 LOG_DIR="/var/log/sanctum"
 LOG_FILE="$LOG_DIR/deploy.log"
@@ -70,7 +70,7 @@ echo "  Head:    $PENDING"
 
 if [ "$DRY_RUN" = false ] && [ "$MIGRATION_STATUS" != "$PENDING" ]; then
     echo "  ⚠ Pending migrations detected"
-    read -p "  Apply migrations? [y/N] " confirm
+    read -rp "  Apply migrations? [y/N] " confirm
     [ "$confirm" != "y" ] && { echo "  Aborted."; exit 1; }
     echo "→ Applying migrations..."
     run remote "cd $APP_DIR/sanctum-core && source venv/bin/activate && alembic upgrade head 2>&1" \

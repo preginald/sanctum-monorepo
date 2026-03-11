@@ -52,7 +52,7 @@ class DealCreate(SanctumBase):
     amount: Decimal
     stage: str = "Infiltration"
     probability: int = 10
-    expected_close_date: Optional[str] = None 
+    expected_close_date: Optional[str] = None
 
 class DealUpdate(SanctumBase):
     title: Optional[str] = None
@@ -72,9 +72,9 @@ class DealItemResponse(SanctumBase):
 
 class DealResponse(DealCreate):
     id: UUID
-    account_name: Optional[str] = None 
+    account_name: Optional[str] = None
     source_campaign_id: Optional[UUID] = None
-    campaign_name: Optional[str] = None      
+    campaign_name: Optional[str] = None
     items: List[DealItemResponse] = []
 
 # --- PROJECTS & MILESTONES ---
@@ -144,9 +144,9 @@ class ProjectResponse(ProjectCreate):
 
 # --- AUDITS ---
 class AuditItem(SanctumBase):
-    category: str 
-    item: str     
-    status: str   
+    category: str
+    item: str
+    status: str
     comment: str
 
 class AuditCreate(SanctumBase):
@@ -155,7 +155,7 @@ class AuditCreate(SanctumBase):
     items: List[AuditItem] = []
 
 class AuditUpdate(SanctumBase):
-    items: List[AuditItem] 
+    items: List[AuditItem]
 
 class AuditResponse(SanctumBase):
     id: UUID

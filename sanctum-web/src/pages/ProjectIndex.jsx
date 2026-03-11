@@ -25,8 +25,8 @@ const PROJECT_COLS = {
 const ProjectListView = ({ projects, onNavigate }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {projects.map(p => (
-      <div 
-        key={p.id} 
+      <div
+        key={p.id}
         onClick={() => onNavigate(p.id)}
         // FIX: Replaced <Card> with <div> to ensure onClick works reliably
         className="bg-slate-900 border border-slate-700 rounded-xl p-6 hover:border-sanctum-gold/50 cursor-pointer transition-all group relative overflow-hidden"
@@ -77,7 +77,7 @@ const ProjectBoardView = ({ projects, onNavigate, onDragEnd }) => (
                       >
                         <h4 className="font-bold text-base mb-1 text-white group-hover:text-sanctum-gold">{p.name}</h4>
                         <div className="text-xs opacity-50 mb-3">{p.account_name}</div>
-                        
+
                         <div className="flex justify-between items-center text-[10px] font-mono opacity-60 pt-3 border-t border-slate-700">
                             <span>{p.due_date || 'TBD'}</span>
                             <span>${Number(p.budget).toLocaleString()}</span>
@@ -102,16 +102,16 @@ export default function ProjectIndex() {
   const navigate = useNavigate();
   const { token } = useAuthStore();
   const { addToast } = useToast();
-  
+
   const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // FEATURE: Persist View Preference
   const [viewMode, setViewMode] = useState(() => {
       return localStorage.getItem('sanctum_project_view') || 'board';
   });
-  
+
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
 
@@ -131,7 +131,7 @@ export default function ProjectIndex() {
         ]);
         setProjects(pRes.data);
         setClients(cRes.data);
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
@@ -147,7 +147,7 @@ export default function ProjectIndex() {
           const res = await api.post('/projects', payload);
           addToast("Project initialized successfully", "success");
           navigate(`/projects/${res.data.id}`);
-      } catch (e) { 
+      } catch (e) {
           addToast("Failed to create project", "error");
       }
   };
@@ -158,16 +158,16 @@ export default function ProjectIndex() {
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
     const newStatus = destination.droppableId;
-    const projId = draggableId; 
+    const projId = draggableId;
 
     setProjects(projects.map(p => p.id === projId ? { ...p, status: newStatus } : p));
 
     try {
         await api.put(`/projects/${projId}`, { status: newStatus });
-    } catch (e) { 
-        fetchData(); 
+    } catch (e) {
+        fetchData();
         addToast("Failed to update project status", "error");
-    } 
+    }
   };
 
   if (loading) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Project Governance"><Loading /></Layout>;
@@ -189,51 +189,51 @@ export default function ProjectIndex() {
       </div>
 
       {viewMode === 'list' ? (
-          <ProjectListView 
-            projects={projects} 
-            onNavigate={(id) => navigate(`/projects/${id}`)} 
+          <ProjectListView
+            projects={projects}
+            onNavigate={(id) => navigate(`/projects/${id}`)}
           />
       ) : (
-          <ProjectBoardView 
-            projects={projects} 
-            onNavigate={(id) => navigate(`/projects/${id}`)} 
-            onDragEnd={onDragEnd} 
+          <ProjectBoardView
+            projects={projects}
+            onNavigate={(id) => navigate(`/projects/${id}`)}
+            onDragEnd={onDragEnd}
           />
       )}
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Initialize Project">
         <form onSubmit={handleCreate} className="space-y-4">
-            <Select 
+            <Select
                 label="Client"
-                required 
-                value={form.account_id} 
+                required
+                value={form.account_id}
                 onChange={e => setForm({...form, account_id: e.target.value})}
             >
                 <option value="">Select...</option>
                 {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </Select>
-            
-            <Input 
+
+            <Input
                 label="Project Name"
-                required 
-                value={form.name} 
-                onChange={e => setForm({...form, name: e.target.value})} 
-                placeholder="e.g. Server Migration" 
+                required
+                value={form.name}
+                onChange={e => setForm({...form, name: e.target.value})}
+                placeholder="e.g. Server Migration"
             />
-            
+
             <div className="grid grid-cols-2 gap-4">
-                <Input 
+                <Input
                     label="Budget ($)"
-                    required 
-                    type="number" 
-                    value={form.budget} 
-                    onChange={e => setForm({...form, budget: e.target.value})} 
+                    required
+                    type="number"
+                    value={form.budget}
+                    onChange={e => setForm({...form, budget: e.target.value})}
                 />
-                <Input 
+                <Input
                     label="Due Date"
-                    type="date" 
-                    value={form.due_date} 
-                    onChange={e => setForm({...form, due_date: e.target.value})} 
+                    type="date"
+                    value={form.due_date}
+                    onChange={e => setForm({...form, due_date: e.target.value})}
                 />
             </div>
             <Button type="submit" variant="gold" className="w-full">Create Project</Button>

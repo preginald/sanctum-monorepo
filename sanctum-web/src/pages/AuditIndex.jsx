@@ -24,7 +24,7 @@ const fetchData = async () => {
       api.get('/audits'),
       api.get('/accounts')
     ]);
-    
+
     // Fetch template names for each audit
     const auditsWithTemplates = await Promise.all(
       auditRes.data.map(async (audit) => {
@@ -40,17 +40,17 @@ const fetchData = async () => {
         }
       })
     );
-    
+
     setAudits(auditsWithTemplates);
-    
+
     const accMap = {};
     accRes.data.forEach(a => accMap[a.id] = a.name);
     setClients(accMap);
-    
-  } catch (e) { 
-    console.error(e); 
-  } finally { 
-    setLoading(false); 
+
+  } catch (e) {
+    console.error(e);
+  } finally {
+    setLoading(false);
   }
 };
 
@@ -83,10 +83,10 @@ const fetchData = async () => {
           <TableBody className="text-sm text-white divide-y divide-slate-800">
           {audits.map(a => (
   <TableRow key={a.id} className="hover:bg-white/5 transition-colors cursor-pointer" onClick={() => navigate(`/audit/${a.id}`)}>
-    
+
     {/* CLIENT */}
     <TableCell className="p-4">
-      <button 
+      <button
         onClick={(e) => {
           e.stopPropagation();
           navigate(`/clients/${a.account_id}`);
@@ -96,7 +96,7 @@ const fetchData = async () => {
         {clients[a.account_id] || 'Unknown'}
       </button>
     </TableCell>
-    
+
     {/* FRAMEWORK */}
     <TableCell className="p-4">
       <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ const fetchData = async () => {
         <span className="text-sm">{a.template_name}</span>
       </div>
     </TableCell>
-    
+
     {/* SCORE */}
     <TableCell className="p-4">
       <div className="flex items-center gap-2">
@@ -114,7 +114,7 @@ const fetchData = async () => {
         <span className="text-xs text-slate-500">/100</span>
       </div>
     </TableCell>
-    
+
     {/* STATUS */}
     <TableCell className="p-4">
       <span className={`px-2 py-1 rounded text-xs uppercase font-bold ${
@@ -123,23 +123,23 @@ const fetchData = async () => {
         {a.status}
       </span>
     </TableCell>
-    
+
     {/* ACTIONS */}
     <TableCell className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
       <div className="flex justify-end gap-2">
         {a.report_pdf_path && (
-          <a 
-            href={a.report_pdf_path} 
-            target="_blank" 
-            className="p-2 rounded hover:bg-white/10 text-sanctum-gold" 
+          <a
+            href={a.report_pdf_path}
+            target="_blank"
+            className="p-2 rounded hover:bg-white/10 text-sanctum-gold"
             title="Download PDF"
           >
             <Download size={16} />
           </a>
         )}
-        <button 
-          onClick={() => navigate(`/audit/${a.id}`)} 
-          className="p-2 rounded hover:bg-white/10 text-blue-400" 
+        <button
+          onClick={() => navigate(`/audit/${a.id}`)}
+          className="p-2 rounded hover:bg-white/10 text-blue-400"
           title="Open Assessment"
         >
           <ArrowRight size={16} />

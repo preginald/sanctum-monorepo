@@ -10,7 +10,7 @@ import { formatCurrency, formatDate } from '../../lib/formatters';
 export default function ClientDashboard({ user }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
-  
+
   const [data, setData] = useState({ account: {}, open_tickets: [], invoices: [], projects: [] });
   const [showCreate, setShowCreate] = useState(false);
 
@@ -25,7 +25,7 @@ export default function ClientDashboard({ user }) {
 
   return (
     <div className="space-y-8">
-      
+
       {/* WELCOME BANNER */}
       <div className="bg-gradient-to-r from-blue-900/40 to-slate-900 border border-blue-500/30 rounded-xl p-8 flex justify-between items-center">
           <div>
@@ -34,8 +34,8 @@ export default function ClientDashboard({ user }) {
                   {data.account.name} • Security Score: <span className="font-mono font-bold text-white">{data.security_score}</span>
               </p>
           </div>
-          <button 
-            onClick={() => setShowCreate(true)} 
+          <button
+            onClick={() => setShowCreate(true)}
             className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-lg font-bold shadow-lg flex items-center gap-2 transition-transform hover:-translate-y-1"
           >
               <Plus size={20} /> Request Support
@@ -43,12 +43,12 @@ export default function ClientDashboard({ user }) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* LEFT: TICKETS */}
           <div className="lg:col-span-2 space-y-6">
-              <TicketList 
-                  title="My Active Tickets" 
-                  tickets={data.open_tickets} 
+              <TicketList
+                  title="My Active Tickets"
+                  tickets={data.open_tickets}
                   onAdd={() => setShowCreate(true)}
                   // Clients generally cannot delete tickets, only resolve them via interaction
               />
@@ -103,9 +103,9 @@ export default function ClientDashboard({ user }) {
 
       </div>
 
-      <TicketCreateModal 
-          isOpen={showCreate} 
-          onClose={() => setShowCreate(false)} 
+      <TicketCreateModal
+          isOpen={showCreate}
+          onClose={() => setShowCreate(false)}
           onSuccess={() => { fetchData(); addToast("Request Submitted", "success"); }}
           preselectedAccountId={user.account_id} // Lock to their account
       />

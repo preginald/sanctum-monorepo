@@ -33,7 +33,7 @@ export default function Clients() {
       try {
         const response = await api.get('/accounts');
         setAccounts(response.data);
-      } catch (error) { console.error(error); } 
+      } catch (error) { console.error(error); }
       finally { setLoading(false); }
     };
     if (token) fetchAccounts();
@@ -45,8 +45,8 @@ export default function Clients() {
       await api.post('/accounts', form);
       setShowModal(false);
       addToast("Client onboarded successfully", "success");
-      window.location.reload(); 
-    } catch (e) { 
+      window.location.reload();
+    } catch (e) {
       addToast("Failed to create client", "error");
     }
   };
@@ -82,8 +82,8 @@ export default function Clients() {
           </TableHeader>
           <TableBody className="text-sm text-white divide-y divide-slate-800">
             {accounts.map(account => (
-              <TableRow 
-                key={account.id} 
+              <TableRow
+                key={account.id}
                 onClick={() => navigate(`/clients/${account.id}`)}
                 className="hover:bg-white/5 transition-colors cursor-pointer group"
               >
@@ -110,16 +110,16 @@ export default function Clients() {
 
       <Modal isOpen={showModal} onClose={() => setShowModal(false)} title="Onboard Entity">
         <form onSubmit={handleCreate} className="space-y-4">
-          <Input 
+          <Input
             label="Entity Name"
-            required 
-            value={form.name} 
-            onChange={e => setForm({...form, name: e.target.value})} 
+            required
+            value={form.name}
+            onChange={e => setForm({...form, name: e.target.value})}
           />
           <div className="grid grid-cols-2 gap-4">
-            <Select 
+            <Select
     label="Type"
-    value={form.type} 
+    value={form.type}
     onChange={e => {
         const newType = e.target.value;
         const newBrand = newType === 'business' ? 'ds' : 'nt';

@@ -21,7 +21,7 @@ load_dotenv()
 # 3. Import the SQLAlchemy Base and your Models
 # CRITICAL: All models must be imported here for autogenerate to work!
 from app.database import Base
-from app import models 
+from app import models
 
 # ----------------------------------------------------------------------
 

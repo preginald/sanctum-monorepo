@@ -11,7 +11,7 @@ class AssetCreate(SanctumBase):
     serial_number: Optional[str] = None
     ip_address: Optional[str] = None
     notes: Optional[str] = None
-    
+
     # Digital Lifecycle Fields
     expires_at: Optional[date] = None
     vendor: Optional[str] = None
@@ -28,7 +28,7 @@ class AssetUpdate(SanctumBase):
     serial_number: Optional[str] = None
     ip_address: Optional[str] = None
     notes: Optional[str] = None
-    
+
     expires_at: Optional[date] = None
     vendor: Optional[str] = None
     linked_product_id: Optional[UUID] = None

@@ -7,10 +7,10 @@ export default function SetPassword() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token');
   const navigate = useNavigate();
-  
+
   const [userInfo, setUserInfo] = useState(null);
   const [pageLoading, setPageLoading] = useState(true);
-  
+
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export default function SetPassword() {
           setPageLoading(false);
           return;
       }
-      
+
       api.get(`/verify-invite?token=${token}`)
           .then(res => {
               setUserInfo(res.data);
@@ -44,7 +44,7 @@ export default function SetPassword() {
   const handleSubmit = async (e) => {
       e.preventDefault();
       if (!canSubmit) return;
-      
+
       setError('');
       setLoading(true);
       try {
@@ -94,7 +94,7 @@ export default function SetPassword() {
             </div>
         ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-                
+
                 {/* WELCOME BLOCK */}
                 <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-lg text-center">
                     <UserCheck className="mx-auto text-blue-400 mb-2" size={24} />
@@ -111,8 +111,8 @@ export default function SetPassword() {
                             required
                             autoFocus
                             className={`w-full bg-slate-800 border rounded-lg p-3 text-white focus:outline-none transition-colors ${
-                                password.length > 0 && !isLengthValid 
-                                    ? 'border-red-500 focus:border-red-500' 
+                                password.length > 0 && !isLengthValid
+                                    ? 'border-red-500 focus:border-red-500'
                                     : 'border-slate-700 focus:border-sanctum-gold'
                             }`}
                             value={password}
@@ -125,8 +125,8 @@ export default function SetPassword() {
                             type="password"
                             required
                             className={`w-full bg-slate-800 border rounded-lg p-3 text-white focus:outline-none transition-colors ${
-                                confirm.length > 0 && !isMatchValid 
-                                    ? 'border-red-500 focus:border-red-500' 
+                                confirm.length > 0 && !isMatchValid
+                                    ? 'border-red-500 focus:border-red-500'
                                     : 'border-slate-700 focus:border-sanctum-gold'
                             }`}
                             value={confirm}

@@ -13,19 +13,19 @@ def account_needs_questionnaire(account: models.Account, db: Session) -> bool:
     """
     if account.audit_data and account.audit_data.get('scoping_responses'):
         return False
-    
+
     completed_audits = db.query(models.AuditReport).filter(
         models.AuditReport.account_id == account.id,
         models.AuditReport.status == 'finalized'
     ).count()
     if completed_audits > 0: return False
-    
+
     asset_count = db.query(models.Asset).filter(models.Asset.account_id == account.id).count()
     if asset_count > 0: return False
-    
+
     deal_count = db.query(models.Deal).filter(models.Deal.account_id == account.id).count()
     if deal_count > 0: return False
-    
+
     return True
 
 def get_account_lifecycle_stage(account: models.Account, db: Session) -> str:
@@ -39,13 +39,13 @@ def get_account_lifecycle_stage(account: models.Account, db: Session) -> str:
         ).count()
         if completed_audits == 0: return 'onboarding'
         else: return 'active'
-    
+
     has_assets = db.query(models.Asset).filter(models.Asset.account_id == account.id).count() > 0
     has_deals = db.query(models.Deal).filter(models.Deal.account_id == account.id).count() > 0
     has_audits = db.query(models.AuditReport).filter(models.AuditReport.account_id == account.id).count() > 0
-    
+
     if has_assets or has_deals or has_audits: return 'active'
-    
+
     return 'prospect'
 
 def process_questionnaire_submission(
@@ -60,10 +60,10 @@ def process_questionnaire_submission(
     1. Updates Account.audit_data
     2. Creates Draft Assets (Domains, Hosting, SaaS, etc)
     3. Creates Review Tickets (Optional)
-    
+
     Returns: dict containing 'ticket' (if created) and 'draft_assets_count'
     """
-    
+
     # Helper to resolve UUID lists to Vendor Names
     def resolve_vendor_names(vendor_ids):
         if not vendor_ids: return []
@@ -74,7 +74,7 @@ def process_questionnaire_submission(
     hosting_names = resolve_vendor_names(payload.hosting_providers)
     saas_names = resolve_vendor_names(payload.saas_platforms)
     antivirus_names = resolve_vendor_names(payload.antivirus)
-    
+
     # Update Audit Data
     scoping_responses = {
         "company_size": payload.company_size,
@@ -94,16 +94,16 @@ def process_questionnaire_submission(
         "submitted_at": datetime.utcnow().isoformat(),
         "submitted_by": str(submitted_by_user_id)
     }
-    
+
     if not account.audit_data: account.audit_data = {}
     # Force a new dict assignment to ensure SQLAlchemy detects change
     new_audit_data = account.audit_data.copy()
     new_audit_data['scoping_responses'] = scoping_responses
     account.audit_data = new_audit_data
-    
+
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(account, "audit_data")
-    
+
     # Create Draft Assets
     draft_assets_created = []
     timestamp = datetime.utcnow().strftime('%Y-%m-%d')
@@ -118,7 +118,7 @@ def process_questionnaire_submission(
                 status='draft', notes=note_suffix
             ))
             draft_assets_created.append(f"Domain: {domain_name}")
-            
+
     # Hosting
     for name in hosting_names:
         db.add(models.Asset(
@@ -126,7 +126,7 @@ def process_questionnaire_submission(
             vendor=name, status='draft', notes=note_suffix
         ))
         draft_assets_created.append(f"Hosting: {name}")
-        
+
     # SaaS
     for name in saas_names:
         db.add(models.Asset(
@@ -149,7 +149,7 @@ def process_questionnaire_submission(
             status='draft', notes=note_suffix
         ))
         draft_assets_created.append(f"Firewall: {payload.firewall_type}")
-        
+
     if payload.password_management and payload.password_management not in ['Not sure']:
         db.add(models.Asset(
             account_id=account.id, name=f"Password Mgmt: {payload.password_management}", asset_type='saas',
@@ -182,7 +182,7 @@ def process_questionnaire_submission(
         )
         db.add(ticket)
         db.flush() # get ID
-        
+
         # Tasks
         task1 = models.Ticket(
             account_id=account.id, subject=f"Review Draft Assets - {account.name}",
@@ -190,18 +190,18 @@ def process_questionnaire_submission(
             status='new', priority='high', ticket_type='task'
         )
         db.add(task1)
-        
+
         # Link Primary Contact if exists
         primary_contact = db.query(models.Contact).filter(
             models.Contact.account_id == account.id,
             models.Contact.is_primary_contact == True
         ).first()
-        
+
         if primary_contact:
             db.execute(ticket_contacts.insert().values(ticket_id=ticket.id, contact_id=primary_contact.id))
 
     db.commit()
-    
+
     return {
         "ticket": ticket,
         "draft_assets_count": len(draft_assets_created)

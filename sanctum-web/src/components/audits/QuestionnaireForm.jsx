@@ -161,17 +161,17 @@ export const SECTION_2_QUESTIONS = [
   }
 ];
 
-export default function QuestionnaireForm({ 
-  initialData = {}, 
-  onSubmit, 
+export default function QuestionnaireForm({
+  initialData = {},
+  onSubmit,
   mode = 'client', // 'client' or 'admin'
-  onCancel 
+  onCancel
 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState(initialData);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  
+
   const [vendors, setVendors] = useState({
     hosting: [],
     saas: [],
@@ -188,7 +188,7 @@ export default function QuestionnaireForm({
           api.get('/vendors/by-category/saas'),
           api.get('/vendors/by-category/antivirus')
         ]);
-        
+
         setVendors({
           hosting: hosting.data,
           saas: saas.data,
@@ -200,12 +200,12 @@ export default function QuestionnaireForm({
         setLoadingVendors(false);
       }
     };
-    
+
     loadVendors();
   }, []);
 
-  const showSecurityQuestions = 
-    formData.assessment_interest === 'Security Assessment' || 
+  const showSecurityQuestions =
+    formData.assessment_interest === 'Security Assessment' ||
     formData.assessment_interest === 'Multiple Assessments' ||
     formData.assessment_interest === 'Not sure yet';
 
@@ -240,7 +240,7 @@ export default function QuestionnaireForm({
 
   const handleNext = () => {
     if (!validateCurrentStep()) return;
-    
+
     // Auto-save draft only in client mode
     if (mode === 'client') {
       localStorage.setItem('questionnaire_draft', JSON.stringify(formData));
@@ -248,7 +248,7 @@ export default function QuestionnaireForm({
 
     if (currentStep < ALL_QUESTIONS.length - 1) {
       setCurrentStep(currentStep + 1);
-      window.scrollTo(0, 0); 
+      window.scrollTo(0, 0);
     } else {
       handleFinalSubmit();
     }
@@ -446,7 +446,7 @@ export default function QuestionnaireForm({
             Question {currentStep + 1} of {ALL_QUESTIONS.length}
           </span>
         </div>
-        
+
         <div className="w-full bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-500 ${getProgressColor()}`}
@@ -518,7 +518,7 @@ export default function QuestionnaireForm({
           </button>
         </div>
       </Card>
-      
+
       {onCancel && (
         <div className="mt-4 text-center">
             <button onClick={onCancel} className="text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">

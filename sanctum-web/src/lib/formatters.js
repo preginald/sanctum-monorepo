@@ -1,7 +1,7 @@
 export const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-AU', { 
-        style: 'currency', 
-        currency: 'AUD' 
+    return new Intl.NumberFormat('en-AU', {
+        style: 'currency',
+        currency: 'AUD'
     }).format(val || 0);
 };
 

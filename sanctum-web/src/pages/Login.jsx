@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import api from '../lib/api'; 
+import api from '../lib/api';
 import { AlertCircle, Loader2, Shield, Lock, ArrowLeft, Mail } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [otp, setOtp] = useState(''); 
-  
+  const [otp, setOtp] = useState('');
+
   // VIEW STATE: 'login' | '2fa' | 'forgot'
-  const [view, setView] = useState('login'); 
-  
+  const [view, setView] = useState('login');
+
   const [sessionError, setSessionError] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const login = useAuthStore((state) => state.login);
   const navigate = useNavigate();
   const location = useLocation();
@@ -37,18 +37,18 @@ export default function Login() {
 
     try {
       const success = await login(email, password, view === '2fa' ? otp : undefined);
-      
+
       if (success) {
           const user = useAuthStore.getState().user;
-          
+
           if (user?.role === 'client') {
-             navigate('/portal'); 
+             navigate('/portal');
              return;
           }
 
           const params = new URLSearchParams(location.search);
           const redirectTarget = params.get('redirect');
-          
+
           if (redirectTarget) {
             navigate(redirectTarget);
           } else {
@@ -57,10 +57,10 @@ export default function Login() {
       }
     } catch (err) {
       const detail = err.response?.data?.detail;
-      
+
       if (err.response?.status === 401 && detail === "2FA_REQUIRED") {
-          setView('2fa'); 
-          setError(''); 
+          setView('2fa');
+          setError('');
       } else {
           setError('Invalid credentials or server error');
           if (view === '2fa') setView('login');
@@ -92,7 +92,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-sanctum-dark flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-        
+
         {/* Background glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-1 bg-gradient-to-r from-transparent via-sanctum-gold to-transparent opacity-50"></div>
 
@@ -110,7 +110,7 @@ export default function Login() {
             <span>Session timed out. Re-authenticate.</span>
           </div>
         )}
-        
+
         {error && (
             <div className="mb-6 p-3 bg-red-900/20 border border-red-500/50 rounded text-red-200 text-sm text-center">
               {error}
@@ -142,8 +142,8 @@ export default function Login() {
                 <div>
                   <div className="flex justify-between items-center mb-1">
                       <label className="block text-xs font-bold text-slate-400 uppercase">Password</label>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         onClick={() => { setView('forgot'); setError(''); setSuccessMsg(''); }}
                         className="text-xs text-sanctum-gold hover:text-white transition-colors"
                       >
@@ -190,7 +190,7 @@ export default function Login() {
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
                 />
-                
+
                 <button
                   type="submit"
                   disabled={loading}
@@ -231,15 +231,15 @@ export default function Login() {
 
                 <button
                   type="submit"
-                  disabled={loading || successMsg} 
+                  disabled={loading || successMsg}
                   className="w-full bg-sanctum-gold hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
                 >
                   {loading ? <Loader2 className="animate-spin" /> : 'Send Reset Link'}
                 </button>
 
-                <button 
-                  type="button" 
-                  onClick={() => { setView('login'); setError(''); setSuccessMsg(''); }} 
+                <button
+                  type="button"
+                  onClick={() => { setView('login'); setError(''); setSuccessMsg(''); }}
                   className="flex items-center justify-center gap-2 text-xs text-slate-500 hover:text-white w-full text-center transition-colors"
                 >
                    <ArrowLeft size={14} /> Back to Login

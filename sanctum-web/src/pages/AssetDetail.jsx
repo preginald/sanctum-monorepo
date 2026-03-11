@@ -58,7 +58,7 @@ export default function AssetDetail() {
   const specs = asset.specs && Object.keys(asset.specs).length > 0 ? asset.specs : null;
 
   return (
-    <Layout 
+    <Layout
       title={asset.name}
       breadcrumb={[
         { label: asset?.account_name, path: asset?.account_id ? `/clients/${asset.account_id}` : `/assets` },

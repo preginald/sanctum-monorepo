@@ -109,7 +109,7 @@ export default function SendNotificationForm({ accountId, assetName, defaultSubj
         update({ cc: form.cc.filter(e => e !== email) });
     };
 
-    const inputCls = `w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm 
+    const inputCls = `w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm
         focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/30 transition-colors`;
 
     return (

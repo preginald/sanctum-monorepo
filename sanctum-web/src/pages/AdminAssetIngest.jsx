@@ -21,9 +21,9 @@ export default function AdminAssetIngest() {
 
     // 1. Ensure we compare as strings to avoid type mismatches
     const account = accounts.find(a => String(a.id) === String(selectedAccount));
-    
+
     const apiBase = `${window.location.origin}/api/ingest/asset`;
-    
+
     // 2. Add a check to see if the token actually exists on the object
     const token = account?.ingest_token || (selectedAccount ? 'TOKEN_NOT_FOUND_IN_DB' : 'SELECT_A_CLIENT');
 
@@ -53,8 +53,8 @@ PAYLOAD=$(cat <<EOF
 {
   "name": "$(hostname)",
   "asset_type": "workstation",
-  "specs": { 
-    "os": "$(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)", 
+  "specs": {
+    "os": "$(grep PRETTY_NAME /etc/os-release | cut -d'"' -f2)",
     "cpu": "$(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2 | xargs)",
     "ram": "$(free -g | awk '/^Mem:/{print $2"GB"}')"
   }
@@ -71,7 +71,7 @@ curl -X POST "$API" -H "Content-Type: application/json" -d "$PAYLOAD"`
                     <h2 className="text-xl font-bold flex items-center gap-2 mb-4 text-sanctum-blue">
                         <ShieldCheck /> 1. Select Client Context
                     </h2>
-                    <select 
+                    <select
                         className="w-full p-3 bg-black/40 border border-slate-600 rounded-lg text-white focus:border-sanctum-blue outline-none transition-all"
                         value={selectedAccount}
                         onChange={(e) => setSelectedAccount(e.target.value)}
@@ -92,7 +92,7 @@ curl -X POST "$API" -H "Content-Type: application/json" -d "$PAYLOAD"`
                                     <Terminal size={18} /> Linux / macOS (Bash)
                                 </div>
                                 <button onClick={() => copyToClipboard(scripts.linux, 'nix')} className="flex items-center gap-2 px-3 py-1 bg-orange-500/20 hover:bg-orange-500/40 rounded-lg text-xs transition-all">
-                                    {copied === 'nix' ? <Check size={14}/> : <Copy size={14}/>} 
+                                    {copied === 'nix' ? <Check size={14}/> : <Copy size={14}/>}
                                     {copied === 'nix' ? 'Copied' : 'Copy Script'}
                                 </button>
                             </div>
@@ -108,7 +108,7 @@ curl -X POST "$API" -H "Content-Type: application/json" -d "$PAYLOAD"`
                                     <Monitor size={18} /> Windows (PowerShell)
                                 </div>
                                 <button onClick={() => copyToClipboard(scripts.windows, 'win')} className="flex items-center gap-2 px-3 py-1 bg-blue-500/20 hover:bg-blue-500/40 rounded-lg text-xs transition-all">
-                                    {copied === 'win' ? <Check size={14}/> : <Copy size={14}/>} 
+                                    {copied === 'win' ? <Check size={14}/> : <Copy size={14}/>}
                                     {copied === 'win' ? 'Copied' : 'Copy Script'}
                                 </button>
                             </div>

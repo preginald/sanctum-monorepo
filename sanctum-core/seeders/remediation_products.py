@@ -23,7 +23,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "2500.00",
         "is_recurring": False
     },
-    
+
     # ESSENTIAL 8: PATCH MANAGEMENT
     {
         "name": "Patch Management Service (Monthly)",
@@ -40,7 +40,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "800.00",
         "is_recurring": False
     },
-    
+
     # ESSENTIAL 8: MFA
     {
         "name": "Multi-Factor Authentication Setup",
@@ -56,7 +56,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "95.00",
         "is_recurring": False
     },
-    
+
     # ESSENTIAL 8: MACRO SETTINGS
     {
         "name": "Microsoft Office Hardening Service",
@@ -65,7 +65,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "600.00",
         "is_recurring": False
     },
-    
+
     # ESSENTIAL 8: USER APPLICATION HARDENING
     {
         "name": "Browser Security Hardening",
@@ -74,7 +74,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "450.00",
         "is_recurring": False
     },
-    
+
     # ESSENTIAL 8: PRIVILEGED ACCESS
     {
         "name": "Privileged Access Workstation (PAW) Setup",
@@ -90,7 +90,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "2000.00",
         "is_recurring": False
     },
-    
+
     # ESSENTIAL 8: BACKUPS
     {
         "name": "Immutable Backup Solution (Monthly)",
@@ -107,7 +107,7 @@ SECURITY_PRODUCTS = [
         "unit_price": "900.00",
         "is_recurring": False
     },
-    
+
     # GENERAL SECURITY
     {
         "name": "Security Awareness Training (per user/year)",
@@ -478,10 +478,10 @@ REMEDIATION_PRODUCTS = (
 def seed():
     db = SessionLocal()
     print(f"🌱 Seeding Remediation Products ({len(REMEDIATION_PRODUCTS)} total)...")
-    
+
     created = 0
     skipped = 0
-    
+
     try:
         for product_def in REMEDIATION_PRODUCTS:
             exists = db.query(Product).filter(Product.name == product_def['name']).first()
@@ -493,12 +493,12 @@ def seed():
             else:
                 print(f"   ⏭️  Skipping (exists): {product_def['name']}")
                 skipped += 1
-        
+
         db.commit()
         print(f"\n✅ Remediation Products Seeding Complete.")
         print(f"   Created: {created} | Skipped: {skipped} | Total: {len(REMEDIATION_PRODUCTS)}")
         print(f"   📦 Security: 13 | Infrastructure: 8 | Digital: 11 | Efficiency: 9 | Continuity: 7 | UX: 7")
-        
+
     except Exception as e:
         print(f"❌ Error seeding remediation products: {e}")
         db.rollback()

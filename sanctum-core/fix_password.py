@@ -15,5 +15,5 @@ if user:
     print("Password successfully hashed and updated.")
 else:
     print("User not found.")
-    
+
 db.close()

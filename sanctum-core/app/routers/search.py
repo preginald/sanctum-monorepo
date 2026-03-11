@@ -24,7 +24,7 @@ def _score_result(term: str, result_dict: dict, title_field: str, content_fields
     """
     Calculate a tier-based score for a result.
     Called after the DB query to assign scores based on match type.
-    
+
     Tiers:
       - exact title match: 0.95
       - ilike title/name: 0.8
@@ -33,21 +33,21 @@ def _score_result(term: str, result_dict: dict, title_field: str, content_fields
     """
     term_lower = term.lower()
     title_val = (result_dict.get('_title_raw') or '').lower()
-    
+
     # Exact title match
     if term_lower == title_val:
         return 0.95
-    
+
     # Title contains term
     if term_lower in title_val:
         return 0.8
-    
+
     # Content fields contain term
     if content_fields:
         for field_val in content_fields:
             if field_val and term_lower in field_val.lower():
                 return 0.6
-    
+
     # Fuzzy fallback — use raw similarity score if provided
     raw_sim = result_dict.get('_similarity', 0.3)
     return round(min(raw_sim, 0.55), 3)  # Cap fuzzy below ilike tier
@@ -63,7 +63,7 @@ def global_search(
     q = q.strip()
     if len(q) < 2:
         return []
-    
+
     q_lower = q.lower()
     results = []
 
@@ -82,11 +82,11 @@ def global_search(
         "new invoice":  {"id": -9,  "type": "action", "title": "Create New Invoice",   "subtitle": "Draft an invoice",         "link": "/invoices/new",   "score": 1.0},
         "new campaign": {"id": -10, "type": "action", "title": "Create New Campaign",  "subtitle": "Launch a campaign",        "link": "/campaigns/new",  "score": 1.0},
     }
-    
+
     # Exact Action Match
     if q_lower in actions:
         return [actions[q_lower]]
-        
+
     # Partial Action Match (e.g. "new")
     if q_lower.startswith("new"):
         for key, action in actions.items():
@@ -100,7 +100,7 @@ def global_search(
     # ─────────────────────────────────────────
     parts = q.split(' ', 1)
     raw_prefix = parts[0].lower()
-    
+
     prefix_map = {
         'w:': 'wiki', 'wiki': 'wiki', 'wiki:': 'wiki',
         't:': 'ticket', 'tic': 'ticket', 'ticket': 'ticket', 'ticket:': 'ticket',
@@ -111,16 +111,16 @@ def global_search(
         'm:': 'milestone', 'milestone': 'milestone', 'milestone:': 'milestone',
         'i:': 'product', 'inventory': 'product', 'catalog': 'product',
     }
-    
+
     mode = None
     term_str = q
-    
+
     if raw_prefix in prefix_map or raw_prefix.rstrip(':') in prefix_map:
         if raw_prefix in prefix_map:
             mode = prefix_map[raw_prefix]
         elif raw_prefix + ':' in prefix_map:
             mode = prefix_map[raw_prefix + ':']
-        
+
         if len(parts) > 1:
             term_str = parts[1]
         elif raw_prefix.endswith(':'):
@@ -129,7 +129,7 @@ def global_search(
             mode = None
 
     term = f"%{term_str}%"
-    
+
     if len(term_str) < 1 and mode:
         return []
 
@@ -151,7 +151,7 @@ def global_search(
             acc_query = acc_query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
         elif current_user.access_scope == 'ds_only':
             acc_query = acc_query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
-        
+
         for acc, sim in acc_query.order_by(sim_col.desc()).limit(effective_limit).all():
             score = _score_result(term_str, {'_title_raw': acc.name, '_similarity': float(sim)}, 'name')
             results.append({
@@ -168,7 +168,7 @@ def global_search(
             if current_user.role == 'client':
                 t_exact = t_exact.filter(models.Ticket.account_id == current_user.account_id)
             t_exact = t_exact.first()
-            
+
             if t_exact:
                 results.append({
                     "id": t_exact.id, "type": "ticket", "title": f"#{t_exact.id} {t_exact.subject}",
@@ -188,7 +188,7 @@ def global_search(
         ))
         if current_user.role == 'client':
             tick_query = tick_query.filter(models.Ticket.account_id == current_user.account_id)
-        
+
         for t, sim in tick_query.order_by(sim_col.desc()).limit(effective_limit).all():
             if not any(r['id'] == t.id and r['type'] == 'ticket' for r in results):
                 score = _score_result(

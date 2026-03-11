@@ -31,8 +31,8 @@ else
     echo -e "${GRAY}Profile: ${PROFILE}${NC}"
     echo -e "${GRAY}API: ${API_BASE}${NC}"
     echo ""
-    read -p "Email: " EMAIL
-    read -sp "Password: " PASSWORD
+    read -rp "Email: " EMAIL
+    read -rsp "Password: " PASSWORD
     echo ""
 fi
 
@@ -40,14 +40,14 @@ fi
 if [ -f "$TOKEN_FILE" ]; then
     echo -e "${YELLOW}→ Found existing token for profile '${PROFILE}'${NC}"
     EXISTING_TOKEN=$(cat "$TOKEN_FILE")
-    
+
     # Test if token is still valid
     HEALTH=$(curl -s -H "Authorization: Bearer $EXISTING_TOKEN" "${API_BASE}/" 2>/dev/null || echo "{}")
-    
+
     if echo "$HEALTH" | jq -e '.status == "operational"' > /dev/null 2>&1; then
         echo -e "${GREEN}✓ Existing token is still valid${NC}"
         echo ""
-        read -p "Use existing token? [Y/n] " -n 1 -r
+        read -rp "Use existing token? [Y/n] " -n 1 -r
         echo ""
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             echo -e "${BLUE}Token location: ${TOKEN_FILE}${NC}"
@@ -77,7 +77,7 @@ DETAIL=$(echo "$RESPONSE" | jq -r '.detail // empty')
 # Handle 2FA if required
 if [ "$DETAIL" = "2FA_REQUIRED" ]; then
     echo -e "${YELLOW}→ 2FA enabled on account${NC}"
-    
+
     # Auto-generate TOTP if secret is in environment
     if [ -n "$SANCTUM_TOTP_SECRET" ] && command -v oathtool &> /dev/null; then
         TOTP_CODE=$(oathtool --totp -b "$SANCTUM_TOTP_SECRET")
@@ -86,11 +86,11 @@ if [ "$DETAIL" = "2FA_REQUIRED" ]; then
         if [ -z "$SANCTUM_TOTP_SECRET" ]; then
             echo -e "${GRAY}💡 Tip: Set SANCTUM_TOTP_SECRET for auto-TOTP generation${NC}"
         fi
-        read -p "Enter TOTP code: " TOTP_CODE
+        read -rp "Enter TOTP code: " TOTP_CODE
     fi
-    
+
     echo -e "${YELLOW}[2/4]${NC} Verifying TOTP code..."
-    
+
     RESPONSE=$(curl -s -X POST "${API_BASE}/token" \
         -H "Content-Type: application/x-www-form-urlencoded" \
         -d "username=${EMAIL}&password=${PASSWORD}&otp=${TOTP_CODE}")

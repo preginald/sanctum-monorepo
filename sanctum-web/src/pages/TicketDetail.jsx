@@ -36,17 +36,17 @@ export default function TicketDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  
+
   // --- STATE ---
   const [ticket, setTicket] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); 
+  const [isSaving, setIsSaving] = useState(false);
   const [showResolveModal, setShowResolveModal] = useState(false);
-  const [resolveText, setResolveText] = useState(''); 
-  const [resolveId, setResolveId] = useState(null); 
-  const [techs, setTechs] = useState([]); 
+  const [resolveText, setResolveText] = useState('');
+  const [resolveId, setResolveId] = useState(null);
+  const [techs, setTechs] = useState([]);
 
   const [showQuickMilestone, setShowQuickMilestone] = useState(false);
   const [showQuickTech, setShowQuickTech] = useState(false);
@@ -54,18 +54,18 @@ export default function TicketDetail() {
   // ASSET LINKING STATE
   const [clientAssets, setClientAssets] = useState([]);
   const [showLinkAsset, setShowLinkAsset] = useState(false);
-  
+
   // DATA POOLS
-  const [contacts, setContacts] = useState([]); 
-  const [products, setProducts] = useState([]); 
-  const [accountProjects, setAccountProjects] = useState([]); 
+  const [contacts, setContacts] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [accountProjects, setAccountProjects] = useState([]);
   const [allArticles, setAllArticles] = useState([]);
 
   // KNOWLEDGE BASE UI
   const [showLinkArticle, setShowLinkArticle] = useState(false);
   const [showLinkTicket, setShowLinkTicket] = useState(false);
   const [allTickets, setAllTickets] = useState([]);
-  const [articleSearchQuery, setArticleSearchQuery] = useState(''); 
+  const [articleSearchQuery, setArticleSearchQuery] = useState('');
 
   // FORM DATA (For Edit Mode)
   const [formData, setFormData] = useState({});
@@ -89,8 +89,8 @@ export default function TicketDetail() {
   }, []);
 
   // --- INITIALIZATION ---
-  useEffect(() => { 
-      fetchTicket(); 
+  useEffect(() => {
+      fetchTicket();
       fetchCatalog();
       fetchArticles();
       fetchTechs();
@@ -106,9 +106,9 @@ export default function TicketDetail() {
 
     const fetchTechs = async () => {
       try {
-          const res = await api.get('/admin/users'); 
+          const res = await api.get('/admin/users');
           setTechs(res.data.filter(u => u.role !== 'client'));
-      } catch (e) { 
+      } catch (e) {
           console.warn("Could not load tech roster", e);
       }
     };
@@ -121,19 +121,19 @@ export default function TicketDetail() {
       if (target) {
         setTicket(target);
         setFormData({
-          status: target.status, 
-          priority: target.priority, 
-          description: target.description || '', 
+          status: target.status,
+          priority: target.priority,
+          description: target.description || '',
           resolution: target.resolution || '',
-          created_at: target.created_at, 
+          created_at: target.created_at,
           closed_at: target.closed_at,
-          contact_ids: target.contacts?.map(c => c.id) || [], 
-          ticket_type: target.ticket_type || 'support', 
-          milestone_id: target.milestone_id || '', 
+          contact_ids: target.contacts?.map(c => c.id) || [],
+          ticket_type: target.ticket_type || 'support',
+          milestone_id: target.milestone_id || '',
           assigned_tech_id: target.assigned_tech_id || null
         });
       }
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
@@ -151,10 +151,10 @@ export default function TicketDetail() {
     const payload = { ...formData };
     if (!payload.closed_at) delete payload.closed_at;
     if (!payload.milestone_id) payload.milestone_id = null;
-    try { 
-      await api.put(`/tickets/${id}?resolve_embeds=true`, payload); 
-      await fetchTicket(); 
-      setIsEditing(false); 
+    try {
+      await api.put(`/tickets/${id}?resolve_embeds=true`, payload);
+      await fetchTicket();
+      setIsEditing(false);
       addToast("Ticket updated successfully", "success");
     } catch (e) { addToast("Update failed", "danger"); }
     finally { setIsSaving(false); }
@@ -235,7 +235,7 @@ export default function TicketDetail() {
           await api.post(`/tickets/${id}/articles/${articleId}`);
           addToast("Article linked", "success");
           setShowLinkArticle(false);
-          setArticleSearchQuery(''); 
+          setArticleSearchQuery('');
           fetchTicket();
       } catch(e) { addToast("Failed to link article", "danger"); }
   };
@@ -253,17 +253,17 @@ export default function TicketDetail() {
 
   const handleGenerateInvoice = async () => {
     const unbilledCount = (ticket.time_entries?.filter(t => !t.invoice_id).length || 0) + (ticket.materials?.filter(m => !m.invoice_id).length || 0);
-    
+
     if (unbilledCount === 0) return;
 
     const proceed = async () => {
         setIsSaving(true);
-        try { 
-            const res = await api.post(`/invoices/from_ticket/${id}`); 
-            addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success"); 
-            navigate(`/clients/${ticket.account_id}`); 
-        } catch(e) { 
-            addToast(e.response?.data?.detail || "Failed to generate invoice", "danger"); 
+        try {
+            const res = await api.post(`/invoices/from_ticket/${id}`);
+            addToast(`Invoice Generated! Total: $${res.data.total_amount}`, "success");
+            navigate(`/clients/${ticket.account_id}`);
+        } catch(e) {
+            addToast(e.response?.data?.detail || "Failed to generate invoice", "danger");
         } finally { setIsSaving(false); }
     };
 
@@ -295,7 +295,7 @@ export default function TicketDetail() {
 
   const handlePinComment = (text, commentId) => {
       setResolveText(text);
-      setResolveId(commentId); 
+      setResolveId(commentId);
       setShowResolveModal(true);
   };
 
@@ -371,28 +371,28 @@ export default function TicketDetail() {
         </div>
       </div>
 
-      <ConfirmationModal 
-        isOpen={modal.isOpen} 
-        onClose={() => setModal({...modal, isOpen: false})} 
-        onConfirm={modal.action} 
-        title={modal.title} 
-        message={modal.message} 
+      <ConfirmationModal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({...modal, isOpen: false})}
+        onConfirm={modal.action}
+        title={modal.title}
+        message={modal.message}
         isDangerous={modal.isDangerous}
       />
 
-      <ResolveModal 
-        isOpen={showResolveModal} 
-        onClose={() => setShowResolveModal(false)} 
-        onResolve={handleResolve} 
-        loading={isSaving} 
-        initialValue={resolveText} 
+      <ResolveModal
+        isOpen={showResolveModal}
+        onClose={() => setShowResolveModal(false)}
+        onResolve={handleResolve}
+        loading={isSaving}
+        initialValue={resolveText}
       />
 
 
 
         <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>
         <div className="xl:col-span-3 space-y-6 min-w-0">
-          <TicketOverview 
+          <TicketOverview
             ticket={ticket} isEditing={isEditing} formData={formData} setFormData={setFormData} contacts={contacts} accountProjects={accountProjects} techs={techs}
             onLinkContact={handleLinkContact} onUnlinkContact={handleUnlinkContact} onUpdateTech={handleUpdateTech} showQuickTech={showQuickTech} setShowQuickTech={setShowQuickTech}
             showQuickMilestone={showQuickMilestone} setShowQuickMilestone={setShowQuickMilestone} onUpdateMilestone={handleUpdateMilestone}
@@ -472,12 +472,12 @@ export default function TicketDetail() {
               </div>
           </div>
           <TicketBilling ticket={ticket} products={products} onUpdate={fetchTicket} triggerConfirm={triggerConfirm} />
-          
+
           {/* NEW: Related Invoices Section */}
           <InvoiceList invoices={ticket.related_invoices || []} title="Related Invoices" />
 
 
-          
+
         </div>
         <div className="xl:col-span-2 xl:sticky xl:top-20 xl:self-start">
             {/* METADATA STRIP */}

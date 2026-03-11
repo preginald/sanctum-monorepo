@@ -22,7 +22,7 @@ def test_read_accounts(client, admin_token_headers):
 
     # ACT
     response = client.get("/accounts", headers=admin_token_headers)
-    
+
     # ASSERT
     assert response.status_code == 200
     data = response.json()

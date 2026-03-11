@@ -368,23 +368,23 @@ DEFAULT_TEMPLATES = [
 def seed():
     db = SessionLocal()
     print("🌱 Seeding Audit Templates (All 6 Categories)...")
-    
+
     try:
         for template_def in DEFAULT_TEMPLATES:
             exists = db.query(AuditTemplate).filter(
                 AuditTemplate.framework == template_def['framework']
             ).first()
-            
+
             if not exists:
                 print(f"   ✅ Creating template: {template_def['name']}")
                 template = AuditTemplate(**template_def)
                 db.add(template)
             else:
                 print(f"   ⏭️  Skipping template (exists): {template_def['name']}")
-        
+
         db.commit()
         print("✅ Audit Template Seeding Complete (7 templates across 6 categories).")
-        
+
     except Exception as e:
         print(f"❌ Error seeding audit templates: {e}")
         db.rollback()

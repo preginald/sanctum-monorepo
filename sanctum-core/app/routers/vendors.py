@@ -26,7 +26,7 @@ def list_vendors(
     vendors = db.query(models.Vendor).filter(
         models.Vendor.is_active == True
     ).order_by(models.Vendor.name).all()
-    
+
     return [
         {"id": str(v.id), "name": v.name, "website": v.website, "category": v.category, "tags": v.tags or []}
         for v in vendors
@@ -43,7 +43,7 @@ def list_vendor_categories(
     Used to populate category filters in admin.
     """
     from sqlalchemy import func
-    
+
     categories = db.query(
         models.Vendor.category,
         func.count(models.Vendor.id).label('count')
@@ -52,7 +52,7 @@ def list_vendor_categories(
     ).group_by(
         models.Vendor.category
     ).all()
-    
+
     return [
         {
             "category": cat,
@@ -75,7 +75,7 @@ def get_vendors_by_category(
         models.Vendor.category.contains([category]),
         models.Vendor.is_active == True
     ).order_by(models.Vendor.name).limit(limit).all()
-    
+
     return [
         {
             "id": str(v.id),
@@ -102,7 +102,7 @@ def search_vendors(
 ):
     """
     Search vendors across all categories or within specific category.
-    
+
     Examples:
     - /vendors/search?q=microsoft
     - /vendors/search?q=xero&category=saas
@@ -112,18 +112,18 @@ def search_vendors(
         models.Vendor.is_active == True,
         models.Vendor.name.ilike(f"%{q}%")
     )
-    
+
     if category:
         # UPDATED: Use contains for array searching
         query = query.filter(models.Vendor.category.contains([category]))
-    
+
     if tags:
         # Filter by tags (array contains)
         for tag in tags:
             query = query.filter(models.Vendor.tags.contains([tag]))
-    
+
     vendors = query.order_by(models.Vendor.name).limit(limit).all()
-    
+
     return [
         {
             "id": str(v.id),
@@ -156,7 +156,7 @@ def get_vendor(
     vendor = db.query(models.Vendor).filter(
         models.Vendor.id == vendor_id
     ).first()
-    
+
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
 
@@ -206,7 +206,7 @@ def get_popular_vendors(
         models.Vendor.is_active == True,
         models.Vendor.tags.contains(['popular'])
     ).order_by(models.Vendor.name).limit(limit).all()
-    
+
     return [
         {
             "id": str(v.id),
@@ -232,14 +232,14 @@ def create_vendor(
 ):
     """Admin: Create new vendor"""
     # TODO: Add admin permission check
-    
+
     vendor = models.Vendor(
         **vendor_data
     )
     db.add(vendor)
     db.commit()
     db.refresh(vendor)
-    
+
     return {"id": str(vendor.id), "name": vendor.name}
 
 
@@ -252,17 +252,17 @@ def update_vendor(
 ):
     """Admin: Update vendor"""
     # TODO: Add admin permission check
-    
+
     vendor = db.query(models.Vendor).filter(
         models.Vendor.id == vendor_id
     ).first()
-    
+
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
-    
+
     for key, value in vendor_data.items():
         setattr(vendor, key, value)
-    
+
     db.commit()
-    
+
     return {"id": str(vendor.id), "name": vendor.name}

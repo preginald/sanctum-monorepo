@@ -11,11 +11,11 @@ export default function AdminAutomationList() {
   const [refreshKey, setRefreshKey] = useState(0);
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState('rules'); // 'rules' | 'logs'
-  
+
   // RULES STATE
   const [rules, setRules] = useState([]);
   const [loading, setLoading] = useState(true);
-  
+
   // LOGS STATE
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
@@ -28,8 +28,8 @@ export default function AdminAutomationList() {
   // CONFIRM STATE
   const [confirm, setConfirm] = useState({ isOpen: false, title: '', message: '', action: null });
 
-  useEffect(() => { 
-      fetchRules(); 
+  useEffect(() => {
+      fetchRules();
   }, [refreshKey]);
 
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function AdminAutomationList() {
       try {
           const res = await api.get('/admin/automations');
           setRules(res.data);
-      } catch(e) { console.error(e); } 
+      } catch(e) { console.error(e); }
       finally { setLoading(false); }
   };
 
@@ -59,7 +59,7 @@ export default function AdminAutomationList() {
       try {
           if (payload.id) await api.put(`/admin/automations/${payload.id}`, payload);
           else await api.post('/admin/automations', payload);
-          
+
           addToast("Automation saved", "success");
           setShowModal(false);
           fetchRules();
@@ -97,25 +97,25 @@ export default function AdminAutomationList() {
       ) : null}
     >
       <ConfirmationModal isOpen={confirm.isOpen} onClose={() => setConfirm({...confirm, isOpen: false})} title={confirm.title} message={confirm.message} onConfirm={confirm.action} isDangerous={true} />
-      
-      <AutomationModal 
-        isOpen={showModal} 
-        onClose={() => setShowModal(false)} 
-        onSubmit={handleSave} 
-        loading={saving} 
-        form={form} 
+
+      <AutomationModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onSubmit={handleSave}
+        loading={saving}
+        form={form}
         setForm={setForm}
       />
 
       {/* TABS */}
       <div className="flex gap-4 border-b border-slate-700 mb-6">
-          <button 
+          <button
             onClick={() => setActiveTab('rules')}
             className={`pb-3 px-2 flex items-center gap-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'rules' ? 'border-sanctum-gold text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
           >
               <LayoutGrid size={16} /> Workflow Rules
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('logs')}
             className={`pb-3 px-2 flex items-center gap-2 text-sm font-bold border-b-2 transition-colors ${activeTab === 'logs' ? 'border-sanctum-gold text-white' : 'border-transparent text-slate-500 hover:text-slate-300'}`}
           >
@@ -141,16 +141,16 @@ export default function AdminAutomationList() {
                               <button onClick={() => setConfirm({ isOpen: true, title: "Delete Rule?", message: "This cannot be recovered.", action: () => handleDelete(rule.id) })} className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-900/20"><Trash2 size={16}/></button>
                           </div>
                       </div>
-                      
+
                       <h3 className="font-bold text-white text-lg mb-1">{rule.name}</h3>
                       <p className="text-xs text-slate-400 mb-4 h-8 line-clamp-2">{rule.description || "No description provided."}</p>
-                      
+
                       <div className="bg-black/30 p-3 rounded border border-white/5 font-mono text-[10px] text-slate-300">
                           <span className="text-purple-400 font-bold">ACTION:</span> {rule.action_type.toUpperCase()}
                       </div>
                   </div>
               ))}
-              
+
               {rules.length === 0 && (
                   <div className="col-span-full text-center py-12 opacity-30">
                       <Zap size={48} className="mx-auto mb-4"/>
@@ -190,8 +190,8 @@ export default function AdminAutomationList() {
                                       </TableCell>
                                       <TableCell className="p-4">
                                           <span className={`px-2 py-1 rounded text-[10px] uppercase font-bold ${
-                                              log.status === 'success' ? 'bg-green-500/10 text-green-400' : 
-                                              log.status === 'failure' ? 'bg-red-500/10 text-red-400' : 
+                                              log.status === 'success' ? 'bg-green-500/10 text-green-400' :
+                                              log.status === 'failure' ? 'bg-red-500/10 text-red-400' :
                                               'bg-yellow-500/10 text-yellow-400'
                                           }`}>
                                               {log.status}

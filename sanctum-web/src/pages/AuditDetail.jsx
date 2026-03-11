@@ -48,7 +48,7 @@ const fetchAudit = async () => {
   try {
     const res = await api.get(`/sentinel/audits/${id}`);
     setAudit(res.data);
-    
+
     // Wait for templates to load if they haven't yet
     let templatesList = templates;
     if (templates.length === 0) {
@@ -56,7 +56,7 @@ const fetchAudit = async () => {
       templatesList = templatesRes.data;
       setTemplates(templatesRes.data);
     }
-    
+
     if (res.data.template_id) {
       const template = templatesList.find(t => t.id === res.data.template_id);
       if (template) {
@@ -67,16 +67,16 @@ const fetchAudit = async () => {
         });
       }
     }
-    
+
     if (res.data.responses) {
       setResponses(res.data.responses);
     }
-    
+
     // Auto-expand first category
     if (res.data.category_structure && res.data.category_structure.length > 0) {
       setExpandedCategories({ [res.data.category_structure[0].category]: true });
     }
-    
+
   } catch (e) {
     console.error(e);
     addToast('Failed to load audit', 'danger');
@@ -89,7 +89,7 @@ const fetchAudit = async () => {
     const template = templates.find(t => t.id === templateId);
     setSelectedTemplate(template);
     setResponses({}); // Clear responses when changing template
-    
+
     // Auto-expand first category
     if (template?.category_structure?.length > 0) {
       setExpandedCategories({ [template.category_structure[0].category]: true });
@@ -115,21 +115,21 @@ const fetchAudit = async () => {
 
 const calculateScore = () => {
   if (!selectedTemplate || !selectedTemplate.category_structure) return 0;
-  
+
   let totalWeight = 0;
   let earnedWeight = 0;
-  
+
   selectedTemplate.category_structure.forEach(category => {
     if (!category.controls) return;
-    
+
     category.controls.forEach(control => {
       const weight = control.weight || 1;
       const response = responses[control.id];
       const status = response?.status || 'fail';
-      
+
       if (status !== 'na') {
         totalWeight += weight;
-        
+
         if (status === 'pass') {
           earnedWeight += weight;
         } else if (status === 'partial') {
@@ -138,7 +138,7 @@ const calculateScore = () => {
       }
     });
   });
-  
+
   return totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
 };
 
@@ -147,14 +147,14 @@ const calculateScore = () => {
       addToast('Please select a template first', 'warning');
       return;
     }
-    
+
     setSaving(true);
     try {
       const payload = {
         template_id: selectedTemplate.id,
         responses: responses
       };
-      
+
       if (id && id !== 'new') {
         await api.post(`/sentinel/audits/${id}/submit`, payload);
         addToast('Audit saved successfully', 'success');
@@ -165,7 +165,7 @@ const calculateScore = () => {
           account_id: accountId,
           status: 'draft'
         });
-        
+
         // Then submit responses
         await api.post(`/sentinel/audits/${createRes.data.id}/submit`, payload);
         addToast('Audit created successfully', 'success');
@@ -243,15 +243,15 @@ const calculateScore = () => {
       }
     >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        
+
         {/* SIDEBAR: TEMPLATE SELECTOR */}
         <div className="space-y-6">
-          
+
           {/* TEMPLATE PICKER */}
           {audit?.status !== 'finalized' && (
             <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
               <h3 className="font-bold text-sm uppercase text-slate-400 mb-4">Audit Framework</h3>
-              <select 
+              <select
                 className="w-full bg-black/40 border border-slate-600 rounded-lg px-4 h-10 text-sm text-white focus:border-blue-500 focus:outline-none"
                 value={selectedTemplate?.id || ''}
                 onChange={(e) => handleTemplateChange(e.target.value)}
@@ -270,7 +270,7 @@ const calculateScore = () => {
               )}
             </div>
           )}
-          
+
           {/* STATS */}
           {selectedTemplate && (
             <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
@@ -330,12 +330,12 @@ const calculateScore = () => {
             <div className="space-y-4">
               {categoryStructure.map((category, catIdx) => {
                 const isExpanded = expandedCategories[category.category];
-                
+
                 return (
                   <div key={catIdx} className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-                    
+
                     {/* CATEGORY HEADER */}
-                    <button 
+                    <button
                       onClick={() => toggleCategory(category.category)}
                       className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
                     >
@@ -349,20 +349,20 @@ const calculateScore = () => {
                         {category.controls.length} controls
                       </span>
                     </button>
-                    
+
                     {/* CONTROLS */}
                     {isExpanded && (
                       <div className="border-t border-slate-800">
                         {category.controls.map((control, ctrlIdx) => {
                           const response = responses[control.id] || {};
                           const status = response.status || '';
-                          
+
                           return (
-                            <div 
-                              key={control.id} 
+                            <div
+                              key={control.id}
                               className="p-4 border-b border-slate-800 last:border-b-0 hover:bg-white/5 transition-colors"
                             >
-                              
+
                               {/* CONTROL HEADER */}
                               <div className="flex items-start gap-3 mb-3">
                                 {getStatusIcon(status)}
@@ -375,22 +375,22 @@ const calculateScore = () => {
                                   )}
                                 </div>
                               </div>
-                              
+
                               {/* STATUS SELECTOR */}
                               {audit?.status !== 'finalized' && (
                                 <div className="ml-7 space-y-3">
                                   <div className="flex gap-3">
                                     {['pass', 'partial', 'fail', 'na'].map(s => (
-                                      <label 
+                                      <label
                                         key={s}
                                         className={`flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${
-                                          status === s 
-                                            ? 'bg-blue-500/20 border border-blue-500' 
+                                          status === s
+                                            ? 'bg-blue-500/20 border border-blue-500'
                                             : 'bg-slate-800 border border-slate-700 hover:border-slate-600'
                                         }`}
                                       >
-                                        <input 
-                                          type="radio" 
+                                        <input
+                                          type="radio"
                                           name={`control-${control.id}`}
                                           value={s}
                                           checked={status === s}
@@ -403,9 +403,9 @@ const calculateScore = () => {
                                       </label>
                                     ))}
                                   </div>
-                                  
+
                                   {/* NOTES FIELD */}
-                                  <textarea 
+                                  <textarea
                                     placeholder="Add notes or evidence..."
                                     className="w-full bg-black/40 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-300 focus:border-blue-500 focus:outline-none resize-none"
                                     rows={2}
@@ -414,7 +414,7 @@ const calculateScore = () => {
                                   />
                                 </div>
                               )}
-                              
+
                               {/* READ-ONLY VIEW FOR FINALIZED */}
                               {audit?.status === 'finalized' && (
                                 <div className="ml-7 text-sm text-slate-400">

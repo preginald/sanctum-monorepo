@@ -4,8 +4,8 @@ from .shared import SanctumBase
 
 class AccountCreate(SanctumBase):
     name: str
-    type: str 
-    brand_affinity: str 
+    type: str
+    brand_affinity: str
     status: str = 'prospect'
     billing_email: Optional[str] = None
 
@@ -29,8 +29,8 @@ class ContactCreate(SanctumBase):
     last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
-    persona: Optional[str] = None 
-    reports_to_id: Optional[UUID] = None 
+    persona: Optional[str] = None
+    reports_to_id: Optional[UUID] = None
 
 class ContactUpdate(SanctumBase):
     first_name: Optional[str] = None
@@ -51,8 +51,8 @@ class ContactCreate(SanctumBase):
     last_name: str
     email: Optional[str] = None
     phone: Optional[str] = None
-    persona: Optional[str] = None 
-    reports_to_id: Optional[UUID] = None 
-    
+    persona: Optional[str] = None
+    reports_to_id: Optional[UUID] = None
+
     # NEW: The Convergence Flag
     enable_portal_access: bool = False

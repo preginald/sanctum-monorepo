@@ -2,11 +2,11 @@ import React from 'react';
 
 /**
  * ProgressBar - Visual score/progress indicator
- * 
+ *
  * Used for: Health scores, completion percentages, audit scores
  */
-export default function ProgressBar({ 
-  score, 
+export default function ProgressBar({
+  score,
   maxScore = 100,
   height = 'h-2',
   showLabel = false,
@@ -78,7 +78,7 @@ export default function ProgressBar({
 
 /**
  * ScoreDisplay - Large score with progress bar
- * 
+ *
  * Commonly used format: big number + small bar underneath
  */
 export function ScoreDisplay({ score, maxScore = 100, isNaked = false }) {
@@ -105,8 +105,8 @@ export function ScoreDisplay({ score, maxScore = 100, isNaked = false }) {
       </div>
 
       {/* Progress Bar */}
-      <ProgressBar 
-        score={score} 
+      <ProgressBar
+        score={score}
         maxScore={maxScore}
         colorMode="score"
       />

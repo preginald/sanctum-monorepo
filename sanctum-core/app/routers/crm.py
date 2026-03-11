@@ -44,11 +44,11 @@ def create_account(account: schemas.AccountCreate, current_user: models.User = D
 @router.put("/accounts/{account_id}", response_model=schemas.AccountResponse)
 def update_account(account_id: str, account_update: schemas.AccountUpdate, db: Session = Depends(get_db)):
     db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not db_account: 
+    if not db_account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+
     update_data = account_update.model_dump(exclude_unset=True)
-    
+
     # Logic Fix: Sync brand_affinity with type if type is being changed
     # but brand_affinity wasn't explicitly provided in the payload.
     if "type" in update_data and "brand_affinity" not in update_data:
@@ -56,10 +56,10 @@ def update_account(account_id: str, account_update: schemas.AccountUpdate, db: S
             update_data["brand_affinity"] = "ds"
         elif update_data["type"] == "residential":
             update_data["brand_affinity"] = "nt"
-    
-    for key, value in update_data.items(): 
+
+    for key, value in update_data.items():
         setattr(db_account, key, value)
-        
+
     db.commit()
     db.refresh(db_account)
     return db_account
@@ -106,19 +106,19 @@ def get_deal_detail(deal_id: str, current_user: models.User = Depends(auth.get_c
     deal = db.query(models.Deal)\
         .options(joinedload(models.Deal.items).joinedload(models.DealItem.product))\
         .filter(models.Deal.id == deal_id).first()
-    
-    if not deal: 
+
+    if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-    
-    if current_user.access_scope == 'nt_only' and deal.account.brand_affinity == 'ds': 
+
+    if current_user.access_scope == 'nt_only' and deal.account.brand_affinity == 'ds':
         raise HTTPException(status_code=403, detail="Forbidden")
-    
+
     # Build items list
     items_data = []
     for item in deal.items:
         unit_price = item.override_price if item.override_price else item.product.unit_price
         total = float(unit_price) * item.quantity
-        
+
         items_data.append({
             'id': item.id,
             'product_id': item.product_id,
@@ -128,7 +128,7 @@ def get_deal_detail(deal_id: str, current_user: models.User = Depends(auth.get_c
             'unit_price': unit_price,
             'total': total
         })
-    
+
     # Return response dict (Pydantic will validate)
     return {
         'id': deal.id,
@@ -150,7 +150,7 @@ def create_deal(deal: schemas.DealCreate, db: Session = Depends(get_db)):
     db.add(new_deal)
     db.commit()
     db.refresh(new_deal)
-    new_deal.account_name = new_deal.account.name 
+    new_deal.account_name = new_deal.account.name
     return new_deal
 
 @router.put("/deals/{deal_id}", response_model=schemas.DealResponse)
@@ -182,15 +182,15 @@ def create_product(product: schemas.ProductCreate, current_user: models.User = D
 @router.put("/products/{product_id}", response_model=schemas.ProductResponse)
 def update_product(product_id: str, product_update: schemas.ProductUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.access_scope != 'global': raise HTTPException(status_code=403, detail="Forbidden")
-    
+
     product = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not product: raise HTTPException(status_code=404, detail="Product not found")
-    
+
     # Update fields
     update_data = product_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(product, key, value)
-    
+
     # Logic Fix: If turning off recurring, clear frequency
     if product.is_recurring is False:
         product.billing_frequency = None
@@ -213,7 +213,7 @@ def archive_product(product_id: str, current_user: models.User = Depends(auth.ge
 def create_contact(contact: schemas.ContactCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     contact_data = contact.model_dump()
     enable_portal = contact_data.pop('enable_portal_access', False)
-    
+
     # 1. PREVENT DUPLICATE CONTACTS
     if contact.email:
         existing_contact = db.query(models.Contact).filter(
@@ -228,18 +228,18 @@ def create_contact(contact: schemas.ContactCreate, current_user: models.User = D
     db.add(new_contact)
     db.commit()
     db.refresh(new_contact)
-    
+
     # 3. Convergence Logic (Delegated)
     if enable_portal and new_contact.email:
         # Check if user exists
         existing_user = db.query(models.User).filter(models.User.email == new_contact.email).first()
-        
+
         if not existing_user:
             # Create Shadow User
             import secrets
-            random_pw = secrets.token_urlsafe(32) 
+            random_pw = secrets.token_urlsafe(32)
             hashed_pw = auth.get_password_hash(random_pw)
-            
+
             existing_user = models.User(
                 email=new_contact.email,
                 password_hash=hashed_pw,
@@ -251,7 +251,7 @@ def create_contact(contact: schemas.ContactCreate, current_user: models.User = D
             db.add(existing_user)
             db.commit()
             db.refresh(existing_user)
-            
+
         # TRIGGER INVITE VIA SERVICE
         auth_service.invite_user(db, existing_user)
 

@@ -18,8 +18,8 @@ export default function AuditList({ audits, onAdd }) {
                 <Activity size={16} /> Audit History
             </h3>
             {onAdd && (
-                <button 
-                    onClick={onAdd} 
+                <button
+                    onClick={onAdd}
                     className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-white transition-colors"
                     title="New Audit"
                 >
@@ -29,9 +29,9 @@ export default function AuditList({ audits, onAdd }) {
         </div>
         <div className="space-y-2">
             {audits.length > 0 ? audits.map(a => (
-                <div 
-                    key={a.id} 
-                    onClick={() => navigate(`/audit/${a.id}`)} 
+                <div
+                    key={a.id}
+                    onClick={() => navigate(`/audit/${a.id}`)}
                     className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer transition-colors group"
                 >
                     <div>

@@ -16,7 +16,7 @@ if (storedToken) {
   } catch (error) {
     console.error("Invalid or expired token found, clearing storage.");
     localStorage.removeItem('sanctum_token');
-    storedToken = null; 
+    storedToken = null;
     initialUser = null;
   }
 }
@@ -40,13 +40,13 @@ const useAuthStore = create((set) => ({
       const decodedUser = jwtDecode(access_token);
 
       localStorage.setItem('sanctum_token', access_token);
-      
-      set({ 
-        token: access_token, 
-        user: decodedUser, 
-        isAuthenticated: true 
+
+      set({
+        token: access_token,
+        user: decodedUser,
+        isAuthenticated: true
       });
-      
+
       return true;
 
     } catch (error) {
@@ -60,10 +60,10 @@ const useAuthStore = create((set) => ({
     try {
         const decodedUser = jwtDecode(access_token);
         localStorage.setItem('sanctum_token', access_token);
-        set({ 
-            token: access_token, 
-            user: decodedUser, 
-            isAuthenticated: true 
+        set({
+            token: access_token,
+            user: decodedUser,
+            isAuthenticated: true
         });
     } catch (e) {
         console.error("Failed to set token:", e);

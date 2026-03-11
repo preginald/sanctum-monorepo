@@ -9,19 +9,19 @@ import { sortByRecency } from '../../lib/history'; // NEW IMPORT
 export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselectedAccountId }) {
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState([]);
-  
+
   // Context Data
   const [activeContacts, setActiveContacts] = useState([]);
   const [activeProjects, setActiveProjects] = useState([]);
 
-  const [form, setForm] = useState({ 
-      account_id: preselectedAccountId || '', 
-      contact_ids: [], 
+  const [form, setForm] = useState({
+      account_id: preselectedAccountId || '',
+      contact_ids: [],
       milestone_id: '',
-      subject: '', 
+      subject: '',
       description: '',
-      priority: 'normal', 
-      ticket_type: 'support' 
+      priority: 'normal',
+      ticket_type: 'support'
   });
 
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -55,11 +55,11 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
   // --- DATA TRANSFORMATION ---
   const milestoneOptions = useMemo(() => {
-      return activeProjects.flatMap(p => 
+      return activeProjects.flatMap(p =>
           p.milestones.map(m => ({
               id: m.id,
               title: m.name,
-              subtitle: p.name 
+              subtitle: p.name
           }))
       );
   }, [activeProjects]);
@@ -74,7 +74,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!form.account_id) {
         alert("Please select a client.");
         return;
@@ -84,20 +84,20 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
     try {
       const payload = { ...form };
       if (!payload.milestone_id) delete payload.milestone_id;
-      
+
       const res = await api.post('/tickets', payload);
       if (onSuccess) onSuccess(res.data);
-      
+
       onClose();
-      
-      setForm({ 
-          account_id: preselectedAccountId || '', 
-          contact_ids: [], 
-          milestone_id: '', 
-          subject: '', 
-          description: '', 
-          priority: 'normal', 
-          ticket_type: 'support' 
+
+      setForm({
+          account_id: preselectedAccountId || '',
+          contact_ids: [],
+          milestone_id: '',
+          subject: '',
+          description: '',
+          priority: 'normal',
+          ticket_type: 'support'
       });
     } catch (e) {
       alert("Failed to create ticket: " + (e.response?.data?.detail || "Unknown Error"));
@@ -118,9 +118,9 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
       <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-lg relative animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         <button onClick={onClose} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
         <h2 className="text-xl font-bold mb-4 text-white">Create Ticket</h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-2 custom-scrollbar">
-          
+
           {/* CLIENT SELECTOR */}
           {!preselectedAccountId ? (
             <div className="bg-slate-800/50 p-3 rounded border border-slate-700">
@@ -136,7 +136,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
                     onSelect={(item) => setForm({...form, account_id: item.id})}
                     placeholder="Search Clients..."
                     labelKey="name"
-                    subLabelKey="type" 
+                    subLabelKey="type"
                     icon={Building}
                 />
                 {form.account_id && (
@@ -175,10 +175,10 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
           <div>
             <label className="text-xs text-slate-400 block mb-1">Description</label>
-            <textarea 
-                className="w-full p-2 h-24 rounded bg-black/20 border border-slate-700 text-white text-sm" 
-                value={form.description} 
-                onChange={e => setForm({...form, description: e.target.value})} 
+            <textarea
+                className="w-full p-2 h-24 rounded bg-black/20 border border-slate-700 text-white text-sm"
+                value={form.description}
+                onChange={e => setForm({...form, description: e.target.value})}
                 onKeyDown={(e) => handleSmartWrap(e, form.description, (v) => setForm({...form, description: v}))}
             />
           </div>
@@ -194,7 +194,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
                         })}
                     </div>
                     <div className="flex-1">
-                        <SearchableSelect 
+                        <SearchableSelect
                             items={contactOptions.filter(c => !form.contact_ids.includes(c.id))}
                             onSelect={(item) => toggleContact(item.id)}
                             placeholder="+ Add Person..."
@@ -207,7 +207,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
                   <div>
                     <label className="text-xs text-blue-400 block mb-1">Link to Milestone</label>
-                    <SearchableSelect 
+                    <SearchableSelect
                         items={milestoneOptions}
                         selectedIds={form.milestone_id ? [form.milestone_id] : []}
                         onSelect={(item) => setForm({...form, milestone_id: item.id})}
@@ -227,8 +227,8 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
 
           <div className="flex gap-2 pt-2">
             <button type="button" onClick={onClose} className="flex-1 py-2 bg-slate-700 rounded text-white">Cancel</button>
-            <button 
-                type="submit" 
+            <button
+                type="submit"
                 disabled={loading || !form.account_id}
                 className="flex-1 py-2 rounded text-white font-bold bg-sanctum-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >

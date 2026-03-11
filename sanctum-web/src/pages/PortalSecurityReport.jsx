@@ -19,15 +19,15 @@ export default function PortalSecurityReport() {
 const handleRequestRemediation = async () => {
   if (generatingDeal) return;
   if (!confirm('Generate a remediation quote for all failed controls?')) return;
-  
+
   setGeneratingDeal(true);
   try {
     const res = await api.post(`/sentinel/audits/${auditId}/generate-deal`);
-    
+
     // Refresh audit data to get the new deal_id
     const auditRes = await api.get(`/sentinel/audits/${auditId}`);
     setAudit(auditRes.data);
-    
+
     alert(`Remediation quote created! Total: $${res.data.deal_amount.toLocaleString()}\n\nOur team will review and contact you shortly.`);
   } catch (e) {
     if (e.response?.data?.detail) {
@@ -50,29 +50,29 @@ const fetchSecurityReport = async () => {
     // Get dashboard data to find audit_id
     const dashRes = await api.get(`/portal/dashboard${impersonateId ? '?impersonate=' + impersonateId : ''}`);
     console.log('Dashboard response:', dashRes.data);
-    
+
     setAccount(dashRes.data.account);
-    
+
     if (!dashRes.data.audit_id) {
       console.log('No audit_id in dashboard response');
       setLoading(false);
       return;
     }
-    
+
     setAuditId(dashRes.data.audit_id);
     console.log('Fetching audit:', dashRes.data.audit_id);
 
     // Fetch full audit details
     const auditRes = await api.get(`/sentinel/audits/${dashRes.data.audit_id}`);
     console.log('Audit response:', auditRes.data);
-    
+
     setAudit(auditRes.data);
-    
+
     // Auto-expand first category
     if (auditRes.data.category_structure?.length > 0) {
       setExpandedCategories({ [auditRes.data.category_structure[0].category]: true });
     }
-    
+
   } catch (e) {
     console.error('Error fetching security report:', e);
     console.error('Error response:', e.response);
@@ -163,7 +163,7 @@ const fetchSecurityReport = async () => {
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.textMain}`}>
-      
+
       {/* NAVIGATION */}
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div className="flex items-center gap-4">
@@ -186,7 +186,7 @@ const fetchSecurityReport = async () => {
       </nav>
 
       <main className="p-8 max-w-6xl mx-auto space-y-8">
-        
+
         {/* HEADER SECTION */}
         <div className={`p-8 rounded-xl border ${theme.card}`}>
           <div className="flex items-center justify-between">
@@ -209,8 +209,8 @@ const fetchSecurityReport = async () => {
     <button
   onClick={() => alert(`Remediation quote has been generated!\n\nDeal ID: ${audit.deal_id}\n\nOur team will review the quote and contact you shortly with next steps.`)}
   className={`px-6 py-3 rounded-lg font-bold text-sm transition-all shadow-lg hover:scale-105 ${
-    isNaked 
-      ? 'bg-green-500 hover:bg-green-600 text-white' 
+    isNaked
+      ? 'bg-green-500 hover:bg-green-600 text-white'
       : 'bg-green-600 hover:bg-green-500 text-white'
   }`}
 >
@@ -224,8 +224,8 @@ const fetchSecurityReport = async () => {
       className={`px-6 py-3 rounded-lg font-bold text-sm transition-all shadow-lg ${
         generatingDeal ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
       } ${
-        isNaked 
-          ? 'bg-naked-pink hover:bg-pink-600 text-white' 
+        isNaked
+          ? 'bg-naked-pink hover:bg-pink-600 text-white'
           : 'bg-sanctum-gold hover:bg-yellow-500 text-slate-900'
       }`}
     >
@@ -246,7 +246,7 @@ const fetchSecurityReport = async () => {
             </div>
             <div className="text-3xl font-bold">{passCount}</div>
           </div>
-          
+
           <div className={`p-4 rounded-xl border ${theme.card}`}>
             <div className="flex items-center gap-2 mb-2">
               <MinusCircle className="text-yellow-500" size={20} />
@@ -254,7 +254,7 @@ const fetchSecurityReport = async () => {
             </div>
             <div className="text-3xl font-bold">{partialCount}</div>
           </div>
-          
+
           <div className={`p-4 rounded-xl border ${theme.card}`}>
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle className="text-red-500" size={20} />
@@ -262,7 +262,7 @@ const fetchSecurityReport = async () => {
             </div>
             <div className="text-3xl font-bold">{failCount}</div>
           </div>
-          
+
           <div className={`p-4 rounded-xl border ${theme.card}`}>
             <div className="flex items-center gap-2 mb-2">
               <MinusCircle className="text-slate-500" size={20} />
@@ -277,13 +277,13 @@ const fetchSecurityReport = async () => {
           <h3 className="text-lg font-bold uppercase tracking-wide opacity-70">
             Detailed Assessment
           </h3>
-          
+
           {audit.category_structure?.map((category, catIdx) => {
             const isExpanded = expandedCategories[category.category];
-            
+
             return (
               <div key={catIdx} className={`rounded-xl border ${theme.card} overflow-hidden`}>
-                
+
                 {/* CATEGORY HEADER */}
                 <button
                   onClick={() => toggleCategory(category.category)}
@@ -306,7 +306,7 @@ const fetchSecurityReport = async () => {
                     {category.controls.map((control) => {
                       const response = responses[control.id] || {};
                       const status = response.status || 'fail';
-                      
+
                       return (
                         <div
                           key={control.id}

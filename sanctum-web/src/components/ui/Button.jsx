@@ -1,20 +1,20 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 
-export default function Button({ 
-  children, 
-  onClick, 
-  variant = 'primary', 
-  size = 'md', 
-  icon: Icon, 
-  loading = false, 
+export default function Button({
+  children,
+  onClick,
+  variant = 'primary',
+  size = 'md',
+  icon: Icon,
+  loading = false,
   disabled = false,
   className = "",
   type = "button"
 }) {
-  
+
   const baseStyle = "font-bold rounded transition-all flex items-center justify-center gap-2";
-  
+
   const variants = {
     primary: "bg-sanctum-blue hover:bg-blue-600 text-white shadow-lg",
     success: "bg-green-600 hover:bg-green-500 text-white shadow-lg",
@@ -35,10 +35,10 @@ export default function Button({
   const style = `${baseStyle} ${variants[variant]} ${variant === 'icon' ? sizes.icon : sizes[size]} ${className}`;
 
   return (
-    <button 
+    <button
       type={type}
-      onClick={onClick} 
-      disabled={disabled || loading} 
+      onClick={onClick}
+      disabled={disabled || loading}
       className={`${style} ${disabled || loading ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       {loading && <Loader2 className="animate-spin" size={16} />}

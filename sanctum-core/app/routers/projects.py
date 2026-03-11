@@ -195,20 +195,20 @@ def finalize_audit(audit_id: str, db: Session = Depends(get_db)):
     final_score = int(total_score / len(items))
     pdf_data = { "client_name": account.name, "security_score": final_score, "infrastructure_score": final_score, "content": audit_record.content }
     filename = f"audit_{audit_id}.pdf"
-    
+
     # Safe path handling
     cwd = os.getcwd()
     static_dir = os.path.join(cwd, "app/static/reports")
     if not os.path.exists(static_dir): os.makedirs(static_dir)
     abs_path = os.path.join(static_dir, filename)
-    
+
     pdf = pdf_engine.generate_audit_pdf(pdf_data)
     pdf.output(abs_path)
     audit_record.security_score = final_score
     audit_record.infrastructure_score = final_score
     audit_record.status = "finalized"
     audit_record.report_pdf_path = f"/static/reports/{filename}"
-    audit_record.finalized_at = func.now() 
+    audit_record.finalized_at = func.now()
     db.commit()
     db.refresh(audit_record)
     return audit_record

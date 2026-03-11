@@ -21,13 +21,13 @@ api.interceptors.response.use(
     // If 401 Unauthorized (Expired/Invalid)
     if (error.response?.status === 401) {
       console.warn("Session expired. Redirecting...");
-      
+
       // Clear local storage
       localStorage.removeItem('sanctum_token');
-      
+
       // Capture where the user WAS
       const currentPath = window.location.pathname;
-      
+
       // Don't loop if already on login
       if (!currentPath.includes('/login')) {
         // Redirect with "expired" flag AND "redirect" path

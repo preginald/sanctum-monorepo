@@ -1,6 +1,6 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
-import { server } from '../test/server'; 
+import { server } from '../test/server';
 import { http, HttpResponse } from 'msw';
 import TicketDetail from './TicketDetail';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -13,7 +13,7 @@ vi.mock('../context/ToastContext', () => ({
 }));
 
 describe('TicketDetail Layout Integrity', () => {
-  
+
   it('renders the 3-column grid and sidebar correctly', async () => {
     // Standard Mock for View Test
     server.use(
@@ -39,7 +39,7 @@ describe('TicketDetail Layout Integrity', () => {
     );
 
     await screen.findByText('Server Outage');
-    
+
     // Verify Grid Class (updated for new layout)
     const gridContainer = container.querySelector('.grid');
     expect(gridContainer).toHaveClass('xl:grid-cols-5');
@@ -86,7 +86,7 @@ it('opens resolve modal and submits resolution successfully', async () => {
     // 3. Enter Text
     const textarea = screen.getByPlaceholderText(/Fixed by/i);
     fireEvent.change(textarea, { target: { value: 'Fixed it.' } });
-    
+
     // 4. Submit
     const confirmBtn = screen.getByRole('button', { name: /confirm resolution/i });
     expect(confirmBtn).toBeEnabled();
@@ -121,7 +121,7 @@ it('opens resolve modal and submits resolution successfully', async () => {
 
     await screen.findByText('Old Issue');
     const resolveBtn = screen.queryByRole('button', { name: /resolve/i });
-    expect(resolveBtn).not.toBeInTheDocument(); 
+    expect(resolveBtn).not.toBeInTheDocument();
   });
 
 });

@@ -4,7 +4,7 @@ const Select = forwardRef(({ label, children, className = "", error, ...props },
   return (
     <div className="w-full">
       {label && <label className="text-xs uppercase opacity-50 block mb-1">{label}</label>}
-      <select 
+      <select
         ref={ref}
         className={`w-full p-2 rounded bg-black/40 border border-slate-600 text-white focus:border-sanctum-gold outline-none transition-colors ${error ? 'border-red-500' : ''} ${className}`}
         {...props}

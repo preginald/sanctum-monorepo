@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { X } from 'lucide-react';
 
-export default function TagInput({ 
-  value = '', 
-  onChange, 
+export default function TagInput({
+  value = '',
+  onChange,
   placeholder = 'Type and press Enter...',
   validateTag = null,
   maxTags = null
@@ -11,13 +11,13 @@ export default function TagInput({
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const inputRef = useRef(null);
-  
+
   // Parse existing value into tags array
   const tags = value ? value.split('\n').filter(t => t.trim()) : [];
 
   const validateAndAddTag = (tagValue) => {
     const trimmed = tagValue.trim();
-    
+
     if (!trimmed) {
       setError('');
       return false;
@@ -78,7 +78,7 @@ export default function TagInput({
   const handlePaste = (e) => {
     e.preventDefault();
     const pastedText = e.clipboardData.getData('text');
-    
+
     // Split by newlines or commas
     const entries = pastedText
       .split(/[\n,]/)
@@ -135,7 +135,7 @@ export default function TagInput({
           placeholder={placeholder}
           className="w-full p-4 bg-slate-800 border border-slate-600 rounded-lg text-white text-lg focus:border-blue-500 outline-none"
         />
-        
+
         {error && (
           <p className="absolute -bottom-6 left-0 text-sm text-red-400">
             {error}
@@ -145,7 +145,7 @@ export default function TagInput({
 
       {/* Help Text */}
       <p className="mt-2 text-xs text-slate-500">
-        {tags.length === 0 
+        {tags.length === 0
           ? 'Type and press Enter to add'
           : `${tags.length} ${tags.length === 1 ? 'entry' : 'entries'} added. Press Enter to add more.`
         }

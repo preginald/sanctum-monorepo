@@ -65,7 +65,7 @@ if [ "$GENERATE_QR" == "true" ]; then
     if command -v qrencode &> /dev/null; then
         ISSUER="DigitalSanctum"
         OTP_URI="otpauth://totp/${ISSUER}:${EMAIL}?secret=${SECRET}&issuer=${ISSUER}"
-        
+
         echo ""
         echo -e "${BLUE}QR Code (scan with authenticator app):${NC}"
         qrencode -t ANSIUTF8 "$OTP_URI"

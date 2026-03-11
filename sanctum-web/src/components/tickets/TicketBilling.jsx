@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom';
 export default function TicketBilling({ ticket, products, onUpdate, triggerConfirm }) {
   const { addToast } = useToast();
   const navigate = useNavigate();
-  
+
   // --- TIME STATE ---
   const [showTimeForm, setShowTimeForm] = useState(false);
   const [newEntry, setNewEntry] = useState({ start_time: '', end_time: '', description: '', product_id: '' });
@@ -28,7 +28,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
   // --- BADGE RENDERER ---
   const renderStatusBadge = (status, invoiceId) => {
       if (!status || !invoiceId) return null;
-      
+
       const config = {
           'paid': { color: 'bg-green-500/20 text-green-400', icon: CheckCircle, label: 'PAID' },
           'sent': { color: 'bg-blue-500/20 text-blue-400', icon: Send, label: 'SENT' },
@@ -40,7 +40,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
       const Icon = style.icon;
 
       return (
-          <button 
+          <button
             onClick={() => navigate(`/invoices/${invoiceId}`)}
             className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider hover:opacity-80 transition-opacity ${style.color}`}
           >
@@ -61,12 +61,12 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
           await api.post(`/tickets/${ticket.id}/time_entries`, payload);
           setNewEntry({ start_time: '', end_time: '', description: '', product_id: '' });
           setShowTimeForm(false);
-          onUpdate(); 
+          onUpdate();
           addToast("Time logged", "success");
-      } catch(e) { 
-          addToast("Failed to log time", "danger"); 
-      } finally { 
-          setLoadingAction(false); 
+      } catch(e) {
+          addToast("Failed to log time", "danger");
+      } finally {
+          setLoadingAction(false);
       }
   };
 
@@ -114,7 +114,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                  </div>
                  <span className="text-xl font-mono font-bold text-white">{ticket.total_hours}h</span>
              </div>
-             
+
              <div className="space-y-3">
                  {ticket.time_entries?.map(entry => (
                      <div key={entry.id} className={`p-3 bg-white/5 rounded border text-sm group transition-colors ${entry.invoice_id ? 'border-green-500/10 bg-green-900/5' : 'border-white/5 hover:border-sanctum-gold/30'}`}>
@@ -135,7 +135,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                                      <span className="block font-mono font-bold">{formatDuration(entry.duration_minutes)}</span>
                                      <span className="block text-[10px] text-sanctum-gold opacity-70">{formatCurrency(entry.calculated_value)}</span>
                                  </div>
-                                 
+
                                  {entry.invoice_id ? (
                                     <div className="flex items-center gap-1 opacity-50 cursor-not-allowed" title="Item is locked by an invoice">
                                         <Lock size={14} className="text-slate-500"/>
@@ -158,10 +158,10 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                          <div><label className="text-xs opacity-50 block mb-1">Start</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.start_time} onChange={e => setNewEntry({...newEntry, start_time: e.target.value})} /></div>
                          <div><label className="text-xs opacity-50 block mb-1">End</label><input required type="datetime-local" className="w-full p-2 rounded bg-slate-800 border border-slate-600 text-xs text-white" value={newEntry.end_time} onChange={e => setNewEntry({...newEntry, end_time: e.target.value})} /></div>
                      </div>
-                     
+
                  <div>
                      <label className="text-xs opacity-50 block mb-1">Rate</label>
-                     <SearchableSelect 
+                     <SearchableSelect
                         items={products.filter(p => p.type === 'service')}
                         onSelect={(p) => setNewEntry({ ...newEntry, product_id: p.id })}
                         selectedIds={[newEntry.product_id]}
@@ -197,7 +197,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                             </div>
                              <div className="flex items-center gap-4">
                                  <span className="font-mono font-bold text-orange-400">{formatCurrency(mat.calculated_value)}</span>
-                                 
+
                                  {mat.invoice_id ? (
                                     <div className="flex items-center gap-1 opacity-50 cursor-not-allowed" title="Item is locked by an invoice">
                                         <Lock size={14} className="text-slate-500"/>
@@ -218,7 +218,7 @@ export default function TicketBilling({ ticket, products, onUpdate, triggerConfi
                      <div className="grid grid-cols-3 gap-3">
                      <div className="col-span-2">
                          <label className="text-xs opacity-50 block mb-1">Item</label>
-                         <SearchableSelect 
+                         <SearchableSelect
                             items={products.filter(p => p.type === 'hardware' || p.type === 'license')}
                             onSelect={(p) => setNewMat({ ...newMat, product_id: p.id })}
                             selectedIds={[newMat.product_id]}

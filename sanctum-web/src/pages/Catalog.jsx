@@ -19,17 +19,17 @@ export default function Catalog() {
   const [products, setProducts] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
-  
+
   // EDIT STATE: null = hidden, 'new' = create mode, object = edit mode
-  const [editMode, setEditMode] = useState(null); 
-  
+  const [editMode, setEditMode] = useState(null);
+
   const [formData, setFormData] = useState({
-      name: '', 
-      description: '', 
-      type: 'service', 
+      name: '',
+      description: '',
+      type: 'service',
       unit_price: '',
-      is_recurring: false,      
-      billing_frequency: ''     
+      is_recurring: false,
+      billing_frequency: ''
   });
 
   const isAdmin = user?.scope === 'global';
@@ -40,7 +40,7 @@ export default function Catalog() {
     try {
       const res = await api.get('/products');
       setProducts(res.data);
-    } catch (e) { console.error(e); } 
+    } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
 
@@ -60,9 +60,9 @@ export default function Catalog() {
 
   // Setup Form for Create
   const handleNewClick = () => {
-      setFormData({ 
-          name: '', description: '', type: 'service', unit_price: '', 
-          is_recurring: false, billing_frequency: '' 
+      setFormData({
+          name: '', description: '', type: 'service', unit_price: '',
+          is_recurring: false, billing_frequency: ''
       });
       setEditMode('new');
   };
@@ -86,7 +86,7 @@ export default function Catalog() {
 
         setEditMode(null);
         fetchProducts();
-    } catch (e) { 
+    } catch (e) {
         addToast("Failed to save product", "error");
     }
   };
@@ -97,7 +97,7 @@ export default function Catalog() {
           await api.delete(`/products/${id}`);
           addToast("Product archived", "info");
           fetchProducts();
-      } catch (e) { 
+      } catch (e) {
           addToast("Failed to archive product", "error");
       }
   };
@@ -131,24 +131,24 @@ export default function Catalog() {
                   </h3>
                   <button onClick={() => setEditMode(null)} className="text-slate-500 hover:text-white"><X size={20}/></button>
               </div>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
                       <div className="md:col-span-2">
-                          <Input 
+                          <Input
                             label="Item Name"
-                            required 
-                            value={formData.name} 
-                            onChange={e => setFormData({...formData, name: e.target.value})} 
-                            placeholder="e.g. Server Maintenance" 
+                            required
+                            value={formData.name}
+                            onChange={e => setFormData({...formData, name: e.target.value})}
+                            placeholder="e.g. Server Maintenance"
                             autoFocus
                           />
                       </div>
-                      
+
                       <div>
-                          <Select 
+                          <Select
                             label="Type"
-                            value={formData.type} 
+                            value={formData.type}
                             onChange={e => setFormData({...formData, type: e.target.value})}
                           >
                               {PRODUCT_TYPES.map(t => (
@@ -158,13 +158,13 @@ export default function Catalog() {
                       </div>
 
                       <div>
-                          <Input 
+                          <Input
                             label="Unit Price ($)"
-                            required 
-                            type="number" 
-                            step="0.01" 
-                            value={formData.unit_price} 
-                            onChange={e => setFormData({...formData, unit_price: e.target.value})} 
+                            required
+                            type="number"
+                            step="0.01"
+                            value={formData.unit_price}
+                            onChange={e => setFormData({...formData, unit_price: e.target.value})}
                           />
                       </div>
                   </div>
@@ -172,7 +172,7 @@ export default function Catalog() {
                   {/* NEW: Description Field */}
                   <div>
                       <label className="text-xs text-slate-400 block mb-1">Description (Optional)</label>
-                      <textarea 
+                      <textarea
                           className="w-full p-2 bg-slate-900 border border-slate-600 rounded text-white text-sm h-20 focus:border-sanctum-gold outline-none"
                           value={formData.description}
                           onChange={e => setFormData({...formData, description: e.target.value})}
@@ -183,9 +183,9 @@ export default function Catalog() {
                   {/* RECURRING BILLING TOGGLE */}
                   <div className="flex items-center gap-4 py-4 border-t border-slate-700 mt-2">
                       <label className="flex items-center gap-2 cursor-pointer select-none">
-                          <input 
-                            type="checkbox" 
-                            checked={formData.is_recurring} 
+                          <input
+                            type="checkbox"
+                            checked={formData.is_recurring}
                             onChange={e => setFormData({...formData, is_recurring: e.target.checked})}
                             className="w-4 h-4 rounded border-slate-600 text-sanctum-gold focus:ring-sanctum-gold bg-slate-900 cursor-pointer"
                           />
@@ -194,8 +194,8 @@ export default function Catalog() {
 
                       {formData.is_recurring && (
                           <div className="w-48">
-                              <Select 
-                                value={formData.billing_frequency} 
+                              <Select
+                                value={formData.billing_frequency}
                                 onChange={e => setFormData({...formData, billing_frequency: e.target.value})}
                                 required
                               >
@@ -255,15 +255,15 @@ export default function Catalog() {
                               {isAdmin && (
                                   <TableCell className="p-4 text-right">
                                       <div className="flex justify-end gap-2">
-                                          <button 
-                                            onClick={() => handleEditClick(p)} 
+                                          <button
+                                            onClick={() => handleEditClick(p)}
                                             className="text-slate-500 opacity-70 hover:opacity-100 hover:text-white transition-all"
                                             title="Edit Product"
                                           >
                                             <Edit2 size={16} />
                                           </button>
-                                          <button 
-                                            onClick={() => handleDelete(p.id)} 
+                                          <button
+                                            onClick={() => handleDelete(p.id)}
                                             className="text-red-500 opacity-50 hover:opacity-100 transition-opacity"
                                             title="Archive Product"
                                           >

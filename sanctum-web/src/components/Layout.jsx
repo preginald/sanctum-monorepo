@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
-import { 
-    LogOut, Shield, Wifi, Users, DollarSign, FileText, Package, 
+import {
+    LogOut, Shield, Wifi, Users, DollarSign, FileText, Package,
     Activity, Briefcase, Megaphone, Layers,
     BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check, Receipt
 } from 'lucide-react';
@@ -14,12 +14,12 @@ import NotificationBell from './ui/NotificationBell';
 
 export default function Layout({ children, title, subtitle, badge, badges, backPath, breadcrumb, actions, onRefresh, onCopyMeta, onViewToggle, viewMode, viewToggleOptions = [] }) {
   const { user, token, setToken, logout } = useAuthStore();
-  
+
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [showExpiryWarning, setShowExpiryWarning] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-   
+
   const scope = user?.scope || 'guest';
   const isNaked = scope === 'nt_only';
 
@@ -45,13 +45,13 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
     const checkSession = async () => {
       try {
         const decoded = jwtDecode(token);
-        const now = Date.now() / 1000; 
+        const now = Date.now() / 1000;
         const timeLeft = decoded.exp - now;
-        
+
         if (timeLeft < 300 && timeLeft > 30) {
             try {
                 const res = await api.post('/refresh');
-                setToken(res.data.access_token); 
+                setToken(res.data.access_token);
                 setShowExpiryWarning(false);
             } catch(e) { console.error("Refresh failed", e); }
         } else if (timeLeft < 30 && timeLeft > 0) {
@@ -61,21 +61,21 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
         }
       } catch (e) { }
     };
-    const interval = setInterval(checkSession, 60000); 
-    checkSession(); 
+    const interval = setInterval(checkSession, 60000);
+    checkSession();
     return () => clearInterval(interval);
   }, [token, setToken]);
 
   const NavItem = ({ icon, label, path }) => {
-    const active = path === '/' 
-        ? location.pathname === '/' 
+    const active = path === '/'
+        ? location.pathname === '/'
         : location.pathname === path || location.pathname.startsWith(path + '/');
 
     const baseClass = "flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all min-h-[48px]";
     const activeClass = active ? `${buttonClass} text-white shadow-lg` : "hover:bg-white/5 opacity-70 hover:opacity-100";
-    
+
     return (
-      <div 
+      <div
         onClick={() => { navigate(path); setDrawerOpen(false); }}
         className={`${baseClass} ${activeClass}`}
       >
@@ -114,11 +114,11 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                 </div>
             )}
             <NotificationBell />
-            
+
             <div className="relative">
-                <button 
+                <button
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    className="flex items-center gap-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors group focus:outline-none" 
+                    className="flex items-center gap-2 p-1.5 hover:bg-white/10 rounded-lg transition-colors group focus:outline-none"
                     title="Profile"
                 >
                     <div className="w-7 h-7 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center text-[10px] font-bold text-slate-300 group-hover:border-sanctum-gold group-hover:text-sanctum-gold transition-colors">
@@ -134,18 +134,18 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                                 <p className="text-xs text-slate-400 font-medium">Signed in as</p>
                                 <p className="text-sm text-white truncate font-mono">{user?.email || 'admin'}</p>
                             </div>
-                            <button 
-                                onClick={() => { setShowProfileMenu(false); window.location.href = 'https://core.digitalsanctum.com.au/profile'; }} 
+                            <button
+                                onClick={() => { setShowProfileMenu(false); window.location.href = 'https://core.digitalsanctum.com.au/profile'; }}
                                 className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-white/5 hover:text-white transition-colors"
                             >
                                 Profile
                             </button>
                             <div className="border-t border-white/5 mt-1 pt-1">
-                                <button 
+                                <button
                                     onClick={() => {
                                         localStorage.removeItem('token');
                                         window.location.href = '/login';
-                                    }} 
+                                    }}
                                     className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors flex items-center gap-2"
                                 >
                                     Sign Out
@@ -155,7 +155,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                     </>
                 )}
             </div>
-            
+
         </div>
       </header>
 

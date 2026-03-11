@@ -4,7 +4,7 @@ from .email_service import email_service
 
 class NotificationRouter:
     """
-    The Brain: Resolves abstract targets (e.g. 'client', 'tech') into 
+    The Brain: Resolves abstract targets (e.g. 'client', 'tech') into
     concrete lists of recipients (Users and External Contacts).
     """
 
@@ -81,7 +81,7 @@ class NotificationRouter:
                 self._add_recipient(recipients, user.email, user.id, 'user')
             else:
                 self._add_recipient(recipients, email, None, 'external')
-        
+
         # C. Fallback (Direct Attribute)
         if hasattr(entity, 'email') and entity.email:
              self._add_recipient(recipients, entity.email, None, 'external')

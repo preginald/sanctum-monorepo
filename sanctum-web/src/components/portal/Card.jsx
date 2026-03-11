@@ -2,13 +2,13 @@ import React from 'react';
 
 /**
  * Card - Base card wrapper component
- * 
+ *
  * Used across portal for consistent card styling
  * Handles theme (Sanctum vs Naked Tech) automatically
  */
-export default function Card({ 
-  children, 
-  className = '', 
+export default function Card({
+  children,
+  className = '',
   onClick,
   hover = false,
   dashed = false,
@@ -16,8 +16,8 @@ export default function Card({
   isNaked = false // Pass from parent (account.brand_affinity === 'nt')
 }) {
   const theme = {
-    card: isNaked 
-      ? 'bg-white border-slate-200 shadow-sm' 
+    card: isNaked
+      ? 'bg-white border-slate-200 shadow-sm'
       : 'bg-slate-800 border-slate-700'
   };
 
@@ -26,7 +26,7 @@ export default function Card({
   const clickable = onClick ? 'cursor-pointer' : '';
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`rounded-xl ${borderStyle} ${theme.card} ${padding} ${hoverEffect} ${clickable} ${className}`}
     >

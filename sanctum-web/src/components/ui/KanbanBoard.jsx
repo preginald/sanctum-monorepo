@@ -8,7 +8,7 @@ export default function KanbanBoard({ columns, items, onDragEnd, renderCard, sta
         {Object.values(columns).map((col) => {
           // Filter items that belong to this column
           const colItems = items.filter(item => item[statusField] === col.id);
-          
+
           return (
             <div key={col.id} className="min-w-[320px] w-1/4 bg-slate-900/30 rounded-xl border border-slate-700/50 flex flex-col">
               {/* Column Header */}

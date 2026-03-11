@@ -1,95 +1,172 @@
-# Session Handover — Phase 74/75: The Foreman + DevOps Foundation
-Date: 2026-03-07
+# Session Handover — 2026-03-11
+**Session Name:** Phase 75: The Omnisearch — Scoring, CLI Integration & DevOps Foundations
+**Duration:** ~3 hours
+**Status:** All planned tickets resolved, new backlog created
 
-## What We Accomplished
+---
 
-### #383 — Article History Tab: Pagination + Inline Word Diff ✅
-- Generic `Page[T]` schema added to `sanctum-core/app/schemas/shared.py`
-- `GET /articles/{id}/history` now paginated (page, page_size, section_heading params)
-- `ArticleDetail.jsx` — inline word-level diff using `jsdiff`, section filter dropdown, pagination controls
-- `diff` npm package installed in sanctum-web
-- Commit: `d6b8213`
+## 0. SESSION HANDOVER (READ FIRST)
 
-### #384 — Generic Pagination Rollout Ticket ✅ (created, open)
-- Tracks rolling out `Page[T]` to all list endpoints (tickets, articles, invoices, etc.)
+This session delivered omnisearch relevance scoring (#394), standardised result limits (#396), the sanctum.sh search domain (#385), and three bug fixes (#397, #400, #403). A new SOP was created (SOP-102: Ticket Delivery Checklist) formalising the mandatory workflow for every code change. Several DevOps improvement tickets were filed for future sessions.
 
-### Phase 75: DevOps & Automation — Milestone + Tickets Created ✅
-- Milestone: Phase 75: DevOps & Automation (85eb520e)
-- #385 — sanctum.sh omnisearch integration (open — next session)
-- #386 — Pre-commit hook sanity checks (open)
-- #387 — Deploy script ✅ resolved
-- #388 — Dev/prod schema drift detection (open)
+---
 
-### #387 — Deploy Script ✅
-- `scripts/ops/deploy.sh` delivered — manual fallback deployment script
-- Steps: SSH check → git pull --ff-only → migration check/apply → pip install → npm build → systemctl restart sanctum-api → health check → deploy log
-- `--dry-run` flag supported
-- Health endpoint confirmed: `/api/system/health`
-- Commit: `edc373a`
+## 1. WHAT WE ACCOMPLISHED
 
-### SSH Alias ✅
-- `sanctum-prod` alias added to `~/.ssh/config` (host: 159.223.82.75, user: preginald)
-- DOC-028 created — SSH Configuration & Server Access
-- DOC-029 created — Manual Deployment — Fallback Deploy Script
+### Ticket #400 — Bug: sanctum.sh article revert auth variable (resolved)
+- Single-line fix: `$TOKEN` → `$_SANCTUM_AUTH_TOKEN` in `article_revert` curl call
+- Commit: `1e7e2eb`
 
-### Divergent Branch Issue Resolved ✅
-- `scripts/dev/migrate_article_history_diffs.py` removed from repo (one-off script, already run)
-- Merge conflict on prod resolved via `git rm` + push
+### Ticket #403 — Bug: Article identifier prefix mapping broken (resolved)
+- `_generate_identifier()` in `wiki.py` had shortened category keys (`sop`, `troubleshooting`) that didn't match full Title Case category values (`Standard Operating Procedure`, etc.)
+- Updated `prefix_map` to use full lowercase category names, added missing `SYS` prefix
+- Re-identified `DOC-032` → `SOP-102` via direct API update
+- Decision: grandfather existing misidentified articles (9 total), enforce correct prefixes going forward
+- Commit: `d867fd1`
 
-## Current State
+### Ticket #397 — Bug: Omnisearch asset links point to client page (resolved)
+- Changed asset result link from `/clients/{account_id}` to `/assets/{a.id}` in `search.py`
+- Contact links remain at `/clients/{account_id}` (no standalone ContactDetail page yet)
+- Commit: `19ac2bd`
 
-- Git: `main` branch, commit `edc373a`, clean
-- Prod: fully deployed and healthy
-- Phase 75 milestone seeded with 4 tickets (#385–#388)
-- SOP-099: v2.29 (needs update — see below)
+### Ticket #394 — Feature: Omnisearch relevance scoring (resolved)
+- Added `score: Optional[float] = None` to `SearchResult` schema
+- New helper functions: `_best_similarity()` (multi-column fuzzy), `_score_result()` (tier-based scorer)
+- Scoring tiers: action=1.0, exact ID/title=0.95, ilike title=0.8, ilike content=0.6, fuzzy=raw similarity capped at 0.55
+- All entity queries refactored to capture raw `word_similarity()` scores as columns
+- Results sorted by score descending before returning
+- Exact article identifier matches boosted to 0.95
+- Full file replacement of `search.py` (>40% change threshold)
+- Commit: `20aa472`
 
-## Open Tickets (This Session)
+### Ticket #396 — Improvement: Standardise result limits (resolved)
+- Rolled into #394 commit
+- Added `limit` query param to `GET /search` (default 5, max 20)
+- Prefix mode doubles effective limit (scoped search = less noise)
+- Commit: `20aa472`
 
-| # | Subject | Milestone |
+### Ticket #385 — Feature: sanctum.sh search domain (resolved)
+- New `search` domain with `search_query()` function and `search_usage()` help
+- Calls `GET /search?q=<query>&limit=<N>` with auth
+- `--type` flag prepends scope prefix (e.g. `--type wiki` → `w: <query>`)
+- `--limit` flag for configurable results
+- Formatted table output: score, type (color-coded), title, subtitle
+- Added to dispatch block and global usage
+- Commit: `c6fa9a9`
+
+### SOP-102 — Ticket Delivery Checklist (new article)
+- Formalised the 12-step mandatory workflow for every code change
+- Phases: Governance → Implementation → Resolution → Documentation & CLI Parity
+- Initially misidentified as DOC-032 (led to discovery of #403), corrected to SOP-102
+- Related: DOC-009, DOC-021
+
+### Documentation Updates
+- **DOC-025** (v1.1): Added Relevance Scoring section — scoring tiers, configurable limits, updated result shape
+- **DOC-009** (v1.12): Added Search Commands section documenting the new CLI search domain
+- Fixed duplicate `## Clipboard Auto-Copy` heading in DOC-009 caused by section patch edge case
+
+---
+
+## 2. TICKETS CREATED THIS SESSION
+
+### Resolved
+| # | Type | Subject |
 |---|---|---|
-| #384 | Generic pagination — roll out Page[T] to all list endpoints | Phase 55 |
-| #385 | sanctum.sh omnisearch integration | Phase 75 |
-| #386 | Pre-commit hook — sanity checks | Phase 75 |
-| #388 | Dev/prod schema drift detection | Phase 75 |
+| 400 | bug | sanctum.sh article revert uses wrong auth variable |
+| 403 | bug | Article identifier prefix mapping broken |
+| 397 | bug | Omnisearch asset/contact result links point to wrong page |
+| 394 | feature | Omnisearch relevance scoring and result sorting |
+| 396 | task | Omnisearch standardise result limits per entity type |
+| 385 | feature | sanctum.sh omnisearch integration (pre-existing, resolved) |
 
-## Next Session: #385 — sanctum.sh Omnisearch Integration
+### Open (New Backlog)
+| # | Type | Priority | Milestone | Subject |
+|---|---|---|---|---|
+| 398 | feature | normal | DevOps & Automation | sanctum.sh context load — batch article reader |
+| 399 | task | low | DevOps & Automation | Batch article identifier resolution |
+| 404 | task | low | UX & Stability | Long category names overflow MetadataStrip badge row |
+| 405 | feature | normal | DevOps & Automation | sanctum.sh article show --section — fetch single section |
+| 406 | bug | normal | DevOps & Automation | sanctum.sh article show --headings hangs on large articles |
 
-Add `sanctum.sh search <query>` subcommand hitting `GET /search?q=<query>`.
-- Scope results with optional `--type` flag (tickets, articles, milestones, etc.)
-- Format results in readable CLI table grouped by type
-- Will also fix the pain point of needing to list all milestones just to find one by keyword
-- Related: #328 (Omnisearch fuzzy matching accuracy — separate issue)
+---
 
-## SOP-099 Updates Needed (v2.30)
+## 3. ARCHITECTURAL DECISIONS
 
-1. Add `deploy.sh` to Section 4 or Appendix — document the fallback deploy workflow
-2. Add `sanctum-prod` SSH alias setup to Section 4 or Appendix
-3. Add to Appendix D accelerators:
-   - ✅ Write content to `/tmp/` before `sanctum.sh article create/update -f` to avoid token-costly heredoc retries
-   - ✅ Check DOC-009 before using any sanctum.sh subcommand — never guess flags
-   - ✅ `git push 2>&1 | srun` — git push writes to stderr, pipe both streams
-   - ✅ Deploy script as fallback when GitHub Actions fails
-4. Add to Appendix D anti-patterns:
-   - ❌ Direct SSH edits to tracked files on prod — causes divergent branch on next deploy
-   - ❌ Plain `git pull` in deploy contexts — use `--ff-only` to abort on divergence
+1. **Grandfather misidentified articles:** 9 existing articles have `DOC-` prefix instead of their correct prefix (`SYS-`, `WIKI-`). Decision: leave them as-is to avoid breaking cross-references, shortcodes, and documentation. All new articles will get correct prefixes.
 
-## Key Patterns Established This Session
+2. **Scoring architecture:** Tier-based scoring with raw similarity capture (not just threshold filtering). This is the modern pattern used by Algolia/Elasticsearch. Fuzzy scores are capped at 0.55 to ensure they always rank below ilike matches.
 
-- `Page[T]` generic pagination schema — reuse for all future paginated endpoints
-- `sanctum-prod` SSH alias — use in all scripts and remote commands
-- `deploy.sh` as emergency fallback — GitHub Actions remains primary pipeline
-- All tickets must include `--articles` and typed `--relate-tickets` on creation to maintain knowledge graph integrity
+3. **SOP-102 adopted:** All future code changes follow the 12-step Ticket Delivery Checklist. Steps 9–12 (CLI/doc parity) can be skipped for purely internal changes.
 
-## Commands for Next Session
+---
+
+## 4. DEVOPS OBSERVATIONS (PIPELINE)
+
+Observations flagged during the session for future automation:
+1. **Batch context loading** (#398) — reading 5+ articles sequentially is high friction at session startup
+2. **Redundant API calls** (#399) — `resolve_article_identifier()` fetches full article list per call
+3. **Section-level reads** (#405) — no CLI support for reading a single section from an article
+4. **Headings performance** (#406) — `--headings` fetches full content to grep, hangs on large articles
+5. **Backticks in -b flag** — escaped backticks in ticket comment body break shell parsing before auth runs. Avoid backticks in `-b` values.
+
+---
+
+## 5. KNOWN ISSUES / TECH DEBT
+
+- Section patch API replaces content under a heading but retains the heading itself — if replacement content includes the same heading, it duplicates. Workaround: never include the section heading in patch content.
+- `article_show --headings` includes headings inside code blocks (existing #391)
+- 9 grandfathered articles with wrong identifier prefixes (see §3 above)
+
+---
+
+## 6. NEXT SESSION GOALS
+
+Suggested priorities:
+1. **#398 — Batch context loader** — high-value DevOps win, reduces session startup friction
+2. **#405 — Section-level article reads** — complements the existing section-level PATCH
+3. **#399 — Batch identifier resolution** — performance improvement for multi-article operations
+4. **Remaining Omnisearch milestone work** — frontend could optionally display scores, or show match type indicators
+
+---
+
+## 7. KEY REMINDERS
+
+- **SOP-102** is now the mandatory delivery checklist — governance → implement → resolve → docs/CLI parity
+- **Avoid backticks** in `sanctum.sh ticket comment -b` or `ticket resolve -b` body — causes shell parsing failure before auth
+- **`srun --exec`** for all git commands
+- **`sanctum.sh`** output is clipboard-native — do NOT pipe to `srun`
+- **`str_replace`** tool preferred for surgical file edits in Claude sessions
+- **`cat -A`** recon before patching JSX files
+- **Python heredocs** must NOT be piped to `srun`
+
+---
+
+## 8. COMMANDS FOR NEXT SESSION
+
 ```bash
-# Start dev environment
-cd sanctum-core && source venv/bin/activate && uvicorn app.main:app --reload
-cd sanctum-web && npm run dev
+# Verify auth
+echo $SANCTUM_API_TOKEN
 
-# Check #385 ticket
-./scripts/dev/sanctum.sh ticket show 385 -e prod
+# Check deployed search scoring works
+./scripts/dev/sanctum.sh search phoenix -e prod
 
-# Test omnisearch endpoint before CLI work
-curl -s "https://core.digitalsanctum.com.au/api/search?q=devops" \
-  -H "Authorization: Bearer $SANCTUM_API_TOKEN" | jq '.'
+# Review open DevOps tickets
+./scripts/dev/sanctum.sh milestone show "Phase 75: DevOps & Automation" --ticket-status open -e prod
+
+# Context loading for next session
+./scripts/dev/sanctum.sh article show SOP-102 -e prod -c
+./scripts/dev/sanctum.sh article show DOC-009 -e prod --headings
+./scripts/dev/sanctum.sh article show DOC-025 -e prod -c
+```
+
+---
+
+## 9. GIT LOG (this session)
+
+```
+c6fa9a9 #385: sanctum.sh search domain — omnisearch CLI with scoring, type scoping, and configurable limits
+20aa472 #394 #396: omnisearch relevance scoring, sorted results, configurable limit param
+19ac2bd #397 fix: omnisearch asset links now point to /assets/{id} instead of /clients/{account_id}
+d867fd1 #403 fix: article identifier prefix_map — keys now match full category names
+1e7e2eb #400 fix: article_revert auth variable — TOKEN → _SANCTUM_AUTH_TOKEN
 ```

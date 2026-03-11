@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import Modal from '../ui/Modal';
 import { Loader2, RefreshCw, Smartphone, Monitor, Server, Globe, Shield, Printer, Key, Disc, Tablet } from 'lucide-react';
 import { ASSET_TYPES, ASSET_STATUSES } from '../../lib/constants';
-import { 
-    SPEC_FIELDS, 
-    getAssetPlaceholder, 
-    getVendorLabel, 
-    getVendorPlaceholder, 
-    isLifecycleAsset 
+import {
+    SPEC_FIELDS,
+    getAssetPlaceholder,
+    getVendorLabel,
+    getVendorPlaceholder,
+    isLifecycleAsset
 } from '../../lib/assetUtils';
 import api from '../../lib/api';
 import SearchableSelect from '../ui/SearchableSelect';
@@ -15,12 +15,12 @@ import SearchableSelect from '../ui/SearchableSelect';
 export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, setForm }) {
   const [catalog, setCatalog] = useState([]);
   const [vendors, setVendors] = useState([]);
-  
+
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  
+
   // Logic: Is this a "Lifecycle" asset? (Needs expiry, billing, vendor)
   const isLifecycle = isLifecycleAsset(form.asset_type);
-  
+
   // Logic: Does this asset have custom specs?
   const activeSpecs = SPEC_FIELDS[form.asset_type] || [];
 
@@ -67,10 +67,10 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
         </div>
     }>
         <form onSubmit={onSubmit} className="flex flex-col h-full">
-            
+
             {/* SCROLLABLE BODY */}
             <div className="space-y-4 overflow-y-auto max-h-[65vh] pr-2 -mr-2 custom-scrollbar p-1">
-                
+
                 {/* ROW 1: CONTEXT (Type & Status) */}
                 <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -86,9 +86,9 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                     </div>
                     <div>
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Status</label>
-                        <select 
-                            className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white capitalize focus:border-sanctum-blue outline-none" 
-                            value={form.status} 
+                        <select
+                            className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-lg text-white capitalize focus:border-sanctum-blue outline-none"
+                            value={form.status}
                             onChange={e => setForm({...form, status: e.target.value})}
                             disabled={['expiring', 'expired'].includes(form.status)}
                         >
@@ -103,12 +103,12 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                 {/* ROW 2: IDENTITY */}
                 <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Asset Name</label>
-                    <input 
-                        required 
-                        className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-sanctum-blue outline-none text-lg font-medium placeholder:text-slate-600" 
-                        value={form.name} 
-                        onChange={e => setForm({...form, name: e.target.value})} 
-                        placeholder={getAssetPlaceholder(form.asset_type)} 
+                    <input
+                        required
+                        className="w-full p-3 bg-slate-900 border border-slate-700 rounded-lg text-white focus:border-sanctum-blue outline-none text-lg font-medium placeholder:text-slate-600"
+                        value={form.name}
+                        onChange={e => setForm({...form, name: e.target.value})}
+                        placeholder={getAssetPlaceholder(form.asset_type)}
                     />
                 </div>
 
@@ -122,7 +122,7 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                             {activeSpecs.map((field) => (
                                 <div key={field.key} className={['role', 'admin_url', 'url', 'management_url'].includes(field.key) ? 'col-span-2' : ''}>
                                     <label className="text-xs text-slate-400 block mb-1">{field.label}</label>
-                                    <input 
+                                    <input
                                         className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 outline-none transition-colors"
                                         value={form.specs?.[field.key] || ''}
                                         onChange={(e) => handleSpecChange(field.key, e.target.value)}
@@ -131,16 +131,16 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                                 </div>
                             ))}
                         </div>
-                        
+
                         {/* Show standard Serial Number for Hardware assets only */}
                         {!isLifecycle && (
                             <div className="mt-2">
                                 <label className="text-xs text-slate-400 block mb-1">Serial Number / Service Tag</label>
-                                <input 
-                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white font-mono text-sm tracking-wide" 
-                                    value={form.serial_number || ''} 
-                                    onChange={e => setForm({...form, serial_number: e.target.value})} 
-                                    placeholder="Required for warranty lookup" 
+                                <input
+                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white font-mono text-sm tracking-wide"
+                                    value={form.serial_number || ''}
+                                    onChange={e => setForm({...form, serial_number: e.target.value})}
+                                    placeholder="Required for warranty lookup"
                                 />
                             </div>
                         )}
@@ -153,15 +153,15 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                         <div className="flex items-center gap-2 text-purple-400 text-xs font-bold uppercase tracking-widest border-b border-purple-500/10 pb-2">
                             <RefreshCw size={12}/> Lifecycle & Billing
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="text-xs text-slate-400 block mb-1">Expiry Date</label>
-                                <input 
-                                    type="date" 
-                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm" 
-                                    value={form.expires_at || ''} 
-                                    onChange={e => setForm({...form, expires_at: e.target.value})} 
+                                <input
+                                    type="date"
+                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+                                    value={form.expires_at || ''}
+                                    onChange={e => setForm({...form, expires_at: e.target.value})}
                                 />
                             </div>
                             <div>
@@ -181,9 +181,9 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
 
                         <div>
                             <label className="text-xs text-slate-400 block mb-1">Linked Service (Catalog)</label>
-                            <select 
-                                className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm" 
-                                value={form.linked_product_id || ''} 
+                            <select
+                                className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm"
+                                value={form.linked_product_id || ''}
                                 onChange={e => setForm({...form, linked_product_id: e.target.value})}
                             >
                                 <option value="">-- No Auto-Billing --</option>
@@ -197,9 +197,9 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
 
                         {form.linked_product_id && (
                             <label className="flex items-center gap-3 p-3 rounded bg-purple-900/10 border border-purple-500/30 cursor-pointer hover:bg-purple-900/20 transition-colors">
-                                <input 
-                                    type="checkbox" 
-                                    checked={form.auto_invoice || false} 
+                                <input
+                                    type="checkbox"
+                                    checked={form.auto_invoice || false}
                                     onChange={e => setForm({...form, auto_invoice: e.target.checked})}
                                     className="w-4 h-4 rounded border-slate-600 text-purple-500 focus:ring-purple-500 bg-slate-900 cursor-pointer"
                                 />
@@ -209,16 +209,16 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                                 </div>
                             </label>
                         )}
-                        
+
                         {/* Security Software: Show License Key here if it's lifecycle based */}
                         {(form.asset_type === 'software' || form.asset_type === 'license') && (
                              <div className="mt-2">
                                 <label className="text-xs text-slate-400 block mb-1">License / Product Key</label>
-                                <input 
-                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white font-mono text-sm tracking-wide" 
-                                    value={form.serial_number || ''} 
-                                    onChange={e => setForm({...form, serial_number: e.target.value})} 
-                                    placeholder="XXXX-XXXX-XXXX-XXXX" 
+                                <input
+                                    className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white font-mono text-sm tracking-wide"
+                                    value={form.serial_number || ''}
+                                    onChange={e => setForm({...form, serial_number: e.target.value})}
+                                    placeholder="XXXX-XXXX-XXXX-XXXX"
                                 />
                             </div>
                         )}
@@ -249,7 +249,7 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
             {/* FIXED FOOTER */}
             <div className="pt-4 mt-2 border-t border-slate-700/50">
                 <button type="submit" disabled={loading} className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg flex justify-center items-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-blue-900/20">
-                    {loading && <Loader2 className="animate-spin" size={16}/>} 
+                    {loading && <Loader2 className="animate-spin" size={16}/>}
                     {form.id ? 'Update Asset' : 'Deploy Asset'}
                 </button>
             </div>

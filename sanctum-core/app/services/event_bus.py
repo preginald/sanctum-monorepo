@@ -4,7 +4,7 @@ from ..database import SessionLocal
 from .. import models
 # NEW IMPORTS
 from .notification_router import notification_router
-from .notification_service import notification_service 
+from .notification_service import notification_service
 
 import json
 from datetime import datetime
@@ -26,7 +26,7 @@ class EventBus:
 
     def emit(self, event_type: str, payload: EventPayload, background_tasks: BackgroundTasks):
         """
-        Public entry point. 
+        Public entry point.
         """
         # 1. Hardcoded Listeners
         if event_type in self._subscribers:
@@ -57,7 +57,7 @@ class EventBus:
 
             for rule in rules:
                 self._execute_rule(db, rule, payload, payload_summary)
-                
+
         except Exception as e:
             print(f"[EventBus] Engine Error: {e}")
         finally:
@@ -77,7 +77,7 @@ class EventBus:
 
         try:
             output = ""
-            
+
             if rule.action_type == 'log_info':
                 print(f"[WEAVER] RULE '{rule.name}' TRIGGERED: {summary}")
                 output = f"Logged to console."
@@ -85,10 +85,10 @@ class EventBus:
             elif rule.action_type == 'send_email':
                 # --- NEW UNIFIED ROUTING ---
                 output = self._handle_unified_dispatch(db, rule.config, payload)
-            
+
             elif rule.action_type == 'webhook':
                 output = "Webhook not implemented yet."
-            
+
             elif rule.action_type == 'create_notification':
                 # Also use unified dispatch, just configured differently via priorities if needed
                 # For now, mapping it to the same pipe but strictly In-App can be handled by Router later
@@ -105,7 +105,7 @@ class EventBus:
             log.status = "failure"
             log.output = str(e)
             print(f"[WEAVER] Execution Failed: {e}")
-        
+
         finally:
             log.triggered_at = datetime.now()
             db.commit()
@@ -117,19 +117,19 @@ class EventBus:
         """
         target_type = config.get('target', 'admin')
         template_name = config.get('template', 'Notification')
-        
+
         # 1. ROUTER (Who?)
         recipients = notification_router.resolve_recipients(db, target_type, payload)
-        
+
         if not recipients:
             return f"No recipients resolved for target: {target_type}"
-            
+
         # 2. CONTENT BUILDER (Snapshot)
         subject = f"Automation: {template_name}"
         priority = 'normal'
         link = None
         event_payload = {}
-        
+
         # Ticket Context
         if hasattr(payload, 'subject') and hasattr(payload, 'id'):
              subject = f"[Ticket #{payload.id}] {payload.subject}"
@@ -141,13 +141,13 @@ class EventBus:
                  "status": getattr(payload, 'status', 'unknown')
              }
              if hasattr(payload, 'priority'): priority = payload.priority
-             
+
              message = f"Ticket update: {payload.subject}"
              if hasattr(payload, 'resolution') and payload.resolution:
                  message = f"Ticket Resolved: {payload.resolution}"
         else:
              message = f"System event: {template_name}"
-        
+
         # 3. SERVICE (Enqueue & Dispatch)
         count = notification_service.enqueue(
             db=db,
@@ -158,7 +158,7 @@ class EventBus:
             event_payload=event_payload,
             priority=priority
         )
-        
+
         return f"Queued {len(recipients)} notifications. Immediate dispatch: {count}"
 
 event_bus = EventBus()

@@ -24,13 +24,13 @@ class TimeEntryResponse(SanctumBase):
     user_name: Optional[str] = None
     start_time: datetime
     end_time: datetime
-    duration_minutes: int 
+    duration_minutes: int
     description: Optional[str] = None
     product_id: Optional[UUID] = None
     service_name: Optional[str] = None
     calculated_value: Decimal = Decimal("0.00")
     created_at: datetime
-    
+
     # Financial Link
     invoice_id: Optional[UUID] = None
     invoice_status: Optional[str] = None # NEW
@@ -57,9 +57,9 @@ class TicketMaterialResponse(SanctumBase):
 
 class TicketCreate(SanctumBase):
     account_id: UUID
-    contact_ids: List[UUID] = [] 
+    contact_ids: List[UUID] = []
     subject: str
-    description: Optional[str] = None 
+    description: Optional[str] = None
     priority: str = 'normal'
     assigned_tech_id: Optional[UUID] = None
     ticket_type: str = 'support'
@@ -77,7 +77,7 @@ class TicketUpdate(SanctumBase):
     closed_at: Optional[datetime] = None
     ticket_type: Optional[str] = None
     milestone_id: Optional[UUID] = None
-    contact_id: Optional[UUID] = None 
+    contact_id: Optional[UUID] = None
     resolution_comment_id: Optional[UUID] = None
 
 class TicketRelationResponse(SanctumBase):
@@ -95,21 +95,21 @@ class TicketResponse(TicketCreate):
     status: str
     resolution: Optional[str] = None
     created_at: datetime
-    updated_at: Optional[datetime] = None  
+    updated_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
     account_name: Optional[str] = None
     contact_name: Optional[str] = None
-    
+
     milestone_name: Optional[str] = None
     project_id: Optional[UUID] = None
     project_name: Optional[str] = None
-    
-    related_invoices: List[InvoiceLite] = [] 
-    contacts: List[ContactResponse] = [] 
+
+    related_invoices: List[InvoiceLite] = []
+    contacts: List[ContactResponse] = []
     time_entries: List[TimeEntryResponse] = []
-    materials: List[TicketMaterialResponse] = [] 
+    materials: List[TicketMaterialResponse] = []
     articles: List[ArticleLite] = []
-    assets: List[AssetLite] = [] 
+    assets: List[AssetLite] = []
     related_tickets: List[TicketRelationResponse] = []
 
     total_hours: float = 0.0

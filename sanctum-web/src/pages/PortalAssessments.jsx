@@ -270,11 +270,11 @@ export default function PortalAssessments() {
       ]);
       setAccount(dashRes.data.account);
       setTemplates(templatesRes.data);
-      
+
       // Build map of existing assessments by framework
       const assessmentMap = {};
       const categoryAssessments = dashRes.data.category_assessments || {};
-      
+
       Object.values(categoryAssessments).forEach(assessments => {
         assessments.forEach(assessment => {
           // Use framework directly from assessment data
@@ -287,7 +287,7 @@ export default function PortalAssessments() {
           }
         });
       });
-      
+
       setExistingAssessments(assessmentMap);
     } catch (e) {
       console.error(e);
@@ -307,29 +307,29 @@ export default function PortalAssessments() {
   const handleRequestAssessment = async (assessment) => {
     // Find template by framework code
     const template = templates.find(t => t.framework === assessment.framework);
-    
+
     if (!template) {
       alert(`Template not found for ${assessment.name}. Please contact support.`);
       return;
     }
-    
+
     if (requesting) return; // Prevent double-clicks
-    
+
     if (!confirm(`Request ${assessment.name}?\n\nOur team will contact you within 1-2 business days to schedule the assessment.`)) {
       return;
     }
-    
+
     setRequesting(assessment.id);
-    
+
     try {
       const res = await api.post(`/portal/assessments/request${impersonateId ? '?impersonate=' + impersonateId : ''}`, {
         template_id: template.id
       });
-      
+
       // Success - navigate back to dashboard
       alert(`✓ Assessment Requested!\n\n${res.data.message}\n\nYou'll receive an email confirmation shortly.`);
       portalNav('/portal');
-      
+
     } catch (e) {
       console.error('Assessment request failed:', e);
       if (e.response?.data?.detail) {
@@ -364,7 +364,7 @@ export default function PortalAssessments() {
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.textMain}`}>
-      
+
       {/* NAVIGATION */}
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div className="flex items-center gap-4">
@@ -387,7 +387,7 @@ export default function PortalAssessments() {
       </nav>
 
       <main className="p-8 max-w-6xl mx-auto space-y-8">
-        
+
         {/* INTRO */}
         <div className={`p-6 rounded-xl border ${theme.card}`}>
           <h2 className="text-2xl font-bold mb-2">Health Assessments</h2>
@@ -399,10 +399,10 @@ export default function PortalAssessments() {
         {/* CATEGORY SECTIONS */}
         {Object.entries(CATEGORY_CONFIG).map(([categoryKey, { label, icon: Icon, color }]) => {
           const assessments = ASSESSMENTS_BY_CATEGORY[categoryKey] || [];
-          
+
           return (
             <div key={categoryKey} className="space-y-4">
-              
+
               {/* CATEGORY HEADER */}
               <div className="flex items-center gap-3">
                 <Icon size={24} className="opacity-50" />
@@ -418,10 +418,10 @@ export default function PortalAssessments() {
                   const existing = existingAssessments[assessment.framework];
                   const alreadyRequested = existing && (existing.status === 'draft' || existing.status === 'in_progress');
                   const canRequest = !alreadyRequested && requesting !== assessment.id;
-                  
+
                   let buttonText = 'Request Assessment';
                   let buttonClass = theme.btn;
-                  
+
                   if (alreadyRequested) {
                     if (existing.status === 'draft') {
                       buttonText = '✓ Already Requested';
@@ -434,13 +434,13 @@ export default function PortalAssessments() {
                     buttonText = 'Requesting...';
                     buttonClass = `${theme.btn} opacity-50 cursor-not-allowed`;
                   }
-                  
+
                   return (
                     <div
                       key={assessment.id}
                       className={`rounded-xl border ${theme.card} overflow-hidden transition-all`}
                     >
-                      
+
                       {/* CARD HEADER (Always Visible) */}
                       <div className="p-4">
                         <div className="flex items-start justify-between gap-4">
@@ -456,7 +456,7 @@ export default function PortalAssessments() {
                               {assessment.tagline}
                             </p>
                           </button>
-                          
+
                           <button
                             onClick={() => canRequest && handleRequestAssessment(assessment)}
                             disabled={!canRequest}
@@ -466,7 +466,7 @@ export default function PortalAssessments() {
                             {buttonText}
                           </button>
                         </div>
-                        
+
                         {alreadyRequested && (
                           <div className="mt-2 ml-7 text-xs text-blue-400">
                             View progress on your dashboard →
@@ -478,7 +478,7 @@ export default function PortalAssessments() {
                       {isExpanded && (
                         <div className="border-t border-slate-700/50 p-6">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            
+
                             {/* BENEFITS */}
                             <div>
                               <div className="flex items-center gap-2 mb-3">

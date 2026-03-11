@@ -10,7 +10,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
   const [embedMenu, setEmbedMenu] = useState({ active: false, query: '', startIndex: null, cursorIndex: null });
   const [availableArticles, setAvailableArticles] = useState([]);
   const fetchArticles = async () => {
-    try { const res = await api.get('/articles'); setAvailableArticles(res.data); } 
+    try { const res = await api.get('/articles'); setAvailableArticles(res.data); }
     catch (e) { console.error(e); }
   };
   const handleBodyChange = (e) => {
@@ -44,10 +44,10 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
   const fetchComments = async () => {
     try {
       // e.g. /comments?ticket_id=123
-      const param = `${resourceType}_id`; 
+      const param = `${resourceType}_id`;
       const res = await api.get(`/comments?${param}=${resourceId}&resolve_embeds=true`);
       setComments(res.data);
-    } catch (e) { console.error("Failed to load comments", e); } 
+    } catch (e) { console.error("Failed to load comments", e); }
     finally { setLoading(false); }
   };
 
@@ -56,14 +56,14 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
     if (!newBody.trim()) return;
     setSending(true);
     try {
-      await api.post('/comments', { 
-        body: newBody, 
-        visibility: visibility, 
-        [`${resourceType}_id`]: resourceId 
+      await api.post('/comments', {
+        body: newBody,
+        visibility: visibility,
+        [`${resourceType}_id`]: resourceId
       });
       setNewBody('');
-      fetchComments(); 
-    } catch (e) { alert("Failed to send."); } 
+      fetchComments();
+    } catch (e) { alert("Failed to send."); }
     finally { setSending(false); }
   };
 
@@ -71,7 +71,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
 
   return (
     <div className="flex flex-col h-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
-      
+
       {/* HEADER */}
       <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
         <h3 className="font-bold text-sm uppercase tracking-widest text-slate-400 flex items-center gap-2">
@@ -82,7 +82,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
       {/* INPUT AREA (At Top) */}
       <div className="p-4 bg-slate-800/30 border-b border-slate-700">
         <form onSubmit={handleSubmit} className="space-y-2">
-            <textarea 
+            <textarea
                 className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-sanctum-gold transition-colors resize-none custom-scrollbar"
                 rows="3"
                 placeholder={`Log ${visibility} activity... (Markdown supported)`}
@@ -90,10 +90,10 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
                 onChange={handleBodyChange}
                 onKeyDown={(e) => {
                     handleSmartWrap(e, newBody, setNewBody);
-                    if (e.key === 'Enter' && e.metaKey) handleSubmit(e); 
+                    if (e.key === 'Enter' && e.metaKey) handleSubmit(e);
                 }}
             />
-            
+
             <div className="flex justify-between items-center">
                 <div className="text-[10px] text-slate-600 px-1">Supports Markdown • Cmd+Enter</div>
                 <div className="flex items-center gap-2">
@@ -137,13 +137,13 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
                         </div>
                         <span className="font-bold text-sm text-white">{c.author_name || 'Unknown'}</span>
                         <span className="text-xs text-slate-500 flex items-center gap-1"><Clock size={10} /> {formatDate(c.created_at)}</span>
-                        
+
                         {isSolution && <span className="text-[10px] px-1.5 py-0.5 rounded uppercase font-bold bg-green-900/40 text-green-400 border border-green-500/30 flex items-center gap-1 mr-2"><CheckCircle size={10} /> Solution</span>}
-                        
+
                         <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase font-bold ml-auto ${c.visibility === 'public' ? 'bg-blue-600/10 text-blue-400 border border-blue-500/20' : 'bg-purple-600/10 text-purple-400 border border-purple-500/20'}`}>
                             {c.visibility === 'public' ? 'Public' : 'Internal'}
                         </span>
-                        
+
                         {/* Pin Button */}
                         {onPromote && !isSolution && (
                             <button onClick={() => onPromote(c.body, c.id)} className="ml-2 p-1 text-slate-500 hover:text-green-400 transition-colors" title="Pin as Resolution">
@@ -151,7 +151,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
                             </button>
                         )}
                     </div>
-                    
+
                     {/* BODY */}
                     <div className={`text-sm text-slate-300 bg-black/20 p-3 rounded-lg border ${isSolution ? 'border-green-500/30 bg-green-900/5' : (c.visibility === 'public' ? 'border-blue-500/10' : 'border-purple-500/10')} group-hover:border-white/10 transition-colors`}>
                         <SanctumMarkdown content={c.resolved_body || c.body} className="prose-sm" />
@@ -160,7 +160,7 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
                 );
             })
         )}
-      
+
       {embedMenu.active && (
         <div className="fixed z-[100] bg-slate-900 border border-sanctum-gold rounded-xl shadow-2xl w-80 overflow-hidden" style={{ bottom: '80px', right: '20px' }}>
           <div className="bg-slate-800 p-2 border-b border-slate-700 flex justify-between items-center">

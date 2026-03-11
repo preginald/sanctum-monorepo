@@ -58,7 +58,7 @@ Client: Digital Sanctum HQ`;
   const { slug } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast(); // Initialize toast
-   
+
   const [article, setArticle] = useState(null);
   const [rawContent, setRawContent] = useState('');
   const [history, setHistory] = useState([]);
@@ -119,11 +119,11 @@ Client: Digital Sanctum HQ`;
         setRawContent(rawRes.data.content || '');
         fetchHistory(res.data.id);
         fetchAllArticles();
-    } catch(e) { 
-        console.error(e); 
-        navigate('/wiki'); 
-    } finally { 
-        setLoading(false); 
+    } catch(e) {
+        console.error(e);
+        navigate('/wiki');
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -445,28 +445,28 @@ Client: Digital Sanctum HQ`;
               <strong className="text-sanctum-gold">{article.identifier}</strong> — {article.title}
             </div>
             <div className="space-y-3">
-              <input 
+              <input
                 type="email" placeholder="Recipient email *" value={emailForm.to_email}
                 onChange={e => setEmailForm({...emailForm, to_email: e.target.value})}
                 className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold"
               />
-              <input 
+              <input
                 type="text" placeholder="CC emails (comma separated)" value={emailForm.cc_emails}
                 onChange={e => setEmailForm({...emailForm, cc_emails: e.target.value})}
                 className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold"
               />
-              <input 
+              <input
                 type="text" placeholder="Subject (optional)" value={emailForm.subject}
                 onChange={e => setEmailForm({...emailForm, subject: e.target.value})}
                 className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold"
               />
-              <textarea 
+              <textarea
                 placeholder="Personal message (optional)" value={emailForm.message}
                 onChange={e => setEmailForm({...emailForm, message: e.target.value})}
                 className="w-full p-3 bg-black/30 border border-slate-700 rounded text-sm focus:outline-none focus:border-sanctum-gold min-h-[80px]"
               />
             </div>
-            <button 
+            <button
               onClick={handleEmailArticle} disabled={sendingEmail}
               className="w-full py-3 rounded font-bold bg-sanctum-gold text-slate-900 hover:bg-yellow-500 disabled:opacity-50 flex items-center justify-center gap-2"
             >

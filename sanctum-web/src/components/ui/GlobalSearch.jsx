@@ -67,7 +67,7 @@ export default function GlobalSearch() {
               try {
                   const res = await api.get(`/search?q=${encodeURIComponent(query)}`);
                   setResults(res.data);
-                  // Auto-select first result for quicker access? 
+                  // Auto-select first result for quicker access?
                   // setSelectedIndex(0); // Optional: Uncomment to auto-select first
               } catch (e) { console.error(e); }
               finally { setLoading(false); }
@@ -99,7 +99,7 @@ export default function GlobalSearch() {
           openModal('TICKET_CREATE');
           return;
       }
-      
+
     // Default Navigation
     navigate(link);
   };
@@ -155,17 +155,17 @@ export default function GlobalSearch() {
           <div className="absolute left-3 top-2.5 transition-colors">
               {getSearchIcon()}
           </div>
-          
-          <input 
+
+          <input
             ref={inputRef}
             id="global-search-input"
-            type="text" 
-            placeholder="Search... (Cmd+K)" 
+            type="text"
+            placeholder="Search... (Cmd+K)"
             className={`w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:outline-none transition-all ${mode !== 'global' ? 'border-opacity-100' : ''}`}
             style={{
-                borderColor: mode === 'wiki' ? '#a855f7' : 
-                             mode === 'ticket' ? '#d4af37' : 
-                             mode === 'client' ? '#60a5fa' : 
+                borderColor: mode === 'wiki' ? '#a855f7' :
+                             mode === 'ticket' ? '#d4af37' :
+                             mode === 'client' ? '#60a5fa' :
                              mode === 'asset' ? '#22d3ee' : ''
             }}
             value={query}
@@ -174,10 +174,10 @@ export default function GlobalSearch() {
             onFocus={() => { if(query.length > 1) setIsOpen(true); }}
             autoComplete="off"
           />
-          
+
           {!loading && !query && (
               <div className="absolute right-3 top-2.5 pointer-events-none opacity-50">
-                  <Command size={14} className="text-slate-400"/> 
+                  <Command size={14} className="text-slate-400"/>
               </div>
           )}
       </div>
@@ -188,8 +188,8 @@ export default function GlobalSearch() {
                   {results.map((r, index) => {
                       const isSelected = index === selectedIndex;
                       return (
-                        <div 
-                          key={`${r.type}-${r.id}`} 
+                        <div
+                          key={`${r.type}-${r.id}`}
                           onClick={() => handleSelect(r.link)}
                           className={`flex items-center gap-3 p-3 cursor-pointer border-b border-slate-800 last:border-0 transition-colors
                               ${isSelected ? 'bg-slate-800 ring-1 ring-inset ring-sanctum-gold/20' : ''}
@@ -206,7 +206,7 @@ export default function GlobalSearch() {
                                 </div>
                                 {r.subtitle && <div className="text-xs text-slate-500 truncate">{r.subtitle}</div>}
                             </div>
-                            
+
                             {/* Hint for Actions */}
                             {r.type === 'action' && <span className="text-[10px] uppercase font-bold tracking-wider text-sanctum-gold opacity-50 px-2">Run</span>}
                             {/* Hint for Selection */}
@@ -220,7 +220,7 @@ export default function GlobalSearch() {
               </div>
           </div>
       )}
-      
+
       {isOpen && query.length > 1 && results.length === 0 && !loading && (
           <div className="absolute top-full mt-2 w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-center text-sm text-slate-500 z-50 shadow-xl">
               <p className="mb-1">No results found.</p>

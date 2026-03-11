@@ -57,14 +57,14 @@ export default function NotificationCenter() {
     <Layout title="Notification Center">
         <div className="flex justify-between items-center mb-6">
             <div className="flex bg-slate-900 rounded-lg p-1 border border-slate-700">
-                <button 
-                    onClick={() => setFilter('all')} 
+                <button
+                    onClick={() => setFilter('all')}
                     className={`px-4 py-2 rounded text-sm font-bold transition-all ${filter === 'all' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}
                 >
                     All History
                 </button>
-                <button 
-                    onClick={() => setFilter('unread')} 
+                <button
+                    onClick={() => setFilter('unread')}
                     className={`px-4 py-2 rounded text-sm font-bold transition-all ${filter === 'unread' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-white'}`}
                 >
                     Unread Only
@@ -79,15 +79,15 @@ export default function NotificationCenter() {
         {loading ? <Loader2 className="animate-spin mx-auto mt-12" /> : (
             <div className="space-y-4">
                 {notes.map(n => (
-                    <div 
-                        key={n.id} 
+                    <div
+                        key={n.id}
                         className={`
                             p-4 rounded-xl border transition-all flex items-start gap-4 relative group
                             ${n.is_read ? 'bg-slate-900 border-slate-800 opacity-75' : 'bg-slate-800 border-slate-600 shadow-lg'}
                         `}
                     >
                         <div className="pt-1">{getPriorityIcon(n.priority)}</div>
-                        
+
                         <div className="flex-1">
                             <div className="flex justify-between items-start">
                                 <h4 className={`text-sm font-bold ${n.is_read ? 'text-slate-300' : 'text-white'}`}>{n.title}</h4>
@@ -98,9 +98,9 @@ export default function NotificationCenter() {
                                     </span>
                                 </div>
                             </div>
-                            
+
                             <p className="text-sm text-slate-400 mt-1">{n.message}</p>
-                            
+
                             <div className="flex gap-4 mt-3">
                                 {n.link && (
                                     <a href={n.link} className="text-xs text-sanctum-gold hover:underline font-bold">
@@ -116,7 +116,7 @@ export default function NotificationCenter() {
                         </div>
                     </div>
                 ))}
-                
+
                 {notes.length === 0 && (
                     <div className="text-center p-12 opacity-30">
                         <div className="inline-block p-4 bg-slate-800 rounded-full mb-4"><Check size={32}/></div>

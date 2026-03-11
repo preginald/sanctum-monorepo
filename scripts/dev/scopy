@@ -1,0 +1,116 @@
+#!/bin/bash
+
+# SANCTUM-COPY v1.3
+# Purpose: Grab project files and wrap them in Markdown for AI context.
+
+# --- Configuration & UI Colors ---
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+# 1. Derive Root Path
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+OUTPUT_FILE="/tmp/ai_payload.md"
+
+# Store the original arguments for the "command used" display
+RAW_ARGS="$@"
+
+# --- Help Documentation ---
+if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+    echo -e "${BLUE}SANCTUM-COPY v1.3${NC}"
+    echo -e "Contextual terminal capture utility for AI injection."
+    echo ""
+    echo -e "${YELLOW}USAGE${NC}"
+    echo -e "  scopy                           # Interactive fzf selection"
+    echo -e "  scopy path/to/file1 file2 ...   # Direct file selection"
+    echo ""
+    echo -e "${YELLOW}OPTIONS${NC}"
+    echo -e "  -h, --help                      # Show this help message"
+    exit 0
+fi
+
+# 2. Interactive Mode
+if [ $# -eq 0 ]; then
+    if command -v fzf &> /dev/null; then
+        echo -e "${BLUE}Scanning all project files...${NC}"
+
+        SELECTED_FILES=$(find . \
+            -path './.git' -prune -o \
+            -path './node_modules' -prune -o \
+            -path './dist' -prune -o \
+            -path './build' -prune -o \
+            -type f -print | fzf -m --header="Select files (Tab to mark, Enter to confirm)")
+
+        if [ -z "$SELECTED_FILES" ]; then
+            echo -e "${RED}No files selected. Exiting.${NC}"
+            exit 0
+        fi
+
+        # Convert selection into arguments for the loop
+        mapfile -t SELECTED_ARRAY <<< "$SELECTED_FILES"
+        set -- "${SELECTED_ARRAY[@]}"
+
+        # Format the command string for the interactive selection
+        COMMAND_USED="scopy $(echo "${SELECTED_ARRAY[@]}" | tr '\n' ' ')"
+    else
+        echo -e "${BLUE}Usage:${NC} scopy path/to/file1 path/to/file2"
+        exit 1
+    fi
+else
+    # Format the command string for direct arguments
+    COMMAND_USED="scopy $RAW_ARGS"
+fi
+
+# Clear previous payload
+> "$OUTPUT_FILE"
+
+TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
+echo "###  AI CONTEXT INJECTION - $TIMESTAMP" >> "$OUTPUT_FILE"
+echo "Project Path: $PROJECT_ROOT" >> "$OUTPUT_FILE"
+# NEW: Insert the command used line
+echo "The following was created using $COMMAND_USED" >> "$OUTPUT_FILE"
+echo "" >> "$OUTPUT_FILE"
+
+COUNT=0
+
+# 3. Process Files
+for FILE_PATH in "$@";
+do
+    FILE_PATH="${FILE_PATH#./}"
+    FULL_PATH="$PWD/$FILE_PATH"
+
+    if [ -f "$FULL_PATH" ];
+    then
+        echo -e "${GREEN}✅ Processing:${NC} $FILE_PATH"
+
+        EXT="${FILE_PATH##*.}"
+        [[ "$EXT" == "jsx" ]] && EXT="javascript"
+        [[ "$EXT" == "py" ]] && EXT="python"
+
+        echo "#### File: $FILE_PATH" >> "$OUTPUT_FILE"
+        echo '```'$EXT >> "$OUTPUT_FILE"
+        cat "$FULL_PATH" >> "$OUTPUT_FILE"
+        echo -e "\n" >> "$OUTPUT_FILE"
+        echo '```' >> "$OUTPUT_FILE"
+        echo "" >> "$OUTPUT_FILE"
+
+        ((COUNT++))
+    else
+        echo -e "${YELLOW}⚠️  Warning: Skipping $FILE_PATH (Not found)${NC}"
+    fi
+done
+
+# 4. Copy to clipboard
+if [[ "$OSTYPE" == "darwin"* ]];
+then
+    pbcopy < "$OUTPUT_FILE"
+    echo -e "\n${GREEN} Success!${NC} $COUNT files copied to macOS clipboard."
+elif command -v xclip &> /dev/null;
+then
+    xclip -selection clipboard < "$OUTPUT_FILE"
+    echo -e "\n${GREEN} Success!${NC} $COUNT files copied to Linux clipboard."
+else
+    echo -e "\n${RED}⚠ Clipboard tool not found.${NC} Payload saved to $OUTPUT_FILE"
+fi

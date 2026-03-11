@@ -27,7 +27,7 @@ export default function Deals() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
-  
+
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', title: '', amount: 0 });
@@ -43,7 +43,7 @@ export default function Deals() {
       setDeals(dRes.data);
       setClients(cRes.data);
       calculateTotal(dRes.data);
-    } catch (err) { console.error(err); } 
+    } catch (err) { console.error(err); }
     finally { setLoading(false); }
   };
 
@@ -64,7 +64,7 @@ export default function Deals() {
     setDeals(updatedDeals);
     calculateTotal(updatedDeals);
 
-    try { await api.put(`/deals/${draggableId}`, { stage: newStage, probability: newProb }); } 
+    try { await api.put(`/deals/${draggableId}`, { stage: newStage, probability: newProb }); }
     catch (err) { alert("Move failed"); fetchDeals(); }
   };
 
@@ -84,7 +84,7 @@ export default function Deals() {
 
   return (
     <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Revenue Pipeline">
-      
+
       <div className="flex justify-between items-center mb-6">
         <div>
           <p className="text-sm opacity-50 uppercase tracking-widest">Weighted Forecast</p>
@@ -93,13 +93,13 @@ export default function Deals() {
         <Button variant="gold" icon={Plus} onClick={() => setShowModal(true)}>New Deal</Button>
       </div>
 
-      <KanbanBoard 
+      <KanbanBoard
         columns={STAGES}
         items={deals}
         statusField="stage"
         onDragEnd={onDragEnd}
         renderCard={(deal) => (
-            <div 
+            <div
                 onClick={() => navigate(`/deals/${deal.id}`)}
                 className="p-4 rounded-xl bg-slate-800 border border-slate-600 shadow-sm hover:border-sanctum-gold transition-all cursor-pointer group"
             >

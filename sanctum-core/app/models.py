@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, Foreig
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
-from sqlalchemy import Enum as SAEnum 
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import text, func
 from sqlalchemy.types import TIMESTAMP
@@ -50,13 +50,13 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     password_hash = Column(String)
     full_name = Column(String)
-    role = Column(String) 
+    role = Column(String)
     access_scope = Column(String)
     is_active = Column(Boolean, default=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
-    
+
     totp_secret = Column(String, nullable=True)
-    
+
     account = relationship("Account", foreign_keys=[account_id])
 
     @property
@@ -70,8 +70,8 @@ class Account(Base):
     type = Column(String)
     brand_affinity = Column(String)
     status = Column(String)
-    billing_email = Column(String, nullable=True) 
-    audit_data = Column(JSON, default={}) 
+    billing_email = Column(String, nullable=True)
+    audit_data = Column(JSON, default={})
 
     # NEW: Asset Ingest Security
     # Unique token for this client to run the 'Sanctum Agent' script
@@ -94,9 +94,9 @@ class Contact(Base):
     is_primary_contact = Column(Boolean, default=False)
     persona = Column(String)
     reports_to_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
-    
+
     # NEW: Preference store for non-users (External Contacts)
-    notification_preferences = Column(JSON, default={}) 
+    notification_preferences = Column(JSON, default={})
 
     account = relationship("Account", back_populates="contacts")
     subordinates = relationship("Contact", backref=backref('manager', remote_side=[id]))
@@ -144,7 +144,7 @@ class Campaign(Base):
 
     targets = relationship("CampaignTarget", back_populates="campaign", cascade="all, delete-orphan")
     deals = relationship("Deal", back_populates="campaign")
-    
+
     @property
     def target_count(self): return len(self.targets)
     @property
@@ -176,7 +176,7 @@ class Project(Base):
     start_date = Column(Date, nullable=True)
     due_date = Column(Date, nullable=True)
     budget = Column(Numeric(12, 2), default=0.0)
-    is_deleted = Column(Boolean, default=False) 
+    is_deleted = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     account = relationship("Account", back_populates="projects")
@@ -205,10 +205,10 @@ class Ticket(Base):
     id = Column(Integer, primary_key=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
     assigned_tech_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    
+
     # LEGACY FIELD: Do not remove yet, but Logic will migrate to 'contacts' relationship
     contact_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
-    
+
     subject = Column(String)
     description = Column(Text)
     status = Column(String, default='new')
@@ -219,20 +219,20 @@ class Ticket(Base):
     milestone_id = Column(UUID(as_uuid=True), ForeignKey("milestones.id"), nullable=True)
     is_deleted = Column(Boolean, default=False)
     ticket_type = Column(String, default='support')
-    
+
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     closed_at = Column(TIMESTAMP(timezone=True))
 
     account = relationship("Account", back_populates="tickets")
     contact = relationship("Contact", foreign_keys=[contact_id]) # Legacy Relationship
-    
+
     # NEW: The Many-to-Many Relationship
     contacts = relationship("Contact", secondary=ticket_contacts, backref="tickets")
-    
+
     comments = relationship(
-        "Comment", 
-        back_populates="ticket", 
+        "Comment",
+        back_populates="ticket",
         order_by="desc(Comment.created_at)",
         foreign_keys="[Comment.ticket_id]"
     )
@@ -242,9 +242,9 @@ class Ticket(Base):
     milestone = relationship("Milestone", back_populates="tickets")
     articles = relationship("Article", secondary=ticket_articles, backref="tickets")
     resolution_comment = relationship(
-        "Comment", 
+        "Comment",
         foreign_keys=[resolution_comment_id],
-        post_update=True 
+        post_update=True
     )
     assets = relationship("Asset", secondary=ticket_assets, backref="tickets")
     related_tickets = relationship(
@@ -268,18 +268,18 @@ class TicketTimeEntry(Base):
     __tablename__ = "ticket_time_entries"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id")) 
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
     start_time = Column(TIMESTAMP(timezone=True), nullable=False)
     end_time = Column(TIMESTAMP(timezone=True), nullable=False)
     description = Column(String, nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-    
+
     # FINANCIAL LOCKING
     invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
 
     ticket = relationship("Ticket", back_populates="time_entries")
-    user = relationship("User") 
+    user = relationship("User")
     product = relationship("Product")
     invoice = relationship("Invoice")
 
@@ -309,7 +309,7 @@ class TicketMaterial(Base):
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"))
     quantity = Column(Integer, default=1)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
-    
+
     # FINANCIAL LOCKING
     invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
 
@@ -335,7 +335,7 @@ class Product(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     name = Column(String)
     description = Column(Text)
-    type = Column(String) 
+    type = Column(String)
     unit_price = Column(Numeric(12, 2))
     is_active = Column(Boolean, default=True)
     is_recurring = Column(Boolean, default=False)
@@ -386,7 +386,7 @@ class AuditReport(Base):
     infrastructure_score = Column(Integer, default=0)
     report_pdf_path = Column(String, nullable=True)
     status = Column(String, default="draft")
-    content = Column(JSON, default={})    
+    content = Column(JSON, default={})
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     finalized_at = Column(TIMESTAMP(timezone=True))
@@ -409,7 +409,7 @@ class Invoice(Base):
     due_date = Column(Date, nullable=True)
     generated_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     pdf_path = Column(String, nullable=True)
-    
+
     # PAYMENT TRACKING
     paid_at = Column(TIMESTAMP(timezone=True), nullable=True)
     payment_method = Column(String, nullable=True)
@@ -431,7 +431,7 @@ class InvoiceItem(Base):
     source_id = Column(UUID(as_uuid=True), nullable=True)
 
     invoice = relationship("Invoice", back_populates="items")
-    ticket = relationship("Ticket") 
+    ticket = relationship("Ticket")
 
 class Comment(Base):
     __tablename__ = "comments"
@@ -443,7 +443,7 @@ class Comment(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=True)
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
     audit_id = Column(UUID(as_uuid=True), ForeignKey("audit_reports.id"), nullable=True)
-    
+
     author = relationship("User")
     ticket = relationship("Ticket", back_populates="comments", foreign_keys=[ticket_id])
     deal = relationship("Deal", back_populates="comments")
@@ -468,7 +468,7 @@ class Article(Base):
     title = Column(String, nullable=False)
     slug = Column(String, unique=True, index=True)
     content = Column(Text)
-    category = Column(String, default="wiki") 
+    category = Column(String, default="wiki")
     identifier = Column(String, nullable=True)
     version = Column(String, default="v1.0")
     author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
@@ -494,7 +494,7 @@ class ArticleHistory(Base):
     section_heading = Column(String, nullable=True)  # None = whole-article change
     diff_before = Column(Text, nullable=True)
     diff_after = Column(Text, nullable=True)
-    version = Column(String) 
+    version = Column(String)
     change_comment = Column(Text, nullable=True)
     snapshot_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -505,23 +505,23 @@ class Asset(Base):
     __tablename__ = "assets"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"))
-    name = Column(String) 
-    asset_type = Column(String) 
-    status = Column(String, default='active') 
+    name = Column(String)
+    asset_type = Column(String)
+    status = Column(String, default='active')
     serial_number = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
-    
+
     # Digital Lifecycle
     expires_at = Column(Date, nullable=True)
-    vendor = Column(String, nullable=True) 
+    vendor = Column(String, nullable=True)
     linked_product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
     auto_invoice = Column(Boolean, default=False)
     pending_renewal_invoice_id = Column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=True)
-    
+
     # NEW: Asset Intelligence (Big Data Ready)
     # Stores flexible specs like {"os": "iOS 17", "cpu": "M1", "ram": "16GB"}
-    specs = Column(JSONB, server_default='{}', default={}) 
+    specs = Column(JSONB, server_default='{}', default={})
 
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
@@ -535,9 +535,9 @@ class Automation(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
-    event_type = Column(String, nullable=False) 
-    action_type = Column(String, nullable=False) 
-    config = Column(JSON, default={}) 
+    event_type = Column(String, nullable=False)
+    action_type = Column(String, nullable=False)
+    config = Column(JSON, default={})
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -549,32 +549,32 @@ class AutomationLog(Base):
     automation_id = Column(UUID(as_uuid=True), ForeignKey("automations.id"))
     triggered_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     status = Column(String) # 'success', 'failure', 'running'
-    output = Column(Text, nullable=True) 
-    
+    output = Column(Text, nullable=True)
+
     automation = relationship("Automation", back_populates="logs")
 
 class Notification(Base):
     __tablename__ = "notifications"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    
+
     # UPDATED: Nullable to allow external contacts (e.g. billing email, vendors)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
-    
+
     # NEW: Stores the actual target email. Mandatory if user_id is None.
     recipient_email = Column(String, nullable=True, index=True)
 
     title = Column(String, nullable=False)
     message = Column(Text, nullable=False)
-    link = Column(String, nullable=True) 
+    link = Column(String, nullable=True)
     is_read = Column(Boolean, default=False)
 
     status = Column(String, default='pending') # pending, sent, failed, batched
-    priority = Column(String, default='normal') 
+    priority = Column(String, default='normal')
     event_type = Column(String, nullable=True)
-    
+
     # NEW: Snapshot of data (ticket_id, subject, etc.) for building Digests later
     event_payload = Column(JSON, default={})
-    
+
     # NEW: Channel Preference (email, in_app, etc)
     delivery_channel = Column(String, default='email')
 
@@ -588,7 +588,7 @@ class PasswordToken(Base):
     __tablename__ = "password_tokens"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    token_hash = Column(String, nullable=False, index=True) 
+    token_hash = Column(String, nullable=False, index=True)
     token = Column(String, unique=True, nullable=False)
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False)
     used = Column(Boolean, default=False)
@@ -600,7 +600,7 @@ class UserNotificationPreference(Base):
     __tablename__ = "user_notification_preferences"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    email_frequency = Column(String, default='realtime') 
+    email_frequency = Column(String, default='realtime')
     force_critical = Column(Boolean, default=True)
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
@@ -613,29 +613,29 @@ class Vendor(Base):
     Used in questionnaire (SearchableSelect), asset management, and lifecycle tracking.
     """
     __tablename__ = "vendors"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False, unique=True)
-    
+
     # Category determines where vendor appears in UI
-    # Values: 'saas', 'antivirus', 'registrar', 'hosting', 'backup', 
+    # Values: 'saas', 'antivirus', 'registrar', 'hosting', 'backup',
     #         'password_manager', 'firewall', 'endpoint_security'
     category = Column(ARRAY(String), nullable=False, index=True, server_default='{}')
-    
+
     # Contact & reference info
     website = Column(String(255))
     support_email = Column(String(255))
     support_phone = Column(String(100))
     account_manager_contact = Column(String(255))
-    
+
     # Lifecycle defaults
     typical_renewal_cycle = Column(Integer)  # in months (12, 24, 36)
     typical_pricing_model = Column(String(50))  # 'per_user', 'flat_rate', 'tiered', 'usage_based'
-    
+
     # Future: Pricing intelligence (Phase 63)
     base_price_aud = Column(Numeric(10, 2))  # Starting price in AUD
     pricing_notes = Column(Text)
-    
+
     # Visual & metadata
     logo_url = Column(String(500))
     description = Column(Text)
@@ -650,15 +650,15 @@ class Vendor(Base):
     compliance_status = Column(String, default="pending") # compliant, non-compliant, pending
     last_audit_date = Column(DateTime, nullable=True)
     data_access_level = Column(String, default="none") # restricted, internal, confidential, restricted
-    
+
     # For "The Oracle" calculation
     security_score = Column(Integer, default=100) # 0-100 scale
-    
+
     # Admin
     is_active = Column(Boolean, default=True, index=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
-    
+
     # Relationships
     # assets = relationship("Asset", back_populates="vendor")  # Link to assets using this vendor
 

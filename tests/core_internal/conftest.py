@@ -25,14 +25,14 @@ def db():
     with engine.connect() as conn:
         conn.execute(text("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"))
         conn.commit()
-    
+
     # 2. Recreate Tables
     Base.metadata.create_all(bind=engine)
-    
+
     # 3. Bind Session
     session = TestingSessionLocal()
     yield session
-    
+
     # 4. Cleanup
     session.close()
     # No need to drop_all, next test will nukes schema
@@ -61,6 +61,6 @@ def admin_token_headers(db):
     )
     db.add(admin)
     db.commit()
-    
+
     token = create_access_token(data={"sub": email, "role": "admin", "scope": "global"})
     return {"Authorization": f"Bearer {token}"}

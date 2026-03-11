@@ -14,11 +14,11 @@ router = APIRouter(tags=["System"])
 @router.get("/system/health")
 def run_system_diagnostics(db: Session = Depends(get_db)):
     start_time = time.time()
-    
+
     # Git Version
     try:
         cwd = os.path.dirname(os.path.abspath(__file__))
-        parent = os.path.dirname(os.path.dirname(cwd)) 
+        parent = os.path.dirname(os.path.dirname(cwd))
         commit = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD'], cwd=parent, stderr=subprocess.DEVNULL).strip().decode('utf-8')
     except:
         commit = "UNKNOWN"
@@ -31,7 +31,7 @@ def run_system_diagnostics(db: Session = Depends(get_db)):
         "database": {"latency_ms": 0},
         "checks": []
     }
-    
+
     def add_check(name, status, message="", latency_ms=0):
         report["checks"].append({"name": name, "status": status, "message": message, "latency": f"{latency_ms:.2f}ms" if latency_ms > 0 else None})
         if status == "error": report["status"] = "critical"
@@ -102,7 +102,7 @@ def get_dashboard_stats(current_user: models.User = Depends(auth.get_current_act
 
     except Exception as e:
         print(f"DASHBOARD ERROR: {str(e)}")
-        
+
     return {
         "revenue_realized": revenue_realized,
         "pipeline_value": pipeline_value,

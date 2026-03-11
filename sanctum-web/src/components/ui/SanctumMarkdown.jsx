@@ -51,7 +51,7 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
             case 'jsx': return <FileCode size={12} className="text-yellow-300"/>;
             case 'python':
             case 'py': return <Hash size={12} className="text-blue-400"/>;
-            case 'html': 
+            case 'html':
             case 'markup': return <FileType size={12} className="text-orange-400"/>;
             case 'bash':
             case 'sh':
@@ -82,7 +82,7 @@ const CodeBlock = ({ inline, className, children, ...props }) => {
                         {lang}
                     </span>
                 </div>
-                <button 
+                <button
                     onClick={handleCopy}
                     // REF: Accessibility - Added aria-label and title
                     aria-label="Copy code to clipboard"
@@ -130,16 +130,16 @@ const MarkdownComponents = {
     h1: ({node, ...props}) => <h1 className="text-3xl font-bold text-white mt-8 mb-4 border-b border-slate-700 pb-2" {...props} />,
     h2: ({node, ...props}) => <h2 className="text-2xl font-bold text-white mt-8 mb-4" {...props} />,
     h3: ({node, ...props}) => <h3 className="text-xl font-bold text-blue-200 mt-6 mb-3" {...props} />,
-    
+
     // Text
     p: ({node, ...props}) => <p className="text-slate-300 leading-7 mb-4 whitespace-pre-wrap" {...props} />,
     strong: ({node, ...props}) => <strong className="font-bold text-white" {...props} />,
-    
+
     // Lists
     ul: ({node, ...props}) => <ul className="list-disc pl-6 mb-4 space-y-2 text-slate-300" {...props} />,
     ol: ({node, ...props}) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-slate-300" {...props} />,
     li: ({node, ...props}) => <li className="pl-1" {...props} />,
-    
+
     // Tables
     table: ({node, ...props}) => (
         <div className="overflow-x-auto my-6 rounded-lg border border-slate-700">
@@ -154,7 +154,7 @@ const MarkdownComponents = {
 
     // Code (Delegated to Helper)
     code: CodeBlock,
-    
+
     // Callouts / Blockquotes
     blockquote: ({node, ...props}) => (
         <blockquote className="border-l-4 border-sanctum-gold bg-sanctum-gold/5 p-4 my-6 rounded-r-lg italic text-slate-300" {...props} />
@@ -169,7 +169,7 @@ export default function SanctumMarkdown({ content, className="" }) {
     const safeContent = typeof content === 'string' ? content : String(content);
     return (
         <div className={`max-w-none ${className}`}>
-            <ReactMarkdown 
+            <ReactMarkdown
                 components={MarkdownComponents}
                 remarkPlugins={[remarkGfm]}
                 // REF: Security - Added rehype-sanitize
@@ -180,4 +180,3 @@ export default function SanctumMarkdown({ content, className="" }) {
         </div>
     );
 }
-

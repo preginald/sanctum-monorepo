@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, Check, Sparkles, X } from 'lucide-react';
 
-export default function SearchableSelect({ 
-    items = [], 
-    onSelect, 
-    selectedIds = [], 
-    placeholder = "Search...", 
-    labelKey = "name",    
-    subLabelKey = "website", 
-    valueKey = "id",       
+export default function SearchableSelect({
+    items = [],
+    onSelect,
+    selectedIds = [],
+    placeholder = "Search...",
+    labelKey = "name",
+    subLabelKey = "website",
+    valueKey = "id",
     icon: Icon,
     onClose,
     displaySelected = true, // NEW: Defaults to true to show selection in input
@@ -30,12 +30,12 @@ export default function SearchableSelect({
 
     useEffect(() => {
         const q = query.toLowerCase().trim();
-        
+
         if (!q) {
             const suggestions = items
                 .filter(item => Array.isArray(item.tags) && item.tags.includes('popular'))
                 .slice(0, 3);
-            setFiltered(suggestions); 
+            setFiltered(suggestions);
             setActiveIndex(0);
             return;
         }
@@ -64,7 +64,7 @@ export default function SearchableSelect({
     const handleSelect = (item) => {
         if (!item || selectedIds.includes(item[valueKey])) return;
         onSelect(item);
-        
+
         // UX DECISION: If displaying selected, keep the name. If not (multi-select style), clear it.
         if (displaySelected) {
             setQuery(item[labelKey]);
@@ -100,7 +100,7 @@ export default function SearchableSelect({
             {/* SEARCH INPUT */}
             <div className="relative group">
                 <Search className="absolute left-2.5 top-2.5 text-slate-500 group-focus-within:text-sanctum-gold transition-colors" size={14} />
-                <input 
+                <input
                     autoFocus={!query}
                     className="w-full bg-slate-800 border border-slate-600 rounded-lg pl-9 pr-8 py-2 text-xs text-white focus:outline-none focus:border-sanctum-gold transition-all placeholder:text-slate-600 focus:ring-1 focus:ring-sanctum-gold/20"
                     placeholder={placeholder}
@@ -130,22 +130,22 @@ export default function SearchableSelect({
                         filtered.map((item, index) => {
                             const isSelected = selectedIds.includes(item[valueKey]);
                             const isHighlighted = index === activeIndex;
-                            
+
                             return (
-                                <button 
+                                <button
                                     type="button"
-                                    key={item[valueKey]} 
+                                    key={item[valueKey]}
                                     onClick={() => handleSelect(item)}
                                     disabled={isSelected}
                                     className={`w-full text-left flex items-center justify-between p-2 rounded transition-all duration-150 border ${
-                                        isHighlighted 
-                                            ? 'bg-sanctum-gold/10 border-sanctum-gold/40 shadow-[0_0_15px_rgba(212,175,55,0.1)]' 
+                                        isHighlighted
+                                            ? 'bg-sanctum-gold/10 border-sanctum-gold/40 shadow-[0_0_15px_rgba(212,175,55,0.1)]'
                                             : 'bg-transparent border-transparent hover:bg-white/5'
                                     } disabled:opacity-40 disabled:cursor-not-allowed`}
                                 >
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         {Icon && <Icon size={14} className={isHighlighted ? "text-sanctum-gold animate-pulse" : "text-slate-500"} />}
-                                        
+
                                         {item[subLabelKey] && (
                                             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded flex-shrink-0 transition-colors ${
                                                 isHighlighted ? 'bg-sanctum-gold/20 text-sanctum-gold' : 'bg-slate-900/50 text-slate-400 border border-slate-700'
@@ -153,7 +153,7 @@ export default function SearchableSelect({
                                                 {item[subLabelKey].replace('https://', '').replace('www.', '')}
                                             </span>
                                         )}
-                                        
+
                                         <span className={`text-xs truncate font-medium transition-colors ${isHighlighted ? 'text-white' : 'text-slate-300'}`}>
                                             {item[labelKey]}
                                         </span>

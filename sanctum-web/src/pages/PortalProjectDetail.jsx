@@ -38,17 +38,17 @@ export default function PortalProjectDetail() {
   return (
     <div className="min-h-screen bg-slate-900 text-white p-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        
+
         {/* HEADER */}
         <div>
-            <button 
+            <button
                 onClick={() => portalNav('/portal')}
                 className="flex items-center text-slate-400 hover:text-white transition-colors mb-6 text-sm"
             >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
             </button>
-            
+
             <div className="flex justify-between items-start">
                 <div>
                     <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
@@ -77,11 +77,11 @@ export default function PortalProjectDetail() {
                     <div>Due: {formatDate(project.due_date)}</div>
                 </div>
             </div>
-            
+
             {/* Progress Bar */}
             <div className="w-full bg-black/40 h-4 rounded-full overflow-hidden border border-white/5">
-                <div 
-                    className="h-full bg-gradient-to-r from-sanctum-gold to-yellow-600 transition-all duration-1000 ease-out" 
+                <div
+                    className="h-full bg-gradient-to-r from-sanctum-gold to-yellow-600 transition-all duration-1000 ease-out"
                     style={{ width: `${project.progress}%` }}
                 ></div>
             </div>
@@ -90,18 +90,18 @@ export default function PortalProjectDetail() {
         {/* MILESTONES TIMELINE */}
         <div className="space-y-6">
             <h3 className="text-sm font-bold uppercase tracking-widest text-slate-500 pl-2">Project Roadmap</h3>
-            
+
             <div className="relative border-l-2 border-slate-800 ml-4 space-y-8 pb-4">
                 {project.milestones?.map((milestone, index) => {
                     const isCompleted = milestone.status === 'completed';
                     const isActive = milestone.status === 'active' || milestone.status === 'in_progress';
-                    
+
                     return (
                         <div key={milestone.id} className="relative pl-8 group">
                             {/* Dot */}
                             <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 transition-colors flex items-center justify-center ${
-                                isCompleted ? 'bg-green-500 border-green-500' : 
-                                isActive ? 'bg-slate-900 border-sanctum-gold animate-pulse' : 
+                                isCompleted ? 'bg-green-500 border-green-500' :
+                                isActive ? 'bg-slate-900 border-sanctum-gold animate-pulse' :
                                 'bg-slate-900 border-slate-600'
                             }`}>
                                 {isCompleted ? <CheckCircle size={12} className="text-slate-900" /> : <span className="text-[8px] font-bold text-slate-400">{milestone.sequence}</span>}
@@ -109,8 +109,8 @@ export default function PortalProjectDetail() {
 
                             {/* Card */}
                             <div className={`p-5 rounded-lg border transition-all ${
-                                isActive ? 'bg-slate-800 border-sanctum-gold/50 shadow-lg' : 
-                                isCompleted ? 'bg-slate-800/50 border-green-500/20 opacity-70' : 
+                                isActive ? 'bg-slate-800 border-sanctum-gold/50 shadow-lg' :
+                                isCompleted ? 'bg-slate-800/50 border-green-500/20 opacity-70' :
                                 'bg-slate-800/30 border-slate-800'
                             }`}>
                                 <div className="flex justify-between items-start mb-2">
@@ -136,7 +136,7 @@ export default function PortalProjectDetail() {
                         </div>
                     );
                 })}
-                
+
                 {project.milestones?.length === 0 && (
                     <div className="pl-8 text-slate-500 italic text-sm">No milestones defined.</div>
                 )}

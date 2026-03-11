@@ -14,12 +14,12 @@ export default function AdminUserList() {
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState(null);
 
-  
+
   // MODALS
   const [showCreate, setShowCreate] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', full_name: '', password: '', role: 'tech' });
   const [actionLoading, setActionLoading] = useState(false);
-  
+
   const [confirm, setConfirm] = useState({ isOpen: false, title: '', message: '', action: null });
 
   useEffect(() => { fetchUsers(); }, [refreshKey]);
@@ -79,9 +79,9 @@ export default function AdminUserList() {
         </button>
       }
     >
-      <ConfirmationModal 
-        isOpen={confirm.isOpen} onClose={() => setConfirm({...confirm, isOpen: false})} 
-        title={confirm.title} message={confirm.message} onConfirm={confirm.action} isDangerous={true} 
+      <ConfirmationModal
+        isOpen={confirm.isOpen} onClose={() => setConfirm({...confirm, isOpen: false})}
+        title={confirm.title} message={confirm.message} onConfirm={confirm.action} isDangerous={true}
       />
 
       {/* TABLE */}

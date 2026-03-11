@@ -52,17 +52,17 @@ export default function AutomationModal({ isOpen, onClose, onSubmit, loading, fo
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={form.id ? "Edit Rule" : "New Automation"}>
-        
+
         {/* TABS */}
         {form.id && (
             <div className="flex gap-4 mb-6 border-b border-slate-700">
-                <button 
+                <button
                     onClick={() => setActiveTab('settings')}
                     className={`pb-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'settings' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-500 hover:text-white'}`}
                 >
                     <Settings size={14} /> Settings
                 </button>
-                <button 
+                <button
                     onClick={() => setActiveTab('logs')}
                     className={`pb-2 text-sm font-bold flex items-center gap-2 border-b-2 transition-colors ${activeTab === 'logs' ? 'border-purple-500 text-purple-400' : 'border-transparent text-slate-500 hover:text-white'}`}
                 >
@@ -78,7 +78,7 @@ export default function AutomationModal({ isOpen, onClose, onSubmit, loading, fo
                     <label className="text-xs opacity-50 block mb-1">Rule Name</label>
                     <input required autoFocus className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="e.g. Notify Admin on New Ticket" />
                 </div>
-                
+
                 <div>
                     <label className="text-xs opacity-50 block mb-1">Description</label>
                     <input className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white text-sm" value={form.description || ''} onChange={e => setForm({...form, description: e.target.value})} />
@@ -105,10 +105,10 @@ export default function AutomationModal({ isOpen, onClose, onSubmit, loading, fo
 
                 <div>
                     <label className="text-xs opacity-50 block mb-1">Configuration (JSON)</label>
-                    <textarea 
-                        className="w-full p-3 h-32 bg-slate-950 border border-slate-700 rounded text-green-400 font-mono text-xs custom-scrollbar" 
-                        value={configString} 
-                        onChange={e => setConfigString(e.target.value)} 
+                    <textarea
+                        className="w-full p-3 h-32 bg-slate-950 border border-slate-700 rounded text-green-400 font-mono text-xs custom-scrollbar"
+                        value={configString}
+                        onChange={e => setConfigString(e.target.value)}
                         placeholder={getPlaceholder()}
                     />
                     <p className="text-[10px] text-slate-500 mt-1">Check Wiki (SYS-016) for config schemas.</p>

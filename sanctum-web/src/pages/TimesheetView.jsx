@@ -28,7 +28,7 @@ export default function TimesheetView() {
 
   return (
     <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="My Timesheet">
-      
+
       {/* HEADER CONTROLS */}
       <div className="flex justify-between items-center mb-8">
           <div className="flex items-center gap-4 bg-slate-900 border border-slate-700 rounded-lg p-1">
@@ -39,7 +39,7 @@ export default function TimesheetView() {
               </div>
               <button onClick={() => setOffset(offset + 1)} className="p-2 hover:bg-white/10 rounded text-white"><ChevronRight size={20}/></button>
           </div>
-          
+
           <div className="bg-slate-900 border border-slate-700 rounded-lg px-6 py-2">
               <span className="text-xs uppercase font-bold text-slate-500 mr-2">Total Hours</span>
               <span className="text-xl font-mono font-bold text-white">{data?.total_hours || 0}h</span>
@@ -64,8 +64,8 @@ export default function TimesheetView() {
                       {/* Entries */}
                       <div className="flex-1 p-2 space-y-2 overflow-y-auto custom-scrollbar">
                           {day.entries.map(entry => (
-                              <div 
-                                key={entry.id} 
+                              <div
+                                key={entry.id}
                                 onClick={() => navigate(`/tickets/${entry.ticket_id}`)}
                                 className="p-2 bg-blue-900/20 border border-blue-500/20 rounded cursor-pointer hover:bg-blue-900/40 transition-colors group"
                               >

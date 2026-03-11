@@ -17,7 +17,7 @@ class EmailService:
             logger.warning("RESEND_API_KEY not found in env. Email disabled.")
         else:
             resend.api_key = self.api_key
-            
+
         self.system_email = "notifications@digitalsanctum.com.au"
         self.admin_email = "hello@digitalsanctum.com.au"
 
@@ -36,7 +36,7 @@ class EmailService:
             logger.info(f"Rendering template '{template_name}' for {to_email}...")
             template = self.env.get_template(template_name)
             html_content = template.render(**context)
-            
+
             # Delegate to the raw send method
             return self.send(to_email, subject, html_content, cc_emails=cc_emails, attachments=attachments)
         except Exception as e:
@@ -47,7 +47,7 @@ class EmailService:
         if not self.api_key:
             logger.info(f"[MOCK EMAIL] To: {to_emails} | Subject: {subject}")
             # logger.info(f"[CONTENT] {html_content[:100]}...") # Optional debug
-            return True   
+            return True
 
         if isinstance(to_emails, str): to_emails = [to_emails]
         if isinstance(cc_emails, str): cc_emails = [cc_emails]
@@ -72,7 +72,7 @@ class EmailService:
                             att_list.append({"filename": filename, "content": content})
                     except Exception as e:
                         logger.error(f"Failed to read attachment {path}: {e}")
-                
+
                 if att_list: params["attachments"] = att_list
 
             resp = resend.Emails.send(params)

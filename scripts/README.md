@@ -358,7 +358,7 @@ Planned utilities for `scripts/admin/`:
   - Token validation and reuse
   - QR code generation for mobile setup
   - Clipboard integration
-  
+
 - **v1.0** (Initial)
   - Basic authentication
   - Simple API testing

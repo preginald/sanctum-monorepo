@@ -4,7 +4,7 @@ from .crm import AccountResponse, ContactResponse
 from .operations import TicketResponse
 from .billing import InvoiceResponse
 from .strategy import ProjectResponse, DealResponse
-from .assets import AssetResponse 
+from .assets import AssetResponse
 
 class PortalDashboard(SanctumBase):
     account: AccountResponse
@@ -21,6 +21,6 @@ class AccountDetail(AccountResponse):
     deals: List[DealResponse] = []
     tickets: List[TicketResponse] = []
     projects: List[ProjectResponse] = []
-    audit_data: Optional[Dict] = None 
+    audit_data: Optional[Dict] = None
     invoices: List[InvoiceResponse] = []
     assets: List[AssetResponse] = []

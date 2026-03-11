@@ -30,10 +30,10 @@ export default function PortalDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  
+
   // TICKET MODAL STATE
   const [showModal, setShowModal] = useState(false);
-  const [submitting, setSubmitting] = useState(false); 
+  const [submitting, setSubmitting] = useState(false);
   const [ticketForm, setTicketForm] = useState({ subject: '', description: '', priority: 'normal' });
   const [downloadingInv, setDownloadingInv] = useState(null);
 
@@ -41,12 +41,12 @@ export default function PortalDashboard() {
 
 const fetchPortal = async () => {
     try {
-      const url = impersonateId 
-        ? `/portal/dashboard?impersonate=${impersonateId}` 
+      const url = impersonateId
+        ? `/portal/dashboard?impersonate=${impersonateId}`
         : '/portal/dashboard';
       const res = await api.get(url);
       setData(res.data);
-    } catch (e) { 
+    } catch (e) {
       console.error(e);
       if(e.response?.status === 403) logout();
     } finally { setLoading(false); }
@@ -58,16 +58,16 @@ const fetchPortal = async () => {
 
       setSubmitting(true);
       try {
-          await api.post('/tickets', { 
-              ...ticketForm, 
-              account_id: user.account_id, 
-              ticket_type: 'support' 
+          await api.post('/tickets', {
+              ...ticketForm,
+              account_id: user.account_id,
+              ticket_type: 'support'
           });
           setShowModal(false);
           setTicketForm({ subject: '', description: '', priority: 'normal' });
-          fetchPortal(); 
+          fetchPortal();
           addToast("Request sent successfully", "success");
-      } catch (e) { 
+      } catch (e) {
           addToast("Failed to send request", "error");
       } finally {
           setSubmitting(false);
@@ -119,10 +119,10 @@ const fetchPortal = async () => {
   if (!data) return null;
 
   const { account, category_assessments = {}, open_tickets, invoices, projects, needs_questionnaire, lifecycle_stage } = data;
-  
+
   // Check if ANY audits exist
   const hasAnyAudit = Object.keys(category_assessments).length > 0;
-  
+
   // THEME
   const theme = usePortalTheme(account);
 
@@ -131,7 +131,7 @@ const fetchPortal = async () => {
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.textMain}`}>
-      
+
       {/* PORTAL NAVIGATION */}
       <nav className={`px-8 py-4 flex justify-between items-center ${theme.navBg}`}>
         <div>
@@ -149,13 +149,13 @@ const fetchPortal = async () => {
       </nav>
 
       <main className="p-8 max-w-7xl mx-auto space-y-8">
-        
+
         {/* ADMIN IMPERSONATION BANNER */}
         {impersonateId && (
           <div className="flex items-center justify-between p-3 rounded-lg bg-cyan-500/20 border border-cyan-500/50 text-cyan-300">
             <span className="text-sm font-bold">👁 Viewing as: {account.name}</span>
-            <button 
-              onClick={() => window.close()} 
+            <button
+              onClick={() => window.close()}
               className="text-xs px-3 py-1 rounded bg-cyan-500/30 hover:bg-cyan-500/50 font-bold"
             >
               Exit Preview
@@ -174,7 +174,7 @@ const fetchPortal = async () => {
             <p className={`text-sm ${theme.textSub} mb-4`}>
               Complete your first assessment to see how your technology stack measures up across 6 key areas.
             </p>
-            <button 
+            <button
               onClick={() => portalNav('/portal/assessments')}
               className={`px-6 py-2 rounded-lg ${theme.btn} font-bold`}
             >
@@ -214,15 +214,15 @@ const fetchPortal = async () => {
 
         {/* OPERATIONAL STATUS ROW */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
           {/* OPEN TICKETS COUNT + BUTTON */}
           <StatWidget
             icon={AlertCircle}
             label="Active Requests"
             count={open_tickets.length}
             actionButton={
-              <button 
-                onClick={() => setShowModal(true)} 
+              <button
+                onClick={() => setShowModal(true)}
                 className={`p-2 rounded-lg ${theme.btn} shadow-lg transition-transform hover:-translate-y-1`}
               >
                 <Plus size={20} />
@@ -260,15 +260,15 @@ const fetchPortal = async () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            
+
             {/* TICKET STREAM */}
             <Card isNaked={theme.isNaked}>
                 <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4">Recent Activity</h3>
                 <div className="space-y-3">
                     {open_tickets.length === 0 && <p className="text-sm opacity-50">No active tickets.</p>}
                     {open_tickets.slice(0, 5).map(t => (
-                        <div 
-                            key={t.id} 
+                        <div
+                            key={t.id}
                             onClick={() => portalNav(`/portal/tickets/${t.id}`)}
                             className="p-3 rounded bg-black/5 dark:bg-white/5 flex justify-between items-center cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                         >
@@ -298,7 +298,7 @@ const fetchPortal = async () => {
                                     {inv.status}
                                 </span>
                                 {inv.pdf_path && (
-                                  <button 
+                                  <button
                                     onClick={() => handleDownloadInvoice(inv.id)}
                                     disabled={downloadingInv === inv.id}
                                     className={`p-1.5 rounded hover:bg-black/10 dark:hover:bg-white/10 opacity-50 hover:opacity-100 disabled:opacity-20`}
@@ -325,8 +325,8 @@ const fetchPortal = async () => {
                         const billed = p.milestones.reduce((sum, m) => m.invoice_id ? sum + m.billable_amount : sum, 0);
                         const progress = p.budget > 0 ? (billed / p.budget) * 100 : 0;
                         return (
-                            <div 
-                                key={p.id} 
+                            <div
+                                key={p.id}
                                 onClick={() => portalNav(`/portal/projects/${p.id}`)}
                                 className="p-4 rounded bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 cursor-pointer hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                             >
@@ -335,7 +335,7 @@ const fetchPortal = async () => {
                                     <span className="text-xs opacity-50 uppercase">{p.status}</span>
                                 </div>
                                 <div className="text-xs opacity-50 mb-2">Due: {p.due_date || 'TBD'}</div>
-                                
+
                                 <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
                                     <div className={`h-full ${theme.isNaked ? 'bg-naked-pink' : 'bg-sanctum-gold'}`} style={{ width: `${progress}%` }}></div>
                                 </div>
@@ -359,18 +359,18 @@ const fetchPortal = async () => {
                 <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20}/></button>
                 <h2 className="text-xl font-bold mb-4">How can we help?</h2>
                 <form onSubmit={handleCreateTicket} className="space-y-4">
-                    <Input 
+                    <Input
                         label="Subject"
-                        required 
+                        required
                         className={`bg-black/10 border-slate-500/30 ${theme.isNaked ? 'text-slate-900' : 'text-white'}`}
-                        value={ticketForm.subject} 
-                        onChange={e => setTicketForm({...ticketForm, subject: e.target.value})} 
-                        placeholder="e.g. Need new email account" 
+                        value={ticketForm.subject}
+                        onChange={e => setTicketForm({...ticketForm, subject: e.target.value})}
+                        placeholder="e.g. Need new email account"
                     />
-                    <Select 
+                    <Select
                         label="Urgency"
                         className={`bg-black/10 border-slate-500/30 ${theme.isNaked ? 'text-slate-900' : 'text-white'}`}
-                        value={ticketForm.priority} 
+                        value={ticketForm.priority}
                         onChange={e => setTicketForm({...ticketForm, priority: e.target.value})}
                     >
                         <option value="low">Low (General Query)</option>
@@ -382,9 +382,9 @@ const fetchPortal = async () => {
                         <label className="text-xs uppercase opacity-50 block mb-1">Details</label>
                         <textarea required className="w-full p-2 h-24 rounded bg-black/10 border border-slate-500/30 text-sm" value={ticketForm.description} onChange={e => setTicketForm({...ticketForm, description: e.target.value})} placeholder="Please describe the issue..." />
                     </div>
-                    
-                    <button 
-                        type="submit" 
+
+                    <button
+                        type="submit"
                         disabled={submitting}
                         className={`w-full py-2 rounded font-bold flex justify-center items-center gap-2 ${theme.btn} ${submitting ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >

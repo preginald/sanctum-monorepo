@@ -36,7 +36,7 @@ def recalculate_invoice(invoice_id: str, db: Session):
     invoice.gst_amount = totals["gst"]
     invoice.total_amount = totals["total"]
     invoice.generated_at = func.now()
-    
+
     db.commit()
     db.refresh(invoice)
     return invoice
@@ -60,7 +60,7 @@ def regenerate_pdf_file(inv, db: Session):
     filename = f"invoice_{inv.id}.pdf"
     abs_path = os.path.join(static_dir, filename)
     pdf.output(abs_path)
-    
+
     # Update path if missing
     if not inv.pdf_path:
         inv.pdf_path = f"/static/reports/{filename}"
@@ -255,7 +255,7 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
     # 2. Fetch UNBILLED Items Only (Stateful Generation)
     unbilled_time = db.query(models.TicketTimeEntry).options(joinedload(models.TicketTimeEntry.product)).filter(
         models.TicketTimeEntry.ticket_id == ticket_id,
-        models.TicketTimeEntry.invoice_id == None 
+        models.TicketTimeEntry.invoice_id == None
     ).all()
 
     unbilled_materials = db.query(models.TicketMaterial).options(joinedload(models.TicketMaterial.product)).filter(
@@ -277,14 +277,14 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         if entry.description: desc += f" - {entry.description}"
         desc += f" [Ref: Ticket #{ticket.id}]"
         line_total = hours * float(rate)
-        
+
         items_buffer.append({
-            "description": desc, 
-            "quantity": round(hours, 2), 
-            "unit_price": rate, 
-            "total": round(line_total, 2), 
-            "ticket_id": ticket.id, 
-            "source_type": "time", 
+            "description": desc,
+            "quantity": round(hours, 2),
+            "unit_price": rate,
+            "total": round(line_total, 2),
+            "ticket_id": ticket.id,
+            "source_type": "time",
             "source_id": entry.id
         })
 
@@ -294,23 +294,23 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
         name = f"Hardware: {mat.product.name}" if mat.product else "Hardware: Unidentified"
         name += f" [Ref: Ticket #{ticket.id}]"
         line_total = mat.quantity * float(price)
-        
+
         items_buffer.append({
-            "description": name, 
-            "quantity": float(mat.quantity), 
-            "unit_price": price, 
-            "total": round(line_total, 2), 
-            "ticket_id": ticket.id, 
-            "source_type": "material", 
+            "description": name,
+            "quantity": float(mat.quantity),
+            "unit_price": price,
+            "total": round(line_total, 2),
+            "ticket_id": ticket.id,
+            "source_type": "material",
             "source_id": mat.id
         })
 
-    if not items_buffer: 
+    if not items_buffer:
          raise HTTPException(status_code=400, detail="Items found but calculated value is 0 (check durations or prices).")
 
     # 3. Create Invoice Header
     new_invoice = models.Invoice(
-        account_id=ticket.account_id, status="draft", 
+        account_id=ticket.account_id, status="draft",
         due_date=calculate_due_date(datetime.now(), 'Net 14 Days'),
         generated_at=func.now()
     )
@@ -320,16 +320,16 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
     # 4. Create Invoice Items
     for item in items_buffer:
         db.add(models.InvoiceItem(invoice_id=new_invoice.id, **item))
-    
+
     # 5. LOCKING: Update the source rows with the invoice_id
     for entry in unbilled_time:
         entry.invoice_id = new_invoice.id
-        
+
     for mat in unbilled_materials:
         mat.invoice_id = new_invoice.id
 
     db.commit()
-    
+
     inv = recalculate_invoice(new_invoice.id, db)
     regenerate_pdf_file(inv, db) # Force create PDF immediately
     return inv
@@ -344,7 +344,7 @@ def get_invoice_detail(invoice_id: str, db: Session = Depends(get_db)):
     inv.account_name = inv.account.name
     for log in inv.delivery_logs:
         if log.sender: log.sender_name = log.sender.full_name
-    
+
     cc_set = set()
     for item in inv.items:
         if item.ticket:
@@ -357,9 +357,9 @@ def get_invoice_detail(invoice_id: str, db: Session = Depends(get_db)):
 def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Session = Depends(get_db)):
     # Need to join items and account to regenerate PDF
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.items), joinedload(models.Invoice.account)).filter(models.Invoice.id == invoice_id).first()
-    
+
     if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
     if update.status: inv.status = update.status
     if update.due_date: inv.due_date = update.due_date
     if update.payment_terms:
@@ -367,19 +367,19 @@ def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Sess
         if not update.due_date:  # Only auto-calc if due_date wasn't explicitly set
             inv.due_date = calculate_due_date(inv.generated_at, update.payment_terms)
     if update.generated_at: inv.generated_at = update.generated_at
-    
+
     if update.paid_at is not None: inv.paid_at = update.paid_at
     if update.payment_method: inv.payment_method = update.payment_method
-    
+
     db.commit()
     db.refresh(inv)
-    
+
     # FORCE REGENERATE PDF
     try:
         regenerate_pdf_file(inv, db)
     except Exception as e:
         print(f"PDF Regen Failed: {e}")
-    
+
     inv.account_name = inv.account.name
 
     # Phase 66: Detect renewal asset and attach payload
@@ -438,12 +438,12 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
         raise HTTPException(status_code=403, detail="Only Admins can delete invoices.")
 
     inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
-    if not inv: 
+    if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
     if inv.status not in ('draft', 'void'):
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail=f"Cannot delete invoice in '{inv.status}' status. Only drafts and void invoices can be deleted."
         )
 
@@ -486,13 +486,13 @@ def delete_invoice_item(item_id: str, db: Session = Depends(get_db)):
     item = db.query(models.InvoiceItem).filter(models.InvoiceItem.id == item_id).first()
     if not item: raise HTTPException(status_code=404, detail="Item not found")
     pid = item.invoice_id
-    
+
     # Unlock source if linked
     if item.source_type == 'time' and item.source_id:
         db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == item.source_id).update({"invoice_id": None})
     elif item.source_type == 'material' and item.source_id:
         db.query(models.TicketMaterial).filter(models.TicketMaterial.id == item.source_id).update({"invoice_id": None})
-        
+
     db.delete(item)
     db.commit()
     inv = recalculate_invoice(pid, db)
@@ -505,10 +505,10 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
         raise HTTPException(status_code=403, detail="Only Admins can void invoices.")
 
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.items)).filter(models.Invoice.id == invoice_id).first()
-    
-    if not inv: 
+
+    if not inv:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    
+
     if inv.status == 'paid':
         raise HTTPException(status_code=400, detail="Cannot void a Paid invoice.")
 
@@ -522,27 +522,27 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
             item.source_id = None
             item.source_type = None
             item.ticket_id = None
-        
+
         inv.status = 'void'
         inv.subtotal_amount = 0
         inv.gst_amount = 0
         inv.total_amount = 0
-        
+
         db.commit()
-    
+
     # Reload fresh to return
     fresh_inv = db.query(models.Invoice).options(
         joinedload(models.Invoice.items), joinedload(models.Invoice.account)
     ).filter(models.Invoice.id == invoice_id).first()
-    
+
     regenerate_pdf_file(fresh_inv, db) # Update PDF to show Void
     return schemas.InvoiceResponse.model_validate(fresh_inv)
 
 @router.post("/{invoice_id}/send")
 def send_invoice_email(
-    invoice_id: str, 
-    request: schemas.InvoiceSendRequest, 
-    current_user: models.User = Depends(auth.get_current_active_user), 
+    invoice_id: str,
+    request: schemas.InvoiceSendRequest,
+    current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
     ):
     inv = db.query(models.Invoice).options(joinedload(models.Invoice.account), joinedload(models.Invoice.items)).filter(models.Invoice.id == invoice_id).first()
@@ -553,13 +553,13 @@ def send_invoice_email(
 
     # Ensure PDF is current
     regenerate_pdf_file(inv, db)
-    
+
     cwd = os.getcwd()
     filename = f"invoice_{inv.id}.pdf"
     abs_path = os.path.join(cwd, "app/static/reports", filename)
 
     # Greeting Logic
-    greeting_name = "Team" 
+    greeting_name = "Team"
     if request.recipient_contact_id:
         contact = db.query(models.Contact).filter(models.Contact.id == request.recipient_contact_id).first()
         if contact: greeting_name = contact.first_name
@@ -574,12 +574,12 @@ def send_invoice_email(
 
     # Email Context
     is_paid = inv.status == 'paid'
-    
+
     if is_paid:
         date_label = "Paid On"
         date_value = inv.paid_at.strftime("%d %b %Y") if inv.paid_at else "Previously Paid"
         amount_label = "Amount Paid"
-        amount_color = "#059669" 
+        amount_color = "#059669"
         default_message = "Thank you for your payment. A receipt is attached for your records."
         status_banner = "PAID"
     else:
@@ -589,12 +589,12 @@ def send_invoice_email(
         else:
             date_value = inv.due_date.strftime("%d %b %Y") if inv.due_date else "Due on Receipt"
         amount_label = "Amount Due"
-        amount_color = "#d4af37" 
+        amount_color = "#d4af37"
         default_message = "Please find attached the invoice for the recent period. We appreciate your continued partnership."
         status_banner = None
 
     context = {
-        "client_name": greeting_name, 
+        "client_name": greeting_name,
         "invoice_number": str(inv.id)[:8].upper(),
         "issue_date": inv.generated_at.strftime("%d %b %Y") if inv.generated_at else "N/A",
         "date_label": date_label,
@@ -605,7 +605,7 @@ def send_invoice_email(
         "custom_message": request.message or default_message,
         "status_banner": status_banner
     }
-    
+
     subject = request.subject or f"Invoice #{str(inv.id)[:8].upper()} from Digital Sanctum"
     if is_paid and (not request.subject or request.subject.startswith("Invoice #")):
         subject = f"Receipt: Invoice #{str(inv.id)[:8].upper()} - PAID"
@@ -620,7 +620,7 @@ def send_invoice_email(
     )
 
     if not success: raise HTTPException(status_code=500, detail="Email failed")
-    
+
     db.add(models.InvoiceDeliveryLog(invoice_id=inv.id, sent_by_user_id=current_user.id, sent_to=to_email, sent_cc=",".join(cc_emails), status="sent"))
     if not is_paid: inv.status = 'sent'
     db.commit()

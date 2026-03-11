@@ -4,7 +4,7 @@ import { ArrowRight } from 'lucide-react';
 
 /**
  * StatWidget - Displays a statistic with icon, count, and optional action button
- * 
+ *
  * Used for: Active Requests, Open Invoices, Asset Inventory, etc.
  */
 export default function StatWidget({
@@ -24,7 +24,7 @@ export default function StatWidget({
   const isLink = variant === 'link' || typeof count === 'string';
 
   return (
-    <Card 
+    <Card
       onClick={onClick}
       hover={!!onClick}
       className="flex flex-col justify-between group"

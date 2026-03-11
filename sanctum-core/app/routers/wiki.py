@@ -30,7 +30,7 @@ def _generate_identifier(db: Session, category: str) -> str:
         'template': 'TPL',
     }
     prefix = prefix_map.get(category.lower(), 'DOC')
-    
+
     # Find the highest ID with this prefix
     # We filter by length to ensure we are comparing "SOP-001" not "SOP-1000" wrongly if sorting string wise
     # Ideally we'd use a regex query, but for compatibility let's fetch the last created
@@ -53,19 +53,19 @@ def _generate_identifier(db: Session, category: str) -> str:
 
 def _increment_version(current_version: str) -> str:
     """
-    Parses v1.0 -> v1.1. 
+    Parses v1.0 -> v1.1.
     Handles basic integer or float strings gracefully.
     """
-    if not current_version: 
+    if not current_version:
         return "v1.0"
-    
+
     # Regex to find major.minor
     match = re.search(r"v?(\d+)\.(\d+)", current_version)
     if match:
         major = match.group(1)
         minor = int(match.group(2))
         return f"v{major}.{minor + 1}"
-    
+
     return "v1.1" # Fallback reset
 
 # --- ENDPOINTS ---
@@ -75,10 +75,10 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Article).options(joinedload(models.Article.author))
     if category: query = query.filter(models.Article.category == category)
     articles = query.order_by(models.Article.identifier.asc()).all()
-    
+
     for a in articles:
         if a.author: a.author_name = a.author.full_name
-        
+
     return articles
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
@@ -89,9 +89,9 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         article = query.filter(models.Article.id == uid).first()
     except ValueError:
         article = query.filter(models.Article.slug == slug).first()
-        
+
     if not article: raise HTTPException(status_code=404, detail="Article not found")
-    
+
     if article.author: article.author_name = article.author.full_name
 
     # Load related articles from both directions of the join table
@@ -112,25 +112,25 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
             identifier=r.identifier, category=r.category
         ) for r in related
     ]
-    
+
     # Resolve shortcodes safely on the Pydantic object
     if resolve_embeds and response_data.content:
         response_data.content = resolve_content(db, response_data.content)
     elif inline_embeds and response_data.content:
         response_data.content = resolve_content(db, response_data.content, inline_mode=True)
-        
+
     return response_data
 
 @router.post("/articles", response_model=schemas.ArticleResponse)
 def create_article(article: schemas.ArticleCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
-    
+
     article_data = article.model_dump()
-    
+
     # AUTOMATION: Generate Identifier if missing
     if not article_data.get('identifier'):
         article_data['identifier'] = _generate_identifier(db, article_data.get('category', 'wiki'))
-        
+
     new_article = models.Article(**article_data, author_id=current_user.id)
     db.add(new_article)
     db.commit()
@@ -139,14 +139,14 @@ def create_article(article: schemas.ArticleCreate, current_user: models.User = D
 
 @router.put("/articles/{article_id}", response_model=schemas.ArticleResponse)
 def update_article(
-    article_id: str, 
-    update: schemas.ArticleUpdate, 
-    current_user: models.User = Depends(auth.get_current_active_user), 
+    article_id: str,
+    update: schemas.ArticleUpdate,
+    current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not article: raise HTTPException(status_code=404, detail="Article not found")
-    
+
     # 1. HISTORY SNAPSHOT
     # Capture old content before overwrite
     old_content = article.content
@@ -162,31 +162,31 @@ def update_article(
         change_comment=update.change_comment
     )
     db.add(history_entry)
-    
+
     update_data = update.model_dump(exclude_unset=True)
     update_data.pop("change_comment", None)  # not an article field
 
     # 2. AUTOMATION: Smart Versioning
     # If version is missing OR matches the current DB version, we auto-increment
     payload_version = update_data.get('version')
-    
+
     if not payload_version or payload_version == article.version:
         # Calculate new version
         article.version = _increment_version(article.version)
         # CRITICAL: Remove 'version' from update_data so the loop below doesn't overwrite our new value with the old one
         if 'version' in update_data:
             del update_data['version']
-    
+
     # 3. APPLY UPDATE
-    for key, value in update_data.items(): 
+    for key, value in update_data.items():
         setattr(article, key, value)
-    
+
     article.author_id = current_user.id
     # Capture diff_after now that content has been updated
     if update_data.get("content"):
         history_entry.diff_after = article.content
 
-    
+
     db.commit()
     db.refresh(article)
     return article
@@ -289,19 +289,19 @@ def revert_article(
     article = db.query(models.Article).filter(models.Article.id == article_id).first()
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    
+
     history_entry = db.query(models.ArticleHistory).filter(
         models.ArticleHistory.id == history_id,
         models.ArticleHistory.article_id == article_id
     ).first()
     if not history_entry:
         raise HTTPException(status_code=404, detail="History entry not found for this article")
-    
+
     fields = (revert_request.fields if revert_request and revert_request.fields else ["content", "title"])
     valid_fields = {"content", "title"}
     if not set(fields).issubset(valid_fields):
         raise HTTPException(status_code=400, detail=f"Invalid fields. Allowed: {valid_fields}")
-    
+
     # 1. HISTORY SNAPSHOT (capture current state before revert)
     default_comment = f"Reverted to {history_entry.version}"
     change_comment = (revert_request.change_comment if revert_request and revert_request.change_comment else default_comment)
@@ -317,17 +317,17 @@ def revert_article(
         change_comment=change_comment
     )
     db.add(snapshot)
-    
+
     # 2. APPLY REVERT
     if "content" in fields:
         article.content = history_entry.content
     if "title" in fields:
         article.title = history_entry.title
-    
+
     # 3. VERSION BUMP
     article.version = _increment_version(article.version)
     article.author_id = current_user.id
-    
+
     db.commit()
     db.refresh(article)
     return article
@@ -336,17 +336,17 @@ def revert_article(
 @router.get("/articles/{article_id}/pdf")
 def download_article_pdf(article_id: str, db: Session = Depends(get_db)):
     from ..services.pdf_engine import pdf_engine
-    
+
     query = db.query(models.Article).options(joinedload(models.Article.author))
     try:
         uid = UUID(article_id)
         article = query.filter(models.Article.id == uid).first()
     except ValueError:
         article = query.filter(models.Article.slug == article_id).first()
-    
+
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
-    
+
     data = {
         "title": article.title,
         "identifier": article.identifier,
@@ -354,12 +354,12 @@ def download_article_pdf(article_id: str, db: Session = Depends(get_db)):
         "category": article.category,
         "content": article.content or "",
         "author_name": article.author.full_name if article.author else "Unknown",
-        "updated_at": article.updated_at.strftime("%d %b %Y") if article.updated_at else 
+        "updated_at": article.updated_at.strftime("%d %b %Y") if article.updated_at else
                       article.created_at.strftime("%d %b %Y") if article.created_at else ""
     }
-    
+
     filepath = pdf_engine.generate_article_pdf(data)
-    
+
     from fastapi.responses import FileResponse
     return FileResponse(filepath, media_type='application/pdf', filename=f"{article.identifier or article.title}.pdf")
 

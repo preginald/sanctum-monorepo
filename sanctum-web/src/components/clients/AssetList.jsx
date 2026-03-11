@@ -1,29 +1,29 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Server, Laptop, Router, Printer, Key, Box, Plus, Trash2, Edit2, 
-    Globe, Cloud, Layers, Calendar, Receipt, RefreshCw 
+import {
+    Server, Laptop, Router, Printer, Key, Box, Plus, Trash2, Edit2,
+    Globe, Cloud, Layers, Calendar, Receipt, RefreshCw
 } from 'lucide-react';
 
 export default function AssetList({ assets, onAdd, onEdit, onDelete, onRenew }) {
   const navigate = useNavigate();
-  
+
   const getIcon = (type) => {
       if (!type) return <Box size={16} className="text-slate-400" />;
-      
+
       const t = type.toLowerCase();
       if (t.includes('domain')) return <Globe size={16} className="text-purple-400" />;
       if (t.includes('hosting')) return <Cloud size={16} className="text-sky-400" />;
       if (t.includes('saas')) return <Layers size={16} className="text-pink-400" />;
-      
+
       switch(t) {
           case 'server': return <Server size={16} className="text-cyan-400" />;
-          case 'laptop': 
+          case 'laptop':
           case 'workstation': return <Laptop size={16} className="text-blue-400" />;
-          case 'network': 
+          case 'network':
           case 'firewall': return <Router size={16} className="text-purple-400" />;
           case 'printer': return <Printer size={16} className="text-orange-400" />;
-          case 'software': 
+          case 'software':
           case 'license': return <Key size={16} className="text-yellow-400" />;
           default: return <Box size={16} className="text-slate-400" />;
       }
@@ -32,7 +32,7 @@ export default function AssetList({ assets, onAdd, onEdit, onDelete, onRenew }) 
   const getExpiryStatus = (dateString) => {
       if (!dateString) return null;
       const days = Math.ceil((new Date(dateString) - new Date()) / (1000 * 60 * 60 * 24));
-      
+
       if (days < 0) return { color: 'text-red-500 font-bold', label: 'EXPIRED' };
       if (days < 30) return { color: 'text-red-400', label: `Exp: ${days} days` };
       if (days < 60) return { color: 'text-yellow-400', label: `Exp: ${days} days` };
@@ -53,7 +53,7 @@ export default function AssetList({ assets, onAdd, onEdit, onDelete, onRenew }) 
         <div className="space-y-2">
             {assets.length > 0 ? assets.map(a => {
                 const expiry = getExpiryStatus(a.expires_at);
-                const isDigital = a.expires_at || a.vendor; 
+                const isDigital = a.expires_at || a.vendor;
 
                 return (
                     <div key={a.id} className="flex justify-between items-center p-3 bg-black/20 rounded border border-white/5 hover:border-cyan-500/30 transition-colors group">
@@ -69,10 +69,10 @@ export default function AssetList({ assets, onAdd, onEdit, onDelete, onRenew }) 
                                         </span>
                                     )}
                                 </div>
-                                
+
                                 <div className="text-[10px] font-mono text-slate-500 flex items-center gap-3 mt-0.5">
                                     <span className="uppercase">{a.asset_type}</span>
-                                    
+
                                     {/* RENDER DIFFERENTLY BASED ON TYPE */}
                                     {isDigital ? (
                                         <>
@@ -92,12 +92,12 @@ export default function AssetList({ assets, onAdd, onEdit, onDelete, onRenew }) 
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-3">
                             <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded ${a.status === 'active' ? 'bg-green-900 text-green-400' : 'bg-slate-700 text-slate-400'}`}>
                                 {a.status}
                             </span>
-                            
+
                             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 {a.expires_at && onRenew && (
                                     <button onClick={() => onRenew(a)} className="p-1 text-slate-500 hover:text-indigo-400" title="Renew Asset"><RefreshCw size={14}/></button>

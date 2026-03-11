@@ -6,9 +6,9 @@ export default function MilestoneList({ milestones, onMove, onEdit, onStatusChan
   const navigate = useNavigate();
 
   const getIconForType = (type) => {
-      if(type==='bug') return <Bug size={14} className="text-red-400"/>; 
-      if(type==='feature') return <Zap size={14} className="text-yellow-400"/>; 
-      return <Activity size={14} className="text-blue-400"/>; 
+      if(type==='bug') return <Bug size={14} className="text-red-400"/>;
+      if(type==='feature') return <Zap size={14} className="text-yellow-400"/>;
+      return <Activity size={14} className="text-blue-400"/>;
   };
 
   return (
@@ -32,7 +32,7 @@ export default function MilestoneList({ milestones, onMove, onEdit, onStatusChan
                                   <p className="text-xs opacity-50">Due: {ms.due_date || 'TBD'} • ${ms.billable_amount.toLocaleString()}</p>
                               </div>
                           </div>
-                          
+
                           <div className="flex gap-2">
                               <select className="bg-slate-800 border border-slate-600 text-xs rounded p-1 text-white uppercase font-bold" value={ms.status} onChange={(e) => onStatusChange(ms.id, e.target.value)} disabled={!!ms.invoice_id}><option value="pending">Pending</option><option value="active">Active</option><option value="completed">Completed</option></select>
                               <button onClick={() => onAddTask(ms.id)} className="p-1 rounded bg-slate-700 hover:bg-slate-600 text-white" title="Add Task"><Plus size={14} /></button>

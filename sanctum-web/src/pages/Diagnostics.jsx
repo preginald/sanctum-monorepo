@@ -60,7 +60,7 @@ export default function Diagnostics() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            Status: 
+            Status:
             {report && (
               <Badge variant={report.status === 'nominal' ? 'success' : 'danger'}>
                 {report.status}
@@ -71,8 +71,8 @@ export default function Diagnostics() {
             Last Check: {lastRun ? lastRun.toLocaleTimeString() : 'Pending...'}
           </p>
         </div>
-        <Button 
-          onClick={runDiagnostics} 
+        <Button
+          onClick={runDiagnostics}
           disabled={loading}
           icon={RefreshCw}
           variant="primary"

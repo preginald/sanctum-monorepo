@@ -21,7 +21,7 @@ describe('TicketBadges', () => {
             const { container } = render(<StatusBadge status="pending" />);
             expect(container.firstChild.className).toContain('bg-yellow-500');
         });
-        
+
         it('defaults to slate for unknown status', () => {
              const { container } = render(<StatusBadge status="unknown-status" />);
              expect(container.firstChild.className).toContain('bg-slate-500');

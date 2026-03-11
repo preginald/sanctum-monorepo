@@ -14,7 +14,7 @@ export default function ArticleEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { addToast } = useToast();
-  
+
   const [loading, setLoading] = useState(!!id);
   const [formData, setFormData] = useState({
     title: '', slug: '', category: 'wiki', identifier: '', version: 'v1.0', content: ''
@@ -22,7 +22,7 @@ export default function ArticleEditor() {
   const [activeTab, setActiveTab] = useState('write');
 
 
-  
+
   // --- EMBED MENU LOGIC ---
   const [embedMenu, setEmbedMenu] = useState({ active: false, query: '', startIndex: null, cursorIndex: null });
   const [availableArticles, setAvailableArticles] = useState([]);
@@ -40,7 +40,7 @@ export default function ArticleEditor() {
 
     const cursor = e.target.selectionStart;
     const textBefore = val.substring(0, cursor);
-    
+
     // Regex matches {{article: followed by anything EXCEPT a closing brace, anchored to the end
     const match = textBefore.match(/\{\{article:([^\}]*)$/);
 
@@ -59,7 +59,7 @@ export default function ArticleEditor() {
     setFormData({...formData, content: newContent});
     setEmbedMenu({ active: false, query: '', startIndex: null, cursorIndex: null });
   };
- 
+
 
   useEffect(() => {
     if (id) {
@@ -119,9 +119,9 @@ export default function ArticleEditor() {
               {availableArticles
                 .filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase())))
                 .map(a => (
-                  <div 
-                    key={a.id} 
-                    onClick={() => insertEmbed(a.identifier || a.slug)} 
+                  <div
+                    key={a.id}
+                    onClick={() => insertEmbed(a.identifier || a.slug)}
                     className="p-3 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-transparent hover:border-white/20 mb-1"
                   >
                     <div className="font-bold text-white text-sm mb-1">{a.title}</div>
@@ -137,7 +137,7 @@ export default function ArticleEditor() {
     </Layout>;return (
     <Layout title={id ? "Edit Article" : "New Article"}>
       <form onSubmit={handleSave} className="h-[calc(100vh-140px)] flex flex-col">
-          
+
           {/* TOOLBAR */}
           <div className="flex justify-between items-center mb-4">
               <div className="flex items-center gap-4">
@@ -167,9 +167,9 @@ export default function ArticleEditor() {
               </div>
               <div className="col-span-2">
                 <label className="text-xs opacity-50 block mb-1">Category</label>
-                  <select 
-                      className="w-full bg-black/40 border border-slate-600 rounded p-2 text-white capitalize" 
-                      value={formData.category} 
+                  <select
+                      className="w-full bg-black/40 border border-slate-600 rounded p-2 text-white capitalize"
+                      value={formData.category}
                       onChange={e => setFormData({...formData, category: e.target.value})}
                   >
                       {ARTICLE_CATEGORIES.map(c => (
@@ -191,8 +191,8 @@ export default function ArticleEditor() {
           <div className="flex-1 bg-slate-900 border border-slate-700 rounded-lg overflow-hidden flex">
               {/* WRITE PANE */}
               <div className={`flex-1 flex flex-col ${activeTab === 'preview' ? 'hidden' : 'block'}`}>
-              <textarea 
-  className="flex-1 w-full bg-transparent p-6 text-slate-300 font-mono text-sm outline-none resize-none" 
+              <textarea
+  className="flex-1 w-full bg-transparent p-6 text-slate-300 font-mono text-sm outline-none resize-none"
   placeholder="# Start writing your SOP here..."
   value={formData.content}
   onChange={handleContentChange}
@@ -208,7 +208,7 @@ export default function ArticleEditor() {
           </div>
 
       </form>
-    
+
         {embedMenu.active && (
           <div className="fixed z-[100] bg-slate-900 border border-sanctum-gold rounded-xl shadow-2xl w-96 overflow-hidden animate-in slide-in-from-bottom-4" style={{ bottom: '2rem', right: '2rem' }}>
             <div className="bg-slate-800 p-3 border-b border-slate-700 flex justify-between items-center">
@@ -221,9 +221,9 @@ export default function ArticleEditor() {
               {availableArticles
                 .filter(a => a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase())))
                 .map(a => (
-                  <div 
-                    key={a.id} 
-                    onClick={() => insertEmbed(a.identifier || a.slug)} 
+                  <div
+                    key={a.id}
+                    onClick={() => insertEmbed(a.identifier || a.slug)}
                     className="p-3 hover:bg-white/10 cursor-pointer rounded-lg transition-colors border border-transparent hover:border-white/20 mb-1"
                   >
                     <div className="font-bold text-white text-sm mb-1">{a.title}</div>

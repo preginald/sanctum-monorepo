@@ -31,6 +31,7 @@ from bridge_filter import filter_output
 # Argument parsing (stdlib only — no argparse)
 # ─────────────────────────────────────────────
 
+
 def parse_args(argv):
     """
     Returns (quiet: bool, command: str | None)
@@ -58,11 +59,12 @@ def parse_args(argv):
 # Output helpers
 # ─────────────────────────────────────────────
 
-CYAN  = "\033[0;36m"
-GRAY  = "\033[0;90m"
+CYAN = "\033[0;36m"
+GRAY = "\033[0;90m"
 GREEN = "\033[0;32m"
-RED   = "\033[0;31m"
-NC    = "\033[0m"
+RED = "\033[0;31m"
+NC = "\033[0m"
+
 
 def print_header(command, exit_code, quiet):
     if quiet:
@@ -75,6 +77,7 @@ def print_header(command, exit_code, quiet):
 # ─────────────────────────────────────────────
 # Modes
 # ─────────────────────────────────────────────
+
 
 def run_command(command, quiet):
     """Execute command in a subprocess, filter output, print result."""
@@ -112,6 +115,7 @@ def run_pipe(quiet):
 # Entry point
 # ─────────────────────────────────────────────
 
+
 def main():
     quiet, command = parse_args(sys.argv)
 
@@ -123,7 +127,7 @@ def main():
         print("Usage:")
         print('  python3 bridge.py "command to run"')
         print("  some_command | python3 bridge.py")
-        print("  python3 bridge.py --quiet \"command\"")
+        print('  python3 bridge.py --quiet "command"')
         sys.exit(1)
 
 

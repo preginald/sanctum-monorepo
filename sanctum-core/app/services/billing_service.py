@@ -20,22 +20,22 @@ class BillingService:
         Returns dictionary of Decimals.
         """
         subtotal = Decimal("0.00")
-        
+
         for item in items:
             # Handle both SQLAlchemy objects and Pydantic models/dicts
             qty = Decimal(str(item.quantity)) if hasattr(item, 'quantity') else Decimal(str(item['quantity']))
             price = Decimal(str(item.unit_price)) if hasattr(item, 'unit_price') else Decimal(str(item['unit_price']))
-            
+
             line_total = qty * price
             line_total = line_total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-            
+
             subtotal += line_total
 
         gst = subtotal * Decimal("0.10")
         gst = gst.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        
+
         total = subtotal + gst
-        
+
         return {
             "subtotal": subtotal,
             "gst": gst,
@@ -55,7 +55,7 @@ class BillingService:
         # 1. Check Billing Window (Past OR Future 30 days)
         today = date.today()
         is_due = asset.expires_at <= (today + timedelta(days=30))
-        
+
         if not is_due:
             return {"status": "skipped", "reason": "Not due for billing yet"}
 
@@ -74,7 +74,7 @@ class BillingService:
             account_id=asset.account_id,
             status='draft',
             payment_terms='Net 14 Days',
-            due_date=date.today(), 
+            due_date=date.today(),
             generated_at=datetime.now(timezone.utc)
         )
         db.add(invoice)
@@ -82,11 +82,11 @@ class BillingService:
 
         # --- DESCRIPTION FORMATTING ---
         product = asset.linked_product
-        
+
         # Calculate the "Registered Till" date (The NEW expiry)
         # We assume the asset.expires_at is the OLD date (e.g., 2026), so we add the cycle to it.
         new_expiry_date = asset.expires_at
-        
+
         if product.billing_frequency == 'yearly':
             try:
                 new_expiry_date = asset.expires_at.replace(year=asset.expires_at.year + 1)
@@ -104,12 +104,12 @@ class BillingService:
                 new_expiry_date = asset.expires_at.replace(year=next_year, month=next_month, day=28)
 
         formatted_date = new_expiry_date.strftime('%d/%m/%Y')
-        
+
         # Format: "Renewal (Catch-up): domain.com registered till 27/01/2027 - Product Name"
         desc_str = f"Renewal (Catch-up): {asset.name} registered till {formatted_date} - {product.name}"
 
         price = Decimal(str(product.unit_price))
-        
+
         item = InvoiceItem(
             invoice_id=invoice.id,
             description=desc_str,

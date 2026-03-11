@@ -23,7 +23,7 @@ def test_invoice_totals_structure():
     """Test that the dictionary returned has correct keys and types"""
     items = [MockItem(1, 100)]
     result = billing_service.calculate_totals(items)
-    
+
     assert "subtotal" in result
     assert "gst" in result
     assert "total" in result
@@ -37,13 +37,13 @@ def test_complex_invoice_math():
         # Item 2: 1 hardware @ $99.99 = $99.99
         MockItem(1, 99.99)
     ]
-    
+
     # Expected Subtotal: 375.00 + 99.99 = 474.99
     # Expected GST: 47.499 -> 47.50
     # Expected Total: 474.99 + 47.50 = 522.49
-    
+
     result = billing_service.calculate_totals(items)
-    
+
     assert result["subtotal"] == Decimal("474.99")
     assert result["gst"] == Decimal("47.50")
     assert result["total"] == Decimal("522.49")

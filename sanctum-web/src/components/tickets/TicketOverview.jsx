@@ -7,8 +7,8 @@ import {  handleSmartWrap } from '../../lib/textUtils';
 import SearchableSelect from '../ui/SearchableSelect';
 import { Search as LucideSearchIcon,  User, Briefcase, X, Plus, ShieldCheck } from 'lucide-react';
 
-export default function TicketOverview({ 
-  ticket, isEditing, formData, setFormData, contacts, accountProjects, techs, 
+export default function TicketOverview({
+  ticket, isEditing, formData, setFormData, contacts, accountProjects, techs,
   onLinkContact, onUnlinkContact, onUpdateTech, showQuickTech, setShowQuickTech,
   showQuickMilestone, setShowQuickMilestone, onUpdateMilestone
 }) {
@@ -16,21 +16,21 @@ export default function TicketOverview({
   // --- COMMAND PALETTE LOGIC ---
   const [embedMenu, setEmbedMenu] = React.useState({ active: false, query: '', startIndex: null, cursorIndex: null });
   const [availableArticles, setAvailableArticles] = React.useState([]);
-  
+
   const fetchArticles = async () => {
-    try { const res = await api.get('/articles'); setAvailableArticles(res.data); } 
+    try { const res = await api.get('/articles'); setAvailableArticles(res.data); }
     catch (e) { console.error(e); }
   };
-  
+
   const handleDescriptionChange = (e) => {
     const val = e.target.value;
     console.log("[Wiretap] Typing detected. Length:", val.length);
     setFormData({ ...formData, description: val });
-    
+
     const cursor = e.target.selectionStart;
     const match = val.substring(0, cursor).match(/\{\{article:([^\}]*)$/);
     console.log("[Wiretap] Regex match result:", match ? "SUCCESS" : "FAILED");
-    
+
     if (match) {
       console.log("[Wiretap] Trigger activated! Fetching articles...");
       if (availableArticles.length === 0) fetchArticles();
@@ -39,16 +39,16 @@ export default function TicketOverview({
       setEmbedMenu(prev => prev.active ? { active: false, query: '', startIndex: null, cursorIndex: null } : prev);
     }
   };
-  
+
   const insertEmbed = (identifier) => {
     const before = formData.description.substring(0, embedMenu.startIndex);
     const after = formData.description.substring(embedMenu.cursorIndex);
     setFormData({ ...formData, description: before + `{{article:${identifier}}}` + after });
     setEmbedMenu({ active: false, query: '', startIndex: null, cursorIndex: null });
   };
-  
+
   const formatDate = (d) => d ? new Date(d).toLocaleString() : '';
-  const formatInputDate = (d) => d ? d.slice(0, 16) : ''; 
+  const formatInputDate = (d) => d ? d.slice(0, 16) : '';
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const [showInlineContact, setShowInlineContact] = useState(false);
 
@@ -84,13 +84,13 @@ if (!isEditing) {
           <label className="text-xs uppercase opacity-50 font-bold tracking-widest flex items-center gap-2">
             <ShieldCheck size={14} className="text-purple-400" /> Assigned Agent
           </label>
-          
+
           {!showQuickTech && (
-            <button 
-              onClick={() => setShowQuickTech(true)} 
+            <button
+              onClick={() => setShowQuickTech(true)}
               className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/5 border border-purple-500/20 text-purple-400 hover:bg-purple-500/10 hover:border-purple-400 transition-all text-[10px] font-bold uppercase tracking-tighter"
             >
-              <Plus size={12} className="group-hover:rotate-90 transition-transform" /> 
+              <Plus size={12} className="group-hover:rotate-90 transition-transform" />
               Assign Agent
             </button>
           )}
@@ -98,7 +98,7 @@ if (!isEditing) {
 
         {showQuickTech && (
           <div className="mb-4 animate-in slide-in-from-top-1 duration-200 z-20 relative">
-            <SearchableSelect 
+            <SearchableSelect
               items={techs || []}
               onSelect={(t) => { onUpdateTech(t.id); setShowQuickTech(false); }}
               placeholder="Select technician..."
@@ -116,9 +116,9 @@ if (!isEditing) {
               {assignedTech?.full_name || "Currently Unassigned"}
             </span>
           </div>
-          
+
           {ticket.assigned_tech_id && (
-            <button 
+            <button
               onClick={() => onUpdateTech(null)}
               className="p-1.5 rounded-full bg-white/5 border border-white/10 text-slate-500 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all"
               title="Unassign Agent"
@@ -174,13 +174,13 @@ if (!isEditing) {
     <label className="text-xs uppercase opacity-50 font-bold tracking-widest flex items-center gap-2">
       <User size={14} className="text-blue-400" /> Affected Humans
     </label>
-    
+
     {!showInlineContact && (
-      <button 
-        onClick={() => setShowInlineContact(true)} 
+      <button
+        onClick={() => setShowInlineContact(true)}
         className="group flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/5 border border-blue-500/20 text-blue-400 hover:bg-blue-500/10 hover:border-blue-400 transition-all text-[10px] font-bold uppercase tracking-tighter"
       >
-        <Plus size={12} className="group-hover:rotate-90 transition-transform" /> 
+        <Plus size={12} className="group-hover:rotate-90 transition-transform" />
         Link Contact
       </button>
     )}
@@ -188,14 +188,14 @@ if (!isEditing) {
 
   {showInlineContact && (
     <div className="mb-4 animate-in slide-in-from-top-1 duration-200 z-20 relative">
-      <SearchableSelect 
-        items={contactOptions} 
-        onSelect={(c) => { onLinkContact(c.id); setShowInlineContact(false); }} 
-        placeholder="Find account contact..." 
-        labelKey="title" 
-        subLabelKey="subtitle" 
-        icon={User} 
-        onClose={() => setShowInlineContact(false)} 
+      <SearchableSelect
+        items={contactOptions}
+        onSelect={(c) => { onLinkContact(c.id); setShowInlineContact(false); }}
+        placeholder="Find account contact..."
+        labelKey="title"
+        subLabelKey="subtitle"
+        icon={User}
+        onClose={() => setShowInlineContact(false)}
       />
     </div>
   )}
@@ -205,8 +205,8 @@ if (!isEditing) {
       <div key={c.id} className="group flex items-center gap-1.5 bg-blue-500/10 border border-blue-500/20 px-3 py-1.5 rounded-full transition-all hover:border-blue-400/50 shadow-sm">
         <User size={12} className="text-blue-400" />
         <span className="text-xs font-semibold text-blue-100">{c.first_name} {c.last_name}</span>
-        <button 
-            onClick={(e) => onUnlinkContact(e, c.id)} 
+        <button
+            onClick={(e) => onUnlinkContact(e, c.id)}
             className="ml-1 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all transform hover:scale-110"
         >
             <X size={12} />
@@ -219,16 +219,16 @@ if (!isEditing) {
     )}
   </div>
 </div>
-        
+
         <div className="pt-2 border-t border-slate-800 text-sm text-gray-300 leading-relaxed">
             <SanctumMarkdown content={ticket.resolved_description || ticket.description || "No description provided."} />
         </div>
-        
+
         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800 text-[10px] font-mono uppercase tracking-tighter opacity-40">
             <div>Opened: {formatDate(ticket.created_at)}</div>
             <div>{ticket.closed_at ? `Closed: ${formatDate(ticket.closed_at)}` : `Last Update: ${formatDate(ticket.updated_at)}`}</div>
         </div>
-        
+
         {ticket.resolution && (
             <div className="pt-4 border-t border-slate-800">
                 <label className="text-xs uppercase opacity-50 block mb-2 text-green-400 font-bold">Official Resolution</label>
@@ -279,8 +279,8 @@ if (!isEditing) {
             <span className="text-[10px] font-bold text-sanctum-gold uppercase tracking-tighter flex items-center gap-1"><LucideSearchIcon size={12}/> Link Wiki Article</span>
           </div>
           <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
-            {availableArticles.filter(a => 
-              a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) || 
+            {availableArticles.filter(a =>
+              a.title.toLowerCase().includes(embedMenu.query.toLowerCase()) ||
               (a.identifier && a.identifier.toLowerCase().includes(embedMenu.query.toLowerCase()))
             ).map(a => (
               <div key={a.id} onMouseDown={(e) => { e.preventDefault(); insertEmbed(a.identifier || a.slug); }} className="p-2 hover:bg-white/10 cursor-pointer rounded text-xs transition-colors">

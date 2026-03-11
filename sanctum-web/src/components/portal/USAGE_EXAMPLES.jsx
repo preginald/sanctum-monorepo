@@ -1,18 +1,18 @@
 /**
  * PORTAL COMPONENTS - USAGE EXAMPLES
- * 
+ *
  * Copy these patterns when refactoring existing portal pages
  */
 
 import React from 'react';
 import { AlertCircle, Receipt, Briefcase } from 'lucide-react';
-import { 
-  Card, 
-  StatWidget, 
-  StatusBadge, 
-  ProgressBar, 
+import {
+  Card,
+  StatWidget,
+  StatusBadge,
+  ProgressBar,
   ScoreDisplay,
-  usePortalTheme 
+  usePortalTheme
 } from '../components/portal';
 
 function ExamplePortalPage({ account }) {
@@ -20,7 +20,7 @@ function ExamplePortalPage({ account }) {
 
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.textMain}`}>
-      
+
       {/* EXAMPLE 1: Basic Card */}
       <Card isNaked={theme.isNaked}>
         <h3>Simple Card</h3>
@@ -28,7 +28,7 @@ function ExamplePortalPage({ account }) {
       </Card>
 
       {/* EXAMPLE 2: Clickable Card with Hover */}
-      <Card 
+      <Card
         isNaked={theme.isNaked}
         hover={true}
         onClick={() => alert('Clicked!')}
@@ -37,7 +37,7 @@ function ExamplePortalPage({ account }) {
       </Card>
 
       {/* EXAMPLE 3: Dashed Card (Empty State) */}
-      <Card 
+      <Card
         isNaked={theme.isNaked}
         dashed={true}
         className="text-center"
@@ -77,10 +77,10 @@ function ExamplePortalPage({ account }) {
       <div className="space-y-4">
         {/* Simple progress bar */}
         <ProgressBar score={75} />
-        
+
         {/* With label on top */}
         <ProgressBar score={85} showLabel={true} labelPosition="top" />
-        
+
         {/* Animated */}
         <ProgressBar score={50} animated={true} colorMode="score" />
       </div>
@@ -96,7 +96,7 @@ function ExamplePortalPage({ account }) {
 
 /**
  * BEFORE (Dashboard widget - 40+ lines):
- * 
+ *
  * <div className={`p-6 rounded-xl border ${theme.card} flex flex-col justify-between`}>
  *   <div className="flex justify-between items-start">
  *     <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 flex items-center gap-2">
@@ -112,7 +112,7 @@ function ExamplePortalPage({ account }) {
 
 /**
  * AFTER (Using StatWidget - 7 lines):
- * 
+ *
  * <StatWidget
  *   icon={AlertCircle}
  *   label="Active Requests"

@@ -15,10 +15,10 @@ export default function PortalQuestionnaire() {
   const handleSubmit = async (formData) => {
     // Client submission to their own account
     await api.post(`/portal/questionnaire/submit${impersonateId ? '?impersonate=' + impersonateId : ''}`, formData);
-    
+
     // Clear draft on success
     localStorage.removeItem('questionnaire_draft');
-    
+
     // Redirect to completion page
     navigate('/portal/questionnaire/complete');
   };
@@ -26,12 +26,12 @@ export default function PortalQuestionnaire() {
   return (
     <div className="min-h-screen bg-slate-950 py-12 px-4">
       <div className="max-w-3xl mx-auto">
-        <QuestionnaireForm 
+        <QuestionnaireForm
           initialData={initialData}
           onSubmit={handleSubmit}
           mode="client"
         />
-        
+
         <div className="mt-6 text-center">
           <p className="text-sm text-slate-500">
             Your progress is automatically saved to your browser.

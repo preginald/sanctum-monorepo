@@ -2,7 +2,7 @@
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../lib/api'; 
+import api from '../lib/api';
 import { formatDate, formatCurrency } from '../lib/formatters';
 import { ArrowLeft, FileText, Download, CheckCircle, AlertCircle, Loader2, Server, MessageSquare, Send, BookOpen, Link as LinkIcon } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
@@ -14,12 +14,12 @@ const PortalTicketDetail = () => {
   const navigate = useNavigate();
   const { portalNav, impersonateId } = usePortalNav();
   const { addToast } = useToast();
-  
+
   const [ticket, setTicket] = useState(null);
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(null);
-  
+
   // REPLY STATE
   const [replyText, setReplyText] = useState('');
   const [sending, setSending] = useState(false);
@@ -83,7 +83,7 @@ const PortalTicketDetail = () => {
   const handlePostComment = async (e) => {
       e.preventDefault();
       if (!replyText.trim()) return;
-      
+
       setSending(true);
       try {
           await api.post(`/portal/tickets/${id}/comments${impersonateId ? '?impersonate=' + impersonateId : ''}`, { body: replyText });
@@ -122,9 +122,9 @@ const PortalTicketDetail = () => {
   return (
     <div className={`min-h-screen ${theme.bg} ${theme.textMain} p-8`}>
       <div className="max-w-6xl mx-auto space-y-8">
-        
+
         {/* Header / Nav */}
-        <button 
+        <button
           onClick={() => portalNav('/portal')}
           className={`flex items-center ${theme.textSub} hover:${theme.textMain} transition-colors`}
         >
@@ -148,10 +148,10 @@ const PortalTicketDetail = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* LEFT COLUMN: Main Content & Stream */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* RESOLUTION ALERT */}
             {ticket.resolution && (
               <div className={`p-6 rounded-xl border border-green-500/20 bg-green-500/5 mb-6`}>
@@ -178,7 +178,7 @@ const PortalTicketDetail = () => {
                 <h3 className="text-xs font-bold uppercase tracking-widest opacity-50 mb-6 flex items-center gap-2">
                     <MessageSquare size={16} /> Conversation
                 </h3>
-                
+
                 <div className="space-y-6 mb-8">
                     {ticket.comments?.length > 0 ? ticket.comments.map(comment => (
                         <div key={comment.id} className={`flex ${comment.is_me ? 'justify-end' : 'justify-start'}`}>
@@ -205,7 +205,7 @@ const PortalTicketDetail = () => {
                 {/* REPLY BOX */}
                 {ticket.status !== 'resolved' && (
                     <form onSubmit={handlePostComment} className="relative">
-                        <textarea 
+                        <textarea
                             className={`w-full p-4 pr-12 rounded-xl border focus:outline-none focus:ring-2 focus:ring-opacity-50 transition-all text-sm min-h-[100px] ${theme.inputBg} ${isNaked ? 'focus:ring-pink-500' : 'focus:ring-yellow-500'}`}
                             placeholder="Type your reply here..."
                             value={replyText}
@@ -217,8 +217,8 @@ const PortalTicketDetail = () => {
                                 }
                             }}
                         />
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             disabled={sending || !replyText.trim()}
                             className={`absolute right-3 bottom-3 p-2 rounded-lg transition-colors ${sending || !replyText.trim() ? 'opacity-30 cursor-not-allowed' : 'hover:bg-white/10'}`}
                         >
@@ -236,7 +236,7 @@ const PortalTicketDetail = () => {
 
           {/* RIGHT COLUMN: Sidebar (Invoices & Assets) */}
           <div className="space-y-6">
-            
+
             {/* INVOICES CARD */}
             <div className={`rounded-xl border ${theme.card} overflow-hidden`}>
               <div className={`p-4 border-b ${isNaked ? 'border-slate-200' : 'border-slate-700'} flex items-center justify-between`}>
@@ -245,7 +245,7 @@ const PortalTicketDetail = () => {
                   Related Invoices
                 </h3>
               </div>
-              
+
               {invoices.length === 0 ? (
                 <div className={`p-8 text-center ${theme.textSub} text-sm`}>
                   No invoices linked to this ticket.
@@ -267,14 +267,14 @@ const PortalTicketDetail = () => {
                       <div className={`text-xs ${theme.textSub} mb-3`}>
                         Due: {formatDate(inv.due_date)}
                       </div>
-                      
+
                       {inv.pdf_generated ? (
                         <button
                           onClick={() => handleDownloadInvoice(inv.id)}
                           disabled={downloading === inv.id}
                           className={`w-full flex items-center justify-center gap-2 text-xs py-2 rounded font-medium transition-colors border ${
-                            isNaked 
-                              ? 'border-slate-300 hover:bg-slate-100 text-slate-700' 
+                            isNaked
+                              ? 'border-slate-300 hover:bg-slate-100 text-slate-700'
                               : 'border-slate-600 hover:bg-slate-700 text-slate-300'
                           } disabled:opacity-50`}
                         >
@@ -341,7 +341,7 @@ const PortalTicketDetail = () => {
                 </div>
                 <div className={`divide-y ${isNaked ? 'divide-slate-200' : 'divide-slate-700'}`}>
                   {ticket.articles.map(article => (
-                    <a 
+                    <a
                       key={article.id}
                       href="#"
                       onClick={(e) => { e.preventDefault(); portalNav(`/portal/wiki/${article.slug}`); }}
@@ -370,7 +370,7 @@ const PortalTicketDetail = () => {
                   Affected Assets
                 </h3>
               </div>
-              
+
               {ticket.assets?.length > 0 ? (
                   <div className={`divide-y ${isNaked ? 'divide-slate-200' : 'divide-slate-700'}`}>
                       {ticket.assets.map(asset => (
@@ -391,7 +391,7 @@ const PortalTicketDetail = () => {
                   </div>
               )}
             </div>
-            
+
             {/* SUPPORT BOX */}
             <div className={`p-4 rounded-xl border border-blue-500/20 bg-blue-500/5`}>
               <div className="flex items-start gap-3">
