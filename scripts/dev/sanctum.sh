@@ -21,6 +21,9 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../lib/sanctum_common.sh"
 
 main() {
+# Global cache for article list — avoids redundant GET /articles calls
+_ARTICLE_LIST_CACHE=""
+
 # ─────────────────────────────────────────────
 # USAGE
 # ─────────────────────────────────────────────
@@ -223,15 +226,26 @@ search_usage() {
 }
 
 # ─────────────────────────────────────────────
+# SHARED HELPER: Fetch article list (cached)
+# Populates _ARTICLE_LIST_CACHE on first call
+# ─────────────────────────────────────────────
+fetch_article_list() {
+    if [ -z "$_ARTICLE_LIST_CACHE" ]; then
+        _ARTICLE_LIST_CACHE=$(api_get "/articles")
+    fi
+}
+
+# ─────────────────────────────────────────────
 # SHARED HELPER: Resolve article identifier or UUID
 # Usage: ARTICLE_UUID=$(resolve_article_identifier "DOC-012")
+# Uses cached article list to avoid redundant API calls
 # ─────────────────────────────────────────────
 resolve_article_identifier() {
     local INPUT="$1"
     if [[ "$INPUT" =~ ^[A-Z]+-[0-9]+$ ]]; then
-        local ARTICLES RESOLVED
-        ARTICLES=$(api_get "/articles")
-        RESOLVED=$(echo "$ARTICLES" | jq -r --arg id "$INPUT" '.[] | select(.identifier == $id) | .id // empty')
+        fetch_article_list
+        local RESOLVED
+        RESOLVED=$(echo "$_ARTICLE_LIST_CACHE" | jq -r --arg id "$INPUT" '.[] | select(.identifier == $id) | .id // empty')
         if [ -z "$RESOLVED" ]; then
             echo -e "${RED}✗ No article found with identifier: ${INPUT}${NC}" >&2
             return 1
@@ -1614,7 +1628,7 @@ search_query() {
             -t|--type)   TYPE="$2"; shift 2 ;;
             -l|--limit)  LIMIT="$2"; shift 2 ;;
             -e|--env)    ENV="$2"; shift 2 ;;
-            *) 
+            *)
                 # Append to query if not a flag
                 if [[ ! "$1" =~ ^- ]]; then
                     QUERY="$QUERY $1"; shift
