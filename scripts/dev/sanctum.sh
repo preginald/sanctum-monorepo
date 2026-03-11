@@ -180,7 +180,7 @@ article_usage() {
     echo "           [-f|--file <path>], [--related <id1,id2,...>], [-e|--env]"
     echo "  update:  <uuid|identifier>, [-f|--file <path>], [-t|--title <text>],"
     echo "           [--related <id1,id2,...>], [--section <heading>], [-e|--env]"
-    echo "  show:    <slug|identifier>, [-c|--content], [-e|--env]"
+    echo "  show:    <slug|identifier>, [-c|--content], [--headings], [--section <heading>], [-e|--env]"
     echo "  relate:  <uuid|identifier> --related <id1,id2,...>, [-e|--env]"
     echo "  unrelate:<uuid|identifier> --related <id>, [-e|--env]"
     echo "  history: <slug|identifier>, [-n|--page-size <n>], [-e|--env]"
@@ -202,6 +202,8 @@ article_usage() {
     echo "  sanctum.sh article revert DOC-012 --to-version v1.3 -e prod"
     echo "  sanctum.sh article revert DOC-012 --history-id abc123 --fields content --comment 'Rolling back' -e prod"
     echo "  sanctum.sh article show DOC-012 -c"
+    echo "  sanctum.sh article show DOC-009 --headings -e prod"
+    echo "  sanctum.sh article show DOC-021 --section \"## Overview\" -e prod"
     echo ""
     exit 0
 }
