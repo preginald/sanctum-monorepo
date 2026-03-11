@@ -1682,6 +1682,7 @@ article_show() {
     local ENV="dev"
     local SHOW_CONTENT=false
     local SHOW_HEADINGS=false
+    local SECTION=""
 
     [ -z "$QUERY" ] && echo -e "${RED}✗ Slug or identifier is required${NC}" && exit 1
 
@@ -1690,6 +1691,7 @@ article_show() {
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
             --headings)     SHOW_HEADINGS=true; shift ;;
+            --section)      SECTION="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -1712,7 +1714,20 @@ article_show() {
         exit 1
     fi
     echo ""
-    if [ "$SHOW_HEADINGS" = true ]; then
+    if [ -n "$SECTION" ]; then
+        # Extract section: from matching heading to next heading of equal/higher level
+        local HEADING_LEVEL
+        HEADING_LEVEL=$(echo "$SECTION" | awk '{match($0, /^#+/); print RLENGTH}')
+        echo "$RESULT" | jq -r '.content' | awk -v heading="$SECTION" -v level="$HEADING_LEVEL" '
+            BEGIN { found=0 }
+            $0 == heading { found=1; print; next }
+            found && /^#{1,}/ {
+                match($0, /^#+/)
+                if (RLENGTH <= level) exit
+            }
+            found { print }
+        '
+    elif [ "$SHOW_HEADINGS" = true ]; then
         echo "$RESULT" | jq -r '.content' | grep '^#\+ '
     elif [ "$SHOW_CONTENT" = true ]; then
         echo "$RESULT" | jq '{id, identifier, title, slug, category, version, author_id, created_at, updated_at, content}'
