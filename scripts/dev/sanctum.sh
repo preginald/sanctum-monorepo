@@ -38,6 +38,7 @@ usage() {
     echo "  milestone  Manage project milestones (create, update, list, show)"
     echo "  invoice    Manage invoices (create, update, delete, show)"
     echo "  article    Manage knowledge base articles (create, update, show)"
+    echo "  context    Session context loader (batch article reader)"
     echo "  search     Omnisearch — cross-entity fuzzy search"
     echo ""
     echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
@@ -203,6 +204,114 @@ article_usage() {
     echo "  sanctum.sh article show DOC-012 -c"
     echo ""
     exit 0
+}
+
+context_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh context — Session Context Loader${NC}"
+    echo ""
+    echo "Usage: sanctum.sh context load <id1,id2,...> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  load     Batch-load articles by identifier or slug, concatenated to clipboard"
+    echo ""
+    echo -e "${YELLOW}OPTIONS${NC}"
+    echo "  --headings       Output only headings per article (table of contents mode)"
+    echo "  --format json    Output as JSON array instead of markdown"
+    echo "  -e|--env         dev | prod (default: dev)"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh context load DOC-002,DOC-001,DOC-010,TPL-001 -e prod"
+    echo "  sanctum.sh context load DOC-009,SOP-099 --headings -e prod"
+    echo "  sanctum.sh context load DOC-001,DOC-002 --format json -e prod"
+    echo ""
+    exit 0
+}
+
+context_load() {
+    local IDENTIFIERS="" ENV="dev" HEADINGS=false FORMAT="markdown"
+
+    # First arg is the identifier list (if not a flag)
+    if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; then
+        IDENTIFIERS="$1"; shift
+    fi
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --headings)  HEADINGS=true; shift ;;
+            --format)    FORMAT="$2"; shift 2 ;;
+            -e|--env)    ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$IDENTIFIERS" ] && echo -e "${RED}✗ Comma-separated article identifiers required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — context load"
+    ensure_auth
+
+    # Fetch article list once (uses cache from #399)
+    fetch_article_list
+
+    IFS=',' read -ra ID_LIST <<< "$IDENTIFIERS"
+    local LOADED=0 FAILED=0
+    local JSON_OUTPUT="["
+
+    echo -e "${YELLOW}→ Loading ${#ID_LIST[@]} article(s)...${NC}"
+    echo ""
+
+    for RAW_ID in "${ID_LIST[@]}"; do
+        RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+
+        # Resolve identifier to article JSON from cache
+        local ARTICLE_JSON=""
+        if [[ "$RAW_ID" =~ ^[A-Z]+-[0-9]+$ ]]; then
+            ARTICLE_JSON=$(echo "$_ARTICLE_LIST_CACHE" | jq -c --arg id "$RAW_ID" '.[] | select(.identifier == $id)')
+        else
+            ARTICLE_JSON=$(echo "$_ARTICLE_LIST_CACHE" | jq -c --arg slug "$RAW_ID" '.[] | select(.slug == $slug)')
+        fi
+
+        if [ -z "$ARTICLE_JSON" ] || [ "$ARTICLE_JSON" = "null" ]; then
+            echo -e "${RED}  ✗ Not found: ${RAW_ID}${NC}"
+            FAILED=$((FAILED + 1))
+            continue
+        fi
+
+        local TITLE IDENTIFIER ARTICLE_CONTENT
+        TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
+        IDENTIFIER=$(echo "$ARTICLE_JSON" | jq -r '.identifier // empty')
+        ARTICLE_CONTENT=$(echo "$ARTICLE_JSON" | jq -r '.content // empty')
+
+        if [ "$FORMAT" = "json" ]; then
+            [ "$LOADED" -gt 0 ] && JSON_OUTPUT="${JSON_OUTPUT},"
+            JSON_OUTPUT="${JSON_OUTPUT}$(echo "$ARTICLE_JSON" | jq '{identifier, title, content}')"
+        elif [ "$HEADINGS" = true ]; then
+            echo -e "${BLUE}=== ${IDENTIFIER:-$RAW_ID}: ${TITLE} ===${NC}"
+            echo "$ARTICLE_CONTENT" | grep '^#\{2,3\} '
+            echo ""
+        else
+            echo -e "${BLUE}=== ${IDENTIFIER:-$RAW_ID}: ${TITLE} ===${NC}"
+            echo ""
+            echo "$ARTICLE_CONTENT"
+            echo ""
+            echo "---"
+            echo ""
+        fi
+
+        LOADED=$((LOADED + 1))
+        echo -e "${GREEN}  ✓ ${IDENTIFIER:-$RAW_ID}: ${TITLE}${NC}" >&2
+    done
+
+    if [ "$FORMAT" = "json" ]; then
+        JSON_OUTPUT="${JSON_OUTPUT}]"
+        echo "$JSON_OUTPUT" | jq .
+    fi
+
+    echo "" >&2
+    echo -e "${GREEN}✓ Loaded ${LOADED}/${#ID_LIST[@]} articles${NC}" >&2
+    [ "$FAILED" -gt 0 ] && echo -e "${RED}  ✗ ${FAILED} not found${NC}" >&2
+    echo "" >&2
 }
 
 search_usage() {
@@ -1793,6 +1902,18 @@ case "$DOMAIN" in
                 ;;
         esac
         ;;
+    context)
+        shift 2 || true
+        case "${COMMAND}" in
+            -h|--help) context_usage ;;
+            load)      context_load "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown context command: ${COMMAND}${NC}"
+                echo "  Valid commands: load"
+                exit 1
+                ;;
+        esac
+        ;;
     search)
         shift
         case "${1:-}" in
@@ -1802,7 +1923,7 @@ case "$DOMAIN" in
         ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, milestone, invoice, article, search"
+        echo "  Valid domains: ticket, milestone, invoice, article, context, search"
         exit 1
         ;;
 esac
