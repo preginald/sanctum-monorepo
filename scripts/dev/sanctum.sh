@@ -71,9 +71,9 @@ ticket_usage() {
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
     echo "  create:  -s|--subject <text>, -p|--project <name> OR -a|--account <name>,"
     echo "           [-m|--milestone <name>], [--type <type>], [--priority <priority>],"
-    echo "           [-d|--description <text>], [--articles <id1,id2,...>],
+    echo "           [-d|--description <text>], [-f|--file <path>], [--articles <id1,id2,...>],
            [--relate-tickets <id[:type],...>], [-e|--env dev|prod]"
-    echo "  update:  <id>, [-s|--subject], [-d|--description], [--status <status>],"
+    echo "  update:  <id>, [-s|--subject], [-d|--description], [-f|--file <path>], [--status <status>],"
     echo "           [--priority <priority>], [--type <type>], [-m|--milestone <name>],"
     echo "           [--articles <id1,id2,...>], [--relate-tickets <id[:type],...>], [-e|--env]"
     echo "  comment: <id>, -b|--body <text>, [--status <status>], [--visibility internal|public], [-e|--env]"
@@ -379,6 +379,7 @@ ticket_create() {
         case $1 in
             -s|--subject)     SUBJECT="$2"; shift 2 ;;
             -d|--description) DESCRIPTION="$2"; shift 2 ;;
+            -f|--file)        DESC_FILE="$2"; shift 2 ;;
             -p|--project)     PROJECT_NAME="$2"; shift 2 ;;
             -m|--milestone)   MILESTONE_NAME="$2"; shift 2 ;;
             -a|--account)     ACCOUNT_NAME="$2"; shift 2 ;;
@@ -391,6 +392,10 @@ ticket_create() {
         esac
     done
 
+    if [ -n "$DESC_FILE" ]; then
+        [ ! -f "$DESC_FILE" ] && echo -e "${RED}✗ File not found: ${DESC_FILE}${NC}" && exit 1
+        DESCRIPTION=$(cat "$DESC_FILE")
+    fi
     [ -z "$SUBJECT" ] && echo -e "${RED}✗ -s/--subject is required${NC}" && exit 1
     [ -z "$PROJECT_NAME" ] && [ -z "$ACCOUNT_NAME" ] && echo -e "${RED}✗ -p/--project or -a/--account is required${NC}" && exit 1
 
@@ -715,6 +720,7 @@ ticket_update() {
         case $1 in
             -s|--subject)     SUBJECT="$2"; shift 2 ;;
             -d|--description) DESCRIPTION="$2"; shift 2 ;;
+            -f|--file)        DESC_FILE="$2"; shift 2 ;;
             --status)         STATUS="$2"; shift 2 ;;
             --priority)       PRIORITY="$2"; shift 2 ;;
             --type)           TICKET_TYPE="$2"; shift 2 ;;
@@ -726,6 +732,10 @@ ticket_update() {
         esac
     done
 
+    if [ -n "$DESC_FILE" ]; then
+        [ ! -f "$DESC_FILE" ] && echo -e "${RED}✗ File not found: ${DESC_FILE}${NC}" && exit 1
+        DESCRIPTION=$(cat "$DESC_FILE")
+    fi
     resolve_env "$ENV"
     print_env_banner "sanctum.sh — ticket update"
     ensure_auth
