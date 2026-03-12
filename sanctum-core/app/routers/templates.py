@@ -386,6 +386,7 @@ def _apply_project(
         milestone = models.Milestone(
             project_id=project.id,
             name=section.name,
+            description=section.description,
             sequence=section.sequence,
             status="pending",
         )
