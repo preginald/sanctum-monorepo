@@ -1,3 +1,4 @@
+import re
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func, case, literal
@@ -51,6 +52,15 @@ def _score_result(term: str, result_dict: dict, title_field: str, content_fields
     # Fuzzy fallback — use raw similarity score if provided
     raw_sim = result_dict.get('_similarity', 0.3)
     return round(min(raw_sim, 0.55), 3)  # Cap fuzzy below ilike tier
+
+def _normalise_identifier(term: str) -> Optional[str]:
+    """Detect identifier-like patterns and normalise to PREFIX-NNN format."""
+    m = re.match(r'^([A-Za-z]+)[\s\-_]*(\d+)$', term.strip())
+    if m:
+        prefix = m.group(1).upper()
+        number = m.group(2).zfill(3)
+        return f"{prefix}-{number}"
+    return None
 
 
 @router.get("/search", response_model=List[schemas.SearchResult])
@@ -127,6 +137,7 @@ def global_search(
             term_str = ""
         else:
             mode = None
+    normalised_id = _normalise_identifier(term_str)
 
     term = f"%{term_str}%"
 
@@ -231,6 +242,7 @@ def global_search(
         wiki_query = db.query(models.Article, sim_col.label('sim')).filter(or_(
             models.Article.title.ilike(term),
             models.Article.identifier.ilike(term),
+            *([models.Article.identifier == normalised_id] if normalised_id else []),
             models.Article.content.ilike(term),
             func.word_similarity(term_str, models.Article.title) > 0.3
         ))
@@ -242,7 +254,7 @@ def global_search(
                 [w.content]
             )
             # Boost exact identifier match
-            if w.identifier and term_str.upper() == w.identifier:
+            if w.identifier and (term_str.upper() == w.identifier or normalised_id == w.identifier):
                 score = 0.95
             results.append({
                 "id": w.id, "type": "wiki", "title": w.title,
