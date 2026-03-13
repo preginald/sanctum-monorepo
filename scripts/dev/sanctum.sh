@@ -17,7 +17,7 @@
 #   sanctum.sh article update <uuid> -f content.md
 #   sanctum.sh article show <slug|identifier> [-c] [-e local|prod]
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
 source "$SCRIPT_DIR/../lib/sanctum_common.sh"
 
 main() {
