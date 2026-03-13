@@ -239,10 +239,11 @@ def global_search(
     # --- WIKI ---
     if mode in [None, 'wiki'] and current_user.role != 'client':
         sim_col = _best_similarity(term_str, models.Article.title, models.Article.content)
+        nid_filter = models.Article.identifier == normalised_id if normalised_id else models.Article.id.is_(None)
         wiki_query = db.query(models.Article, sim_col.label('sim')).filter(or_(
             models.Article.title.ilike(term),
             models.Article.identifier.ilike(term),
-            *([models.Article.identifier == normalised_id] if normalised_id else []),
+            nid_filter,
             models.Article.content.ilike(term),
             func.word_similarity(term_str, models.Article.title) > 0.3
         ))
