@@ -15,7 +15,7 @@
 #   sanctum.sh ticket delete 250
 #   sanctum.sh article create -t "My Article" --slug "my-article" --category "System Documentation" -f content.md
 #   sanctum.sh article update <uuid> -f content.md
-#   sanctum.sh article show <slug|identifier> [-c] [-e dev|prod]
+#   sanctum.sh article show <slug|identifier> [-c] [-e local|prod]
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 source "$SCRIPT_DIR/../lib/sanctum_common.sh"
@@ -42,7 +42,7 @@ usage() {
     echo "  search     Omnisearch — cross-entity fuzzy search"
     echo ""
     echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
-    echo "  -e, --env       dev | prod (default: dev)"
+    echo "  -e, --env       local | prod (default: prod)"
     echo "  -h, --help      Show domain-specific help (e.g., sanctum.sh ticket --help)"
     echo ""
     echo -e "${YELLOW}AUTH${NC}"
@@ -72,7 +72,7 @@ ticket_usage() {
     echo "  create:  -s|--subject <text>, -p|--project <name> OR -a|--account <name>,"
     echo "           [-m|--milestone <name>], [--type <type>], [--priority <priority>],"
     echo "           [-d|--description <text>], [-f|--file <path>], [--articles <id1,id2,...>],
-           [--relate-tickets <id[:type],...>], [-e|--env dev|prod]"
+           [--relate-tickets <id[:type],...>], [-e|--env local|prod]"
     echo "  update:  <id>, [-s|--subject], [-d|--description], [-f|--file <path>], [--status <status>],"
     echo "           [--priority <priority>], [--type <type>], [-m|--milestone <name>],"
     echo "           [--articles <id1,id2,...>], [--relate-tickets <id[:type],...>], [-e|--env]"
@@ -220,7 +220,7 @@ context_usage() {
     echo -e "${YELLOW}OPTIONS${NC}"
     echo "  --headings       Output only headings per article (table of contents mode)"
     echo "  --format json    Output as JSON array instead of markdown"
-    echo "  -e|--env         dev | prod (default: dev)"
+    echo "  -e|--env         local | prod (default: prod)"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh context load DOC-002,DOC-001,DOC-010,TPL-001 -e prod"
@@ -231,7 +231,7 @@ context_usage() {
 }
 
 context_load() {
-    local IDENTIFIERS="" ENV="dev" HEADINGS=false FORMAT="markdown"
+    local IDENTIFIERS="" ENV="prod" HEADINGS=false FORMAT="markdown"
 
     # First arg is the identifier list (if not a flag)
     if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; then
@@ -325,7 +325,7 @@ search_usage() {
     echo -e "${YELLOW}OPTIONS${NC}"
     echo "  -t|--type <type>   Scope search to entity type (ticket, wiki, client, contact, asset, project, milestone, product)"
     echo "  -l|--limit <n>     Max results per entity type (default: 5, max: 20)"
-    echo "  -e|--env           dev | prod (default: dev)"
+    echo "  -e|--env           local | prod (default: prod)"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh search phoenix -e prod"
@@ -372,7 +372,7 @@ resolve_article_identifier() {
 # ─────────────────────────────────────────────
 ticket_create() {
     local SUBJECT="" DESCRIPTION="" PRIORITY="normal" TICKET_TYPE="task"
-    local PROJECT_NAME="" MILESTONE_NAME="" ACCOUNT_NAME="" ENV="dev"
+    local PROJECT_NAME="" MILESTONE_NAME="" ACCOUNT_NAME="" ENV="prod"
     local ARTICLES=""
 
     while [[ $# -gt 0 ]]; do
@@ -492,7 +492,7 @@ ticket_create() {
 
 ticket_comment() {
     local TICKET_ID="$1"; shift
-    local BODY="" STATUS="" VISIBILITY="internal" ENV="dev"
+    local BODY="" STATUS="" VISIBILITY="internal" ENV="prod"
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
@@ -538,7 +538,7 @@ ticket_comment() {
 
 ticket_resolve() {
     local TICKET_ID="$1"; shift
-    local BODY="" VISIBILITY="internal" ENV="dev"
+    local BODY="" VISIBILITY="internal" ENV="prod"
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
@@ -597,7 +597,7 @@ ticket_resolve() {
 
 ticket_show() {
     local TICKET_ID="$1"; shift
-    local ENV="dev" SHOW_CONTENT=false SHOW_RELATIONS=false
+    local ENV="prod" SHOW_CONTENT=false SHOW_RELATIONS=false
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
@@ -638,7 +638,7 @@ ticket_list() {
     local MILESTONE=""
     local PROJECT=""
     local STATUS=""
-    local ENV="dev"
+    local ENV="prod"
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -682,7 +682,7 @@ ticket_list() {
 
 ticket_delete() {
     local TICKET_ID="$1"; shift
-    local ENV="dev"
+    local ENV="prod"
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
 
@@ -711,7 +711,7 @@ ticket_delete() {
 }
 ticket_update() {
     local TICKET_ID="$1"; shift
-    local SUBJECT="" DESCRIPTION="" STATUS="" PRIORITY="" TICKET_TYPE="" MILESTONE_NAME="" ENV="dev"
+    local SUBJECT="" DESCRIPTION="" STATUS="" PRIORITY="" TICKET_TYPE="" MILESTONE_NAME="" ENV="prod"
     local ARTICLES=""
 
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
@@ -813,7 +813,7 @@ ticket_update() {
 # ─────────────────────────────────────────────
 ticket_relate() {
     local TICKET_ID="$1"; shift
-    local ARTICLES="" ENV="dev"
+    local ARTICLES="" ENV="prod"
     [ -z "$TICKET_ID" ] && echo -e "${RED}Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -840,7 +840,7 @@ ticket_relate() {
 
 ticket_relate_tickets() {
     local TICKET_ID="$1"; shift
-    local TICKETS="" RELATION_TYPE="relates_to" VISIBILITY="internal" ENV="dev"
+    local TICKETS="" RELATION_TYPE="relates_to" VISIBILITY="internal" ENV="prod"
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -875,7 +875,7 @@ ticket_relate_tickets() {
 }
 ticket_unrelate_ticket() {
     local TICKET_ID="$1"; shift
-    local RELATED_ID="" ENV="dev"
+    local RELATED_ID="" ENV="prod"
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -895,7 +895,7 @@ ticket_unrelate_ticket() {
 }
 ticket_unrelate() {
     local TICKET_ID="$1"; shift
-    local ARTICLE="" ENV="dev"
+    local ARTICLE="" ENV="prod"
     [ -z "$TICKET_ID" ] && echo -e "${RED}Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -919,7 +919,7 @@ ticket_unrelate() {
 # MILESTONE DOMAIN
 # ─────────────────────────────────────────────
 milestone_create() {
-    local PROJECT_NAME="" NAME="" DUE_DATE="" BILLABLE="0" SEQUENCE="" ENV="dev"
+    local PROJECT_NAME="" NAME="" DUE_DATE="" BILLABLE="0" SEQUENCE="" ENV="prod"
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -975,7 +975,7 @@ milestone_create() {
 
 milestone_update() {
     local MILESTONE_ID="$1"; shift
-    local NAME="" STATUS="" DUE_DATE="" BILLABLE="" SEQUENCE="" ENV="dev"
+    local NAME="" STATUS="" DUE_DATE="" BILLABLE="" SEQUENCE="" ENV="prod"
 
     [ -z "$MILESTONE_ID" ] && echo -e "${RED}✗ Milestone ID is required${NC}" && exit 1
 
@@ -1019,7 +1019,7 @@ milestone_update() {
 }
 
 milestone_list() {
-    local PROJECT_NAME="" ENV="dev" MS_STATUS="all" TICKET_STATUS="all" WITH_TICKETS=false FORMAT="text"
+    local PROJECT_NAME="" ENV="prod" MS_STATUS="all" TICKET_STATUS="all" WITH_TICKETS=false FORMAT="text"
     while [[ $# -gt 0 ]]; do
         case $1 in
             -p|--project)          PROJECT_NAME="$2"; shift 2 ;;
@@ -1080,7 +1080,7 @@ milestone_list() {
 }
 milestone_show() {
     local QUERY="$1"; shift
-    local ENV="dev" TICKET_STATUS="all" WITH_TICKETS=true
+    local ENV="prod" TICKET_STATUS="all" WITH_TICKETS=true
 
     [ -z "$QUERY" ] && echo -e "${RED}✗ Milestone ID or name is required${NC}" && exit 1
 
@@ -1161,7 +1161,7 @@ milestone_show() {
 # INVOICE DOMAIN
 # ─────────────────────────────────────────────
 invoice_create() {
-    local ACCOUNT_NAME="" STATUS="sent" DESCRIPTION="QA Test Invoice" AMOUNT="100" ENV="dev"
+    local ACCOUNT_NAME="" STATUS="sent" DESCRIPTION="QA Test Invoice" AMOUNT="100" ENV="prod"
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -1215,7 +1215,7 @@ invoice_create() {
 
 invoice_update() {
     local INVOICE_ID="$1"; shift
-    local STATUS="" DUE_DATE="" PAYMENT_TERMS="" ENV="dev"
+    local STATUS="" DUE_DATE="" PAYMENT_TERMS="" ENV="prod"
 
     [ -z "$INVOICE_ID" ] && echo -e "${RED}✗ Invoice ID is required${NC}" && exit 1
 
@@ -1254,7 +1254,7 @@ invoice_update() {
 
 invoice_delete() {
     local INVOICE_ID="$1"; shift
-    local TICKET_ID="" ENV="dev"
+    local TICKET_ID="" ENV="prod"
 
     [ -z "$INVOICE_ID" ] && echo -e "${RED}✗ Invoice ID is required${NC}" && exit 1
 
@@ -1299,7 +1299,7 @@ invoice_delete() {
 
 invoice_show() {
     local INVOICE_ID="$1"; shift
-    local ENV="dev"
+    local ENV="prod"
 
     [ -z "$INVOICE_ID" ] && echo -e "${RED}✗ Invoice ID is required${NC}" && exit 1
 
@@ -1339,7 +1339,7 @@ map_category_to_key() {
 }
 
 article_create() {
-    local TITLE="" SLUG="" CATEGORY="" CONTENT_FILE="" ENV="dev"
+    local TITLE="" SLUG="" CATEGORY="" CONTENT_FILE="" ENV="prod"
     local RELATED=""
 
     while [[ $# -gt 0 ]]; do
@@ -1416,7 +1416,7 @@ article_create() {
 
 article_update() {
     local ARTICLE_ID="$1"; shift
-    local CONTENT_FILE="" TITLE="" ENV="dev" SECTION=""
+    local CONTENT_FILE="" TITLE="" ENV="prod" SECTION=""
     local RELATED=""
 
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
@@ -1513,7 +1513,7 @@ article_update() {
 # ─────────────────────────────────────────────
 article_relate() {
     local ARTICLE_ID="$1"; shift
-    local RELATED="" ENV="dev"
+    local RELATED="" ENV="prod"
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -1546,7 +1546,7 @@ article_relate() {
 
 article_unrelate() {
     local ARTICLE_ID="$1"; shift
-    local RELATED="" ENV="dev"
+    local RELATED="" ENV="prod"
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -1573,7 +1573,7 @@ article_unrelate() {
 
 article_history() {
     local QUERY="$1"; shift
-    local ENV="dev"
+    local ENV="prod"
     local PAGE_SIZE=10
     [ -z "$QUERY" ] && echo -e "${RED}✗ Identifier or slug is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
@@ -1612,7 +1612,7 @@ article_history() {
 
 article_revert() {
     local QUERY="$1"; shift
-    local ENV="dev"
+    local ENV="prod"
     local HISTORY_ID=""
     local TO_VERSION=""
     local FIELDS=""
@@ -1691,7 +1691,7 @@ article_revert() {
 }
 article_show() {
     local QUERY="$1"; shift
-    local ENV="dev"
+    local ENV="prod"
     local SHOW_CONTENT=false
     local SHOW_HEADINGS=false
     local SECTION=""
@@ -1752,7 +1752,7 @@ article_show() {
 # SEARCH DOMAIN
 # ─────────────────────────────────────────────
 search_query() {
-    local QUERY="" TYPE="" LIMIT=5 ENV="dev"
+    local QUERY="" TYPE="" LIMIT=5 ENV="prod"
 
     # First arg is the query (if not a flag)
     if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^- ]]; then

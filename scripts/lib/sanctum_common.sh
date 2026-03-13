@@ -8,7 +8,7 @@ RED='\033[0;31m'; GRAY='\033[0;90m'; NC='\033[0m'
 
 # Defaults
 TOKEN_DIR="$HOME/.sanctum/tokens"
-_SANCTUM_ENV="${_SANCTUM_ENV:-dev}"
+_SANCTUM_ENV="${_SANCTUM_ENV:-prod}"
 _SANCTUM_AUTH_TOKEN=""
 
 # ─────────────────────────────────────────────
@@ -16,9 +16,9 @@ _SANCTUM_AUTH_TOKEN=""
 # Usage: resolve_env "prod"
 # ─────────────────────────────────────────────
 resolve_env() {
-    _SANCTUM_ENV="${1:-dev}"
+    _SANCTUM_ENV="${1:-prod}"
     case $_SANCTUM_ENV in
-        dev)
+        local)
             API_BASE="http://localhost:8000"
             PROFILE="${SANCTUM_PROFILE:-default}"
             ;;
@@ -27,7 +27,7 @@ resolve_env() {
             PROFILE="${SANCTUM_PROFILE:-prod}"
             ;;
         *)
-            echo -e "${RED}✗ Invalid env: $_SANCTUM_ENV (use dev or prod)${NC}"
+            echo -e "${RED}✗ Invalid env: $_SANCTUM_ENV (use local or prod)${NC}"
             exit 1
             ;;
     esac
@@ -233,7 +233,7 @@ print_env_banner() {
     if [ "$_SANCTUM_ENV" = "prod" ]; then
         echo -e "${RED}  ██ PRODUCTION ██  ${API_BASE}${NC}"
     else
-        echo -e "${GRAY}  env: dev — ${API_BASE}${NC}"
+        echo -e "${GRAY}  env: local — ${API_BASE}${NC}"
     fi
     echo ""
 }
