@@ -600,7 +600,7 @@ class UserNotificationPreference(Base):
     __tablename__ = "user_notification_preferences"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False)
-    email_frequency = Column(String, default='realtime')
+    email_frequency = Column(String, default='daily')
     force_critical = Column(Boolean, default=True)
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
 
