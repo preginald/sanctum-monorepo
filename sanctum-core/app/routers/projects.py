@@ -96,6 +96,7 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
 
     # Build related_tickets for each ticket in this milestone
     ticket_ids = [t.id for t in ms.tickets]
+    rel_map = {}
     if ticket_ids:
         relations_raw = db.execute(sa_text("""
             SELECT t.id, t.subject, t.status, t.priority, t.ticket_type,
@@ -127,13 +128,11 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
                             relation_type=relation_type, visibility=row.visibility
                         ))
 
-        for ticket in ms.tickets:
-            ticket.related_tickets = rel_map.get(ticket.id, [])
-    else:
-        for ticket in ms.tickets:
-            ticket.related_tickets = []
-
-    return ms
+    # Build response with related_tickets injected
+    response = schemas.MilestoneResponse.model_validate(ms)
+    for t_resp in response.tickets:
+        t_resp.related_tickets = rel_map.get(t_resp.id, [])
+    return response
 
 @router.post("/projects/{project_id}/milestones/reorder")
 def reorder_milestones(project_id: str, payload: schemas.MilestoneReorderRequest, db: Session = Depends(get_db)):
