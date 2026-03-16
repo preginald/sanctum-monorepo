@@ -240,6 +240,7 @@ context_load() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) context_usage; exit 0 ;;
             --headings)  HEADINGS=true; shift ;;
             --format)    FORMAT="$2"; shift 2 ;;
             -e|--env)    ENV="$2"; shift 2 ;;
@@ -377,6 +378,7 @@ ticket_create() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -s|--subject)     SUBJECT="$2"; shift 2 ;;
             -d|--description) DESCRIPTION="$2"; shift 2 ;;
             -f|--file)        DESC_FILE="$2"; shift 2 ;;
@@ -498,6 +500,7 @@ ticket_comment() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -b|--body)       BODY="$2"; shift 2 ;;
             --status)        STATUS="$2"; shift 2 ;;
             --visibility)    VISIBILITY="$2"; shift 2 ;;
@@ -544,6 +547,7 @@ ticket_resolve() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -b|--body)       BODY="$2"; shift 2 ;;
             --visibility)    VISIBILITY="$2"; shift 2 ;;
             -e|--env)        ENV="$2"; shift 2 ;;
@@ -603,6 +607,7 @@ ticket_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
             -c|--content)   SHOW_CONTENT=true; shift ;;
             -r|--relations) SHOW_RELATIONS=true; shift ;;
@@ -642,6 +647,7 @@ ticket_list() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -m|--milestone) MILESTONE="$2"; shift 2 ;;
             -p|--project)   PROJECT="$2"; shift 2 ;;
             --status)       STATUS="$2"; shift 2 ;;
@@ -688,6 +694,7 @@ ticket_delete() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -e|--env) ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
@@ -718,6 +725,7 @@ ticket_update() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             -s|--subject)     SUBJECT="$2"; shift 2 ;;
             -d|--description) DESCRIPTION="$2"; shift 2 ;;
             -f|--file)        DESC_FILE="$2"; shift 2 ;;
@@ -817,6 +825,7 @@ ticket_relate() {
     [ -z "$TICKET_ID" ] && echo -e "${RED}Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             --articles) ARTICLES="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
@@ -844,6 +853,7 @@ ticket_relate_tickets() {
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             --tickets)      TICKETS="$2"; shift 2 ;;
             --type)         RELATION_TYPE="$2"; shift 2 ;;
             --visibility)   VISIBILITY="$2"; shift 2 ;;
@@ -879,6 +889,7 @@ ticket_unrelate_ticket() {
     [ -z "$TICKET_ID" ] && echo -e "${RED}✗ Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             --ticket)   RELATED_ID="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
@@ -899,6 +910,7 @@ ticket_unrelate() {
     [ -z "$TICKET_ID" ] && echo -e "${RED}Ticket ID is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) ticket_usage; exit 0 ;;
             --article)  ARTICLE="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
@@ -923,6 +935,7 @@ milestone_create() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) milestone_usage; exit 0 ;;
             -p|--project)   PROJECT_NAME="$2"; shift 2 ;;
             -n|--name)      NAME="$2"; shift 2 ;;
             --due-date)     DUE_DATE="$2"; shift 2 ;;
@@ -981,6 +994,7 @@ milestone_update() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) milestone_usage; exit 0 ;;
             -n|--name)      NAME="$2"; shift 2 ;;
             --status)       STATUS="$2"; shift 2 ;;
             --due-date)     DUE_DATE="$2"; shift 2 ;;
@@ -1022,6 +1036,7 @@ milestone_list() {
     local PROJECT_NAME="" ENV="prod" MS_STATUS="all" TICKET_STATUS="all" WITH_TICKETS=false FORMAT="text"
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) milestone_usage; exit 0 ;;
             -p|--project)          PROJECT_NAME="$2"; shift 2 ;;
             -e|--env)              ENV="$2"; shift 2 ;;
             --milestone-status)    MS_STATUS="$2"; shift 2 ;;
@@ -1086,6 +1101,7 @@ milestone_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) milestone_usage; exit 0 ;;
             -e|--env)          ENV="$2"; shift 2 ;;
             --ticket-status)   TICKET_STATUS="$2"; shift 2 ;;
             --no-tickets)      WITH_TICKETS=false; shift ;;
@@ -1165,6 +1181,7 @@ invoice_create() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) invoice_usage; exit 0 ;;
             -a|--account)     ACCOUNT_NAME="$2"; shift 2 ;;
             -s|--status)      STATUS="$2"; shift 2 ;;
             -d|--description) DESCRIPTION="$2"; shift 2 ;;
@@ -1221,6 +1238,7 @@ invoice_update() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) invoice_usage; exit 0 ;;
             --status)         STATUS="$2"; shift 2 ;;
             --due-date)       DUE_DATE="$2"; shift 2 ;;
             --payment-terms)  PAYMENT_TERMS="$2"; shift 2 ;;
@@ -1260,6 +1278,7 @@ invoice_delete() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) invoice_usage; exit 0 ;;
             --ticket) TICKET_ID="$2"; shift 2 ;;
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
@@ -1305,6 +1324,7 @@ invoice_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) invoice_usage; exit 0 ;;
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
@@ -1344,6 +1364,7 @@ article_create() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             -t|--title)    TITLE="$2"; shift 2 ;;
             --slug)        SLUG="$2"; shift 2 ;;
             --category)    CATEGORY="$2"; shift 2 ;;
@@ -1423,6 +1444,7 @@ article_update() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             -f|--file)  CONTENT_FILE="$2"; shift 2 ;;
             -t|--title) TITLE="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
@@ -1517,6 +1539,7 @@ article_relate() {
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             --related)  RELATED="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
@@ -1550,6 +1573,7 @@ article_unrelate() {
     [ -z "$ARTICLE_ID" ] && echo -e "${RED}✗ Article UUID or identifier is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             --related)  RELATED="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
@@ -1578,6 +1602,7 @@ article_history() {
     [ -z "$QUERY" ] && echo -e "${RED}✗ Identifier or slug is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
             -n|--page-size) PAGE_SIZE="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
@@ -1620,6 +1645,7 @@ article_revert() {
     [ -z "$QUERY" ] && echo -e "${RED}✗ Identifier or slug is required${NC}" && exit 1
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             -e|--env)         ENV="$2"; shift 2 ;;
             --history-id)     HISTORY_ID="$2"; shift 2 ;;
             --to-version)     TO_VERSION="$2"; shift 2 ;;
@@ -1700,6 +1726,7 @@ article_show() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) article_usage; exit 0 ;;
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
             --headings)     SHOW_HEADINGS=true; shift ;;
@@ -1761,6 +1788,7 @@ search_query() {
 
     while [[ $# -gt 0 ]]; do
         case $1 in
+            -h|--help) search_usage; exit 0 ;;
             -t|--type)   TYPE="$2"; shift 2 ;;
             -l|--limit)  LIMIT="$2"; shift 2 ;;
             -e|--env)    ENV="$2"; shift 2 ;;
