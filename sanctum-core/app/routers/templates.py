@@ -381,6 +381,8 @@ def _apply_project(
 
     milestones_created = 0
     tickets_created = 0
+    # Pass 1: Create milestones + tickets, build lookup map
+    ticket_map = {}  # (section_seq, item_seq) -> ticket_id
 
     for section in sorted(template.sections, key=lambda s: s.sequence):
         milestone = models.Milestone(
@@ -406,7 +408,31 @@ def _apply_project(
                 assigned_tech_id=user.id,
             )
             db.add(ticket)
+            db.flush()
             tickets_created += 1
+            ticket_map[(section.sequence, item.sequence)] = (ticket.id, item)
+
+    # Pass 2: Wire ticket relations from template item dependencies
+    for (sec_seq, item_seq), (ticket_id, item) in ticket_map.items():
+        deps = (item.config or {}).get("dependencies", [])
+        for dep in deps:
+            target_sec = dep.get("section_seq", sec_seq)
+            target_item = dep.get("item_seq")
+            rel_type = dep.get("relation_type", "relates_to")
+            if target_item is None:
+                continue
+            target = ticket_map.get((target_sec, target_item))
+            if target is None:
+                continue
+            target_ticket_id = target[0]
+            db.execute(
+                models.ticket_relations.insert().values(
+                    ticket_id=ticket_id,
+                    related_id=target_ticket_id,
+                    relation_type=rel_type,
+                    visibility="internal",
+                )
+            )
 
     db.flush()
     return project.id, milestones_created, tickets_created
