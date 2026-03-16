@@ -2,6 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
+from pydantic import model_validator
 from .shared import SanctumBase
 from .operations import TicketRelationResponse
 
