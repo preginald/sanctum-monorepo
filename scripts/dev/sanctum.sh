@@ -10,7 +10,7 @@
 #   sanctum.sh ticket update  256 -d "New description" --status open
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" --relate-tickets "374:blocks,375"
 #   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
-#   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to" -e prod
+#   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to"
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
 #   sanctum.sh article create -t "My Article" --slug "my-article" --category "System Documentation" -f content.md
@@ -92,8 +92,8 @@ ticket_usage() {
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh ticket create -s \"Fix login\" -p \"Sanctum Core\" -m \"Phase 65\" --type bug"
     echo "  sanctum.sh ticket create -s \"Setup guide\" -p \"Sanctum Core\" --articles \"DOC-001,WIKI-002\""
-    echo "  sanctum.sh ticket relate 310 --articles \"DOC-001,WIKI-002\" -e prod"
-    echo "  sanctum.sh ticket unrelate 310 --article DOC-001 -e prod"
+    echo "  sanctum.sh ticket relate 310 --articles \"DOC-001,WIKI-002\""
+    echo "  sanctum.sh ticket unrelate 310 --article DOC-001"
     echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
     echo ""
     exit 0
@@ -126,9 +126,9 @@ milestone_usage() {
     echo "  sanctum.sh milestone create -p \"Sanctum Core\" -n \"Phase 67\" --sequence 49"
     echo "  sanctum.sh milestone list -p \"Sanctum Core\" --milestone-status open --with-tickets"
     echo "  sanctum.sh milestone list -p \"Sanctum Core\" --ticket-status open --format json"
-    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" -e prod"
-    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" --ticket-status open -e prod"
-    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" --no-tickets -e prod"
+    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\""
+    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" --ticket-status open"
+    echo "  sanctum.sh milestone show \"Phase 74: The Foreman\" --no-tickets"
     echo ""
     exit 0
 }
@@ -155,7 +155,7 @@ invoice_usage() {
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh invoice create -a \"Digital Sanctum\" -d \"QA Test\" --amount 150"
-    echo "  sanctum.sh invoice delete 8b4a2c -e prod"
+    echo "  sanctum.sh invoice delete 8b4a2c"
     echo ""
     exit 0
 }
@@ -195,15 +195,15 @@ article_usage() {
     echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md"
     echo "  sanctum.sh article create -t \"My Doc\" --slug my-doc --category \"Template\" -f doc.md --related \"DOC-001,WIKI-002\""
     echo "  sanctum.sh article update DOC-012 -f updated_doc.md --related \"DOC-001\""
-    echo "  sanctum.sh article update DOC-009 --section \"## Milestone Commands\" -f /tmp/section.md -e prod"
-    echo "  sanctum.sh article relate DOC-012 --related \"DOC-001,WIKI-002\" -e prod"
-    echo "  sanctum.sh article unrelate DOC-012 --related DOC-001 -e prod"
-    echo "  sanctum.sh article history DOC-012 -e prod"
-    echo "  sanctum.sh article revert DOC-012 --to-version v1.3 -e prod"
-    echo "  sanctum.sh article revert DOC-012 --history-id abc123 --fields content --comment 'Rolling back' -e prod"
+    echo "  sanctum.sh article update DOC-009 --section \"## Milestone Commands\" -f /tmp/section.md"
+    echo "  sanctum.sh article relate DOC-012 --related \"DOC-001,WIKI-002\""
+    echo "  sanctum.sh article unrelate DOC-012 --related DOC-001"
+    echo "  sanctum.sh article history DOC-012"
+    echo "  sanctum.sh article revert DOC-012 --to-version v1.3"
+    echo "  sanctum.sh article revert DOC-012 --history-id abc123 --fields content --comment 'Rolling back'"
     echo "  sanctum.sh article show DOC-012 -c"
-    echo "  sanctum.sh article show DOC-009 --headings -e prod"
-    echo "  sanctum.sh article show DOC-021 --section \"## Overview\" -e prod"
+    echo "  sanctum.sh article show DOC-009 --headings"
+    echo "  sanctum.sh article show DOC-021 --section \"## Overview\""
     echo ""
     exit 0
 }
@@ -223,9 +223,9 @@ context_usage() {
     echo "  -e|--env         local | prod (default: prod)"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
-    echo "  sanctum.sh context load DOC-002,DOC-001,DOC-010,TPL-001 -e prod"
-    echo "  sanctum.sh context load DOC-009,SOP-099 --headings -e prod"
-    echo "  sanctum.sh context load DOC-001,DOC-002 --format json -e prod"
+    echo "  sanctum.sh context load DOC-002,DOC-001,DOC-010,TPL-001"
+    echo "  sanctum.sh context load DOC-009,SOP-099 --headings"
+    echo "  sanctum.sh context load DOC-001,DOC-002 --format json"
     echo ""
     exit 0
 }
@@ -328,10 +328,10 @@ search_usage() {
     echo "  -e|--env           local | prod (default: prod)"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
-    echo "  sanctum.sh search phoenix -e prod"
-    echo "  sanctum.sh search login --type ticket -e prod"
-    echo "  sanctum.sh search "office 365" --type product --limit 10 -e prod"
-    echo "  sanctum.sh search DOC-009 --type wiki -e prod"
+    echo "  sanctum.sh search phoenix"
+    echo "  sanctum.sh search login --type ticket"
+    echo "  sanctum.sh search "office 365" --type product --limit 10"
+    echo "  sanctum.sh search DOC-009 --type wiki"
     echo ""
     exit 0
 }
