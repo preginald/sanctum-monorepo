@@ -10,7 +10,7 @@ import Loading from '../components/ui/Loading';
 import {
     Layers, Plus, Copy, Download, Zap, Tag,
     Pencil, Trash2, ChevronDown, ChevronRight,
-    CheckCircle, Clock, AlertTriangle, Users
+    CheckCircle, Clock, AlertTriangle, Users, Link2
 } from 'lucide-react';
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -31,17 +31,18 @@ const TYPE_BADGE = {
 // SUB-COMPONENT: Inline-editable section row
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
+const SectionRow = ({ section, allSections, onAddItem, onDeleteSection, onDeleteItem }) => {
     const [open, setOpen] = useState(true);
     const [addingItem, setAddingItem] = useState(false);
-    const [newItem, setNewItem] = useState({ subject: '', description: '', item_type: 'task', priority: 'normal' });
+    const [newItem, setNewItem] = useState({ subject: '', description: '', item_type: 'task', priority: 'normal', config: { dependencies: [] } });
     const [showItemDesc, setShowItemDesc] = useState(false);
+    const [showDeps, setShowDeps] = useState(false);
     const { addToast } = useToast();
     const handleAddItem = async () => {
         if (!newItem.subject.trim()) return;
         try {
             await onAddItem(section.id, { ...newItem, sequence: section.items.length + 1 });
-            setNewItem({ subject: '', description: '', item_type: 'task', priority: 'normal' });
+            setNewItem({ subject: '', description: '', item_type: 'task', priority: 'normal', config: { dependencies: [] } });
             setShowItemDesc(false);
             setAddingItem(false);
         } catch {
@@ -99,6 +100,9 @@ const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
                                 )}
                             </div>
                             <div className="flex items-center gap-2 flex-shrink-0">
+                                {item.config?.dependencies?.length > 0 && (
+                                    <span className="text-sanctum-gold" title={`${item.config.dependencies.length} dep(s)`}><Link2 size={12} /></span>
+                                )}
                                 <span className={`px-1.5 py-0.5 rounded text-xs ${TYPE_BADGE[item.item_type] || TYPE_BADGE.task}`}>
                                     {item.item_type}
                                 </span>
@@ -151,6 +155,13 @@ const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
                                 >
                                     <Pencil size={12} />
                                 </button>
+                                <button
+                                    onClick={() => setShowDeps(d => !d)}
+                                    className={`px-2 py-1.5 text-xs rounded-lg border transition-colors ${showDeps ? 'bg-slate-600 border-slate-500 text-white' : 'bg-slate-800 border-slate-600 text-slate-400 hover:text-white'}`}
+                                    title="Add dependencies"
+                                >
+                                    <Link2 size={12} />
+                                </button>
                                 <div className="flex gap-1">
                                     <button onClick={handleAddItem} className="px-3 py-1.5 bg-sanctum-gold text-black text-xs font-bold rounded-lg hover:bg-yellow-400">Add</button>
                                     <button onClick={() => { setAddingItem(false); setShowItemDesc(false); }} className="px-3 py-1.5 bg-slate-700 text-white text-xs rounded-lg hover:bg-slate-600">Cancel</button>
@@ -164,6 +175,63 @@ const SectionRow = ({ section, onAddItem, onDeleteSection, onDeleteItem }) => {
                                     rows={2}
                                     className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-sanctum-gold/50 resize-none"
                                 />
+                            )}
+                            {showDeps && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-slate-400 font-medium">Dependencies</span>
+                                        <button
+                                            onClick={() => {
+                                                const deps = [...(newItem.config?.dependencies || [])];
+                                                deps.push({ section_seq: section.sequence, item_seq: 1, relation_type: 'blocks' });
+                                                setNewItem(p => ({ ...p, config: { ...p.config, dependencies: deps } }));
+                                            }}
+                                            className="text-xs text-sanctum-gold hover:text-yellow-400"
+                                        >+ Add dependency</button>
+                                    </div>
+                                    {(newItem.config?.dependencies || []).map((dep, di) => (
+                                        <div key={di} className="flex gap-2 items-center">
+                                            <select
+                                                value={`${dep.section_seq}-${dep.item_seq}`}
+                                                onChange={e => {
+                                                    const [ss, is] = e.target.value.split('-').map(Number);
+                                                    const deps = [...(newItem.config?.dependencies || [])];
+                                                    deps[di] = { ...deps[di], section_seq: ss, item_seq: is };
+                                                    setNewItem(p => ({ ...p, config: { ...p.config, dependencies: deps } }));
+                                                }}
+                                                className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                            >
+                                                {(allSections || []).flatMap(s =>
+                                                    (s.items || []).map(it => (
+                                                        <option key={`${s.sequence}-${it.sequence}`} value={`${s.sequence}-${it.sequence}`}>
+                                                            S{s.sequence}.{it.sequence} — {it.subject}
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                            <select
+                                                value={dep.relation_type}
+                                                onChange={e => {
+                                                    const deps = [...(newItem.config?.dependencies || [])];
+                                                    deps[di] = { ...deps[di], relation_type: e.target.value };
+                                                    setNewItem(p => ({ ...p, config: { ...p.config, dependencies: deps } }));
+                                                }}
+                                                className="bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white focus:outline-none"
+                                            >
+                                                <option value="blocks">blocks</option>
+                                                <option value="relates_to">relates_to</option>
+                                                <option value="duplicates">duplicates</option>
+                                            </select>
+                                            <button
+                                                onClick={() => {
+                                                    const deps = (newItem.config?.dependencies || []).filter((_, i) => i !== di);
+                                                    setNewItem(p => ({ ...p, config: { ...p.config, dependencies: deps } }));
+                                                }}
+                                                className="text-slate-500 hover:text-red-400"
+                                            ><Trash2 size={12} /></button>
+                                        </div>
+                                    ))}
+                                </div>
                             )}
                         </div>
                     )}
@@ -392,6 +460,7 @@ export default function TemplateDetail() {
                             <SectionRow
                                 key={section.id}
                                 section={section}
+                                allSections={template.sections}
                                 onAddItem={handleAddItem}
                                 onDeleteSection={handleDeleteSection}
                                 onDeleteItem={handleDeleteItem}
