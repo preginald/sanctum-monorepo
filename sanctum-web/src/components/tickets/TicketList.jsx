@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Trash2, Ticket, Clock, List, Rows, Flag } from 'lucide-react';
+import { Plus, Trash2, Ticket, Clock, List, Rows, Flag, Link2, ArrowRight, Ban } from 'lucide-react';
 import { TicketTypeIcon, PriorityBadge } from '../tickets/TicketBadges';
 
 export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets", icon: Icon = Ticket, embedded = false }) {
@@ -23,6 +23,36 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
     .slice(0, showAll ? 50 : 5);
 
   const formatDate = (d) => new Date(d).toLocaleDateString();
+
+  const relationBadge = (rel) => {
+    const colors = {
+      blocks: 'bg-amber-900/50 text-amber-400 border-amber-700/50',
+      blocked_by: 'bg-red-900/50 text-red-400 border-red-700/50',
+      relates_to: 'bg-slate-700/50 text-slate-400 border-slate-600/50',
+      duplicates: 'bg-purple-900/50 text-purple-400 border-purple-700/50',
+      duplicate_of: 'bg-purple-900/50 text-purple-400 border-purple-700/50',
+    };
+    const icons = {
+      blocks: <ArrowRight size={10} />,
+      blocked_by: <Ban size={10} />,
+      relates_to: <Link2 size={10} />,
+      duplicates: <Link2 size={10} />,
+      duplicate_of: <Link2 size={10} />,
+    };
+    const labels = {
+      blocks: 'blocks',
+      blocked_by: 'blocked by',
+      relates_to: 'relates to',
+      duplicates: 'duplicates',
+      duplicate_of: 'duplicate of',
+    };
+    return (
+      <span key={rel.id} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded border text-[9px] font-bold uppercase ${colors[rel.relation_type] || colors.relates_to}`}>
+        {icons[rel.relation_type] || icons.relates_to}
+        {labels[rel.relation_type] || rel.relation_type} #{rel.id}
+      </span>
+    );
+  };
 
   return (
     // If embedded, remove padding/border/bg. If not, standard card style.
@@ -80,6 +110,9 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
                         <span className="font-bold text-white text-sm truncate">{t.subject}</span>
                     </div>
                     <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold whitespace-nowrap ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>{t.status}</div>
+                    {t.related_tickets?.length > 0 && (
+                      <div className="flex items-center gap-1.5 ml-2">{t.related_tickets.map(r => relationBadge(r))}</div>
+                    )}
                 </div>
             )}
 
@@ -99,6 +132,9 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
                         <div className="scale-90 origin-left"><PriorityBadge priority={t.priority} /></div>
                         {t.milestone_name && <span className="flex items-center gap-1 text-sanctum-gold"><Flag size={12}/> {t.milestone_name}</span>}
                     </div>
+                    {t.related_tickets?.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pl-6 mt-1.5">{t.related_tickets.map(r => relationBadge(r))}</div>
+                    )}
                 </div>
             )}
 
