@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<h3 style="margin-top: 0;">Daily Digest</h3>
+<p>Hi {{ user_name }}, here's a summary of {{ total_updates }} update{{ 's' if total_updates != 1 else '' }} from today.</p>
+
+{% if ticket_updates %}
+<table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+    <thead>
+        <tr style="border-bottom: 2px solid #d4af37; text-align: left;">
+            <th style="padding: 8px 12px; font-size: 13px; color: #666;">Ticket</th>
+            <th style="padding: 8px 12px; font-size: 13px; color: #666;">Latest Update</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in ticket_updates %}
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 10px 12px;">
+                <a href="{{ frontend_url }}{{ item.link }}" style="color: #d4af37; text-decoration: none; font-weight: bold;">{{ item.title }}</a>
+            </td>
+            <td style="padding: 10px 12px; font-size: 14px; color: #555;">{{ item.latest_message }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+
+{% if other_updates %}
+<h4 style="margin-top: 30px; color: #666; font-size: 14px;">Other Notifications</h4>
+<ul style="padding-left: 20px;">
+    {% for item in other_updates %}
+    <li style="margin-bottom: 8px; font-size: 14px; color: #555;">{{ item.title }}: {{ item.message }}</li>
+    {% endfor %}
+</ul>
+{% endif %}
+
+<div style="margin-top: 30px; text-align: center;">
+    <a href="{{ frontend_url }}" class="button">View Portal</a>
+</div>
+
+<p style="margin-top: 30px; font-size: 13px; color: #999;">
+    You can change your notification frequency in your
+    <a href="{{ frontend_url }}/portal/settings" style="color: #d4af37;">portal settings</a>.
+</p>
+{% endblock %}

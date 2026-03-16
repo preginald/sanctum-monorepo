@@ -54,15 +54,36 @@ def process_digest_queue():
                 else:
                     standalone_notes.append(n)
 
-            # Email construction logic omitted for brevity, keeping your existing HTML block
             frontend_url = os.getenv("FRONTEND_URL", "https://portal.digitalsanctum.com.au")
-            html_body = f"<h2>Sanctum Signal Digest</h2><p>Updates for {user.full_name}:</p>"
-            # ... (Your existing rendering logic here) ...
 
-            success = email_service.send(
-                to_emails=user.email,
-                subject=f"Sanctum Digest ({len(notes)} updates)",
-                html_content=html_body
+            # Build structured digest data
+            ticket_updates = []
+            for link, link_notes in grouped_by_link.items():
+                latest = sorted(link_notes, key=lambda n: n.created_at, reverse=True)[0]
+                ticket_updates.append({
+                    "link": link,
+                    "title": latest.title,
+                    "latest_message": latest.message,
+                })
+
+            other_updates = []
+            for n in standalone_notes:
+                other_updates.append({
+                    "title": n.title,
+                    "message": n.message,
+                })
+
+            success = email_service.send_template(
+                to_email=user.email,
+                subject=f"Sanctum Digest ({len(notes)} update{'s' if len(notes) != 1 else ''})",
+                template_name="digest.html",
+                context={
+                    "user_name": user.full_name,
+                    "total_updates": len(notes),
+                    "ticket_updates": ticket_updates,
+                    "other_updates": other_updates,
+                    "frontend_url": frontend_url,
+                },
             )
 
             if success:
