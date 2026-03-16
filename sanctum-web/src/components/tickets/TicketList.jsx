@@ -110,9 +110,6 @@ export default function TicketList({ tickets, onAdd, onDelete, title = "Tickets"
                         <span className="font-bold text-white text-sm truncate">{t.subject}</span>
                     </div>
                     <div className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold whitespace-nowrap ${t.status === 'resolved' ? 'bg-green-900 text-green-400' : 'bg-blue-900 text-blue-400'}`}>{t.status}</div>
-                    {t.related_tickets?.length > 0 && (
-                      <div className="flex items-center gap-1.5 ml-2">{t.related_tickets.map(r => relationBadge(r))}</div>
-                    )}
                 </div>
             )}
 
