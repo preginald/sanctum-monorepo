@@ -138,6 +138,7 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
             priority=ticket.priority,
             ticket_type=ticket.ticket_type,
             milestone_id=ticket.milestone_id,
+            created_at=ticket.created_at,
             related_tickets=rel_map.get(ticket.id, [])
         )
         ticket_briefs.append(tb)
