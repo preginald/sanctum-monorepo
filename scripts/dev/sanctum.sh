@@ -244,7 +244,7 @@ context_load() {
             --headings)  HEADINGS=true; shift ;;
             --format)    FORMAT="$2"; shift 2 ;;
             -e|--env)    ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -390,7 +390,7 @@ ticket_create() {
             --type)           TICKET_TYPE="$2"; shift 2 ;;
             --articles)       ARTICLES="$2"; shift 2 ;;
             --relate-tickets) RELATE_TICKETS="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -505,7 +505,7 @@ ticket_comment() {
             --status)        STATUS="$2"; shift 2 ;;
             --visibility)    VISIBILITY="$2"; shift 2 ;;
             -e|--env)        ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -551,7 +551,7 @@ ticket_resolve() {
             -b|--body)       BODY="$2"; shift 2 ;;
             --visibility)    VISIBILITY="$2"; shift 2 ;;
             -e|--env)        ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -611,7 +611,7 @@ ticket_show() {
             -e|--env)       ENV="$2"; shift 2 ;;
             -c|--content)   SHOW_CONTENT=true; shift ;;
             -r|--relations) SHOW_RELATIONS=true; shift ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -652,7 +652,7 @@ ticket_list() {
             -p|--project)   PROJECT="$2"; shift 2 ;;
             --status)       STATUS="$2"; shift 2 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -696,7 +696,7 @@ ticket_delete() {
         case $1 in
             -h|--help) ticket_usage; exit 0 ;;
             -e|--env) ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -736,7 +736,7 @@ ticket_update() {
             -e|--env)         ENV="$2"; shift 2 ;;
             --articles)       ARTICLES="$2"; shift 2 ;;
             --relate-tickets) RELATE_TICKETS="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -828,7 +828,7 @@ ticket_relate() {
             -h|--help) ticket_usage; exit 0 ;;
             --articles) ARTICLES="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$ARTICLES" ] && echo -e "${RED}--articles is required${NC}" && exit 1
@@ -858,7 +858,7 @@ ticket_relate_tickets() {
             --type)         RELATION_TYPE="$2"; shift 2 ;;
             --visibility)   VISIBILITY="$2"; shift 2 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$TICKETS" ] && echo -e "${RED}✗ --tickets is required${NC}" && exit 1
@@ -892,7 +892,7 @@ ticket_unrelate_ticket() {
             -h|--help) ticket_usage; exit 0 ;;
             --ticket)   RELATED_ID="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$RELATED_ID" ] && echo -e "${RED}✗ --ticket is required${NC}" && exit 1
@@ -913,7 +913,7 @@ ticket_unrelate() {
             -h|--help) ticket_usage; exit 0 ;;
             --article)  ARTICLE="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$ARTICLE" ] && echo -e "${RED}--article is required${NC}" && exit 1
@@ -943,7 +943,7 @@ milestone_create() {
             --sequence)     SEQUENCE="$2"; shift 2 ;;
             --description)  DESCRIPTION="$2"; shift 2 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1002,7 +1002,7 @@ milestone_update() {
             --sequence)     SEQUENCE="$2"; shift 2 ;;
             --description)  DESCRIPTION="$2"; shift 2 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1043,7 +1043,7 @@ milestone_list() {
             --ticket-status)       TICKET_STATUS="$2"; shift 2 ;;
             --with-tickets)        WITH_TICKETS=true; shift ;;
             --format)              FORMAT="$2"; shift 2 ;;
-            *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$PROJECT_NAME" ] && echo -e "${RED}-p/--project is required${NC}" && exit 1
@@ -1105,7 +1105,7 @@ milestone_show() {
             -e|--env)          ENV="$2"; shift 2 ;;
             --ticket-status)   TICKET_STATUS="$2"; shift 2 ;;
             --no-tickets)      WITH_TICKETS=false; shift ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1187,7 +1187,7 @@ invoice_create() {
             -d|--description) DESCRIPTION="$2"; shift 2 ;;
             --amount)         AMOUNT="$2"; shift 2 ;;
             -e|--env)         ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1243,7 +1243,7 @@ invoice_update() {
             --due-date)       DUE_DATE="$2"; shift 2 ;;
             --payment-terms)  PAYMENT_TERMS="$2"; shift 2 ;;
             -e|--env)         ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1282,7 +1282,7 @@ invoice_delete() {
             --ticket) TICKET_ID="$2"; shift 2 ;;
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1327,7 +1327,7 @@ invoice_show() {
             -h|--help) invoice_usage; exit 0 ;;
             -e|--env)     ENV="$2"; shift 2 ;;
             -c|--content) SHOW_CONTENT=true; shift ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1371,7 +1371,7 @@ article_create() {
             -f|--file)     CONTENT_FILE="$2"; shift 2 ;;
             -e|--env)      ENV="$2"; shift 2 ;;
             --related)     RELATED="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1450,7 +1450,7 @@ article_update() {
             -e|--env)   ENV="$2"; shift 2 ;;
             --related)  RELATED="$2"; shift 2 ;;
             --section)    SECTION="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1542,7 +1542,7 @@ article_relate() {
             -h|--help) article_usage; exit 0 ;;
             --related)  RELATED="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$RELATED" ] && echo -e "${RED}✗ --related is required${NC}" && exit 1
@@ -1576,7 +1576,7 @@ article_unrelate() {
             -h|--help) article_usage; exit 0 ;;
             --related)  RELATED="$2"; shift 2 ;;
             -e|--env)   ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     [ -z "$RELATED" ] && echo -e "${RED}✗ --related is required${NC}" && exit 1
@@ -1605,7 +1605,7 @@ article_history() {
             -h|--help) article_usage; exit 0 ;;
             -e|--env)       ENV="$2"; shift 2 ;;
             -n|--page-size) PAGE_SIZE="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     resolve_env "$ENV"
@@ -1651,7 +1651,7 @@ article_revert() {
             --to-version)     TO_VERSION="$2"; shift 2 ;;
             --fields)         FIELDS="$2"; shift 2 ;;
             --comment)        COMMENT="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
     resolve_env "$ENV"
@@ -1731,7 +1731,7 @@ article_show() {
             -c|--content) SHOW_CONTENT=true; shift ;;
             --headings)     SHOW_HEADINGS=true; shift ;;
             --section)      SECTION="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
 
@@ -1797,7 +1797,7 @@ search_query() {
                 if [[ ! "$1" =~ ^- ]]; then
                     QUERY="$QUERY $1"; shift
                 else
-                    echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1
+                    echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1
                 fi
                 ;;
         esac
