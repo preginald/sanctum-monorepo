@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
 from .shared import SanctumBase
+from .operations import TicketRelationResponse
 
 # --- CAMPAIGNS ---
 class CampaignTargetFilter(SanctumBase):
@@ -109,6 +110,7 @@ class TicketBrief(SanctumBase):
     priority: str
     ticket_type: str
     milestone_id: Optional[UUID] = None
+    related_tickets: List[TicketRelationResponse] = []
 
 class MilestoneResponse(MilestoneCreate):
     id: UUID

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy import func
+from sqlalchemy import func, text as sa_text
 from typing import List, Optional
 from datetime import datetime, timedelta
 from .. import models, schemas, auth
@@ -93,6 +93,46 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
     ms.project_name = ms.project.name if ms.project else None
     ms.account_id = ms.project.account_id if ms.project else None
     ms.account_name = ms.project.account.name if ms.project and ms.project.account else None
+
+    # Build related_tickets for each ticket in this milestone
+    ticket_ids = [t.id for t in ms.tickets]
+    if ticket_ids:
+        relations_raw = db.execute(sa_text("""
+            SELECT t.id, t.subject, t.status, t.priority, t.ticket_type,
+                   tr.relation_type, tr.visibility,
+                   tr.ticket_id as source_id, tr.related_id
+            FROM ticket_relations tr
+            JOIN tickets t ON t.id = CASE
+                WHEN tr.ticket_id = ANY(:tids) THEN tr.related_id
+                ELSE tr.ticket_id END
+            WHERE tr.ticket_id = ANY(:tids) OR tr.related_id = ANY(:tids)
+        """), {"tids": ticket_ids}).fetchall()
+
+        # Group relations by ticket
+        from collections import defaultdict
+        rel_map = defaultdict(list)
+        for row in relations_raw:
+            for tid in ticket_ids:
+                if row.source_id == tid or row.related_id == tid:
+                    relation_type = row.relation_type
+                    if row.relation_type == "blocks" and row.source_id != tid:
+                        relation_type = "blocked_by"
+                    elif row.relation_type == "duplicates" and row.source_id != tid:
+                        relation_type = "duplicate_of"
+                    # Don't add self-references
+                    if row.id != tid:
+                        rel_map[tid].append(schemas.TicketRelationResponse(
+                            id=row.id, subject=row.subject, status=row.status,
+                            priority=row.priority, ticket_type=row.ticket_type,
+                            relation_type=relation_type, visibility=row.visibility
+                        ))
+
+        for ticket in ms.tickets:
+            ticket.related_tickets = rel_map.get(ticket.id, [])
+    else:
+        for ticket in ms.tickets:
+            ticket.related_tickets = []
+
     return ms
 
 @router.post("/projects/{project_id}/milestones/reorder")
