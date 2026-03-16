@@ -112,6 +112,22 @@ class TicketBrief(SanctumBase):
     milestone_id: Optional[UUID] = None
     related_tickets: List[TicketRelationResponse] = []
 
+    @model_validator(mode="before")
+    @classmethod
+    def sanitise_related(cls, data):
+        # When Pydantic reads from ORM, related_tickets may contain raw Ticket objects
+        # instead of TicketRelationResponse dicts — replace with empty list
+        if hasattr(data, "__dict__"):
+            # ORM object — check if related_tickets contains non-dict items
+            rt = getattr(data, "related_tickets", [])
+            if rt and not isinstance(rt[0], (dict, TicketRelationResponse)):
+                data.__dict__["related_tickets"] = []
+        elif isinstance(data, dict):
+            rt = data.get("related_tickets", [])
+            if rt and not isinstance(rt[0], (dict, TicketRelationResponse)):
+                data["related_tickets"] = []
+        return data
+
 class MilestoneResponse(MilestoneCreate):
     id: UUID
     project_id: UUID
