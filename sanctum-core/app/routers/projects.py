@@ -128,11 +128,36 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
                             relation_type=relation_type, visibility=row.visibility
                         ))
 
-    # Build response with related_tickets injected
-    response = schemas.MilestoneResponse.model_validate(ms)
-    for t_resp in response.tickets:
-        t_resp.related_tickets = rel_map.get(t_resp.id, [])
-    return response
+    # Build ticket briefs manually to avoid ORM related_tickets serialisation
+    ticket_briefs = []
+    for ticket in ms.tickets:
+        tb = schemas.TicketBrief(
+            id=ticket.id,
+            subject=ticket.subject,
+            status=ticket.status,
+            priority=ticket.priority,
+            ticket_type=ticket.ticket_type,
+            milestone_id=ticket.milestone_id,
+            related_tickets=rel_map.get(ticket.id, [])
+        )
+        ticket_briefs.append(tb)
+
+    return schemas.MilestoneResponse(
+        id=ms.id,
+        name=ms.name,
+        due_date=ms.due_date,
+        status=ms.status,
+        billable_amount=ms.billable_amount,
+        sequence=ms.sequence,
+        description=ms.description,
+        project_id=ms.project_id,
+        invoice_id=ms.invoice_id,
+        created_at=ms.created_at,
+        project_name=ms.project.name if ms.project else None,
+        account_id=ms.project.account_id if ms.project else None,
+        account_name=ms.project.account.name if ms.project and ms.project.account else None,
+        tickets=ticket_briefs,
+    )
 
 @router.post("/projects/{project_id}/milestones/reorder")
 def reorder_milestones(project_id: str, payload: schemas.MilestoneReorderRequest, db: Session = Depends(get_db)):
