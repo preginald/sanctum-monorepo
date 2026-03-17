@@ -492,6 +492,189 @@ ticket_create() {
     fi
 }
 
+
+ticket_create_batch() {
+    local BATCH_FILE="" ENV="prod"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) echo "Usage: sanctum ticket create-batch -f <json_file> [-e env]"; exit 0 ;;
+            -f|--file) BATCH_FILE="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$BATCH_FILE" ] && echo -e "${RED}✗ -f/--file is required${NC}" && exit 1
+    [ ! -f "$BATCH_FILE" ] && echo -e "${RED}✗ File not found: ${BATCH_FILE}${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket create-batch"
+    ensure_auth
+
+    # Validate JSON array
+    ENTRY_COUNT=$(jq 'if type == "array" then length else error("not an array") end' "$BATCH_FILE" 2>/dev/null)
+    if [ $? -ne 0 ] || [ -z "$ENTRY_COUNT" ] || [ "$ENTRY_COUNT" -eq 0 ]; then
+        echo -e "${RED}✗ File must contain a non-empty JSON array${NC}"
+        exit 1
+    fi
+
+    echo -e "${BLUE}→ Validating ${ENTRY_COUNT} ticket(s)...${NC}"
+
+    # Pre-validate all entries
+    for i in $(seq 0 $((ENTRY_COUNT - 1))); do
+        SUBJECT=$(jq -r ".[$i].subject // empty" "$BATCH_FILE")
+        PROJECT=$(jq -r ".[$i].project // empty" "$BATCH_FILE")
+        ACCOUNT=$(jq -r ".[$i].account // empty" "$BATCH_FILE")
+        if [ -z "$SUBJECT" ]; then
+            echo -e "${RED}✗ Entry $((i+1)): missing 'subject'${NC}"
+            exit 1
+        fi
+        if [ -z "$PROJECT" ] && [ -z "$ACCOUNT" ]; then
+            echo -e "${RED}✗ Entry $((i+1)): missing 'project' or 'account'${NC}"
+            exit 1
+        fi
+    done
+    echo -e "${GREEN}✓ All entries valid${NC}"
+
+    confirm_prod "About to create ${ENTRY_COUNT} ticket(s)"
+
+    # Resolution caches
+    declare -A PROJECT_CACHE MILESTONE_CACHE
+    local CREATED=0 FAILED=0
+
+    for i in $(seq 0 $((ENTRY_COUNT - 1))); do
+        SUBJECT=$(jq -r ".[$i].subject // empty" "$BATCH_FILE")
+        PROJECT_NAME=$(jq -r ".[$i].project // empty" "$BATCH_FILE")
+        ACCOUNT_NAME=$(jq -r ".[$i].account // empty" "$BATCH_FILE")
+        MILESTONE_NAME=$(jq -r ".[$i].milestone // empty" "$BATCH_FILE")
+        PRIORITY=$(jq -r ".[$i].priority // \"normal\"" "$BATCH_FILE")
+        TICKET_TYPE=$(jq -r ".[$i].type // \"task\"" "$BATCH_FILE")
+        DESCRIPTION=$(jq -r ".[$i].description // empty" "$BATCH_FILE")
+        DESC_FILE=$(jq -r ".[$i].description_file // empty" "$BATCH_FILE")
+        ARTICLES=$(jq -r ".[$i].articles // empty" "$BATCH_FILE")
+        RELATE_TICKETS=$(jq -r ".[$i].relate_tickets // empty" "$BATCH_FILE")
+
+        echo ""
+        echo -e "${YELLOW}── Ticket $((i+1))/${ENTRY_COUNT}: ${SUBJECT} ──${NC}"
+
+        # Load description from file if specified
+        if [ -n "$DESC_FILE" ]; then
+            if [ ! -f "$DESC_FILE" ]; then
+                echo -e "${RED}  ✗ Description file not found: ${DESC_FILE}${NC}"
+                FAILED=$((FAILED + 1))
+                continue
+            fi
+            DESCRIPTION=$(cat "$DESC_FILE")
+        fi
+
+        # Resolve project (cached)
+        ACCOUNT_ID="" PROJECT_ID="" MILESTONE_ID=""
+        PROJECT_DISPLAY="" MILESTONE_DISPLAY=""
+        if [ -n "$PROJECT_NAME" ]; then
+            if [ -n "${PROJECT_CACHE[$PROJECT_NAME]+x}" ]; then
+                eval "${PROJECT_CACHE[$PROJECT_NAME]}"
+            else
+                resolve_project "$PROJECT_NAME"
+                if [ $? -ne 0 ]; then
+                    echo -e "${RED}  ✗ Failed to resolve project: ${PROJECT_NAME}${NC}"
+                    FAILED=$((FAILED + 1))
+                    continue
+                fi
+                PROJECT_CACHE[$PROJECT_NAME]="PROJECT_ID='$PROJECT_ID'; ACCOUNT_ID='$ACCOUNT_ID'; PROJECT_DISPLAY='$PROJECT_DISPLAY'"
+            fi
+
+            # Resolve milestone (cached)
+            if [ -n "$MILESTONE_NAME" ]; then
+                local CACHE_KEY="${PROJECT_NAME}::${MILESTONE_NAME}"
+                if [ -n "${MILESTONE_CACHE[$CACHE_KEY]+x}" ]; then
+                    eval "${MILESTONE_CACHE[$CACHE_KEY]}"
+                else
+                    resolve_milestone "$MILESTONE_NAME" "$PROJECT_ID"
+                    if [ $? -ne 0 ]; then
+                        echo -e "${RED}  ✗ Failed to resolve milestone: ${MILESTONE_NAME}${NC}"
+                        FAILED=$((FAILED + 1))
+                        continue
+                    fi
+                    MILESTONE_CACHE[$CACHE_KEY]="MILESTONE_ID='$MILESTONE_ID'; MILESTONE_DISPLAY='$MILESTONE_DISPLAY'"
+                fi
+            fi
+        else
+            resolve_account "$ACCOUNT_NAME"
+            if [ $? -ne 0 ]; then
+                echo -e "${RED}  ✗ Failed to resolve account: ${ACCOUNT_NAME}${NC}"
+                FAILED=$((FAILED + 1))
+                continue
+            fi
+        fi
+
+        # Build payload
+        PAYLOAD=$(jq -n \
+            --arg account_id "$ACCOUNT_ID" \
+            --arg subject "$SUBJECT" \
+            --arg description "$DESCRIPTION" \
+            --arg priority "$PRIORITY" \
+            --arg ticket_type "$TICKET_TYPE" \
+            --arg milestone_id "$MILESTONE_ID" \
+            '{account_id: $account_id, subject: $subject, priority: $priority, ticket_type: $ticket_type}
+            | if $description != "" then .description = $description else . end
+            | if $milestone_id != "" then .milestone_id = $milestone_id else . end')
+
+        RESULT=$(api_post "/tickets" "$PAYLOAD")
+        TICKET_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+        if [ -z "$TICKET_ID" ]; then
+            echo -e "${RED}  ✗ Failed to create${NC}"
+            echo "$RESULT" | jq
+            FAILED=$((FAILED + 1))
+            continue
+        fi
+
+        echo -e "${GREEN}  ✓ Ticket #${TICKET_ID} created${NC}"
+        CREATED=$((CREATED + 1))
+
+        # Link articles
+        if [ -n "$ARTICLES" ]; then
+            IFS=',' read -ra ARTICLE_LIST <<< "$ARTICLES"
+            for RAW_ID in "${ARTICLE_LIST[@]}"; do
+                RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
+                ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || continue
+                api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
+                echo -e "${GREEN}    Linked article: ${RAW_ID}${NC}"
+            done
+        fi
+
+        # Link related tickets
+        if [ -n "$RELATE_TICKETS" ]; then
+            IFS=',' read -ra RELATE_LIST <<< "$RELATE_TICKETS"
+            for RELATED_ID in "${RELATE_LIST[@]}"; do
+                RELATED_ID=$(echo "$RELATED_ID" | tr -d ' ')
+                RELATED_BARE="${RELATED_ID%%:*}"
+                RELATION_TYPE="${RELATED_ID##*:}"
+                [ "$RELATION_TYPE" = "$RELATED_BARE" ] && RELATION_TYPE="relates_to"
+                REL_PAYLOAD=$(jq -n --arg rid "$RELATED_BARE" --arg rt "$RELATION_TYPE" '{"related_id": ($rid | tonumber), "relation_type": $rt, "visibility": "internal"}')
+                REL_RESULT=$(api_post "/tickets/${TICKET_ID}/relations" "$REL_PAYLOAD")
+                REL_STATUS=$(echo "$REL_RESULT" | jq -r '.status // "error"')
+                if [ "$REL_STATUS" = "linked" ]; then
+                    echo -e "${GREEN}    Linked ticket: #${RELATED_BARE} (${RELATION_TYPE})${NC}"
+                elif [ "$REL_STATUS" = "already_exists" ]; then
+                    echo -e "${YELLOW}    Already linked: #${RELATED_BARE}${NC}"
+                else
+                    echo -e "${RED}    Failed to link: #${RELATED_BARE}${NC}"
+                fi
+            done
+        fi
+    done
+
+    # Summary
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}  Batch complete: ${CREATED} created, ${FAILED} failed${NC}"
+    echo -e "${GREEN}========================================${NC}"
+
+    [ "$FAILED" -gt 0 ] && exit 1
+    exit 0
+}
 ticket_comment() {
     local TICKET_ID="$1"; shift
     local BODY="" STATUS="" VISIBILITY="internal" ENV="prod"
@@ -1892,6 +2075,7 @@ case "$DOMAIN" in
         case "$COMMAND" in
             -h|--help) ticket_usage ;;
             create)   ticket_create "$@" ;;
+            create-batch) ticket_create_batch "$@" ;;
             update)   ticket_update "$@" ;;
             comment)  ticket_comment "$@" ;;
             resolve)  ticket_resolve "$@" ;;
@@ -1904,7 +2088,7 @@ case "$DOMAIN" in
             unrelate-ticket) ticket_unrelate_ticket "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, comment, resolve, list, show, delete, relate, unrelate, relate-tickets, unrelate-ticket"
+                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, delete, relate, unrelate, relate-tickets, unrelate-ticket"
                 exit 1
                 ;;
         esac
