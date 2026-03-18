@@ -12,6 +12,7 @@
 #   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
     echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
     echo "  sanctum.sh ticket delete-batch 575,576,577"
+    echo "  sanctum.sh ticket show-batch 574,583,584"
 #   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to"
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
@@ -67,6 +68,7 @@ ticket_usage() {
     echo "  resolve  Resolve a ticket (adds comment + updates status)"
     echo "  list     List tickets, optionally filtered"
     echo "  show     Show ticket details"
+    echo "  show-batch  Show multiple tickets at once"
     echo "  delete   Soft-delete (archive) a ticket"
     echo "  delete-batch  Soft-delete multiple tickets at once"
     echo "  relate   Link one or more articles to a ticket"
@@ -85,6 +87,7 @@ ticket_usage() {
     echo "  resolve: <id>, -b|--body <text>, [--visibility internal|public], [-e|--env]"
     echo "  list:    [-p|--project <name>], [-m|--milestone <name>], [--status <status>], [-e|--env]"
     echo "  show:    <id>, [-e|--env]"
+    echo "  show-batch: <id1,id2,...>, [-c], [-r], [-e|--env local|prod]"
     echo "  delete:  <id>, [-e|--env]"
     echo "  delete-batch: <id1,id2,...>, [-e|--env local|prod]"
     echo "  relate:  <ticket_id> --articles <id1,id2,...>, [-e|--env]"
@@ -103,6 +106,7 @@ ticket_usage() {
     echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
     echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
     echo "  sanctum.sh ticket delete-batch 575,576,577"
+    echo "  sanctum.sh ticket show-batch 574,583,584"
     echo ""
     exit 0
 }
@@ -828,6 +832,60 @@ ticket_show() {
         echo "$RESULT" | jq "$BASE_FIELDS"
     fi
     echo ""
+}
+
+ticket_show_batch() {
+    local IDS_CSV="$1"; shift 2>/dev/null
+    local ENV="prod" SHOW_CONTENT=false SHOW_RELATIONS=false
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) echo "Usage: sanctum ticket show-batch <id1,id2,...> [-c] [-r] [-e env]"; exit 0 ;;
+            -e|--env)       ENV="$2"; shift 2 ;;
+            -c|--content)   SHOW_CONTENT=true; shift ;;
+            -r|--relations) SHOW_RELATIONS=true; shift ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$IDS_CSV" ] && echo -e "${RED}✗ Comma-separated ticket IDs required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket show-batch"
+    ensure_auth
+
+    IFS=',' read -ra ID_LIST <<< "$IDS_CSV"
+    local COUNT=${#ID_LIST[@]}
+
+    BASE_FIELDS='{id, subject, status, priority, ticket_type, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at}'
+    CONTENT_FIELDS='{id, subject, status, priority, ticket_type, description, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at}'
+    RELATION_FIELDS='{id, subject, status, priority, ticket_type, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at, related_tickets, articles}'
+    FULL_FIELDS='{id, subject, status, priority, ticket_type, description, account_name, milestone_name, project_name, assigned_tech_id, created_at, updated_at, related_tickets, articles}'
+
+    local FIELDS="$BASE_FIELDS"
+    if [ "$SHOW_CONTENT" = true ] && [ "$SHOW_RELATIONS" = true ]; then
+        FIELDS="$FULL_FIELDS"
+    elif [ "$SHOW_CONTENT" = true ]; then
+        FIELDS="$CONTENT_FIELDS"
+    elif [ "$SHOW_RELATIONS" = true ]; then
+        FIELDS="$RELATION_FIELDS"
+    fi
+
+    for TICKET_ID in "${ID_LIST[@]}"; do
+        TICKET_ID=$(echo "$TICKET_ID" | tr -d ' ')
+        echo ""
+        echo -e "${YELLOW}── Ticket #${TICKET_ID} ──${NC}"
+        RESULT=$(api_get "/tickets/${TICKET_ID}")
+        SUBJECT=$(echo "$RESULT" | jq -r '.subject // empty')
+        if [ -z "$SUBJECT" ]; then
+            echo -e "${RED}  ✗ Not found or error${NC}"
+            continue
+        fi
+        echo "$RESULT" | jq "$FIELDS"
+    done
+
+    echo ""
+    echo -e "${BLUE}Showed ${COUNT} ticket(s)${NC}"
 }
 
 ticket_list() {
@@ -2137,6 +2195,9 @@ case "$DOMAIN" in
             resolve)  ticket_resolve "$@" ;;
             list)     ticket_list "$@" ;;
             show)     ticket_show "$@" ;;
+            show-batch) ticket_show_batch "$@" ;;
+            show-batch) ticket_show_batch "$@" ;;
+            show-batch) ticket_show_batch "$@" ;;
             delete)   ticket_delete "$@" ;;
             delete-batch) ticket_delete_batch "$@" ;;
             relate)          ticket_relate "$@" ;;
@@ -2145,7 +2206,7 @@ case "$DOMAIN" in
             unrelate-ticket) ticket_unrelate_ticket "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, delete, delete-batch, relate, unrelate, relate-tickets, unrelate-ticket"
+                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, show-batch, delete, delete-batch, relate, unrelate, relate-tickets, unrelate-ticket"
                 exit 1
                 ;;
         esac
