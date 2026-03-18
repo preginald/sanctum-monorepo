@@ -10,9 +10,6 @@
 #   sanctum.sh ticket update  256 -d "New description" --status open
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" --relate-tickets "374:blocks,375"
 #   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
-    echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
-    echo "  sanctum.sh ticket delete-batch 575,576,577"
-    echo "  sanctum.sh ticket show-batch 574,583,584"
 #   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to"
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
