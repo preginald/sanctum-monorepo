@@ -10,6 +10,7 @@
 #   sanctum.sh ticket update  256 -d "New description" --status open
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" --relate-tickets "374:blocks,375"
 #   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
+    echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
 #   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to"
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
@@ -59,6 +60,7 @@ ticket_usage() {
     echo ""
     echo -e "${YELLOW}COMMANDS${NC}"
     echo "  create   Create a new ticket"
+    echo "  create-batch  Create multiple tickets from a JSON file"
     echo "  update   Update an existing ticket"
     echo "  comment  Add a comment to a ticket"
     echo "  resolve  Resolve a ticket (adds comment + updates status)"
@@ -73,6 +75,7 @@ ticket_usage() {
     echo "           [-m|--milestone <name>], [--type <type>], [--priority <priority>],"
     echo "           [-d|--description <text>], [-f|--file <path>], [--articles <id1,id2,...>],
            [--relate-tickets <id[:type],...>], [-e|--env local|prod]"
+    echo "  create-batch: -f|--file <json_path>, [-e|--env local|prod]"
     echo "  update:  <id>, [-s|--subject], [-d|--description], [-f|--file <path>], [--status <status>],"
     echo "           [--priority <priority>], [--type <type>], [-m|--milestone <name>],"
     echo "           [--articles <id1,id2,...>], [--relate-tickets <id[:type],...>], [-e|--env]"
@@ -95,6 +98,7 @@ ticket_usage() {
     echo "  sanctum.sh ticket relate 310 --articles \"DOC-001,WIKI-002\""
     echo "  sanctum.sh ticket unrelate 310 --article DOC-001"
     echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
+    echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
     echo ""
     exit 0
 }
