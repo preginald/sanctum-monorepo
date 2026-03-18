@@ -11,6 +11,7 @@
 #   sanctum.sh ticket create -s "Fix login" -p "Sanctum Core" --relate-tickets "374:blocks,375"
 #   sanctum.sh ticket resolve 250 -b "Fixed and deployed."
     echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
+    echo "  sanctum.sh ticket delete-batch 575,576,577"
 #   sanctum.sh ticket update 310 --relate-tickets "374:blocks,375:relates_to"
 #   sanctum.sh ticket show 250
 #   sanctum.sh ticket delete 250
@@ -67,6 +68,7 @@ ticket_usage() {
     echo "  list     List tickets, optionally filtered"
     echo "  show     Show ticket details"
     echo "  delete   Soft-delete (archive) a ticket"
+    echo "  delete-batch  Soft-delete multiple tickets at once"
     echo "  relate   Link one or more articles to a ticket"
     echo "  unrelate Unlink an article from a ticket"
     echo ""
@@ -84,6 +86,7 @@ ticket_usage() {
     echo "  list:    [-p|--project <name>], [-m|--milestone <name>], [--status <status>], [-e|--env]"
     echo "  show:    <id>, [-e|--env]"
     echo "  delete:  <id>, [-e|--env]"
+    echo "  delete-batch: <id1,id2,...>, [-e|--env local|prod]"
     echo "  relate:  <ticket_id> --articles <id1,id2,...>, [-e|--env]"
     echo "  unrelate:<ticket_id> --article <id>, [-e|--env]"
     echo ""
@@ -99,6 +102,7 @@ ticket_usage() {
     echo "  sanctum.sh ticket unrelate 310 --article DOC-001"
     echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
     echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
+    echo "  sanctum.sh ticket delete-batch 575,576,577"
     echo ""
     exit 0
 }
@@ -902,6 +906,54 @@ ticket_delete() {
         echo "$RESULT" | jq
         exit 1
     fi
+}
+
+ticket_delete_batch() {
+    local IDS_CSV="$1"; shift 2>/dev/null
+    local ENV="prod"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) echo "Usage: sanctum ticket delete-batch <id1,id2,...> [-e env]"; exit 0 ;;
+            -e|--env) ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$IDS_CSV" ] && echo -e "${RED}✗ Comma-separated ticket IDs required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — ticket delete-batch"
+    ensure_auth
+
+    IFS=',' read -ra ID_LIST <<< "$IDS_CSV"
+    local COUNT=${#ID_LIST[@]}
+
+    echo -e "${BLUE}→ Tickets to delete: ${IDS_CSV} (${COUNT} total)${NC}"
+    confirm_prod "About to soft-delete ${COUNT} ticket(s)"
+
+    local DELETED=0 FAILED=0
+
+    for TICKET_ID in "${ID_LIST[@]}"; do
+        TICKET_ID=$(echo "$TICKET_ID" | tr -d ' ')
+        RESULT=$(api_delete "/tickets/${TICKET_ID}")
+        STATUS=$(echo "$RESULT" | jq -r '.status // empty')
+        if [ "$STATUS" = "archived" ]; then
+            echo -e "${GREEN}  ✓ Ticket #${TICKET_ID} archived${NC}"
+            DELETED=$((DELETED + 1))
+        else
+            echo -e "${RED}  ✗ Ticket #${TICKET_ID} failed${NC}"
+            FAILED=$((FAILED + 1))
+        fi
+    done
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}  Batch complete: ${DELETED} deleted, ${FAILED} failed${NC}"
+    echo -e "${GREEN}========================================${NC}"
+
+    [ "$FAILED" -gt 0 ] && exit 1
+    exit 0
 }
 ticket_update() {
     local TICKET_ID="$1"; shift
@@ -2086,13 +2138,14 @@ case "$DOMAIN" in
             list)     ticket_list "$@" ;;
             show)     ticket_show "$@" ;;
             delete)   ticket_delete "$@" ;;
+            delete-batch) ticket_delete_batch "$@" ;;
             relate)          ticket_relate "$@" ;;
             unrelate)        ticket_unrelate "$@" ;;
             relate-tickets)  ticket_relate_tickets "$@" ;;
             unrelate-ticket) ticket_unrelate_ticket "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, delete, relate, unrelate, relate-tickets, unrelate-ticket"
+                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, delete, delete-batch, relate, unrelate, relate-tickets, unrelate-ticket"
                 exit 1
                 ;;
         esac
