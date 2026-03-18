@@ -69,7 +69,6 @@ ticket_usage() {
     echo "  delete   Soft-delete (archive) a ticket"
     echo "  delete-batch  Soft-delete multiple tickets at once"
     echo "  relate   Link one or more articles to a ticket"
-    echo "  relate-batch  Link articles to multiple tickets at once"
     echo "  unrelate Unlink an article from a ticket"
     echo ""
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
@@ -89,7 +88,6 @@ ticket_usage() {
     echo "  delete:  <id>, [-e|--env]"
     echo "  delete-batch: <id1,id2,...>, [-e|--env local|prod]"
     echo "  relate:  <ticket_id> --articles <id1,id2,...>, [-e|--env]"
-    echo "  relate-batch: --tickets <id1,id2,...> --articles <id1,id2,...>, [-e|--env]"
     echo "  unrelate:<ticket_id> --article <id>, [-e|--env]"
     echo ""
     echo -e "${YELLOW}ENUMERATIONS${NC}"
@@ -101,7 +99,6 @@ ticket_usage() {
     echo "  sanctum.sh ticket create -s \"Fix login\" -p \"Sanctum Core\" -m \"Phase 65\" --type bug"
     echo "  sanctum.sh ticket create -s \"Setup guide\" -p \"Sanctum Core\" --articles \"DOC-001,WIKI-002\""
     echo "  sanctum.sh ticket relate 310 --articles \"DOC-001,WIKI-002\""
-    echo "  sanctum.sh ticket relate-batch --tickets \"495,496,473\" --articles \"DOC-009\""
     echo "  sanctum.sh ticket unrelate 310 --article DOC-001"
     echo "  sanctum.sh ticket resolve 250 -b \"Fixed and deployed.\""
     echo "  sanctum.sh ticket create-batch -f /tmp/tickets.json"
@@ -1141,60 +1138,6 @@ ticket_relate() {
         api_post "/tickets/${TICKET_ID}/articles/${ARTICLE_UUID}" '{}' > /dev/null
         echo -e "${GREEN}  Linked: ${RAW_ID}${NC}"
     done
-    echo ""
-}
-
-ticket_relate_batch() {
-    local TICKETS="" ARTICLES="" ENV="prod"
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            -h|--help) echo "Usage: sanctum ticket relate-batch --tickets <id1,id2,...> --articles <id1,id2,...> [-e env]"; exit 0 ;;
-            --tickets)  TICKETS="$2"; shift 2 ;;
-            --articles) ARTICLES="$2"; shift 2 ;;
-            -e|--env)   ENV="$2"; shift 2 ;;
-            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
-        esac
-    done
-    [ -z "$TICKETS" ] && echo -e "${RED}✗ --tickets is required${NC}" && exit 1
-    [ -z "$ARTICLES" ] && echo -e "${RED}✗ --articles is required${NC}" && exit 1
-    resolve_env "$ENV"
-    print_env_banner "sanctum.sh — ticket relate-batch"
-    ensure_auth
-
-    # Resolve all article identifiers up front
-    declare -a ARTICLE_UUIDS=()
-    declare -a ARTICLE_NAMES=()
-    IFS=',' read -ra ARTICLE_LIST <<< "$ARTICLES"
-    for RAW_ID in "${ARTICLE_LIST[@]}"; do
-        RAW_ID=$(echo "$RAW_ID" | tr -d ' ')
-        ARTICLE_UUID=$(resolve_article_identifier "$RAW_ID") || { echo -e "${RED}✗ Could not resolve article: ${RAW_ID}${NC}"; exit 1; }
-        ARTICLE_UUIDS+=("$ARTICLE_UUID")
-        ARTICLE_NAMES+=("$RAW_ID")
-    done
-
-    IFS=',' read -ra TICKET_LIST <<< "$TICKETS"
-    local TOTAL_LINKS=0 FAILED_LINKS=0
-
-    confirm_prod "About to link ${#ARTICLE_LIST[@]} article(s) to ${#TICKET_LIST[@]} ticket(s)"
-
-    for TID in "${TICKET_LIST[@]}"; do
-        TID=$(echo "$TID" | tr -d ' ')
-        echo -e "${YELLOW}→ Ticket #${TID}${NC}"
-        for i in "${!ARTICLE_UUIDS[@]}"; do
-            api_post "/tickets/${TID}/articles/${ARTICLE_UUIDS[$i]}" '{}' > /dev/null 2>&1
-            if [ $? -eq 0 ]; then
-                echo -e "${GREEN}  Linked: ${ARTICLE_NAMES[$i]}${NC}"
-                TOTAL_LINKS=$((TOTAL_LINKS + 1))
-            else
-                echo -e "${RED}  Failed: ${ARTICLE_NAMES[$i]}${NC}"
-                FAILED_LINKS=$((FAILED_LINKS + 1))
-            fi
-        done
-    done
-
-    echo ""
-    echo -e "${GREEN}✓ ${TOTAL_LINKS} link(s) created${NC}"
-    [ $FAILED_LINKS -gt 0 ] && echo -e "${RED}✗ ${FAILED_LINKS} link(s) failed${NC}"
     echo ""
 }
 
@@ -2250,16 +2193,17 @@ case "$DOMAIN" in
             list)     ticket_list "$@" ;;
             show)     ticket_show "$@" ;;
             show-batch) ticket_show_batch "$@" ;;
+            show-batch) ticket_show_batch "$@" ;;
+            show-batch) ticket_show_batch "$@" ;;
             delete)   ticket_delete "$@" ;;
             delete-batch) ticket_delete_batch "$@" ;;
             relate)          ticket_relate "$@" ;;
-            relate-batch)    ticket_relate_batch "$@" ;;
             unrelate)        ticket_unrelate "$@" ;;
             relate-tickets)  ticket_relate_tickets "$@" ;;
             unrelate-ticket) ticket_unrelate_ticket "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown ticket command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, show-batch, delete, delete-batch, relate, relate-batch, unrelate, relate-tickets, unrelate-ticket"
+                echo "  Valid commands: create, create-batch, update, comment, resolve, list, show, show-batch, delete, delete-batch, relate, unrelate, relate-tickets, unrelate-ticket"
                 exit 1
                 ;;
         esac
