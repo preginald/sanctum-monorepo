@@ -73,9 +73,9 @@ The Sanctum MCP server (`sanctum-mcp/`) provides the same operations as the CLI 
 
 - **Location:** `sanctum-mcp/`
 - **Start:** `cd sanctum-mcp && source venv/bin/activate && python server.py`
-- **Endpoint:** `http://localhost:8100/mcp` (streamable HTTP)
-- **Auth:** Inherits `SANCTUM_API_TOKEN` from environment
-- **Domains:** ticket, article, milestone, invoice, search
+- **Endpoint:** `http://localhost:8100/` (streamable HTTP)
+- **Auth:** OAuth 2.0 Authorization Code flow with PKCE
+- **Domains:** ticket, article, milestone, invoice, search, artefact, project
 
 MCP tools return structured JSON directly — no TTY issues, no `--yes` flag needed.
 
@@ -102,7 +102,7 @@ The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
 ## Architecture Conventions
 
 ### Backend (sanctum-core/)
-- FastAPI routers in `app/routers/` (24 modules: tickets, invoices, wiki, portal, crm, sentinel, assets, search, etc.)
+- FastAPI routers in `app/routers/` (25 modules: tickets, invoices, wiki, portal, crm, sentinel, assets, artefacts, search, etc.)
 - Business logic services in `app/services/` (billing, email via Resend, notifications, PDF generation, event bus, sentinel security scanning)
 - Pydantic schemas in `app/schemas/`
 - SQLAlchemy 2.0 models in `app/models.py` (single file, all entities)
@@ -112,7 +112,7 @@ The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
 - Key env vars: `DATABASE_URL`, `SECRET_KEY`, `RESEND_API_KEY`, `FRONTEND_URL`
 
 ### Frontend (sanctum-web/)
-- React pages in `src/pages/` (42+ pages)
+- React pages in `src/pages/` (50+ pages)
 - Reusable components in `src/components/` (organized by domain: tickets/, invoices/, clients/, portal/, knowledge/, etc.)
 - **Intelligence Dossier** (DS-UX-001) is the standard UI pattern for detail pages
 - **MetadataStrip** is the platform-wide UI standard (replaces `subtitle`/`badge` props on Layout)

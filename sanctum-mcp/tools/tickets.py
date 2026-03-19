@@ -186,7 +186,7 @@ async def ticket_relate_ticket(
         relation_type: One of: relates_to, blocks, duplicates.
     """
     payload = {
-        "related_ticket_id": related_ticket_id,
+        "related_id": related_ticket_id,
         "relation_type": relation_type,
     }
     result = await client.post(f"/tickets/{ticket_id}/relations", json=payload)
