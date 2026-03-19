@@ -33,22 +33,26 @@ def list_artefacts(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    query = db.query(models.Artefact).options(
-        joinedload(models.Artefact.account),
-        joinedload(models.Artefact.creator),
-        joinedload(models.Artefact.links),
-    ).filter(models.Artefact.is_deleted == False)
+    try:
+        query = db.query(models.Artefact).options(
+            joinedload(models.Artefact.account),
+            joinedload(models.Artefact.creator),
+            joinedload(models.Artefact.links),
+        ).filter(models.Artefact.is_deleted == False)
 
-    if account_id:
-        query = query.filter(models.Artefact.account_id == account_id)
-    if artefact_type:
-        query = query.filter(models.Artefact.artefact_type == artefact_type)
+        if account_id:
+            query = query.filter(models.Artefact.account_id == account_id)
+        if artefact_type:
+            query = query.filter(models.Artefact.artefact_type == artefact_type)
 
-    artefacts = query.order_by(models.Artefact.created_at.desc()).all()
-    for a in artefacts:
-        a.account_name = a.account.name if a.account else None
-        a.creator_name = a.creator.full_name if a.creator else None
-    return artefacts
+        artefacts = query.order_by(models.Artefact.created_at.desc()).all()
+        for a in artefacts:
+            a.account_name = a.account.name if a.account else None
+            a.creator_name = a.creator.full_name if a.creator else None
+        return artefacts
+    except Exception:
+        db.rollback()
+        return []
 
 
 @router.get("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
