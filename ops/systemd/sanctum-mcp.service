@@ -1,0 +1,16 @@
+[Unit]
+Description=Sanctum MCP Server (FastMCP)
+After=network.target sanctum-api.service
+
+[Service]
+User=preginald
+Group=preginald
+WorkingDirectory=/home/preginald/DigitalSanctum/sanctum-mcp
+Environment="PATH=/home/preginald/DigitalSanctum/sanctum-mcp/venv/bin"
+EnvironmentFile=/home/preginald/DigitalSanctum/sanctum-mcp/.env
+ExecStart=/home/preginald/DigitalSanctum/sanctum-mcp/venv/bin/python server.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

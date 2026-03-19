@@ -60,6 +60,7 @@ async def ticket_show(ticket_id: int) -> str:
 async def ticket_create(
     subject: str,
     project_id: str,
+    account_id: str = "dbc2c7b9-d8c2-493f-a6ed-527f7d191068",
     milestone_id: str | None = None,
     ticket_type: str = "task",
     priority: str = "normal",
@@ -70,6 +71,7 @@ async def ticket_create(
     Args:
         subject: Ticket subject line.
         project_id: UUID of the project.
+        account_id: UUID of the account (defaults to Digital Sanctum HQ).
         milestone_id: UUID of the milestone (optional).
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         priority: One of: low, normal, high, critical.
@@ -78,6 +80,7 @@ async def ticket_create(
     payload = {
         "subject": subject,
         "project_id": project_id,
+        "account_id": account_id,
         "ticket_type": ticket_type,
         "priority": priority,
     }
@@ -180,6 +183,30 @@ async def ticket_relate_ticket(
         "relation_type": relation_type,
     }
     result = await client.post(f"/tickets/{ticket_id}/relations", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def ticket_unrelate_article(ticket_id: int, article_id: str) -> str:
+    """Remove an article link from a ticket.
+
+    Args:
+        ticket_id: The ticket number.
+        article_id: UUID of the article to unlink.
+    """
+    result = await client.delete(f"/tickets/{ticket_id}/articles/{article_id}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
+    """Remove a link between two tickets.
+
+    Args:
+        ticket_id: The source ticket number.
+        related_ticket_id: The target ticket number to unlink.
+    """
+    result = await client.delete(f"/tickets/{ticket_id}/relations/{related_ticket_id}")
     return json.dumps(result, indent=2)
 
 

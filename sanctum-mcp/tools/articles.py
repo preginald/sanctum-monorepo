@@ -19,8 +19,18 @@ async def article_show(slug: str) -> str:
     Args:
         slug: Article slug or identifier.
     """
-    result = await client.get(f"/articles/{slug}")
-    return json.dumps(result, indent=2)
+    try:
+        result = await client.get(f"/articles/{slug}")
+        return json.dumps(result, indent=2)
+    except Exception:
+        # Fallback: identifier lookup (API only supports slug/UUID natively)
+        articles = await client.get("/articles")
+        needle = slug.upper()
+        for a in (articles if isinstance(articles, list) else []):
+            if (a.get("identifier") or "").upper() == needle:
+                result = await client.get(f"/articles/{a['id']}")
+                return json.dumps(result, indent=2)
+        return json.dumps({"error": f"Article '{slug}' not found"}, indent=2)
 
 
 @mcp.tool()

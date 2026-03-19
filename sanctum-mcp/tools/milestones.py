@@ -12,8 +12,21 @@ async def milestone_list(project_id: str) -> str:
     Args:
         project_id: UUID of the project.
     """
-    result = await client.get(f"/projects/{project_id}/milestones")
-    return json.dumps(result, indent=2)
+    # No dedicated milestones list endpoint — extract from project detail
+    project = await client.get(f"/projects/{project_id}")
+    milestones = project.get("milestones", []) if isinstance(project, dict) else []
+    # Return summary fields only to keep response concise
+    summary = []
+    for m in milestones:
+        summary.append({
+            "id": m.get("id"),
+            "name": m.get("name"),
+            "status": m.get("status"),
+            "due_date": m.get("due_date"),
+            "sequence": m.get("sequence"),
+            "ticket_count": len(m.get("tickets", [])),
+        })
+    return json.dumps(summary, indent=2)
 
 
 @mcp.tool()
