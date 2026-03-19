@@ -175,6 +175,20 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session =
         ))
     response_data.related_tickets = related
 
+    # Load linked artefacts (graceful if table doesn't exist yet)
+    try:
+        artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+            models.ArtefactLink.linked_entity_type == "ticket",
+            models.ArtefactLink.linked_entity_id == str(ticket_id),
+        ).all()
+        if artefact_ids:
+            ids = [r[0] for r in artefact_ids]
+            response_data.artefacts = db.query(models.Artefact).filter(
+                models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+            ).all()
+    except Exception:
+        db.rollback()
+
     if resolve_embeds:
         try:
             from ..services.content_engine import resolve_content

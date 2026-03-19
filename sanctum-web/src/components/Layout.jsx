@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import {
     LogOut, Shield, Wifi, Users, DollarSign, FileText, Package,
-    Activity, Briefcase, Megaphone, Layers,
+    Activity, Briefcase, Megaphone, Layers, Paperclip,
     BookOpen, Zap, Clock, PieChart, Menu, X, Terminal, ArrowLeft, RefreshCw, Copy, Check, Receipt
 } from 'lucide-react';
 import { jwtDecode } from "jwt-decode";
@@ -186,6 +186,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                 {!isNaked && <NavItem icon={<Layers size={20} />} label="Templates" path="/templates" />}
                 <div className="text-xs font-bold opacity-40 uppercase tracking-widest px-4 py-2 mt-4">Resources</div>
                 <NavItem icon={<Package size={20} />} label="Catalog" path="/catalog" />
+                <NavItem icon={<Paperclip size={20} />} label="Artefacts" path="/artefacts" />
                 <NavItem icon={<FileText size={20} />} label="Audits" path="/audit" />
                 {!isNaked && <NavItem icon={<Megaphone size={20} />} label="Campaigns" path="/campaigns" /> }
                 <NavItem icon={<BookOpen size={20} />} label="The Library" path="/wiki" />

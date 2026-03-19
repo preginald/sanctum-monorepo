@@ -797,6 +797,50 @@ class TemplateApplication(Base):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# ARTEFACTS — Phase 78: The Registry
+# ─────────────────────────────────────────────────────────────────────────────
+
+class Artefact(Base):
+    __tablename__ = "artefacts"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    name = Column(String, nullable=False)
+    artefact_type = Column(SAEnum('file', 'url', 'code_path', 'document', 'credential_ref', name='artefact_type_enum'), nullable=False)
+    url = Column(String, nullable=True)
+    description = Column(Text, nullable=True)
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
+    is_deleted = Column(Boolean, default=False, server_default="false")
+
+    account = relationship("Account", foreign_keys=[account_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    links = relationship("ArtefactLink", back_populates="artefact", cascade="all, delete-orphan")
+
+    __table_args__ = (
+        Index('ix_artefacts_account_id', 'account_id'),
+    )
+
+
+class ArtefactLink(Base):
+    __tablename__ = "artefact_links"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    artefact_id = Column(UUID(as_uuid=True), ForeignKey("artefacts.id"), nullable=False)
+    linked_entity_type = Column(SAEnum('ticket', 'account', 'article', name='artefact_link_entity_type'), nullable=False)
+    linked_entity_id = Column(String, nullable=False)  # String to support both integer (ticket) and UUID (account/article) PKs
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    artefact = relationship("Artefact", back_populates="links")
+
+    __table_args__ = (
+        Index('ix_artefact_links_entity', 'linked_entity_type', 'linked_entity_id'),
+        Index('ix_artefact_links_artefact_id', 'artefact_id'),
+        # Prevent duplicate links
+        Index('uq_artefact_links', 'artefact_id', 'linked_entity_type', 'linked_entity_id', unique=True),
+    )
+
+
 # TRIGRAM INDEXES (pg_trgm)
 # Phase 75: The Omnisearch — fuzzy search support
 # ─────────────────────────────────────────────────────────────────────────────
@@ -813,3 +857,4 @@ Index('ix_trgm_project_name',        Project.name,        postgresql_using='gin'
 Index('ix_trgm_milestone_name',      Milestone.name,      postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
 Index('ix_trgm_product_name',        Product.name,        postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})
 Index('ix_trgm_product_description', Product.description, postgresql_using='gin', postgresql_ops={'description': 'gin_trgm_ops'})
+Index('ix_trgm_artefact_name',       Artefact.name,       postgresql_using='gin', postgresql_ops={'name': 'gin_trgm_ops'})

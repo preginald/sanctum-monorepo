@@ -6,6 +6,7 @@ import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Downloa
 import { diffWords } from 'diff';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import MetadataStrip from '../components/ui/MetadataStrip';
+import ArtefactCard from '../components/ArtefactCard';
 import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
@@ -383,6 +384,9 @@ Client: Digital Sanctum HQ`;
             ]}
             id={article.id}
           />
+
+          {/* ARTEFACTS */}
+          <ArtefactCard entityType="article" entityId={article.id} artefacts={article.artefacts || []} onUpdate={fetchArticle} />
 
           {/* RELATED ARTICLES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">

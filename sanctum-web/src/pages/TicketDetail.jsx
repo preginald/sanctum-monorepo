@@ -18,6 +18,7 @@ import SearchableSelect from '../components/ui/SearchableSelect';
 import TruncatedText from '../components/ui/TruncatedText';
 import InvoiceList from '../components/invoices/InvoiceList'; // NEW IMPORT
 import MetadataStrip from '../components/ui/MetadataStrip';
+import ArtefactCard from '../components/ArtefactCard';
 
 export default function TicketDetail() {
   const handleDescriptionChange = (e) => {
@@ -505,6 +506,9 @@ export default function TicketDetail() {
                 { label: 'Closed', value: ticket.closed_at },
               ]}
             />
+            <div className="mb-4">
+              <ArtefactCard entityType="ticket" entityId={ticket.id} artefacts={ticket.artefacts || []} onUpdate={fetchTicket} />
+            </div>
             <CommentStream resourceType="ticket" resourceId={ticket.id} onPromote={ticket.status !== 'resolved' ? handlePinComment : null} highlightId={ticket.resolution_comment_id} refreshKey={refreshKey} />
         </div>
       </div>

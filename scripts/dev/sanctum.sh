@@ -38,6 +38,7 @@ usage() {
     echo "  milestone  Manage project milestones (create, update, list, show)"
     echo "  invoice    Manage invoices (create, update, delete, show)"
     echo "  article    Manage knowledge base articles (create, update, show)"
+    echo "  artefact   Manage artefacts (create, update, show, delete, link, unlink)"
     echo "  context    Session context loader (batch article reader)"
     echo "  search     Omnisearch — cross-entity fuzzy search"
     echo ""
@@ -2229,6 +2230,245 @@ search_query() {
 }
 
 # ─────────────────────────────────────────────
+# ARTEFACT DOMAIN
+# ─────────────────────────────────────────────
+
+artefact_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh artefact — Manage Artefacts${NC}"
+    echo ""
+    echo "Usage: sanctum.sh artefact <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  create     Create a new artefact"
+    echo "  update     Update an existing artefact"
+    echo "  show       Show artefact details"
+    echo "  delete     Soft-delete an artefact"
+    echo "  link       Link artefact to a ticket, account, or article"
+    echo "  unlink     Remove a link"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  create:  --name <text>, --type <file|url|code_path|document|credential_ref>,"
+    echo "           [--url <url>], [--account <name>], [--description <text>], [-e|--env]"
+    echo "  update:  <id>, [--name], [--type], [--url], [--description], [-e|--env]"
+    echo "  show:    <id>, [-e|--env]"
+    echo "  delete:  <id>, [-e|--env]"
+    echo "  link:    <id>, --ticket <id> | --article <id> | --account <name>, [-e|--env]"
+    echo "  unlink:  <id>, --ticket <id> | --article <id> | --account <name>, [-e|--env]"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh artefact create --name 'Server Config' --type document --url '/etc/nginx/nginx.conf'"
+    echo "  sanctum.sh artefact link abc123 --ticket 597"
+    echo "  sanctum.sh artefact show abc123"
+    echo ""
+    exit 0
+}
+
+artefact_create() {
+    local NAME="" TYPE="document" URL="" DESCRIPTION="" ACCOUNT_NAME="" ENV="prod"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            --name)        NAME="$2"; shift 2 ;;
+            --type)        TYPE="$2"; shift 2 ;;
+            --url)         URL="$2"; shift 2 ;;
+            --description) DESCRIPTION="$2"; shift 2 ;;
+            --account)     ACCOUNT_NAME="$2"; shift 2 ;;
+            -e|--env)      ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$NAME" ] && echo -e "${RED}✗ --name is required${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — artefact create"
+    ensure_auth
+
+    PAYLOAD=$(jq -n \
+        --arg name "$NAME" \
+        --arg artefact_type "$TYPE" \
+        '{name: $name, artefact_type: $artefact_type}')
+
+    [ -n "$URL" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg url "$URL" '. + {url: $url}')
+    [ -n "$DESCRIPTION" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg desc "$DESCRIPTION" '. + {description: $desc}')
+
+    if [ -n "$ACCOUNT_NAME" ]; then
+        resolve_account "$ACCOUNT_NAME" || exit 1
+        PAYLOAD=$(echo "$PAYLOAD" | jq --arg aid "$ACCOUNT_ID" '. + {account_id: $aid}')
+    fi
+
+    RESULT=$(api_post "/artefacts" "$PAYLOAD")
+    ARTEFACT_ID=$(echo "$RESULT" | jq -r '.id // empty')
+    if [ -z "$ARTEFACT_ID" ]; then
+        echo -e "${RED}✗ Failed to create artefact${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo -e "${GREEN}✓ Artefact created${NC}"
+    echo -e "  ID:   ${BLUE}${ARTEFACT_ID}${NC}"
+    echo -e "  Name: ${BLUE}${NAME}${NC}"
+    echo -e "  Type: ${BLUE}${TYPE}${NC}"
+}
+
+artefact_update() {
+    local ARTEFACT_ID="$1"; shift
+    local NAME="" TYPE="" URL="" DESCRIPTION="" ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            --name)        NAME="$2"; shift 2 ;;
+            --type)        TYPE="$2"; shift 2 ;;
+            --url)         URL="$2"; shift 2 ;;
+            --description) DESCRIPTION="$2"; shift 2 ;;
+            -e|--env)      ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — artefact update"
+    ensure_auth
+
+    PAYLOAD=$(jq -n '{}')
+    [ -n "$NAME" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$NAME" '. + {name: $v}')
+    [ -n "$TYPE" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$TYPE" '. + {artefact_type: $v}')
+    [ -n "$URL" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$URL" '. + {url: $v}')
+    [ -n "$DESCRIPTION" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$DESCRIPTION" '. + {description: $v}')
+
+    RESULT=$(api_put "/artefacts/${ARTEFACT_ID}" "$PAYLOAD")
+    echo -e "${GREEN}✓ Artefact updated${NC}"
+    echo "$RESULT" | jq '{id, name, artefact_type, url}'
+}
+
+artefact_show() {
+    local ARTEFACT_ID="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    RESULT=$(api_get "/artefacts/${ARTEFACT_ID}")
+    echo "$RESULT" | jq '.'
+}
+
+artefact_delete() {
+    local ARTEFACT_ID="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — artefact delete"
+    ensure_auth
+    confirm_prod "About to archive artefact: ${ARTEFACT_ID}"
+
+    api_delete "/artefacts/${ARTEFACT_ID}" > /dev/null
+    echo -e "${GREEN}✓ Artefact archived${NC}"
+}
+
+artefact_link() {
+    local ARTEFACT_ID="$1"; shift
+    local TICKET_ID="" ARTICLE_ID="" ACCOUNT_NAME="" ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            --ticket)   TICKET_ID="$2"; shift 2 ;;
+            --article)  ARTICLE_ID="$2"; shift 2 ;;
+            --account)  ACCOUNT_NAME="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    if [ -n "$TICKET_ID" ]; then
+        PAYLOAD=$(jq -n --arg eid "$TICKET_ID" '{entity_type: "ticket", entity_id: $eid}')
+        api_post "/artefacts/${ARTEFACT_ID}/link" "$PAYLOAD" > /dev/null
+        echo -e "${GREEN}✓ Linked to ticket #${TICKET_ID}${NC}"
+    fi
+
+    if [ -n "$ARTICLE_ID" ]; then
+        resolve_article_id "$ARTICLE_ID"
+        PAYLOAD=$(jq -n --arg eid "$ARTICLE_UUID" '{entity_type: "article", entity_id: $eid}')
+        api_post "/artefacts/${ARTEFACT_ID}/link" "$PAYLOAD" > /dev/null
+        echo -e "${GREEN}✓ Linked to article ${ARTICLE_ID}${NC}"
+    fi
+
+    if [ -n "$ACCOUNT_NAME" ]; then
+        resolve_account "$ACCOUNT_NAME" || exit 1
+        PAYLOAD=$(jq -n --arg eid "$ACCOUNT_ID" '{entity_type: "account", entity_id: $eid}')
+        api_post "/artefacts/${ARTEFACT_ID}/link" "$PAYLOAD" > /dev/null
+        echo -e "${GREEN}✓ Linked to account ${ACCOUNT_DISPLAY}${NC}"
+    fi
+}
+
+artefact_unlink() {
+    local ARTEFACT_ID="$1"; shift
+    local TICKET_ID="" ARTICLE_ID="" ACCOUNT_NAME="" ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            --ticket)   TICKET_ID="$2"; shift 2 ;;
+            --article)  ARTICLE_ID="$2"; shift 2 ;;
+            --account)  ACCOUNT_NAME="$2"; shift 2 ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    if [ -n "$TICKET_ID" ]; then
+        api_delete "/artefacts/${ARTEFACT_ID}/link/ticket/${TICKET_ID}" > /dev/null
+        echo -e "${GREEN}✓ Unlinked from ticket #${TICKET_ID}${NC}"
+    fi
+
+    if [ -n "$ARTICLE_ID" ]; then
+        resolve_article_id "$ARTICLE_ID"
+        api_delete "/artefacts/${ARTEFACT_ID}/link/article/${ARTICLE_UUID}" > /dev/null
+        echo -e "${GREEN}✓ Unlinked from article ${ARTICLE_ID}${NC}"
+    fi
+
+    if [ -n "$ACCOUNT_NAME" ]; then
+        resolve_account "$ACCOUNT_NAME" || exit 1
+        api_delete "/artefacts/${ARTEFACT_ID}/link/account/${ACCOUNT_ID}" > /dev/null
+        echo -e "${GREEN}✓ Unlinked from account ${ACCOUNT_DISPLAY}${NC}"
+    fi
+}
+
+# ─────────────────────────────────────────────
 # DISPATCH
 # ─────────────────────────────────────────────
 DOMAIN="${1:-}"
@@ -2331,9 +2571,26 @@ case "$DOMAIN" in
             *)         search_query "$@" ;;
         esac
         ;;
+    artefact)
+        shift 2 || true
+        case "$COMMAND" in
+            -h|--help) artefact_usage ;;
+            create)  artefact_create "$@" ;;
+            update)  artefact_update "$@" ;;
+            show)    artefact_show "$@" ;;
+            delete)  artefact_delete "$@" ;;
+            link)    artefact_link "$@" ;;
+            unlink)  artefact_unlink "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown artefact command: ${COMMAND}${NC}"
+                echo "  Valid commands: create, update, show, delete, link, unlink"
+                exit 1
+                ;;
+        esac
+        ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, milestone, invoice, article, context, search"
+        echo "  Valid domains: ticket, milestone, invoice, article, artefact, context, search"
         exit 1
         ;;
 esac
