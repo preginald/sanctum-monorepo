@@ -10,14 +10,27 @@ const typeIcon = (type) => {
   return <Icon size={14} className="opacity-40 shrink-0" />;
 };
 
+const statusColor = (s) => {
+  const map = {
+    draft: 'bg-slate-500/20 text-slate-400',
+    review: 'bg-amber-500/20 text-amber-400',
+    approved: 'bg-green-500/20 text-green-400',
+    superseded: 'bg-blue-500/10 text-blue-300',
+    archived: 'bg-red-500/10 text-red-300',
+  };
+  return map[s] || '';
+};
+
 const ARTEFACT_TYPES = ['file', 'url', 'code_path', 'document', 'credential_ref'];
+const CATEGORIES = ['config', 'diagram', 'policy', 'runbook', 'template', 'report', 'credential', 'other'];
+const SENSITIVITIES = ['public', 'internal', 'confidential'];
 
 export default function ArtefactCard({ entityType, entityId, artefacts = [], onUpdate }) {
   const navigate = useNavigate();
   const { addToast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: '', url: '', artefact_type: 'url' });
+  const [form, setForm] = useState({ name: '', url: '', artefact_type: 'document', category: '', sensitivity: 'internal' });
 
   const handleUnlink = async (artefactId) => {
     try {
@@ -34,19 +47,19 @@ export default function ArtefactCard({ entityType, entityId, artefacts = [], onU
     if (!form.name.trim()) return;
     setCreating(true);
     try {
-      // Create artefact
       const res = await api.post('/artefacts', {
         name: form.name,
         artefact_type: form.artefact_type,
         url: form.url || null,
+        category: form.category || null,
+        sensitivity: form.sensitivity,
       });
-      // Link it
       await api.post(`/artefacts/${res.data.id}/link`, {
         entity_type: entityType,
         entity_id: String(entityId),
       });
       addToast("Artefact created and linked", "success");
-      setForm({ name: '', url: '', artefact_type: 'url' });
+      setForm({ name: '', url: '', artefact_type: 'document', category: '', sensitivity: 'internal' });
       setShowCreate(false);
       onUpdate?.();
     } catch (e) {
@@ -86,13 +99,34 @@ export default function ArtefactCard({ entityType, entityId, artefacts = [], onU
             onChange={e => setForm({ ...form, url: e.target.value })}
             className="w-full bg-black/30 border border-slate-600 rounded px-2 py-1.5 text-xs font-mono focus:outline-none focus:border-sanctum-gold"
           />
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={form.artefact_type}
+              onChange={e => setForm({ ...form, artefact_type: e.target.value })}
+              className="bg-black/30 border border-slate-600 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-sanctum-gold"
+            >
+              {ARTEFACT_TYPES.map(t => (
+                <option key={t} value={t}>{t.replace('_', ' ')}</option>
+              ))}
+            </select>
+            <select
+              value={form.sensitivity}
+              onChange={e => setForm({ ...form, sensitivity: e.target.value })}
+              className="bg-black/30 border border-slate-600 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-sanctum-gold"
+            >
+              {SENSITIVITIES.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
           <select
-            value={form.artefact_type}
-            onChange={e => setForm({ ...form, artefact_type: e.target.value })}
+            value={form.category}
+            onChange={e => setForm({ ...form, category: e.target.value })}
             className="w-full bg-black/30 border border-slate-600 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-sanctum-gold"
           >
-            {ARTEFACT_TYPES.map(t => (
-              <option key={t} value={t}>{t.replace('_', ' ')}</option>
+            <option value="">No category</option>
+            {CATEGORIES.map(c => (
+              <option key={c} value={c}>{c}</option>
             ))}
           </select>
           <button
@@ -123,6 +157,14 @@ export default function ArtefactCard({ entityType, entityId, artefacts = [], onU
               >
                 {a.name}
               </button>
+              {a.status && (
+                <span className={`px-1 py-0.5 rounded text-[9px] font-bold uppercase ${statusColor(a.status)}`}>
+                  {a.status}
+                </span>
+              )}
+              {a.category && (
+                <span className="text-[9px] opacity-40 uppercase">{a.category}</span>
+              )}
               <button
                 onClick={() => handleUnlink(a.id)}
                 className="opacity-0 group-hover:opacity-40 hover:!opacity-100 transition-opacity"

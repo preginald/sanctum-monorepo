@@ -10,6 +10,7 @@ import api from '../lib/api';
 
 import TicketList from '../components/tickets/TicketList';
 import MetadataStrip from '../components/ui/MetadataStrip';
+import ArtefactCard from '../components/ArtefactCard';
 
 import { TICKET_TYPES, TICKET_PRIORITIES } from '../lib/constants';
 import { milestoneStatusStyles } from '../lib/statusStyles';
@@ -280,6 +281,14 @@ export default function MilestoneDetail() {
               </div>
             </div>
           </div>
+
+          {/* ARTEFACTS */}
+          <ArtefactCard
+            entityType="milestone"
+            entityId={milestone.id}
+            artefacts={milestone.artefacts || []}
+            onUpdate={fetchMilestone}
+          />
 
           {/* PARENT PROJECT */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">

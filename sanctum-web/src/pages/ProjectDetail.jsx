@@ -10,6 +10,7 @@ import api from '../lib/api';
 
 import ProjectStats from '../components/projects/ProjectStats';
 import MetadataStrip from '../components/ui/MetadataStrip';
+import ArtefactCard from '../components/ArtefactCard';
 
 import { projectStatusStyles } from '../lib/statusStyles';
 
@@ -333,6 +334,14 @@ export default function ProjectDetail() {
           />
 
           <ProjectStats project={project} />
+
+          {/* ARTEFACTS */}
+          <ArtefactCard
+            entityType="project"
+            entityId={project.id}
+            artefacts={project.artefacts || []}
+            onUpdate={fetchProject}
+          />
         </div>
       </div>
 
