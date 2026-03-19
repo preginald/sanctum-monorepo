@@ -1975,8 +1975,10 @@ article_history() {
         echo -e "${RED}✗ Article not found: ${QUERY}${NC}"
         exit 1
     fi
-    local ARTICLE_ID=$(echo "$ARTICLE_JSON" | jq -r '.id')
-    local ARTICLE_TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
+    local ARTICLE_ID
+    ARTICLE_ID=$(echo "$ARTICLE_JSON" | jq -r '.id')
+    local ARTICLE_TITLE
+    ARTICLE_TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
     echo -e "${GREEN}✓ ${ARTICLE_TITLE}${NC}"
     echo ""
     RESULT=$(api_get "/articles/${ARTICLE_ID}/history?page_size=${PAGE_SIZE}")
@@ -2021,9 +2023,12 @@ article_revert() {
         echo -e "${RED}✗ Article not found: ${QUERY}${NC}"
         exit 1
     fi
-    local ARTICLE_ID=$(echo "$ARTICLE_JSON" | jq -r '.id')
-    local ARTICLE_TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
-    local CURRENT_VERSION=$(echo "$ARTICLE_JSON" | jq -r '.version')
+    local ARTICLE_ID
+    ARTICLE_ID=$(echo "$ARTICLE_JSON" | jq -r '.id')
+    local ARTICLE_TITLE
+    ARTICLE_TITLE=$(echo "$ARTICLE_JSON" | jq -r '.title')
+    local CURRENT_VERSION
+    CURRENT_VERSION=$(echo "$ARTICLE_JSON" | jq -r '.version')
     # If --to-version given, resolve it to a history ID
     if [ -n "$TO_VERSION" ] && [ -z "$HISTORY_ID" ]; then
         echo -e "${YELLOW}→ Resolving version ${TO_VERSION}...${NC}"
@@ -2057,7 +2062,8 @@ article_revert() {
         -H "Authorization: Bearer ${_SANCTUM_AUTH_TOKEN}" \
         -H "Content-Type: application/json" \
         -d "$BODY")
-    local NEW_VERSION=$(echo "$RESULT" | jq -r '.version')
+    local NEW_VERSION
+    NEW_VERSION=$(echo "$RESULT" | jq -r '.version')
     if [ -n "$NEW_VERSION" ] && [ "$NEW_VERSION" != "null" ]; then
         echo -e "${GREEN}✓ Article reverted${NC}"
         echo -e "  New version: ${NEW_VERSION}"
@@ -2203,7 +2209,7 @@ search_query() {
     printf "  ${GRAY}%-6s %-12s %-50s %s${NC}
 " "─────" "──────────" "──────────────────────────────────────────────────" "────────────"
 
-    echo "$RESULT" | jq -r '.[] | "\(.score // 0)|\(.type)|\(.title)|\(.subtitle // "-")|\(.link)"' | while IFS='|' read -r SCORE TYPE TITLE SUBTITLE LINK; do
+    echo "$RESULT" | jq -r '.[] | "\(.score // 0)|\(.type)|\(.title)|\(.subtitle // "-")|\(.link)"' | while IFS='|' read -r SCORE TYPE TITLE SUBTITLE _LINK; do
         # Color by type
         case "$TYPE" in
             action)    COLOR="$GREEN" ;;
@@ -2244,17 +2250,21 @@ artefact_usage() {
     echo "  update     Update an existing artefact"
     echo "  show       Show artefact details"
     echo "  delete     Soft-delete an artefact"
-    echo "  link       Link artefact to a ticket, account, or article"
+    echo "  history    Show version history"
+    echo "  revert     Revert to a previous version"
+    echo "  link       Link artefact to a ticket, account, article, project, or milestone"
     echo "  unlink     Remove a link"
     echo ""
     echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
     echo "  create:  --name <text>, --type <file|url|code_path|document|credential_ref>,"
     echo "           [--url <url>], [--account <name>], [--description <text>], [-e|--env]"
-    echo "  update:  <id>, [--name], [--type], [--url], [--description], [-e|--env]"
+    echo "  update:  <id>, [--name], [--type], [--url], [--description], [--change-comment], [-e|--env]"
     echo "  show:    <id>, [-e|--env]"
     echo "  delete:  <id>, [-e|--env]"
-    echo "  link:    <id>, --ticket <id> | --article <id> | --account <name>, [-e|--env]"
-    echo "  unlink:  <id>, --ticket <id> | --article <id> | --account <name>, [-e|--env]"
+    echo "  history: <id>, [-e|--env]"
+    echo "  revert:  <id> <history-uuid>, [-e|--env]"
+    echo "  link:    <id>, --ticket <id> | --article <id> | --account <name> | --project <uuid> | --milestone <uuid>, [-e|--env]"
+    echo "  unlink:  <id>, --ticket <id> | --article <id> | --account <name> | --project <uuid> | --milestone <uuid>, [-e|--env]"
     echo ""
     echo -e "${YELLOW}EXAMPLES${NC}"
     echo "  sanctum.sh artefact create --name 'Server Config' --type document --url '/etc/nginx/nginx.conf'"
@@ -2314,18 +2324,19 @@ artefact_create() {
 
 artefact_update() {
     local ARTEFACT_ID="$1"; shift
-    local NAME="" TYPE="" URL="" DESCRIPTION="" ENV="prod"
+    local NAME="" TYPE="" URL="" DESCRIPTION="" CHANGE_COMMENT="" ENV="prod"
 
     [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help) artefact_usage; exit 0 ;;
-            --name)        NAME="$2"; shift 2 ;;
-            --type)        TYPE="$2"; shift 2 ;;
-            --url)         URL="$2"; shift 2 ;;
-            --description) DESCRIPTION="$2"; shift 2 ;;
-            -e|--env)      ENV="$2"; shift 2 ;;
+            --name)            NAME="$2"; shift 2 ;;
+            --type)            TYPE="$2"; shift 2 ;;
+            --url)             URL="$2"; shift 2 ;;
+            --description)     DESCRIPTION="$2"; shift 2 ;;
+            --change-comment)  CHANGE_COMMENT="$2"; shift 2 ;;
+            -e|--env)          ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -2339,10 +2350,11 @@ artefact_update() {
     [ -n "$TYPE" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$TYPE" '. + {artefact_type: $v}')
     [ -n "$URL" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$URL" '. + {url: $v}')
     [ -n "$DESCRIPTION" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$DESCRIPTION" '. + {description: $v}')
+    [ -n "$CHANGE_COMMENT" ] && PAYLOAD=$(echo "$PAYLOAD" | jq --arg v "$CHANGE_COMMENT" '. + {change_comment: $v}')
 
     RESULT=$(api_put "/artefacts/${ARTEFACT_ID}" "$PAYLOAD")
     echo -e "${GREEN}✓ Artefact updated${NC}"
-    echo "$RESULT" | jq '{id, name, artefact_type, url}'
+    echo "$RESULT" | jq '{id, name, artefact_type, version, url}'
 }
 
 artefact_show() {
@@ -2389,19 +2401,85 @@ artefact_delete() {
     echo -e "${GREEN}✓ Artefact archived${NC}"
 }
 
-artefact_link() {
-    local ARTEFACT_ID="$1"; shift
-    local TICKET_ID="" ARTICLE_ID="" ACCOUNT_NAME="" ENV="prod"
+artefact_history() {
+    local ARTEFACT_ID="$1"; shift || true
+    local ENV="prod" PAGE_SIZE="20"
 
     [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help) artefact_usage; exit 0 ;;
-            --ticket)   TICKET_ID="$2"; shift 2 ;;
-            --article)  ARTICLE_ID="$2"; shift 2 ;;
-            --account)  ACCOUNT_NAME="$2"; shift 2 ;;
-            -e|--env)   ENV="$2"; shift 2 ;;
+            --page-size) PAGE_SIZE="$2"; shift 2 ;;
+            -e|--env)    ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    RESULT=$(api_get "/artefacts/${ARTEFACT_ID}/history?page_size=${PAGE_SIZE}")
+    TOTAL=$(echo "$RESULT" | jq '.total')
+    echo -e "${YELLOW}History entries (${TOTAL} total, showing up to ${PAGE_SIZE}):${NC}"
+    echo ""
+    printf "  ${BOLD}%-38s %-8s %-20s %s${NC}\n" "ID" "VERSION" "DATE" "COMMENT"
+    echo "$RESULT" | jq -r '.items[] | "\(.id)|\(.version)|\(.snapshot_at)|\(.change_comment // "-")"' | while IFS='|' read -r ID VER DATE COMMENT; do
+        printf "  %-38s %-8s %-20s %s\n" "$ID" "$VER" "${DATE:0:19}" "$COMMENT"
+    done
+}
+
+artefact_revert() {
+    local ARTEFACT_ID="$1"; shift
+    local HISTORY_ID="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+    [ -z "$HISTORY_ID" ] && echo -e "${RED}✗ History ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — artefact revert"
+    ensure_auth
+    confirm_prod "About to revert artefact ${ARTEFACT_ID} to history ${HISTORY_ID}"
+
+    RESULT=$(curl -s -X POST "${API_BASE}/artefacts/${ARTEFACT_ID}/revert/${HISTORY_ID}" \
+        -H "Authorization: Bearer ${_SANCTUM_AUTH_TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d '{}')
+    local NEW_VERSION
+    NEW_VERSION=$(echo "$RESULT" | jq -r '.version')
+    if [ -n "$NEW_VERSION" ] && [ "$NEW_VERSION" != "null" ]; then
+        echo -e "${GREEN}✓ Artefact reverted${NC}"
+        echo -e "  New version: ${NEW_VERSION}"
+    else
+        echo -e "${RED}✗ Revert failed${NC}"
+        echo "$RESULT" | jq .
+    fi
+}
+
+artefact_link() {
+    local ARTEFACT_ID="$1"; shift
+    local TICKET_ID="" ARTICLE_ID="" ACCOUNT_NAME="" PROJECT_ID="" MILESTONE_ID="" ENV="prod"
+
+    [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) artefact_usage; exit 0 ;;
+            --ticket)    TICKET_ID="$2"; shift 2 ;;
+            --article)   ARTICLE_ID="$2"; shift 2 ;;
+            --account)   ACCOUNT_NAME="$2"; shift 2 ;;
+            --project)   PROJECT_ID="$2"; shift 2 ;;
+            --milestone) MILESTONE_ID="$2"; shift 2 ;;
+            -e|--env)    ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -2428,21 +2506,35 @@ artefact_link() {
         api_post "/artefacts/${ARTEFACT_ID}/link" "$PAYLOAD" > /dev/null
         echo -e "${GREEN}✓ Linked to account ${ACCOUNT_DISPLAY}${NC}"
     fi
+
+    if [ -n "$PROJECT_ID" ]; then
+        PAYLOAD=$(jq -n --arg eid "$PROJECT_ID" '{entity_type: "project", entity_id: $eid}')
+        api_post "/artefacts/${ARTEFACT_ID}/link" "$PAYLOAD" > /dev/null
+        echo -e "${GREEN}✓ Linked to project ${PROJECT_ID}${NC}"
+    fi
+
+    if [ -n "$MILESTONE_ID" ]; then
+        PAYLOAD=$(jq -n --arg eid "$MILESTONE_ID" '{entity_type: "milestone", entity_id: $eid}')
+        api_post "/artefacts/${ARTEFACT_ID}/link" "$PAYLOAD" > /dev/null
+        echo -e "${GREEN}✓ Linked to milestone ${MILESTONE_ID}${NC}"
+    fi
 }
 
 artefact_unlink() {
     local ARTEFACT_ID="$1"; shift
-    local TICKET_ID="" ARTICLE_ID="" ACCOUNT_NAME="" ENV="prod"
+    local TICKET_ID="" ARTICLE_ID="" ACCOUNT_NAME="" PROJECT_ID="" MILESTONE_ID="" ENV="prod"
 
     [ -z "$ARTEFACT_ID" ] && echo -e "${RED}✗ Artefact ID is required${NC}" && exit 1
 
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help) artefact_usage; exit 0 ;;
-            --ticket)   TICKET_ID="$2"; shift 2 ;;
-            --article)  ARTICLE_ID="$2"; shift 2 ;;
-            --account)  ACCOUNT_NAME="$2"; shift 2 ;;
-            -e|--env)   ENV="$2"; shift 2 ;;
+            --ticket)    TICKET_ID="$2"; shift 2 ;;
+            --article)   ARTICLE_ID="$2"; shift 2 ;;
+            --account)   ACCOUNT_NAME="$2"; shift 2 ;;
+            --project)   PROJECT_ID="$2"; shift 2 ;;
+            --milestone) MILESTONE_ID="$2"; shift 2 ;;
+            -e|--env)    ENV="$2"; shift 2 ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -2465,6 +2557,16 @@ artefact_unlink() {
         resolve_account "$ACCOUNT_NAME" || exit 1
         api_delete "/artefacts/${ARTEFACT_ID}/link/account/${ACCOUNT_ID}" > /dev/null
         echo -e "${GREEN}✓ Unlinked from account ${ACCOUNT_DISPLAY}${NC}"
+    fi
+
+    if [ -n "$PROJECT_ID" ]; then
+        api_delete "/artefacts/${ARTEFACT_ID}/link/project/${PROJECT_ID}" > /dev/null
+        echo -e "${GREEN}✓ Unlinked from project ${PROJECT_ID}${NC}"
+    fi
+
+    if [ -n "$MILESTONE_ID" ]; then
+        api_delete "/artefacts/${ARTEFACT_ID}/link/milestone/${MILESTONE_ID}" > /dev/null
+        echo -e "${GREEN}✓ Unlinked from milestone ${MILESTONE_ID}${NC}"
     fi
 }
 
@@ -2579,11 +2681,13 @@ case "$DOMAIN" in
             update)  artefact_update "$@" ;;
             show)    artefact_show "$@" ;;
             delete)  artefact_delete "$@" ;;
+            history) artefact_history "$@" ;;
+            revert)  artefact_revert "$@" ;;
             link)    artefact_link "$@" ;;
             unlink)  artefact_unlink "$@" ;;
             *)
                 echo -e "${RED}✗ Unknown artefact command: ${COMMAND}${NC}"
-                echo "  Valid commands: create, update, show, delete, link, unlink"
+                echo "  Valid commands: create, update, show, delete, history, revert, link, unlink"
                 exit 1
                 ;;
         esac

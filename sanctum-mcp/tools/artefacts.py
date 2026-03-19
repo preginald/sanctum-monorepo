@@ -138,11 +138,11 @@ async def artefact_link(
     entity_type: str,
     entity_id: str,
 ) -> str:
-    """Link an artefact to a ticket, account, or article.
+    """Link an artefact to a ticket, account, article, project, or milestone.
 
     Args:
         artefact_id: UUID of the artefact.
-        entity_type: One of: ticket, account, article.
+        entity_type: One of: ticket, account, article, project, milestone.
         entity_id: ID of the entity (ticket number or UUID).
     """
     payload = {
@@ -159,12 +159,49 @@ async def artefact_unlink(
     entity_type: str,
     entity_id: str,
 ) -> str:
-    """Remove a link between an artefact and a ticket, account, or article.
+    """Remove a link between an artefact and a ticket, account, article, project, or milestone.
 
     Args:
         artefact_id: UUID of the artefact.
-        entity_type: One of: ticket, account, article.
+        entity_type: One of: ticket, account, article, project, milestone.
         entity_id: ID of the entity (ticket number or UUID).
     """
     result = await client.delete(f"/artefacts/{artefact_id}/link/{entity_type}/{entity_id}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def artefact_history(
+    artefact_id: str,
+    page: int = 1,
+    page_size: int = 20,
+) -> str:
+    """List version history for an artefact.
+
+    Args:
+        artefact_id: UUID of the artefact.
+        page: Page number (default 1).
+        page_size: Items per page (default 20).
+    """
+    result = await client.get(f"/artefacts/{artefact_id}/history?page={page}&page_size={page_size}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def artefact_revert(
+    artefact_id: str,
+    history_id: str,
+    change_comment: str = None,
+) -> str:
+    """Revert an artefact to a previous version.
+
+    Args:
+        artefact_id: UUID of the artefact.
+        history_id: UUID of the history entry to revert to.
+        change_comment: Optional comment explaining the revert.
+    """
+    payload = {}
+    if change_comment:
+        payload["change_comment"] = change_comment
+    result = await client.post(f"/artefacts/{artefact_id}/revert/{history_id}", json=payload)
     return json.dumps(result, indent=2)

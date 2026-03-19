@@ -32,6 +32,17 @@ const priorityColor = (p) => {
   return map[p] || 'text-slate-300';
 };
 
+const statusColor = (s) => {
+  const map = {
+    draft: 'bg-slate-500/20 text-slate-400',
+    review: 'bg-amber-500/20 text-amber-400',
+    approved: 'bg-green-500/20 text-green-400',
+    superseded: 'bg-blue-500/10 text-blue-300',
+    archived: 'bg-red-500/10 text-red-300',
+  };
+  return map[s] || 'bg-white/10 text-slate-300';
+};
+
 export default function ArtefactDetail() {
   const { artefactId } = useParams();
   const navigate = useNavigate();
@@ -51,6 +62,16 @@ export default function ArtefactDetail() {
   };
 
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
+  const handleStatusTransition = async (newStatus) => {
+    try {
+      const res = await api.put(`/artefacts/${artefactId}`, { status: newStatus });
+      setArtefact(res.data);
+      addToast(`Status changed to ${newStatus}`, 'success');
+    } catch (e) {
+      addToast(e.response?.data?.detail || 'Status transition failed', 'danger');
+    }
+  };
 
   if (loading) return <Layout title="Artefact Detail"><div className="flex justify-center py-20"><Loader2 className="animate-spin" /></div></Layout>;
   if (!artefact) return <Layout title="Artefact Detail"><p>Artefact not found.</p></Layout>;
@@ -75,7 +96,11 @@ export default function ArtefactDetail() {
         className="mb-4"
         storageKey="ds_metadata_expanded_artefact"
         collapsed={<>
+          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${statusColor(artefact.status)}`}>{artefact.status}</span>
+          <span className="opacity-40">·</span>
           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${typeColor(artefact.artefact_type)}`}>{artefact.artefact_type}</span>
+          <span className="opacity-40">·</span>
+          <span className="opacity-50 font-mono text-[10px]">{artefact.version}</span>
           <span className="opacity-40">·</span>
           <span className="opacity-50">{formatDate(artefact.created_at)}</span>
           {artefact.creator_name && <>
@@ -84,6 +109,7 @@ export default function ArtefactDetail() {
           </>}
         </>}
         badges={[
+          { label: artefact.status, className: statusColor(artefact.status) },
           { label: artefact.artefact_type, className: typeColor(artefact.artefact_type) },
         ]}
         dates={[
@@ -93,6 +119,7 @@ export default function ArtefactDetail() {
         rows={[
           { label: 'Created By', value: artefact.creator_name || '—' },
           { label: 'Type', value: artefact.artefact_type, mono: true },
+          { label: 'Version', value: artefact.version || 'v1.0', mono: true },
           { label: 'Account', value: artefact.account_name || 'Internal' },
         ]}
         id={artefact.id}
@@ -157,6 +184,30 @@ export default function ArtefactDetail() {
 
         {/* RIGHT — SIDEBAR */}
         <div className="space-y-6">
+
+          {/* STATUS CONTROLS */}
+          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3">Status</h3>
+            <div className="flex items-center gap-2 mb-3">
+              <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${statusColor(artefact.status)}`}>{artefact.status}</span>
+            </div>
+            {(artefact.available_transitions || []).length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs opacity-50">Transition to:</p>
+                <div className="flex flex-wrap gap-2">
+                  {artefact.available_transitions.map(t => (
+                    <button
+                      key={t}
+                      onClick={() => handleStatusTransition(t)}
+                      className={`px-3 py-1.5 rounded text-xs font-bold uppercase transition-colors hover:opacity-80 ${statusColor(t)}`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* LINKED TICKETS */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">

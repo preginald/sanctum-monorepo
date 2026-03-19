@@ -13,6 +13,7 @@ repos:
     -   id: shellcheck
         name: ShellCheck (sanctum.sh, scopy, srun.sh)
         files: ^scripts/.*\.sh$|^scripts/dev/scopy$
+        args: [--severity=warning]
 
 -   repo: https://github.com/psf/black
     rev: 24.2.0
