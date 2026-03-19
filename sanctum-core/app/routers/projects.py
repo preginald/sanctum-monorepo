@@ -60,6 +60,13 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"status": "archived"}
 
+@router.get("/projects/{project_id}/milestones", response_model=List[schemas.MilestoneResponse])
+def list_milestones(project_id: str, db: Session = Depends(get_db)):
+    milestones = db.query(models.Milestone).filter(
+        models.Milestone.project_id == project_id
+    ).order_by(models.Milestone.sequence.asc()).all()
+    return milestones
+
 @router.post("/projects/{project_id}/milestones", response_model=schemas.MilestoneResponse)
 def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Session = Depends(get_db)):
     new_milestone = models.Milestone(**milestone.model_dump(), project_id=project_id)

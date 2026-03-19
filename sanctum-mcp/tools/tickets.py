@@ -5,6 +5,13 @@ from app import mcp
 import client
 
 
+def _unescape(s: str | None) -> str | None:
+    """Unescape literal \\n sequences from MCP string arguments."""
+    if s is None:
+        return s
+    return s.replace("\\n", "\n")
+
+
 @mcp.tool()
 async def ticket_list(
     project: str | None = None,
@@ -60,6 +67,7 @@ async def ticket_show(ticket_id: int) -> str:
 async def ticket_create(
     subject: str,
     project_id: str,
+    account_id: str = "dbc2c7b9-d8c2-493f-a6ed-527f7d191068",
     milestone_id: str | None = None,
     ticket_type: str = "task",
     priority: str = "normal",
@@ -70,6 +78,7 @@ async def ticket_create(
     Args:
         subject: Ticket subject line.
         project_id: UUID of the project.
+        account_id: UUID of the account (defaults to Digital Sanctum HQ).
         milestone_id: UUID of the milestone (optional).
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         priority: One of: low, normal, high, critical.
@@ -78,13 +87,14 @@ async def ticket_create(
     payload = {
         "subject": subject,
         "project_id": project_id,
+        "account_id": account_id,
         "ticket_type": ticket_type,
         "priority": priority,
     }
     if milestone_id:
         payload["milestone_id"] = milestone_id
     if description:
-        payload["description"] = description
+        payload["description"] = _unescape(description)
     result = await client.post("/tickets", json=payload)
     return json.dumps(result, indent=2)
 
@@ -114,7 +124,7 @@ async def ticket_update(
     if subject is not None:
         payload["subject"] = subject
     if description is not None:
-        payload["description"] = description
+        payload["description"] = _unescape(description)
     if status is not None:
         payload["status"] = status
     if priority is not None:
@@ -141,7 +151,7 @@ async def ticket_comment(
         visibility: One of: internal, public.
     """
     payload = {
-        "body": body,
+        "body": _unescape(body),
         "visibility": visibility,
         "entity_type": "ticket",
         "entity_id": str(ticket_id),
@@ -180,6 +190,30 @@ async def ticket_relate_ticket(
         "relation_type": relation_type,
     }
     result = await client.post(f"/tickets/{ticket_id}/relations", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def ticket_unrelate_article(ticket_id: int, article_id: str) -> str:
+    """Remove an article link from a ticket.
+
+    Args:
+        ticket_id: The ticket number.
+        article_id: UUID of the article to unlink.
+    """
+    result = await client.delete(f"/tickets/{ticket_id}/articles/{article_id}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
+    """Remove a link between two tickets.
+
+    Args:
+        ticket_id: The source ticket number.
+        related_ticket_id: The target ticket number to unlink.
+    """
+    result = await client.delete(f"/tickets/{ticket_id}/relations/{related_ticket_id}")
     return json.dumps(result, indent=2)
 
 

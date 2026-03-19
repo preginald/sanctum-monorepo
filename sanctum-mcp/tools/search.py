@@ -19,7 +19,8 @@ async def search(
         limit: Max results per entity type (default 5, max 20).
     """
     params = {"q": query, "limit": limit}
-    if entity_type:
-        params["type"] = entity_type
     result = await client.get("/search", params=params)
+    # API does not support type filtering — apply client-side
+    if entity_type and isinstance(result, list):
+        result = [r for r in result if r.get("type") == entity_type]
     return json.dumps(result, indent=2)
