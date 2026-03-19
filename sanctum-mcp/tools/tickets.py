@@ -5,6 +5,13 @@ from app import mcp
 import client
 
 
+def _unescape(s: str | None) -> str | None:
+    """Unescape literal \\n sequences from MCP string arguments."""
+    if s is None:
+        return s
+    return s.replace("\\n", "\n")
+
+
 @mcp.tool()
 async def ticket_list(
     project: str | None = None,
@@ -87,7 +94,7 @@ async def ticket_create(
     if milestone_id:
         payload["milestone_id"] = milestone_id
     if description:
-        payload["description"] = description
+        payload["description"] = _unescape(description)
     result = await client.post("/tickets", json=payload)
     return json.dumps(result, indent=2)
 
@@ -117,7 +124,7 @@ async def ticket_update(
     if subject is not None:
         payload["subject"] = subject
     if description is not None:
-        payload["description"] = description
+        payload["description"] = _unescape(description)
     if status is not None:
         payload["status"] = status
     if priority is not None:
@@ -144,7 +151,7 @@ async def ticket_comment(
         visibility: One of: internal, public.
     """
     payload = {
-        "body": body,
+        "body": _unescape(body),
         "visibility": visibility,
         "entity_type": "ticket",
         "entity_id": str(ticket_id),

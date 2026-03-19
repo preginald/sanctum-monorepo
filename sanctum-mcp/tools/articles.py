@@ -5,6 +5,13 @@ from app import mcp
 import client
 
 
+def _unescape(s: str | None) -> str | None:
+    """Unescape literal \\n sequences from MCP string arguments."""
+    if s is None:
+        return s
+    return s.replace("\\n", "\n")
+
+
 @mcp.tool()
 async def article_list() -> str:
     """List all articles in the knowledge base."""
@@ -54,7 +61,7 @@ async def article_create(
         "title": title,
         "slug": slug,
         "category": category,
-        "content": content,
+        "content": _unescape(content),
     }
     if identifier:
         payload["identifier"] = identifier
@@ -79,7 +86,7 @@ async def article_update(
     if title is not None:
         payload["title"] = title
     if content is not None:
-        payload["content"] = content
+        payload["content"] = _unescape(content)
     result = await client.put(f"/articles/{article_id}", json=payload)
     return json.dumps(result, indent=2)
 
@@ -99,7 +106,7 @@ async def article_update_section(
     """
     payload = {
         "section_heading": section_heading,
-        "content": content,
+        "content": _unescape(content),
     }
     result = await client.patch(f"/articles/{article_id}/sections", json=payload)
     return json.dumps(result, indent=2)

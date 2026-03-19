@@ -89,6 +89,8 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         article = query.filter(models.Article.id == uid).first()
     except ValueError:
         article = query.filter(models.Article.slug == slug).first()
+        if not article:
+            article = query.filter(models.Article.identifier == slug.upper()).first()
 
     if not article: raise HTTPException(status_code=404, detail="Article not found")
 
