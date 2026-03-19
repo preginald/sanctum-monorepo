@@ -243,6 +243,7 @@ print_env_banner() {
 # Usage: confirm_prod "About to create ticket"
 # ─────────────────────────────────────────────
 confirm_prod() {
+    if [ "$_SANCTUM_YES" = "1" ]; then return; fi
     if [ "$_SANCTUM_ENV" = "prod" ]; then
         echo ""
         echo -e "${RED}⚠ $1 on PRODUCTION${NC}"

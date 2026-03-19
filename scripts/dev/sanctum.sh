@@ -2340,4 +2340,20 @@ esac
 
 }
 
-main "$@" 2>&1 | tee /dev/tty | sed "s/\x1b\[[0-9;]*m//g" | xclip -selection clipboard -i
+# Parse global flags: --batch (skip tee/xclip), --yes (skip confirm_prod)
+_SANCTUM_YES=0
+export _SANCTUM_YES
+for _a in "$@"; do [[ "$_a" == "--yes" ]] && _SANCTUM_YES=1; done
+
+# Non-interactive mode: skip tee/xclip when no TTY or --batch flag is passed
+if [[ " $* " == *" --batch "* ]] || [ ! -t 1 ]; then
+    # Strip --batch and --yes from args before passing to main
+    _args=()
+    for _a in "$@"; do [[ "$_a" != "--batch" && "$_a" != "--yes" ]] && _args+=("$_a"); done
+    main "${_args[@]}"
+else
+    # Strip --yes from args before passing to main
+    _args=()
+    for _a in "$@"; do [[ "$_a" != "--yes" ]] && _args+=("$_a"); done
+    main "${_args[@]}" 2>&1 | tee /dev/tty | sed "s/\x1b\[[0-9;]*m//g" | xclip -selection clipboard -i
+fi
