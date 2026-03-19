@@ -341,7 +341,7 @@ export default function ClientDetail() {
           </div>
 
           <div className="space-y-6">
-              <ArtefactCard entityType="account" entityId={id} artefacts={account.artefacts || []} onUpdate={fetchAccount} />
+              <ArtefactCard entityType="account" entityId={id} artefacts={account.artefacts || []} onUpdate={fetchAll} />
               <HumanSection
                   contacts={account.contacts || []}
                   users={users}
