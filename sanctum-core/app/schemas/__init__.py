@@ -36,7 +36,8 @@ from .knowledge import (
 from .assets import AssetCreate, AssetUpdate, AssetResponse
 
 from .artefacts import (
-    ArtefactCreate, ArtefactUpdate, ArtefactResponse, ArtefactLite, ArtefactLinkResponse
+    ArtefactCreate, ArtefactUpdate, ArtefactResponse, ArtefactLite, ArtefactLinkResponse,
+    ArtefactHistoryResponse, ArtefactRevertRequest
 )
 
 from .portal import PortalDashboard, AccountDetail, QuestionnaireSubmit

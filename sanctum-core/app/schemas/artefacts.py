@@ -35,6 +35,12 @@ class ArtefactUpdate(SanctumBase):
     mime_type: Optional[str] = None
     file_size: Optional[int] = None
     superseded_by: Optional[UUID] = None
+    change_comment: Optional[str] = None
+
+
+class ArtefactRevertRequest(SanctumBase):
+    fields: Optional[List[str]] = None  # ["content", "name"] — defaults to both if omitted
+    change_comment: Optional[str] = None
 
 
 class ArtefactLinkResponse(SanctumBase):
@@ -65,6 +71,7 @@ class ArtefactResponse(SanctumBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_deleted: bool = False
+    version: Optional[str] = "v1.0"
     content: Optional[str] = None
     status: Optional[str] = "draft"
     category: Optional[str] = None
@@ -74,3 +81,16 @@ class ArtefactResponse(SanctumBase):
     file_size: Optional[int] = None
     superseded_by: Optional[UUID] = None
     links: List[ArtefactLinkResponse] = []
+
+
+class ArtefactHistoryResponse(SanctumBase):
+    id: UUID
+    artefact_id: UUID
+    name: str
+    version: str
+    snapshot_at: datetime
+    author_name: Optional[str] = None
+    content: Optional[str] = None
+    diff_before: Optional[str] = None
+    diff_after: Optional[str] = None
+    change_comment: Optional[str] = None

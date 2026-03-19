@@ -1,10 +1,23 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
+import re
 from .. import models, schemas, auth
 from ..database import get_db
 
 router = APIRouter(tags=["Artefacts"])
+
+
+def _increment_version(current_version: str) -> str:
+    """Parses v1.0 -> v1.1."""
+    if not current_version:
+        return "v1.0"
+    match = re.search(r"v?(\d+)\.(\d+)", current_version)
+    if match:
+        major = match.group(1)
+        minor = int(match.group(2))
+        return f"v{major}.{minor + 1}"
+    return "v1.1"
 
 
 # --- CRUD ---
@@ -87,10 +100,34 @@ def update_artefact(
     artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
     if not artefact:
         raise HTTPException(status_code=404, detail="Artefact not found")
-    for field, value in update.model_dump(exclude_unset=True).items():
-        # Map schema 'metadata' to model attribute 'artefact_metadata'
+
+    update_data = update.model_dump(exclude_unset=True)
+    change_comment = update_data.pop("change_comment", None)
+    content_changing = "content" in update_data and update_data["content"] != artefact.content
+
+    # 1. HISTORY SNAPSHOT — only when content changes
+    if content_changing:
+        old_content = artefact.content
+        history_entry = models.ArtefactHistory(
+            artefact_id=artefact.id,
+            name=artefact.name,
+            content=artefact.content,
+            version=artefact.version or "v1.0",
+            author_id=current_user.id,
+            author_name=current_user.full_name if hasattr(current_user, 'full_name') else None,
+            change_comment=change_comment,
+            diff_before=old_content,
+            diff_after=update_data["content"],
+        )
+        db.add(history_entry)
+        # Auto-increment version
+        artefact.version = _increment_version(artefact.version)
+
+    # 2. APPLY UPDATE
+    for field, value in update_data.items():
         attr = 'artefact_metadata' if field == 'metadata' else field
         setattr(artefact, attr, value)
+
     db.commit()
     db.refresh(artefact)
     artefact.account_name = artefact.account.name if artefact.account else None
@@ -110,6 +147,85 @@ def delete_artefact(
     artefact.is_deleted = True
     db.commit()
     return {"status": "archived"}
+
+
+# --- HISTORY ---
+
+@router.get("/artefacts/{artefact_id}/history")
+def get_artefact_history(
+    artefact_id: str,
+    page: int = 1,
+    page_size: int = 20,
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.ArtefactHistory).filter(
+        models.ArtefactHistory.artefact_id == artefact_id
+    )
+    total = query.count()
+    items = query.order_by(models.ArtefactHistory.snapshot_at.desc())\
+        .offset((page - 1) * page_size).limit(page_size).all()
+    return schemas.Page(
+        total=total,
+        page=page,
+        page_size=page_size,
+        items=items
+    )
+
+
+@router.post("/artefacts/{artefact_id}/revert/{history_id}", response_model=schemas.ArtefactResponse)
+def revert_artefact(
+    artefact_id: str,
+    history_id: str,
+    revert_request: schemas.ArtefactRevertRequest = None,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
+    if not artefact:
+        raise HTTPException(status_code=404, detail="Artefact not found")
+
+    history_entry = db.query(models.ArtefactHistory).filter(
+        models.ArtefactHistory.id == history_id,
+        models.ArtefactHistory.artefact_id == artefact_id,
+    ).first()
+    if not history_entry:
+        raise HTTPException(status_code=404, detail="History entry not found for this artefact")
+
+    fields = (revert_request.fields if revert_request and revert_request.fields else ["content", "name"])
+    valid_fields = {"content", "name"}
+    if not set(fields).issubset(valid_fields):
+        raise HTTPException(status_code=400, detail=f"Invalid fields. Allowed: {valid_fields}")
+
+    # 1. SNAPSHOT current state before revert
+    default_comment = f"Reverted to {history_entry.version}"
+    change_comment = (revert_request.change_comment if revert_request and revert_request.change_comment else default_comment)
+    snapshot = models.ArtefactHistory(
+        artefact_id=artefact.id,
+        name=artefact.name,
+        content=artefact.content,
+        version=artefact.version or "v1.0",
+        author_id=current_user.id,
+        author_name=current_user.full_name if hasattr(current_user, 'full_name') else None,
+        change_comment=change_comment,
+        diff_before=artefact.content,
+        diff_after=history_entry.content if "content" in fields else artefact.content,
+    )
+    db.add(snapshot)
+
+    # 2. APPLY REVERT
+    if "content" in fields:
+        artefact.content = history_entry.content
+    if "name" in fields:
+        artefact.name = history_entry.name
+
+    # 3. VERSION BUMP
+    artefact.version = _increment_version(artefact.version)
+
+    db.commit()
+    db.refresh(artefact)
+    artefact.account_name = artefact.account.name if artefact.account else None
+    artefact.creator_name = artefact.creator.full_name if artefact.creator else None
+    return artefact
 
 
 # --- LINK / UNLINK ---

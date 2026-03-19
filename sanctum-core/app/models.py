@@ -813,6 +813,7 @@ class Artefact(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     is_deleted = Column(Boolean, default=False, server_default="false")
+    version = Column(String, server_default="v1.0")
     content = Column(Text, nullable=True)
     status = Column(SAEnum('draft', 'review', 'approved', 'archived', 'superseded', name='artefact_status', create_type=False), nullable=False, server_default='draft')
     category = Column(String(100), nullable=True)
@@ -850,6 +851,24 @@ class ArtefactLink(Base):
         # Prevent duplicate links
         Index('uq_artefact_links', 'artefact_id', 'linked_entity_type', 'linked_entity_id', unique=True),
     )
+
+
+class ArtefactHistory(Base):
+    __tablename__ = "artefact_history"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    artefact_id = Column(UUID(as_uuid=True), ForeignKey("artefacts.id", ondelete="CASCADE"), nullable=False)
+    name = Column(String, nullable=False)
+    content = Column(Text, nullable=True)
+    version = Column(String, nullable=False)
+    snapshot_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    author_name = Column(String, nullable=True)
+    change_comment = Column(Text, nullable=True)
+    diff_before = Column(Text, nullable=True)
+    diff_after = Column(Text, nullable=True)
+
+    artefact = relationship("Artefact", backref="history")
+    author = relationship("User")
 
 
 # TRIGRAM INDEXES (pg_trgm)
