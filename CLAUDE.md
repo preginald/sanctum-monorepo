@@ -67,9 +67,21 @@ Configured via `.pre-commit-config.yaml`: trailing whitespace, large file checks
 ### 4. Session Handovers
 - Every session ends with a `session_handover.md` summarising what was done, what's next, and commands for the next session.
 
+## MCP Server (preferred for Claude Code)
+
+The Sanctum MCP server (`sanctum-mcp/`) provides the same operations as the CLI via MCP tools. Claude Code should use MCP tools instead of `sanctum` CLI commands.
+
+- **Location:** `sanctum-mcp/`
+- **Start:** `cd sanctum-mcp && source venv/bin/activate && python server.py`
+- **Endpoint:** `http://localhost:8100/mcp` (streamable HTTP)
+- **Auth:** Inherits `SANCTUM_API_TOKEN` from environment
+- **Domains:** ticket, article, milestone, invoice, search
+
+MCP tools return structured JSON directly — no TTY issues, no `--yes` flag needed.
+
 ## CLI: sanctum
 
-The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
+The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`). Use the MCP tools above instead when operating from Claude Code.
 
 - **Check DOC-009** before using any subcommand — don't guess flags.
 - **Use `--articles` flag** when creating tickets to link relevant KB articles.
