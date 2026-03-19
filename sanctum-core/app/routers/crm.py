@@ -31,16 +31,19 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     account.tickets = [t for t in account.tickets if not t.is_deleted]
     for t in account.tickets: t.related_tickets = []
 
-    # Load linked artefacts
-    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
-        models.ArtefactLink.linked_entity_type == "account",
-        models.ArtefactLink.linked_entity_id == str(account_id),
-    ).all()
-    if artefact_ids:
-        ids = [r[0] for r in artefact_ids]
-        account.artefacts = db.query(models.Artefact).filter(
-            models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+    # Load linked artefacts (graceful if table doesn't exist yet)
+    try:
+        artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+            models.ArtefactLink.linked_entity_type == "account",
+            models.ArtefactLink.linked_entity_id == str(account_id),
         ).all()
+        if artefact_ids:
+            ids = [r[0] for r in artefact_ids]
+            account.artefacts = db.query(models.Artefact).filter(
+                models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+            ).all()
+    except Exception:
+        db.rollback()
 
     return account
 
