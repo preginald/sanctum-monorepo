@@ -26,6 +26,15 @@ def get_project_detail(project_id: str, db: Session = Depends(get_db)):
     project = db.query(models.Project).options(joinedload(models.Project.milestones).selectinload(models.Milestone.tickets), joinedload(models.Project.account)).filter(models.Project.id == project_id).first()
     if not project: raise HTTPException(status_code=404, detail="Project not found")
     project.account_name = project.account.name
+    # Attach linked artefacts
+    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+        models.ArtefactLink.linked_entity_type == "project",
+        models.ArtefactLink.linked_entity_id == str(project_id),
+    ).all()
+    ids = [r[0] for r in artefact_ids]
+    project.artefacts = db.query(models.Artefact).filter(
+        models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+    ).all() if ids else []
     return project
 
 @router.post("/projects", response_model=schemas.ProjectResponse)
@@ -150,6 +159,16 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
         )
         ticket_briefs.append(tb)
 
+    # Attach linked artefacts
+    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+        models.ArtefactLink.linked_entity_type == "milestone",
+        models.ArtefactLink.linked_entity_id == str(milestone_id),
+    ).all()
+    art_ids = [r[0] for r in artefact_ids]
+    artefact_list = db.query(models.Artefact).filter(
+        models.Artefact.id.in_(art_ids), models.Artefact.is_deleted == False
+    ).all() if art_ids else []
+
     return schemas.MilestoneResponse(
         id=ms.id,
         name=ms.name,
@@ -165,7 +184,36 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
         account_id=ms.project.account_id if ms.project else None,
         account_name=ms.project.account.name if ms.project and ms.project.account else None,
         tickets=ticket_briefs,
+        artefacts=artefact_list,
     )
+
+@router.get("/projects/{project_id}/artefacts", response_model=List[schemas.ArtefactLite])
+def project_artefacts(project_id: str, db: Session = Depends(get_db)):
+    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+        models.ArtefactLink.linked_entity_type == "project",
+        models.ArtefactLink.linked_entity_id == project_id,
+    ).all()
+    ids = [r[0] for r in artefact_ids]
+    if not ids:
+        return []
+    return db.query(models.Artefact).filter(
+        models.Artefact.id.in_(ids),
+        models.Artefact.is_deleted == False,
+    ).all()
+
+@router.get("/milestones/{milestone_id}/artefacts", response_model=List[schemas.ArtefactLite])
+def milestone_artefacts(milestone_id: str, db: Session = Depends(get_db)):
+    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+        models.ArtefactLink.linked_entity_type == "milestone",
+        models.ArtefactLink.linked_entity_id == milestone_id,
+    ).all()
+    ids = [r[0] for r in artefact_ids]
+    if not ids:
+        return []
+    return db.query(models.Artefact).filter(
+        models.Artefact.id.in_(ids),
+        models.Artefact.is_deleted == False,
+    ).all()
 
 @router.post("/projects/{project_id}/milestones/reorder")
 def reorder_milestones(project_id: str, payload: schemas.MilestoneReorderRequest, db: Session = Depends(get_db)):

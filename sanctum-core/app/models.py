@@ -838,7 +838,7 @@ class ArtefactLink(Base):
     __tablename__ = "artefact_links"
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     artefact_id = Column(UUID(as_uuid=True), ForeignKey("artefacts.id"), nullable=False)
-    linked_entity_type = Column(SAEnum('ticket', 'account', 'article', name='artefact_link_entity_type'), nullable=False)
+    linked_entity_type = Column(SAEnum('ticket', 'account', 'article', 'project', 'milestone', name='artefact_link_entity_type', create_type=False), nullable=False)
     linked_entity_id = Column(String, nullable=False)  # String to support both integer (ticket) and UUID (account/article) PKs
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 

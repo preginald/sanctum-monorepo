@@ -5,6 +5,7 @@ from decimal import Decimal
 from pydantic import model_validator
 from .shared import SanctumBase
 from .operations import TicketRelationResponse
+from .artefacts import ArtefactLite
 
 # --- CAMPAIGNS ---
 class CampaignTargetFilter(SanctumBase):
@@ -139,6 +140,7 @@ class MilestoneResponse(MilestoneCreate):
     account_id: Optional[UUID] = None
     account_name: Optional[str] = None
     tickets: List[TicketBrief] = []
+    artefacts: List[ArtefactLite] = []
 
 class ProjectCreate(SanctumBase):
     account_id: UUID
@@ -161,6 +163,7 @@ class ProjectResponse(ProjectCreate):
     account_name: Optional[str] = None
     status: str
     milestones: List[MilestoneResponse] = []
+    artefacts: List[ArtefactLite] = []
 
 # --- AUDITS ---
 class AuditItem(SanctumBase):

@@ -138,11 +138,11 @@ async def artefact_link(
     entity_type: str,
     entity_id: str,
 ) -> str:
-    """Link an artefact to a ticket, account, or article.
+    """Link an artefact to a ticket, account, article, project, or milestone.
 
     Args:
         artefact_id: UUID of the artefact.
-        entity_type: One of: ticket, account, article.
+        entity_type: One of: ticket, account, article, project, milestone.
         entity_id: ID of the entity (ticket number or UUID).
     """
     payload = {
@@ -159,11 +159,11 @@ async def artefact_unlink(
     entity_type: str,
     entity_id: str,
 ) -> str:
-    """Remove a link between an artefact and a ticket, account, or article.
+    """Remove a link between an artefact and a ticket, account, article, project, or milestone.
 
     Args:
         artefact_id: UUID of the artefact.
-        entity_type: One of: ticket, account, article.
+        entity_type: One of: ticket, account, article, project, milestone.
         entity_id: ID of the entity (ticket number or UUID).
     """
     result = await client.delete(f"/artefacts/{artefact_id}/link/{entity_type}/{entity_id}")

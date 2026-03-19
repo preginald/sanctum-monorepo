@@ -125,8 +125,8 @@ def link_artefact(
     entity_id = payload.get("entity_id")
     if not entity_type or not entity_id:
         raise HTTPException(status_code=422, detail="entity_type and entity_id required")
-    if entity_type not in ("ticket", "account", "article"):
-        raise HTTPException(status_code=422, detail="entity_type must be ticket, account, or article")
+    if entity_type not in ("ticket", "account", "article", "project", "milestone"):
+        raise HTTPException(status_code=422, detail="entity_type must be ticket, account, article, project, or milestone")
 
     # Check artefact exists
     artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
