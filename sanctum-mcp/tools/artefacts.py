@@ -12,22 +12,56 @@ def _unescape(s: str | None) -> str | None:
     return s.replace("\\n", "\n")
 
 
+def _parse_metadata(metadata: str | None) -> dict | None:
+    """Parse a JSON string into a dict for the metadata field."""
+    if metadata is None:
+        return None
+    try:
+        return json.loads(metadata)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+
 @mcp.tool()
 async def artefact_list(
     account_id: str | None = None,
     artefact_type: str | None = None,
+    status: str | None = None,
+    category: str | None = None,
+    sensitivity: str | None = None,
+    search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str | None = None,
 ) -> str:
-    """List artefacts, optionally filtered by account or type.
+    """List artefacts with optional filters, search, and sorting.
 
     Args:
         account_id: Filter by account UUID.
         artefact_type: Filter by type: file, url, code_path, document, credential_ref.
+        status: Filter by status: draft, review, approved, archived, superseded.
+        category: Filter by category string.
+        sensitivity: Filter by sensitivity: public, internal, confidential, restricted.
+        search: Search term (matches name, description, content).
+        sort_by: Sort column: name, created_at, updated_at, status (default: created_at).
+        sort_order: Sort direction: asc or desc (default: desc).
     """
     params = {}
     if account_id:
         params["account_id"] = account_id
     if artefact_type:
         params["artefact_type"] = artefact_type
+    if status:
+        params["status"] = status
+    if category:
+        params["category"] = category
+    if sensitivity:
+        params["sensitivity"] = sensitivity
+    if search:
+        params["search"] = search
+    if sort_by:
+        params["sort_by"] = sort_by
+    if sort_order:
+        params["sort_order"] = sort_order
     result = await client.get("/artefacts", params=params)
     # Return summary fields only
     artefacts = result if isinstance(result, list) else []
@@ -37,6 +71,9 @@ async def artefact_list(
             "id": a.get("id"),
             "name": a.get("name"),
             "artefact_type": a.get("artefact_type"),
+            "status": a.get("status"),
+            "category": a.get("category"),
+            "sensitivity": a.get("sensitivity"),
             "url": a.get("url"),
             "account_name": a.get("account_name"),
             "links_count": len(a.get("links", [])),
@@ -63,6 +100,14 @@ async def artefact_create(
     url: str | None = None,
     description: str | None = None,
     account_id: str | None = None,
+    content: str | None = None,
+    status: str | None = None,
+    category: str | None = None,
+    sensitivity: str | None = None,
+    metadata: str | None = None,
+    mime_type: str | None = None,
+    file_size: int | None = None,
+    superseded_by: str | None = None,
 ) -> str:
     """Create a new artefact.
 
@@ -72,6 +117,14 @@ async def artefact_create(
         url: URL or path (optional).
         description: Description in markdown (optional).
         account_id: UUID of the account (optional, omit for internal).
+        content: Markdown content body (optional).
+        status: Initial status: draft, review, approved (default: draft).
+        category: Category string, e.g. config, diagram, policy, runbook (optional).
+        sensitivity: One of: public, internal, confidential, restricted (default: internal).
+        metadata: JSON string of key-value metadata (optional).
+        mime_type: MIME type, e.g. application/pdf (optional).
+        file_size: File size in bytes (optional).
+        superseded_by: UUID of the artefact that supersedes this one (optional).
     """
     payload = {
         "name": name,
@@ -83,6 +136,24 @@ async def artefact_create(
         payload["description"] = _unescape(description)
     if account_id:
         payload["account_id"] = account_id
+    if content is not None:
+        payload["content"] = _unescape(content)
+    if status is not None:
+        payload["status"] = status
+    if category is not None:
+        payload["category"] = category
+    if sensitivity is not None:
+        payload["sensitivity"] = sensitivity
+    if metadata is not None:
+        parsed = _parse_metadata(metadata)
+        if parsed is not None:
+            payload["metadata"] = parsed
+    if mime_type is not None:
+        payload["mime_type"] = mime_type
+    if file_size is not None:
+        payload["file_size"] = file_size
+    if superseded_by is not None:
+        payload["superseded_by"] = superseded_by
     result = await client.post("/artefacts", json=payload)
     return json.dumps(result, indent=2)
 
@@ -95,6 +166,15 @@ async def artefact_update(
     url: str | None = None,
     description: str | None = None,
     account_id: str | None = None,
+    content: str | None = None,
+    status: str | None = None,
+    category: str | None = None,
+    sensitivity: str | None = None,
+    metadata: str | None = None,
+    mime_type: str | None = None,
+    file_size: int | None = None,
+    superseded_by: str | None = None,
+    change_comment: str | None = None,
 ) -> str:
     """Update an artefact. Only provided fields are changed.
 
@@ -105,6 +185,15 @@ async def artefact_update(
         url: New URL or path.
         description: New description.
         account_id: UUID of the account.
+        content: New markdown content body.
+        status: New status: draft, review, approved, archived, superseded.
+        category: New category string.
+        sensitivity: One of: public, internal, confidential, restricted.
+        metadata: JSON string of key-value metadata.
+        mime_type: MIME type, e.g. application/pdf.
+        file_size: File size in bytes.
+        superseded_by: UUID of the artefact that supersedes this one.
+        change_comment: Comment describing what changed (stored in version history).
     """
     payload = {}
     if name is not None:
@@ -117,6 +206,26 @@ async def artefact_update(
         payload["description"] = _unescape(description)
     if account_id is not None:
         payload["account_id"] = account_id
+    if content is not None:
+        payload["content"] = _unescape(content)
+    if status is not None:
+        payload["status"] = status
+    if category is not None:
+        payload["category"] = category
+    if sensitivity is not None:
+        payload["sensitivity"] = sensitivity
+    if metadata is not None:
+        parsed = _parse_metadata(metadata)
+        if parsed is not None:
+            payload["metadata"] = parsed
+    if mime_type is not None:
+        payload["mime_type"] = mime_type
+    if file_size is not None:
+        payload["file_size"] = file_size
+    if superseded_by is not None:
+        payload["superseded_by"] = superseded_by
+    if change_comment is not None:
+        payload["change_comment"] = change_comment
     result = await client.put(f"/artefacts/{artefact_id}", json=payload)
     return json.dumps(result, indent=2)
 
