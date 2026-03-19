@@ -54,7 +54,7 @@ def upgrade() -> None:
         sa.Column('id', UUID(as_uuid=True), server_default=sa.text("gen_random_uuid()"), primary_key=True),
         sa.Column('artefact_id', UUID(as_uuid=True), sa.ForeignKey('artefacts.id'), nullable=False),
         sa.Column('linked_entity_type', artefact_link_entity_type, nullable=False),
-        sa.Column('linked_entity_id', UUID(as_uuid=True), nullable=False),
+        sa.Column('linked_entity_id', sa.String(), nullable=False),
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
     )
     op.create_index('ix_artefact_links_entity', 'artefact_links', ['linked_entity_type', 'linked_entity_id'])
