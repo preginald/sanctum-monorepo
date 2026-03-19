@@ -10,17 +10,43 @@ async def ticket_list(
     project: str | None = None,
     milestone: str | None = None,
     status: str | None = None,
+    limit: int = 50,
 ) -> str:
-    """List tickets, optionally filtered by project, milestone, or status."""
-    params = {}
+    """List tickets, optionally filtered by project, milestone, or status.
+
+    Args:
+        project: Filter by project name (substring match).
+        milestone: Filter by milestone name (substring match).
+        status: Filter by status: new, open, pending, qa, resolved.
+        limit: Max results to return (default 50).
+    """
+    result = await client.get("/tickets")
+    tickets = result if isinstance(result, list) else []
+
     if project:
-        params["project"] = project
+        p = project.lower()
+        tickets = [t for t in tickets if p in (t.get("project_name") or "").lower()]
     if milestone:
-        params["milestone"] = milestone
+        m = milestone.lower()
+        tickets = [t for t in tickets if m in (t.get("milestone_name") or "").lower()]
     if status:
-        params["status"] = status
-    result = await client.get("/tickets", params=params)
-    return json.dumps(result, indent=2)
+        tickets = [t for t in tickets if t.get("status") == status]
+
+    # Return summary fields only to keep response concise
+    summary = []
+    for t in tickets[:limit]:
+        summary.append({
+            "id": t["id"],
+            "subject": t["subject"],
+            "status": t["status"],
+            "priority": t["priority"],
+            "ticket_type": t.get("ticket_type"),
+            "project_name": t.get("project_name"),
+            "milestone_name": t.get("milestone_name"),
+            "account_name": t.get("account_name"),
+            "created_at": t.get("created_at"),
+        })
+    return json.dumps(summary, indent=2)
 
 
 @mcp.tool()
