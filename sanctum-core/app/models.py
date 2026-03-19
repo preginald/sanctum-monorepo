@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime, Index
+from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime, Index
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
@@ -813,13 +813,24 @@ class Artefact(Base):
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     is_deleted = Column(Boolean, default=False, server_default="false")
+    content = Column(Text, nullable=True)
+    status = Column(SAEnum('draft', 'review', 'approved', 'archived', 'superseded', name='artefact_status', create_type=False), nullable=False, server_default='draft')
+    category = Column(String(100), nullable=True)
+    sensitivity = Column(SAEnum('public', 'internal', 'confidential', name='artefact_sensitivity', create_type=False), nullable=False, server_default='internal')
+    artefact_metadata = Column('metadata', JSONB, nullable=False, server_default='{}')
+    mime_type = Column(String(100), nullable=True)
+    file_size = Column(BigInteger, nullable=True)
+    superseded_by = Column(UUID(as_uuid=True), ForeignKey("artefacts.id", ondelete="SET NULL"), nullable=True)
 
     account = relationship("Account", foreign_keys=[account_id])
     creator = relationship("User", foreign_keys=[created_by])
     links = relationship("ArtefactLink", back_populates="artefact", cascade="all, delete-orphan")
+    superseded_by_artefact = relationship("Artefact", remote_side="Artefact.id", foreign_keys=[superseded_by])
 
     __table_args__ = (
         Index('ix_artefacts_account_id', 'account_id'),
+        Index('ix_artefacts_status', 'status'),
+        Index('ix_artefacts_category', 'category'),
     )
 
 

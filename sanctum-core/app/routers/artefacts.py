@@ -15,7 +15,11 @@ def create_artefact(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    new = models.Artefact(**artefact.model_dump(), created_by=current_user.id)
+    data = artefact.model_dump()
+    # Map schema 'metadata' to model attribute 'artefact_metadata'
+    if 'metadata' in data:
+        data['artefact_metadata'] = data.pop('metadata')
+    new = models.Artefact(**data, created_by=current_user.id)
     db.add(new)
     db.commit()
     db.refresh(new)
@@ -84,7 +88,9 @@ def update_artefact(
     if not artefact:
         raise HTTPException(status_code=404, detail="Artefact not found")
     for field, value in update.model_dump(exclude_unset=True).items():
-        setattr(artefact, field, value)
+        # Map schema 'metadata' to model attribute 'artefact_metadata'
+        attr = 'artefact_metadata' if field == 'metadata' else field
+        setattr(artefact, attr, value)
     db.commit()
     db.refresh(artefact)
     artefact.account_name = artefact.account.name if artefact.account else None

@@ -1,6 +1,7 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
+from pydantic import Field
 from .shared import SanctumBase
 
 
@@ -10,6 +11,14 @@ class ArtefactCreate(SanctumBase):
     url: Optional[str] = None
     description: Optional[str] = None
     account_id: Optional[UUID] = None
+    content: Optional[str] = None
+    status: Optional[str] = "draft"
+    category: Optional[str] = None
+    sensitivity: Optional[str] = "internal"
+    metadata: Optional[Dict[str, Any]] = None
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    superseded_by: Optional[UUID] = None
 
 
 class ArtefactUpdate(SanctumBase):
@@ -18,6 +27,14 @@ class ArtefactUpdate(SanctumBase):
     url: Optional[str] = None
     description: Optional[str] = None
     account_id: Optional[UUID] = None
+    content: Optional[str] = None
+    status: Optional[str] = None
+    category: Optional[str] = None
+    sensitivity: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    superseded_by: Optional[UUID] = None
 
 
 class ArtefactLinkResponse(SanctumBase):
@@ -48,4 +65,12 @@ class ArtefactResponse(SanctumBase):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     is_deleted: bool = False
+    content: Optional[str] = None
+    status: Optional[str] = "draft"
+    category: Optional[str] = None
+    sensitivity: Optional[str] = "internal"
+    metadata: Optional[Dict[str, Any]] = Field(default=None, validation_alias='artefact_metadata')
+    mime_type: Optional[str] = None
+    file_size: Optional[int] = None
+    superseded_by: Optional[UUID] = None
     links: List[ArtefactLinkResponse] = []
