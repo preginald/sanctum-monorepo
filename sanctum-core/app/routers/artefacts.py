@@ -7,6 +7,25 @@ from ..database import get_db
 
 router = APIRouter(tags=["Artefacts"])
 
+# Status lifecycle: valid transitions
+VALID_TRANSITIONS = {
+    'draft': ['review', 'archived'],
+    'review': ['approved', 'draft', 'archived'],
+    'approved': ['superseded', 'archived'],
+    'archived': ['draft'],
+    'superseded': [],  # terminal
+}
+
+
+def _get_available_transitions(status: str) -> list:
+    return VALID_TRANSITIONS.get(status, [])
+
+
+def _attach_transitions(artefact):
+    """Attach available_transitions to artefact for response serialisation."""
+    artefact.available_transitions = _get_available_transitions(artefact.status or 'draft')
+    return artefact
+
 
 def _increment_version(current_version: str) -> str:
     """Parses v1.0 -> v1.1."""
@@ -40,7 +59,7 @@ def create_artefact(
         new.account_name = new.account.name
     if new.creator:
         new.creator_name = new.creator.full_name
-    return new
+    return _attach_transitions(new)
 
 
 @router.get("/artefacts", response_model=List[schemas.ArtefactResponse])
@@ -66,6 +85,7 @@ def list_artefacts(
         for a in artefacts:
             a.account_name = a.account.name if a.account else None
             a.creator_name = a.creator.full_name if a.creator else None
+            _attach_transitions(a)
         return artefacts
     except Exception:
         db.rollback()
@@ -87,7 +107,7 @@ def get_artefact(
         raise HTTPException(status_code=404, detail="Artefact not found")
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
-    return artefact
+    return _attach_transitions(artefact)
 
 
 @router.put("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
@@ -103,9 +123,26 @@ def update_artefact(
 
     update_data = update.model_dump(exclude_unset=True)
     change_comment = update_data.pop("change_comment", None)
-    content_changing = "content" in update_data and update_data["content"] != artefact.content
 
-    # 1. HISTORY SNAPSHOT — only when content changes
+    current_status = artefact.status or 'draft'
+
+    # 0. AUTO-SUPERSEDED: setting superseded_by auto-sets status
+    if "superseded_by" in update_data and update_data["superseded_by"] is not None:
+        update_data["status"] = "superseded"
+
+    # 1. STATUS TRANSITION VALIDATION
+    if "status" in update_data and update_data["status"] != current_status:
+        new_status = update_data["status"]
+        allowed = _get_available_transitions(current_status)
+        if new_status not in allowed:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid status transition: '{current_status}' → '{new_status}'. "
+                       f"Valid transitions from '{current_status}': {allowed}"
+            )
+
+    # 2. HISTORY SNAPSHOT — only when content changes
+    content_changing = "content" in update_data and update_data["content"] != artefact.content
     if content_changing:
         old_content = artefact.content
         history_entry = models.ArtefactHistory(
@@ -120,10 +157,9 @@ def update_artefact(
             diff_after=update_data["content"],
         )
         db.add(history_entry)
-        # Auto-increment version
         artefact.version = _increment_version(artefact.version)
 
-    # 2. APPLY UPDATE
+    # 3. APPLY UPDATE
     for field, value in update_data.items():
         attr = 'artefact_metadata' if field == 'metadata' else field
         setattr(artefact, attr, value)
@@ -132,7 +168,7 @@ def update_artefact(
     db.refresh(artefact)
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
-    return artefact
+    return _attach_transitions(artefact)
 
 
 @router.delete("/artefacts/{artefact_id}")
@@ -225,7 +261,7 @@ def revert_artefact(
     db.refresh(artefact)
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
-    return artefact
+    return _attach_transitions(artefact)
 
 
 # --- LINK / UNLINK ---

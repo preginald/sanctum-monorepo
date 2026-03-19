@@ -80,6 +80,7 @@ class ArtefactResponse(SanctumBase):
     mime_type: Optional[str] = None
     file_size: Optional[int] = None
     superseded_by: Optional[UUID] = None
+    available_transitions: List[str] = []
     links: List[ArtefactLinkResponse] = []
 
 
