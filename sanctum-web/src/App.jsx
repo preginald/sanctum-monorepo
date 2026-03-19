@@ -82,6 +82,7 @@ import AdminUserList from './pages/AdminUserList';
 
 import AssetLifecycle from './pages/AssetLifecycle';
 import AssetDetail from './pages/AssetDetail';
+import ArtefactDetail from './pages/ArtefactDetail';
 
 
 
@@ -162,6 +163,7 @@ function App() {
                               <Route path="/catalog" element={<Catalog />} />
                               <Route path="/assets/lifecycle" element={<AssetLifecycle />} />
                               <Route path="/assets/:assetId" element={<AssetDetail />} />
+                              <Route path="/artefacts/:artefactId" element={<ArtefactDetail />} />
                               <Route path="/invoices" element={<Invoices />} />
                               <Route path="/invoices/unpaid" element={<UnpaidInvoices />} />
                               <Route path="/invoices/:id" element={<InvoiceDetail />} />
