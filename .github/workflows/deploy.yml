@@ -33,9 +33,10 @@ jobs:
             echo "🏗️ Running Database Migrations..."
             alembic upgrade head
 
-            # Restart Service (No Sudo Password needed due to sudoers config)
-            echo "🔄 Restarting API Service..."
+            # Restart Services (No Sudo Password needed due to sudoers config)
+            echo "🔄 Restarting Services..."
             sudo systemctl restart sanctum-api
+            sudo systemctl restart sanctum-mcp
 
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
