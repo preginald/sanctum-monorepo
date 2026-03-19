@@ -20,4 +20,4 @@ if __name__ == "__main__":
     transport = os.getenv("MCP_TRANSPORT", "streamable-http")
     host = os.getenv("MCP_HOST", "0.0.0.0")
     port = int(os.getenv("MCP_PORT", "8100"))
-    mcp.run(transport=transport, host=host, port=port)
+    mcp.run(transport=transport, host=host, port=port, path="/")
