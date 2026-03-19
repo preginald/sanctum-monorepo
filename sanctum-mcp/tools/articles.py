@@ -149,6 +149,6 @@ async def article_relate(article_id: str, related_article_id: str) -> str:
         article_id: UUID of the source article.
         related_article_id: UUID of the related article.
     """
-    payload = {"related_article_id": related_article_id}
+    payload = {"related_id": related_article_id}
     result = await client.post(f"/articles/{article_id}/relations", json=payload)
     return json.dumps(result, indent=2)
