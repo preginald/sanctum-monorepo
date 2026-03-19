@@ -105,7 +105,7 @@ async def article_update_section(
         content: New section body in markdown (do NOT include the heading line).
     """
     payload = {
-        "section_heading": section_heading,
+        "heading": section_heading,
         "content": _unescape(content),
     }
     result = await client.patch(f"/articles/{article_id}/sections", json=payload)
