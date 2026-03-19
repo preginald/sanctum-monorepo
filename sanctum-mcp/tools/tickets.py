@@ -157,8 +157,7 @@ async def ticket_comment(
     payload = {
         "body": _unescape(body),
         "visibility": visibility,
-        "entity_type": "ticket",
-        "entity_id": str(ticket_id),
+        "ticket_id": ticket_id,
     }
     result = await client.post("/comments", json=payload)
     return json.dumps(result, indent=2)
@@ -193,8 +192,7 @@ async def ticket_resolve(
         comment_payload = {
             "body": _unescape(body),
             "visibility": "internal",
-            "entity_type": "ticket",
-            "entity_id": str(ticket_id),
+            "ticket_id": ticket_id,
         }
         comment_result = await client.post("/comments", json=comment_payload)
         resolution_cid = comment_result.get("id")
