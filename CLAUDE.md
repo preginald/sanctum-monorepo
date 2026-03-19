@@ -60,6 +60,9 @@ Configured via `.pre-commit-config.yaml`: trailing whitespace, large file checks
 4. Verify
 5. Update ticket with resolution (resolve via two-step flow)
 6. Create or update any related KB articles
+7. Consider if `sanctum` CLI needs update with new or existing domain
+8. Make sure `sanctum` has `--help` for the domain
+9. Update the sanctum CLI article (DOC-009) with new additions
 
 ### 4. Session Handovers
 - Every session ends with a `session_handover.md` summarising what was done, what's next, and commands for the next session.
