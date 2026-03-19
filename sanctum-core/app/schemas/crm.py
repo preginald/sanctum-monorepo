@@ -19,6 +19,7 @@ class AccountUpdate(SanctumBase):
 class AccountResponse(AccountCreate):
     id: UUID
     ingest_token: Optional[UUID] = None  # Add this here
+    artefacts: list = []
 
     class Config:
         from_attributes = True

@@ -70,6 +70,7 @@ class ArticleResponse(ArticleCreate):
     author_name: Optional[str] = None
     history: list[ArticleHistoryResponse] = []
     related_articles: list[RelatedArticleResponse] = []
+    artefacts: list = []
     created_at: datetime
     updated_at: Optional[datetime] = None
 

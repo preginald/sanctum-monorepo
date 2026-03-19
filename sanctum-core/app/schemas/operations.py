@@ -3,6 +3,7 @@ from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
 from .crm import ContactResponse
+from .artefacts import ArtefactLite
 from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite
 
 class TimeEntryCreate(SanctumBase):
@@ -110,6 +111,7 @@ class TicketResponse(TicketCreate):
     materials: List[TicketMaterialResponse] = []
     articles: List[ArticleLite] = []
     assets: List[AssetLite] = []
+    artefacts: List[ArtefactLite] = []
     related_tickets: List[TicketRelationResponse] = []
 
     total_hours: float = 0.0

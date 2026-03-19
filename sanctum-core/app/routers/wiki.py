@@ -115,6 +115,17 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         ) for r in related
     ]
 
+    # Load linked artefacts
+    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+        models.ArtefactLink.linked_entity_type == "article",
+        models.ArtefactLink.linked_entity_id == str(article.id),
+    ).all()
+    if artefact_ids:
+        ids = [r[0] for r in artefact_ids]
+        response_data.artefacts = db.query(models.Artefact).filter(
+            models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+        ).all()
+
     # Resolve shortcodes safely on the Pydantic object
     if resolve_embeds and response_data.content:
         response_data.content = resolve_content(db, response_data.content)
