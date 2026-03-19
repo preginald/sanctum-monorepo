@@ -18,6 +18,7 @@ import TicketCreateModal from '../components/tickets/TicketCreateModal';
 import TicketList from '../components/tickets/TicketList';
 import AssetList from '../components/clients/AssetList';
 import AssetModal from '../components/clients/AssetModal';
+import ArtefactCard from '../components/ArtefactCard';
 
 // BADGES
 const Badge = ({ children, color }) => (
@@ -339,7 +340,8 @@ export default function ClientDetail() {
               />
           </div>
 
-          <div>
+          <div className="space-y-6">
+              <ArtefactCard entityType="account" entityId={id} artefacts={account.artefacts || []} onUpdate={fetchAccount} />
               <HumanSection
                   contacts={account.contacts || []}
                   users={users}
