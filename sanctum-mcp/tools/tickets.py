@@ -108,6 +108,7 @@ async def ticket_update(
     priority: str | None = None,
     ticket_type: str | None = None,
     milestone_id: str | None = None,
+    resolution_comment_id: str | None = None,
 ) -> str:
     """Update an existing ticket. Only provided fields are changed.
 
@@ -119,6 +120,7 @@ async def ticket_update(
         priority: One of: low, normal, high, critical.
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         milestone_id: UUID of the milestone.
+        resolution_comment_id: UUID of the comment to link as resolution.
     """
     payload = {}
     if subject is not None:
@@ -133,6 +135,8 @@ async def ticket_update(
         payload["ticket_type"] = ticket_type
     if milestone_id is not None:
         payload["milestone_id"] = milestone_id
+    if resolution_comment_id is not None:
+        payload["resolution_comment_id"] = resolution_comment_id
     result = await client.put(f"/tickets/{ticket_id}", json=payload)
     return json.dumps(result, indent=2)
 
@@ -157,6 +161,62 @@ async def ticket_comment(
         "entity_id": str(ticket_id),
     }
     result = await client.post("/comments", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def ticket_resolve(
+    ticket_id: int,
+    body: str | None = None,
+    comment_id: str | None = None,
+) -> str:
+    """Resolve a ticket with a linked resolution comment.
+
+    Either provide body (creates a new resolution comment) or comment_id
+    (uses an existing comment as the resolution). One of the two is required.
+
+    Args:
+        ticket_id: The ticket number.
+        body: Resolution text in markdown (creates a new comment).
+        comment_id: UUID of an existing comment to use as the resolution.
+    """
+    if not body and not comment_id:
+        return json.dumps({"error": "Either body or comment_id is required"})
+    if body and comment_id:
+        return json.dumps({"error": "Provide body or comment_id, not both"})
+
+    resolution_text = None
+    resolution_cid = None
+
+    if body:
+        # Step 1a: Create the resolution comment
+        comment_payload = {
+            "body": _unescape(body),
+            "visibility": "internal",
+            "entity_type": "ticket",
+            "entity_id": str(ticket_id),
+        }
+        comment_result = await client.post("/comments", json=comment_payload)
+        resolution_cid = comment_result.get("id")
+        resolution_text = _unescape(body)
+        if not resolution_cid:
+            return json.dumps({"error": "Failed to create resolution comment", "detail": comment_result})
+    else:
+        # Step 1b: Fetch existing comment to get body text
+        comments = await client.get(f"/comments?ticket_id={ticket_id}")
+        comment = next((c for c in comments if c.get("id") == comment_id), None)
+        if not comment:
+            return json.dumps({"error": f"Comment {comment_id} not found on ticket #{ticket_id}"})
+        resolution_cid = comment_id
+        resolution_text = comment.get("body", "")
+
+    # Step 2: Update ticket with status=resolved + resolution fields
+    ticket_payload = {
+        "status": "resolved",
+        "resolution": resolution_text,
+        "resolution_comment_id": resolution_cid,
+    }
+    result = await client.put(f"/tickets/{ticket_id}", json=ticket_payload)
     return json.dumps(result, indent=2)
 
 
