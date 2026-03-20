@@ -8,6 +8,7 @@ from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
 from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
+from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -48,6 +49,7 @@ def create_ticket(
 
     if not ticket.skip_validation:
         validate_ticket_description(ticket.ticket_type, ticket.description)
+        validate_milestone_sealed(ticket.milestone_id, db)
 
     new_ticket = models.Ticket(
         account_id=target_account_id, subject=ticket.subject, description=ticket.description,
@@ -179,6 +181,12 @@ def update_ticket(
                 detail="Resolution requires a resolution comment. See SYS-005."
             )
 
+    # Sealed milestone check — reject assignment to completed milestones
+    if not ticket_update.skip_validation and 'milestone_id' in update_data:
+        new_milestone_id = update_data['milestone_id']
+        if new_milestone_id and new_milestone_id != ticket.milestone_id:
+            validate_milestone_sealed(new_milestone_id, db)
+
     was_resolved = ticket.status == 'resolved'
     old_tech_id = ticket.assigned_tech_id
 
@@ -223,6 +231,13 @@ def update_ticket(
     t_dict = enrich_ticket_response(ticket, db)
     t_dict['related_tickets'] = []
     response_data = schemas.TicketResponse.model_validate(t_dict)
+
+    # Completion advisory — hint when resolving the last open ticket in a milestone
+    if ticket.status == 'resolved' and not was_resolved and ticket.milestone_id:
+        advisory = check_milestone_completion_advisory(ticket.milestone_id, db)
+        if advisory:
+            response_data.milestone_completion_ready = advisory["milestone_completion_ready"]
+            response_data.milestone_completion_message = advisory["milestone_completion_message"]
 
     if resolve_embeds:
         try:

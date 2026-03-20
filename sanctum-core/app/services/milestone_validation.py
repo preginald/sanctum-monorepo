@@ -3,9 +3,12 @@ Milestone validation — enforces status lifecycle per SYS-006.
 
 Transition rules: pending → active → completed, completed → active (reopen).
 Conditional checks: description required for activation, all tickets resolved for completion.
+Sealed completion: reject ticket assignment to completed milestones.
+Completion advisory: hint when last ticket in a milestone resolves.
 """
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from .. import models
 
@@ -79,3 +82,58 @@ def validate_milestone_transition(
                     "help": "Resolve or close all tickets before completing the milestone. See SYS-006.",
                 },
             )
+
+
+def validate_milestone_sealed(milestone_id, db: Session) -> None:
+    """Reject ticket creation/assignment to a completed milestone.
+
+    Raises HTTPException(422) with milestone_sealed error if the milestone is completed.
+    No-op if milestone_id is None or the milestone doesn't exist.
+    """
+    if not milestone_id:
+        return
+    milestone = db.query(models.Milestone).filter(
+        models.Milestone.id == milestone_id
+    ).first()
+    if not milestone:
+        return
+    if milestone.status == "completed":
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "milestone_sealed",
+                "milestone_id": str(milestone.id),
+                "milestone_name": milestone.name,
+                "milestone_status": milestone.status,
+                "message": "Milestone is completed. Reopen it to active status or assign this ticket to another milestone.",
+                "available_actions": ["reopen_milestone", "choose_different_milestone"],
+            },
+        )
+
+
+def check_milestone_completion_advisory(milestone_id, db: Session) -> dict | None:
+    """Check if all tickets in a milestone are now resolved/closed.
+
+    Returns advisory dict if the milestone has zero remaining open tickets,
+    or None otherwise. No-op if milestone_id is None.
+    """
+    if not milestone_id:
+        return None
+    milestone = db.query(models.Milestone).filter(
+        models.Milestone.id == milestone_id
+    ).first()
+    if not milestone:
+        return None
+    open_count = db.query(func.count(models.Ticket.id)).filter(
+        models.Ticket.milestone_id == milestone_id,
+        models.Ticket.is_deleted == False,
+        ~models.Ticket.status.in_(["resolved", "closed"]),
+    ).scalar()
+    if open_count == 0:
+        return {
+            "milestone_completion_ready": True,
+            "milestone_id": str(milestone.id),
+            "milestone_name": milestone.name,
+            "milestone_completion_message": "All tickets in this milestone are now resolved. Consider completing the milestone.",
+        }
+    return None

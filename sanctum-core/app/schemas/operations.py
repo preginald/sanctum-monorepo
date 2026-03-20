@@ -163,6 +163,10 @@ class TicketResponse(TicketCreate):
     resolution_comment_id: Optional[UUID] = None
     available_transitions: List[str] = []
 
+    # Milestone completion advisory (populated when resolving the last open ticket)
+    milestone_completion_ready: Optional[bool] = None
+    milestone_completion_message: Optional[str] = None
+
 class LeadSchema(SanctumBase):
     name: str
     email: str
