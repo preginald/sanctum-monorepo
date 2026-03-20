@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
 from .. import models, schemas, auth
@@ -7,24 +7,14 @@ from ..database import get_db
 from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
 from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions
+from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
 @router.get("", response_model=List[schemas.TicketResponse])
 def get_tickets(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    query = db.query(models.Ticket)\
+    query = base_ticket_query(db)\
         .join(models.Account)\
-        .options(
-            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user),
-            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.product),
-            joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.invoice),
-            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.product),
-            joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.invoice),
-            joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
-            joinedload(models.Ticket.contacts),
-            joinedload(models.Ticket.articles),
-            joinedload(models.Ticket.assets)
-        )\
         .filter(models.Ticket.is_deleted == False)
 
     if current_user.access_scope == 'nt_only':
@@ -36,46 +26,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         query = query.filter(models.Ticket.account_id == current_user.account_id)
 
     tickets = query.order_by(models.Ticket.id.desc()).all()
-
-    results = []
-    for t in tickets:
-        t_dict = t.__dict__.copy()
-        t_dict['account_name'] = t.account.name
-        t_dict['contacts'] = t.contacts
-        t_dict['total_hours'] = t.total_hours
-        t_dict['articles'] = t.articles
-        t_dict['assets'] = t.assets
-
-        enriched_time = []
-        for te in t.time_entries:
-            if te.invoice:
-                setattr(te, 'invoice_status', te.invoice.status)
-            enriched_time.append(te)
-        t_dict['time_entries'] = enriched_time
-
-        enriched_materials = []
-        for tm in t.materials:
-            if tm.invoice:
-                setattr(tm, 'invoice_status', tm.invoice.status)
-            enriched_materials.append(tm)
-        t_dict['materials'] = enriched_materials
-
-        if t.milestone:
-            t_dict['milestone_name'] = t.milestone.name
-            if t.milestone.project:
-                t_dict['project_id'] = t.milestone.project.id
-                t_dict['project_name'] = t.milestone.project.name
-
-        linked_items = db.query(models.InvoiceItem).options(joinedload(models.InvoiceItem.invoice))\
-            .filter(models.InvoiceItem.ticket_id == t.id).all()
-        unique_invoices = {}
-        for item in linked_items:
-            if item.invoice: unique_invoices[item.invoice.id] = item.invoice
-        t_dict['related_invoices'] = list(unique_invoices.values())
-        t_dict['available_transitions'] = get_available_transitions(t.status)
-
-        results.append(t_dict)
-    return results
+    return [enrich_ticket_response(t, db) for t in tickets]
 
 @router.post("", response_model=schemas.TicketResponse)
 def create_ticket(
@@ -133,28 +84,13 @@ def create_ticket(
 
 @router.get("/{ticket_id}", response_model=schemas.TicketResponse)
 def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session = Depends(get_db)):
-    ticket = db.query(models.Ticket).options(
-        joinedload(models.Ticket.account),
-        joinedload(models.Ticket.contacts),
-        joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
-        joinedload(models.Ticket.comments).joinedload(models.Comment.author)
-    ).filter(models.Ticket.id == ticket_id).first()
+    ticket = base_ticket_query(db).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
 
-    for c in ticket.comments:
-        c.author_name = c.author.full_name if c.author else "Unknown"
-
-    ticket.account_name = ticket.account.name if ticket.account else None
-    if ticket.milestone:
-        ticket.milestone_name = ticket.milestone.name
-        if ticket.milestone.project:
-            ticket.project_id = ticket.milestone.project.id
-            ticket.project_name = ticket.milestone.project.name
-
-    ticket.related_tickets = []
-    response_data = schemas.TicketResponse.model_validate(ticket)
-    response_data.available_transitions = get_available_transitions(ticket.status)
+    t_dict = enrich_ticket_response(ticket, db)
+    t_dict['related_tickets'] = []
+    response_data = schemas.TicketResponse.model_validate(t_dict)
 
     # Build related_tickets from ticket_relations join table (both directions)
     relations_raw = db.execute(sa_text("""
@@ -220,7 +156,7 @@ def update_ticket(
     background_tasks: BackgroundTasks,
     resolve_embeds: bool = False, db: Session = Depends(get_db)
 ):
-    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project), joinedload(models.Ticket.comments).joinedload(models.Comment.author)).filter(models.Ticket.id == ticket_id).first()
+    ticket = base_ticket_query(db).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
 
@@ -262,13 +198,9 @@ def update_ticket(
     for key, value in update_data.items(): setattr(ticket, key, value)
 
     db.commit()
-    db.refresh(ticket)
-    ticket.account_name = ticket.account.name if ticket.account else None
-    if ticket.milestone:
-        ticket.milestone_name = ticket.milestone.name
-        if ticket.milestone.project:
-            ticket.project_id = ticket.milestone.project.id
-            ticket.project_name = ticket.milestone.project.name
+
+    # Re-query with full joinedloads after commit to get fresh state
+    ticket = base_ticket_query(db).filter(models.Ticket.id == ticket_id).first()
 
     # 4. NOTIFY: ASSIGNMENT CHANGE
     if ticket.assigned_tech_id and ticket.assigned_tech_id != old_tech_id:
@@ -288,16 +220,9 @@ def update_ticket(
     if ticket.status == 'resolved' and not was_resolved:
         event_bus.emit("ticket_resolved", ticket, background_tasks)
 
-    # Re-load comments with authors after commit/refresh
-    ticket.comments = db.query(models.Comment).options(
-        joinedload(models.Comment.author)
-    ).filter(models.Comment.ticket_id == ticket_id).order_by(models.Comment.created_at.desc()).all()
-    for c in ticket.comments:
-        c.author_name = c.author.full_name if c.author else "Unknown"
-
-    ticket.related_tickets = []
-    response_data = schemas.TicketResponse.model_validate(ticket)
-    response_data.available_transitions = get_available_transitions(ticket.status)
+    t_dict = enrich_ticket_response(ticket, db)
+    t_dict['related_tickets'] = []
+    response_data = schemas.TicketResponse.model_validate(t_dict)
 
     if resolve_embeds:
         try:
