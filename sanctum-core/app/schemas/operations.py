@@ -2,6 +2,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 from decimal import Decimal
+from pydantic import Field
 from .crm import ContactResponse
 from .artefacts import ArtefactLite
 from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite
@@ -65,6 +66,7 @@ class TicketCreate(SanctumBase):
     assigned_tech_id: Optional[UUID] = None
     ticket_type: str = 'support'
     milestone_id: Optional[UUID] = None
+    skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketUpdate(SanctumBase):
     status: Optional[str] = None
@@ -80,6 +82,7 @@ class TicketUpdate(SanctumBase):
     milestone_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     resolution_comment_id: Optional[UUID] = None
+    skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketRelationResponse(SanctumBase):
     id: int
