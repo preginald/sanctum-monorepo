@@ -120,7 +120,9 @@ def get_portal_dashboard(
                 models.Ticket.is_deleted == False
             ).order_by(desc(models.Ticket.created_at)).all()
 
-    for t in tickets: t.related_tickets = []
+    for t in tickets:
+        t.related_tickets = []
+        t.comments = []
     invoices = db.query(models.Invoice).options(joinedload(models.Invoice.items))\
         .filter(models.Invoice.account_id == aid).order_by(desc(models.Invoice.generated_at)).all()
 

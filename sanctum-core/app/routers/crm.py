@@ -29,7 +29,9 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     if not account: raise HTTPException(status_code=404, detail="Account not found")
     account.projects = [p for p in account.projects if not p.is_deleted]
     account.tickets = [t for t in account.tickets if not t.is_deleted]
-    for t in account.tickets: t.related_tickets = []
+    for t in account.tickets:
+        t.related_tickets = []
+        t.comments = []
 
     # Load linked artefacts (graceful if table doesn't exist yet)
     try:
