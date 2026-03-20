@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
@@ -6,6 +7,26 @@ from pydantic import Field
 from .crm import ContactResponse
 from .artefacts import ArtefactLite
 from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite
+
+
+class TicketTypeEnum(str, Enum):
+    support = "support"
+    bug = "bug"
+    feature = "feature"
+    refactor = "refactor"
+    task = "task"
+    access = "access"
+    maintenance = "maintenance"
+    alert = "alert"
+    hotfix = "hotfix"
+    test = "test"
+
+
+class PriorityEnum(str, Enum):
+    low = "low"
+    normal = "normal"
+    high = "high"
+    critical = "critical"
 
 class TimeEntryCreate(SanctumBase):
     start_time: datetime
@@ -62,15 +83,15 @@ class TicketCreate(SanctumBase):
     contact_ids: List[UUID] = []
     subject: str
     description: Optional[str] = None
-    priority: str = 'normal'
+    priority: PriorityEnum = PriorityEnum.normal
     assigned_tech_id: Optional[UUID] = None
-    ticket_type: str = 'support'
+    ticket_type: TicketTypeEnum = TicketTypeEnum.support
     milestone_id: Optional[UUID] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketUpdate(SanctumBase):
     status: Optional[str] = None
-    priority: Optional[str] = None
+    priority: Optional[PriorityEnum] = None
     subject: Optional[str] = None
     description: Optional[str] = None
     resolution: Optional[str] = None
@@ -78,7 +99,7 @@ class TicketUpdate(SanctumBase):
     contact_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
-    ticket_type: Optional[str] = None
+    ticket_type: Optional[TicketTypeEnum] = None
     milestone_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     resolution_comment_id: Optional[UUID] = None
