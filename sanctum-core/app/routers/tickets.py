@@ -228,6 +228,15 @@ def update_ticket(
         effective_desc = update_data.get('description', ticket.description)
         validate_ticket_description(effective_type, effective_desc)
 
+    # Resolution comment enforcement
+    if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':
+        resolution_id = update_data.get('resolution_comment_id') or ticket.resolution_comment_id
+        if not resolution_id:
+            raise HTTPException(
+                status_code=422,
+                detail="Resolution requires a resolution comment. See SYS-005."
+            )
+
     was_resolved = ticket.status == 'resolved'
     old_tech_id = ticket.assigned_tech_id
 
