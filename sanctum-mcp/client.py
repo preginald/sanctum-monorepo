@@ -27,6 +27,8 @@ async def get(path: str, params: dict | None = None) -> dict | list:
 async def post(path: str, json: dict | None = None) -> dict:
     async with httpx.AsyncClient(base_url=API_BASE, headers=_headers(), timeout=30) as c:
         r = await c.post(path, json=json)
+        if r.status_code == 422:
+            return {"error": True, "status_code": 422, **r.json()}
         r.raise_for_status()
         return r.json()
 
@@ -34,6 +36,8 @@ async def post(path: str, json: dict | None = None) -> dict:
 async def put(path: str, json: dict | None = None) -> dict:
     async with httpx.AsyncClient(base_url=API_BASE, headers=_headers(), timeout=30) as c:
         r = await c.put(path, json=json)
+        if r.status_code == 422:
+            return {"error": True, "status_code": 422, **r.json()}
         r.raise_for_status()
         return r.json()
 

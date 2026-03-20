@@ -6,6 +6,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
+from ..services.ticket_validation import validate_ticket_description
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -92,6 +93,9 @@ def create_ticket(
         linked_contact = db.query(models.Contact).filter(models.Contact.account_id == current_user.account_id, models.Contact.email == current_user.email).first()
         if linked_contact and linked_contact.id not in ticket.contact_ids:
             ticket.contact_ids.append(linked_contact.id)
+
+    if not ticket.skip_validation:
+        validate_ticket_description(ticket.ticket_type, ticket.description)
 
     new_ticket = models.Ticket(
         account_id=target_account_id, subject=ticket.subject, description=ticket.description,
@@ -212,6 +216,12 @@ def update_ticket(
     ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
+
+    # Description validation on update
+    if not ticket_update.skip_validation and ('description' in update_data or 'ticket_type' in update_data):
+        effective_type = update_data.get('ticket_type', ticket.ticket_type)
+        effective_desc = update_data.get('description', ticket.description)
+        validate_ticket_description(effective_type, effective_desc)
 
     was_resolved = ticket.status == 'resolved'
     old_tech_id = ticket.assigned_tech_id

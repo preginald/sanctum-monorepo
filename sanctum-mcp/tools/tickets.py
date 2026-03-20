@@ -72,8 +72,13 @@ async def ticket_create(
     ticket_type: str = "task",
     priority: str = "normal",
     description: str | None = None,
+    skip_validation: bool = False,
 ) -> str:
     """Create a new ticket.
+
+    ticket_create requires project_id (UUID). Use search to find project/milestone UUIDs.
+
+    Description is validated against the template for the ticket type (feature=DOC-016, bug=DOC-013, task=DOC-014, refactor=DOC-015). Types without templates (support, access, hotfix, etc.) are exempt.
 
     Args:
         subject: Ticket subject line.
@@ -82,7 +87,8 @@ async def ticket_create(
         milestone_id: UUID of the milestone (optional).
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         priority: One of: low, normal, high, critical.
-        description: Ticket description in markdown.
+        description: Ticket description in markdown. Must conform to type template (see DOC-013–016).
+        skip_validation: Set true to bypass description template validation.
     """
     payload = {
         "subject": subject,
@@ -95,6 +101,8 @@ async def ticket_create(
         payload["milestone_id"] = milestone_id
     if description:
         payload["description"] = _unescape(description)
+    if skip_validation:
+        payload["skip_validation"] = True
     result = await client.post("/tickets", json=payload)
     return json.dumps(result, indent=2)
 
@@ -109,6 +117,7 @@ async def ticket_update(
     ticket_type: str | None = None,
     milestone_id: str | None = None,
     resolution_comment_id: str | None = None,
+    skip_validation: bool = False,
 ) -> str:
     """Update an existing ticket. Only provided fields are changed.
 
@@ -121,6 +130,7 @@ async def ticket_update(
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         milestone_id: UUID of the milestone.
         resolution_comment_id: UUID of the comment to link as resolution.
+        skip_validation: Set true to bypass description template validation.
     """
     payload = {}
     if subject is not None:
@@ -137,6 +147,8 @@ async def ticket_update(
         payload["milestone_id"] = milestone_id
     if resolution_comment_id is not None:
         payload["resolution_comment_id"] = resolution_comment_id
+    if skip_validation:
+        payload["skip_validation"] = True
     result = await client.put(f"/tickets/{ticket_id}", json=payload)
     return json.dumps(result, indent=2)
 

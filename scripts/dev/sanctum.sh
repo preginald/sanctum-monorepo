@@ -387,7 +387,7 @@ resolve_article_identifier() {
 ticket_create() {
     local SUBJECT="" DESCRIPTION="" PRIORITY="normal" TICKET_TYPE="task"
     local PROJECT_NAME="" MILESTONE_NAME="" ACCOUNT_NAME="" ENV="prod"
-    local ARTICLES=""
+    local ARTICLES="" SKIP_VALIDATION=""
 
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -403,6 +403,7 @@ ticket_create() {
             --type)           TICKET_TYPE="$2"; shift 2 ;;
             --articles)       ARTICLES="$2"; shift 2 ;;
             --relate-tickets) RELATE_TICKETS="$2"; shift 2 ;;
+            --skip-validation) SKIP_VALIDATION="true"; shift ;;
             *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
         esac
     done
@@ -440,16 +441,30 @@ ticket_create() {
         --arg priority "$PRIORITY" \
         --arg ticket_type "$TICKET_TYPE" \
         --arg milestone_id "$MILESTONE_ID" \
+        --arg skip_validation "$SKIP_VALIDATION" \
         '{account_id: $account_id, subject: $subject, priority: $priority, ticket_type: $ticket_type}
         | if $description != "" then .description = $description else . end
-        | if $milestone_id != "" then .milestone_id = $milestone_id else . end')
+        | if $milestone_id != "" then .milestone_id = $milestone_id else . end
+        | if $skip_validation == "true" then .skip_validation = true else . end')
 
     RESULT=$(api_post "/tickets" "$PAYLOAD")
     TICKET_ID=$(echo "$RESULT" | jq -r '.id // empty')
 
     if [ -z "$TICKET_ID" ]; then
-        echo -e "${RED}✗ Failed to create ticket${NC}"
-        echo "$RESULT" | jq
+        # Check for template validation error (422)
+        TEMPLATE_ARTICLE=$(echo "$RESULT" | jq -r '.detail.template_article // empty' 2>/dev/null)
+        if [ -n "$TEMPLATE_ARTICLE" ]; then
+            echo -e "${RED}✗ Description does not conform to the ${TICKET_TYPE} template${NC}"
+            echo -e "${YELLOW}  Missing sections:${NC}"
+            echo "$RESULT" | jq -r '.detail.missing_sections[]' 2>/dev/null | while read -r section; do
+                echo -e "    ${RED}• ${section}${NC}"
+            done
+            echo -e "${YELLOW}  See ${TEMPLATE_ARTICLE} for the required template.${NC}"
+            echo -e "${GRAY}  Tip: Use --skip-validation to bypass.${NC}"
+        else
+            echo -e "${RED}✗ Failed to create ticket${NC}"
+            echo "$RESULT" | jq
+        fi
         exit 1
     fi
 
