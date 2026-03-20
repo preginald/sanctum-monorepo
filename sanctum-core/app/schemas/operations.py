@@ -28,6 +28,23 @@ class PriorityEnum(str, Enum):
     high = "high"
     critical = "critical"
 
+
+class RelationTypeEnum(str, Enum):
+    relates_to = "relates_to"
+    blocks = "blocks"
+    duplicates = "duplicates"
+
+
+class VisibilityEnum(str, Enum):
+    internal = "internal"
+    public = "public"
+
+
+class TicketRelationCreate(SanctumBase):
+    related_id: int
+    relation_type: RelationTypeEnum = RelationTypeEnum.relates_to
+    visibility: VisibilityEnum = VisibilityEnum.internal
+
 class TimeEntryCreate(SanctumBase):
     start_time: datetime
     end_time: datetime
