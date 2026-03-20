@@ -53,19 +53,42 @@ Configured via `.pre-commit-config.yaml`: trailing whitespace, large file checks
 - **40% threshold.** If changing >40% of a file, full replacement is acceptable.
 - **Always verify.** After any change, run a grep to confirm nothing was missed.
 
-### 3. Delivery Pattern
-1. Create a ticket for the work (if one doesn't exist)
-2. Perform surgical recon, update ticket comment with proposed solution
-3. Implement the proposed solution
-4. Verify
-5. Update ticket with resolution (resolve via two-step flow)
-6. Create or update any related KB articles
-7. Consider if `sanctum` CLI needs update with new or existing domain
-8. Make sure `sanctum` has `--help` for the domain
-9. Update the sanctum CLI article (DOC-009) with new additions
+### 3. Delivery Protocol (MANDATORY)
+
+Applies to all templated ticket types (feature, bug, task, refactor). Relaxed for exempt types (hotfix, alert, support, access, maintenance, test).
+
+**Before starting a ticket:**
+1. Read the full ticket description via MCP (`ticket_show`)
+2. Read all linked articles via MCP (`article_show`)
+3. Read all linked artefacts via MCP (`artefact_show`)
+4. Verify description follows the type template (DOC-013 bug / DOC-014 task / DOC-015 refactor / DOC-016 feature)
+
+**During implementation:**
+1. Comment proposed solution on the ticket (`ticket_comment`) **before writing code**
+2. Comment result after each significant attempt
+3. If the approach changes, document why in a ticket comment
+
+**Before resolving:**
+1. Walk through every acceptance criterion — do not resolve with unchecked items
+2. Post a resolution comment with: files changed, commit hash, deployment status
+3. Use two-step resolve: `ticket_update` status=resolved, then `ticket_comment` with the resolution body
+
+**After resolving:**
+1. Check if KB articles need updating (especially DOC-009, DOC-045, or domain-specific docs)
+2. Check if new KB articles should be created
+3. Flag any process improvements discovered
+4. Consider if `sanctum` CLI needs updates; update DOC-009 if so
+
+**Never:**
+- Never resolve without a resolution comment
+- Never resolve without verifying all acceptance criteria
+- Never create a ticket without following the type template
+- Never skip reading linked articles and artefacts before starting
 
 ### 4. Session Handovers
-- Every session ends with a `session_handover.md` summarising what was done, what's next, and commands for the next session.
+- Every session ends by publishing a session handover as an MCP artefact (category: `session_handover`) linked to the active milestone(s) and project.
+- The handover must include: what was accomplished, current state, what's next, and any blockers.
+- The next session retrieves the handover via `artefact_show` or `artefact_list category=session_handover`.
 
 ## MCP Server (preferred for Claude Code)
 
