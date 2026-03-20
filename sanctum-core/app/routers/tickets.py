@@ -134,11 +134,15 @@ def create_ticket(
 def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).options(
         joinedload(models.Ticket.account),
+        joinedload(models.Ticket.contacts),
         joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
-        joinedload(models.Ticket.comments)
+        joinedload(models.Ticket.comments).joinedload(models.Comment.author)
     ).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
+
+    for c in ticket.comments:
+        c.author_name = c.author.full_name if c.author else "Unknown"
 
     ticket.account_name = ticket.account.name if ticket.account else None
     if ticket.milestone:
@@ -214,8 +218,10 @@ def update_ticket(
     background_tasks: BackgroundTasks,
     resolve_embeds: bool = False, db: Session = Depends(get_db)
 ):
-    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project), joinedload(models.Ticket.comments)).filter(models.Ticket.id == ticket_id).first()
+    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project), joinedload(models.Ticket.comments).joinedload(models.Comment.author)).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
+    for c in ticket.comments:
+        c.author_name = c.author.full_name if c.author else "Unknown"
     update_data = ticket_update.model_dump(exclude_unset=True)
 
     # Description validation on update
