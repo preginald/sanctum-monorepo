@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, date
@@ -85,20 +86,25 @@ class MilestoneReorderItem(SanctumBase):
     id: UUID
     sequence: int
 
+class MilestoneStatusEnum(str, Enum):
+    pending = "pending"
+    active = "active"
+    completed = "completed"
+
 class MilestoneReorderRequest(SanctumBase):
     items: List[MilestoneReorderItem]
 
 class MilestoneCreate(SanctumBase):
     name: str
     due_date: Optional[date] = None
-    status: str = 'pending'
+    status: MilestoneStatusEnum = MilestoneStatusEnum.pending
     billable_amount: Decimal = Decimal("0.00")
     sequence: int = 1
     description: Optional[str] = None
 
 class MilestoneUpdate(SanctumBase):
     name: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[MilestoneStatusEnum] = None
     billable_amount: Optional[Decimal] = None
     due_date: Optional[date] = None
     sequence: Optional[int] = None
