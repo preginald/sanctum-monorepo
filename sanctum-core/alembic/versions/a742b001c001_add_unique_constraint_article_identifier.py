@@ -1,7 +1,7 @@
 """add unique constraint on articles.identifier
 
 Revision ID: a742b001c001
-Revises: 052736113dab
+Revises: 11a60abce5d5
 Create Date: 2026-03-21
 
 """
@@ -9,7 +9,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'a742b001c001'
-down_revision = '052736113dab'
+down_revision = '11a60abce5d5'
 branch_labels = None
 depends_on = None
 
