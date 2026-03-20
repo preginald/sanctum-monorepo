@@ -38,9 +38,35 @@ jobs:
             sudo systemctl restart sanctum-api
             sudo systemctl restart sanctum-mcp
 
+            # 3.7 SYNC APACHE CONFIGS (#715)
+            echo "🔧 Checking Apache configs..."
+            cd ~/DigitalSanctum
+            set +e
+            APACHE_CHANGED=false
+            for conf in ops/apache/*.conf; do
+              fname=$(basename "$conf")
+              if ! diff -q "$conf" "/etc/apache2/sites-available/$fname" > /dev/null 2>&1; then
+                echo "  → Updating $fname"
+                sudo cp "$conf" "/etc/apache2/sites-available/$fname"
+                APACHE_CHANGED=true
+              fi
+            done
+            if [ "$APACHE_CHANGED" = true ]; then
+              echo "  → Validating Apache config..."
+              if sudo apache2ctl configtest 2>&1; then
+                sudo systemctl reload apache2
+                echo "  ✓ Apache reloaded"
+              else
+                echo "  ⚠ Apache configtest failed — skipping reload"
+              fi
+            else
+              echo "  ✓ No Apache config changes"
+            fi
+            set -e
+
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
-            cd ../sanctum-web
+            cd ~/DigitalSanctum/sanctum-web
             npm install
             npm run build
 
