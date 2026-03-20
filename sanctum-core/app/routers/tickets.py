@@ -134,7 +134,8 @@ def create_ticket(
 def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).options(
         joinedload(models.Ticket.account),
-        joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)
+        joinedload(models.Ticket.milestone).joinedload(models.Milestone.project),
+        joinedload(models.Ticket.comments)
     ).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -213,7 +214,7 @@ def update_ticket(
     background_tasks: BackgroundTasks,
     resolve_embeds: bool = False, db: Session = Depends(get_db)
 ):
-    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project)).filter(models.Ticket.id == ticket_id).first()
+    ticket = db.query(models.Ticket).options(joinedload(models.Ticket.contacts), joinedload(models.Ticket.account), joinedload(models.Ticket.milestone).joinedload(models.Milestone.project), joinedload(models.Ticket.comments)).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
 
