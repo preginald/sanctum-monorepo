@@ -145,6 +145,14 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
                         ))
 
     # Build ticket briefs manually to avoid ORM related_tickets serialisation
+    # Check which tickets have linked articles
+    article_tids = set()
+    if ticket_ids:
+        article_rows = db.execute(sa_text(
+            "SELECT DISTINCT ticket_id FROM ticket_articles WHERE ticket_id = ANY(:tids)"
+        ), {"tids": ticket_ids}).fetchall()
+        article_tids = {row.ticket_id for row in article_rows}
+
     ticket_briefs = []
     for ticket in ms.tickets:
         tb = schemas.TicketBrief(
@@ -155,6 +163,8 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
             ticket_type=ticket.ticket_type,
             milestone_id=ticket.milestone_id,
             created_at=ticket.created_at,
+            description=ticket.description,
+            has_articles=ticket.id in article_tids,
             related_tickets=rel_map.get(ticket.id, [])
         )
         ticket_briefs.append(tb)

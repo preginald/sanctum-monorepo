@@ -113,6 +113,8 @@ class TicketBrief(SanctumBase):
     ticket_type: str
     milestone_id: Optional[UUID] = None
     created_at: Optional[datetime] = None
+    description: Optional[str] = None
+    has_articles: bool = False
     related_tickets: List[TicketRelationResponse] = []
 
     @model_validator(mode="before")

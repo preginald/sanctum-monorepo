@@ -17,7 +17,7 @@ def _compute_health_check(milestone: dict) -> dict:
         desc = t.get("description") or ""
         if not re.search(r"- \[[ x]\]", desc, re.IGNORECASE):
             no_criteria += 1
-        if not (t.get("articles") or []):
+        if not t.get("has_articles", False):
             no_articles += 1
     result = {"resolved": f"{resolved} of {total} tickets resolved"}
     if no_criteria > 0:
