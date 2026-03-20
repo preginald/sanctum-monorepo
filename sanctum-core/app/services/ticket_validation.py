@@ -1,11 +1,49 @@
 """
-Ticket description validation — enforces template conformity by ticket type.
+Ticket validation — enforces template conformity and status lifecycle.
 
-Validates that required section headings are present in the description markdown.
-See SYS-002 for the enforcement philosophy and DOC-013–016 for templates.
+Description validation: required section headings per ticket type (DOC-013–016).
+Status transitions: enforced per SYS-005 lifecycle rules.
+See SYS-002 for the enforcement philosophy.
 """
 import re
 from fastapi import HTTPException
+
+
+# Status transition map per SYS-005
+TICKET_TRANSITIONS = {
+    "new":      ["open", "pending"],
+    "open":     ["qa", "resolved", "pending"],
+    "pending":  ["open", "resolved"],
+    "qa":       ["resolved"],
+    "resolved": ["closed"],
+    "closed":   [],
+}
+
+
+def get_available_transitions(status: str) -> list[str]:
+    """Return allowed target statuses. Any status can transition to 'new' (reopen)."""
+    transitions = list(TICKET_TRANSITIONS.get(status, []))
+    if status != "new":
+        transitions.append("new")
+    return transitions
+
+
+def validate_ticket_transition(current: str, requested: str) -> None:
+    """Validate a status transition. Raises HTTPException(422) if invalid."""
+    if requested == "new":
+        return  # Reopening is always allowed
+    allowed = TICKET_TRANSITIONS.get(current, [])
+    if requested not in allowed:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": f"Invalid status transition: {current} → {requested}",
+                "current": current,
+                "requested": requested,
+                "allowed": get_available_transitions(current),
+                "help": "See SYS-005 for the ticket status lifecycle.",
+            },
+        )
 
 
 # ticket_type → required headings + template article identifier

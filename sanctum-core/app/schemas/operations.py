@@ -159,6 +159,7 @@ class TicketResponse(TicketCreate):
 
     total_hours: float = 0.0
     resolution_comment_id: Optional[UUID] = None
+    available_transitions: List[str] = []
 
 class LeadSchema(SanctumBase):
     name: str

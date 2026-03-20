@@ -6,7 +6,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
-from ..services.ticket_validation import validate_ticket_description
+from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -72,6 +72,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         for item in linked_items:
             if item.invoice: unique_invoices[item.invoice.id] = item.invoice
         t_dict['related_invoices'] = list(unique_invoices.values())
+        t_dict['available_transitions'] = get_available_transitions(t.status)
 
         results.append(t_dict)
     return results
@@ -153,6 +154,7 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session =
 
     ticket.related_tickets = []
     response_data = schemas.TicketResponse.model_validate(ticket)
+    response_data.available_transitions = get_available_transitions(ticket.status)
 
     # Build related_tickets from ticket_relations join table (both directions)
     relations_raw = db.execute(sa_text("""
@@ -228,6 +230,10 @@ def update_ticket(
         effective_desc = update_data.get('description', ticket.description)
         validate_ticket_description(effective_type, effective_desc)
 
+    # Status transition validation
+    if not ticket_update.skip_validation and 'status' in update_data and update_data['status'] != ticket.status:
+        validate_ticket_transition(ticket.status, update_data['status'])
+
     # Resolution comment enforcement
     if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':
         resolution_id = update_data.get('resolution_comment_id') or ticket.resolution_comment_id
@@ -291,6 +297,7 @@ def update_ticket(
 
     ticket.related_tickets = []
     response_data = schemas.TicketResponse.model_validate(ticket)
+    response_data.available_transitions = get_available_transitions(ticket.status)
 
     if resolve_embeds:
         try:
