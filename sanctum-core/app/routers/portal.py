@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy import desc, or_, asc
 from uuid import UUID
 from fastapi.responses import FileResponse
@@ -121,8 +122,8 @@ def get_portal_dashboard(
             ).order_by(desc(models.Ticket.created_at)).all()
 
     for t in tickets:
-        t.related_tickets = []
-        t.comments = []
+        set_committed_value(t, 'related_tickets', [])
+        set_committed_value(t, 'comments', [])
     invoices = db.query(models.Invoice).options(joinedload(models.Invoice.items))\
         .filter(models.Invoice.account_id == aid).order_by(desc(models.Invoice.generated_at)).all()
 

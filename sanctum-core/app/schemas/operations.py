@@ -21,6 +21,7 @@ class TicketTypeEnum(str, Enum):
     alert = "alert"
     hotfix = "hotfix"
     test = "test"
+    assessment = "assessment"  # legacy
 
 
 class PriorityEnum(str, Enum):
@@ -28,6 +29,7 @@ class PriorityEnum(str, Enum):
     normal = "normal"
     high = "high"
     critical = "critical"
+    medium = "medium"  # legacy
 
 
 class RelationTypeEnum(str, Enum):

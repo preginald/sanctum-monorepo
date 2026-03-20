@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy import func
 from typing import List, Optional
 import os # <--- ADD THIS
@@ -30,8 +31,8 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     account.projects = [p for p in account.projects if not p.is_deleted]
     account.tickets = [t for t in account.tickets if not t.is_deleted]
     for t in account.tickets:
-        t.related_tickets = []
-        t.comments = []
+        set_committed_value(t, 'related_tickets', [])
+        set_committed_value(t, 'comments', [])
 
     # Load linked artefacts (graceful if table doesn't exist yet)
     try:
