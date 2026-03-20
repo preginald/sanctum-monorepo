@@ -425,7 +425,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/projects/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors text-sm text-sanctum-gold hover:underline"
                   >
-                    {l.linked_entity_id}
+                    {l.linked_entity_name || l.linked_entity_id}
                   </button>
                 ))}
               </div>
@@ -445,7 +445,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/milestones/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors text-sm text-sanctum-gold hover:underline"
                   >
-                    {l.linked_entity_id}
+                    {l.linked_entity_name || l.linked_entity_id}
                   </button>
                 ))}
               </div>
@@ -467,7 +467,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/tickets/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors"
                   >
-                    <span className="text-xs font-bold">#{l.linked_entity_id}</span>
+                    <span className="text-xs font-bold text-sanctum-gold">{l.linked_entity_name || `#${l.linked_entity_id}`}</span>
                   </button>
                 ))}
               </div>
@@ -489,7 +489,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/wiki/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors"
                   >
-                    <span className="text-xs font-mono opacity-60">{l.linked_entity_id}</span>
+                    <span className="text-xs text-sanctum-gold">{l.linked_entity_name || l.linked_entity_id}</span>
                   </button>
                 ))}
               </div>
@@ -509,7 +509,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/clients/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors text-sanctum-gold hover:underline text-sm font-bold"
                   >
-                    {l.linked_entity_id}
+                    {l.linked_entity_name || l.linked_entity_id}
                   </button>
                 ))}
               </div>
