@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
+from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -74,6 +75,8 @@ def list_milestones(project_id: str, db: Session = Depends(get_db)):
     milestones = db.query(models.Milestone).filter(
         models.Milestone.project_id == project_id
     ).order_by(models.Milestone.sequence.asc()).all()
+    for ms in milestones:
+        ms.available_transitions = get_milestone_transitions(ms.status)
     return milestones
 
 @router.post("/projects/{project_id}/milestones", response_model=schemas.MilestoneResponse)
@@ -88,15 +91,25 @@ def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Se
 def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Session = Depends(get_db)):
     ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
     if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+
+    # Status transition validation (before applying changes)
+    if update.status and update.status != ms.status and not update.skip_validation:
+        # If description is being set in the same request, apply it first for the condition check
+        if update.description is not None:
+            ms.description = update.description
+        validate_milestone_transition(ms.status, update.status, ms, db)
+
     if update.status: ms.status = update.status
     if update.name: ms.name = update.name
     if update.billable_amount is not None: ms.billable_amount = update.billable_amount
     if update.due_date: ms.due_date = update.due_date
     if update.sequence is not None: ms.sequence = update.sequence
     if update.description is not None: ms.description = update.description
+    if update.invoice_id is not None: ms.invoice_id = update.invoice_id
     db.commit()
     db.refresh(ms)
     ms.project_name = ms.project.name if ms.project else None
+    ms.available_transitions = get_milestone_transitions(ms.status)
     return ms
 
 @router.get("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
@@ -195,6 +208,7 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
         account_name=ms.project.account.name if ms.project and ms.project.account else None,
         tickets=ticket_briefs,
         artefacts=artefact_list,
+        available_transitions=get_milestone_transitions(ms.status),
     )
 
 @router.get("/projects/{project_id}/artefacts", response_model=List[schemas.ArtefactLite])

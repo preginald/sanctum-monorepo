@@ -3,7 +3,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
-from pydantic import model_validator
+from pydantic import model_validator, Field
 from .shared import SanctumBase
 from .operations import TicketRelationResponse
 from .artefacts import ArtefactLite
@@ -110,6 +110,7 @@ class MilestoneUpdate(SanctumBase):
     sequence: Optional[int] = None
     invoice_id: Optional[UUID] = None
     description: Optional[str] = None
+    skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketBrief(SanctumBase):
     id: int
@@ -149,6 +150,7 @@ class MilestoneResponse(MilestoneCreate):
     account_name: Optional[str] = None
     tickets: List[TicketBrief] = []
     artefacts: List[ArtefactLite] = []
+    available_transitions: List[str] = []
 
 class ProjectCreate(SanctumBase):
     account_id: UUID
