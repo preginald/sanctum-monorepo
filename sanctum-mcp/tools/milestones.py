@@ -1,8 +1,30 @@
 """MCP tools for Sanctum milestone operations."""
 
 import json
+import re
 from app import mcp
 import client
+
+
+def _compute_health_check(milestone: dict) -> dict:
+    """Compute health check stats for a milestone's tickets."""
+    tickets = milestone.get("tickets") or []
+    total = len(tickets)
+    resolved = sum(1 for t in tickets if t.get("status") == "resolved")
+    no_criteria = 0
+    no_articles = 0
+    for t in tickets:
+        desc = t.get("description") or ""
+        if not re.search(r"- \[[ x]\]", desc, re.IGNORECASE):
+            no_criteria += 1
+        if not (t.get("articles") or []):
+            no_articles += 1
+    result = {"resolved": f"{resolved} of {total} tickets resolved"}
+    if no_criteria > 0:
+        result["missing_criteria"] = f"{no_criteria} ticket(s) have no acceptance criteria"
+    if no_articles > 0:
+        result["missing_articles"] = f"{no_articles} ticket(s) have no linked articles"
+    return result
 
 
 @mcp.tool()
@@ -30,13 +52,16 @@ async def milestone_list(project_id: str) -> str:
 
 
 @mcp.tool()
-async def milestone_show(milestone_id: str) -> str:
+async def milestone_show(milestone_id: str, quiet: bool = False) -> str:
     """Show details for a milestone.
 
     Args:
         milestone_id: UUID of the milestone.
+        quiet: Set true to suppress health check (useful for batch operations).
     """
     result = await client.get(f"/milestones/{milestone_id}")
+    if not quiet and isinstance(result, dict):
+        result["health_check"] = _compute_health_check(result)
     return json.dumps(result, indent=2)
 
 

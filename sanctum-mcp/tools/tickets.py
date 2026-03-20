@@ -1,6 +1,7 @@
 """MCP tools for Sanctum ticket operations."""
 
 import json
+import re
 from app import mcp
 import client
 
@@ -10,6 +11,32 @@ def _unescape(s: str | None) -> str | None:
     if s is None:
         return s
     return s.replace("\\n", "\n")
+
+
+def _compute_delivery_hints(ticket: dict) -> list[str]:
+    """Compute delivery hints for a ticket based on its current state."""
+    hints = []
+
+    # No linked articles
+    articles = ticket.get("articles") or []
+    if not articles:
+        hints.append("No linked articles — consider linking relevant KB articles with ticket_relate_article.")
+
+    # Acceptance criteria analysis
+    description = ticket.get("description") or ""
+    unchecked = len(re.findall(r"- \[ \]", description))
+    checked = len(re.findall(r"- \[x\]", description, re.IGNORECASE))
+    total = checked + unchecked
+    if total == 0:
+        hints.append("No acceptance criteria found — description has no checkbox items (- [ ] / - [x]).")
+    elif unchecked > 0:
+        hints.append(f"Acceptance criteria: {checked} of {total} checked.")
+
+    # Resolved without resolution comment
+    if ticket.get("status") == "resolved" and not ticket.get("resolution_comment_id"):
+        hints.append("No resolution comment — ticket is resolved but has no linked resolution comment.")
+
+    return hints
 
 
 @mcp.tool()
@@ -57,9 +84,16 @@ async def ticket_list(
 
 
 @mcp.tool()
-async def ticket_show(ticket_id: int) -> str:
-    """Show details for a single ticket by ID."""
+async def ticket_show(ticket_id: int, quiet: bool = False) -> str:
+    """Show details for a single ticket by ID.
+
+    Args:
+        ticket_id: The ticket number.
+        quiet: Set true to suppress delivery hints (useful for batch operations).
+    """
     result = await client.get(f"/tickets/{ticket_id}")
+    if not quiet and isinstance(result, dict):
+        result["delivery_hints"] = _compute_delivery_hints(result)
     return json.dumps(result, indent=2)
 
 
@@ -73,6 +107,7 @@ async def ticket_create(
     priority: str = "normal",
     description: str | None = None,
     skip_validation: bool = False,
+    quiet: bool = False,
 ) -> str:
     """Create a new ticket.
 
@@ -89,6 +124,7 @@ async def ticket_create(
         priority: One of: low, normal, high, critical.
         description: Ticket description in markdown. Must conform to type template (see DOC-013–016).
         skip_validation: Set true to bypass description template validation.
+        quiet: Set true to suppress guidance messages (useful for batch operations).
     """
     payload = {
         "subject": subject,
@@ -104,6 +140,8 @@ async def ticket_create(
     if skip_validation:
         payload["skip_validation"] = True
     result = await client.post("/tickets", json=payload)
+    if not quiet and isinstance(result, dict) and result.get("id"):
+        result["guidance"] = "Link relevant articles with ticket_relate_article."
     return json.dumps(result, indent=2)
 
 

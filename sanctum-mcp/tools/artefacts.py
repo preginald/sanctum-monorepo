@@ -108,6 +108,7 @@ async def artefact_create(
     mime_type: str | None = None,
     file_size: int | None = None,
     superseded_by: str | None = None,
+    quiet: bool = False,
 ) -> str:
     """Create a new artefact.
 
@@ -125,6 +126,7 @@ async def artefact_create(
         mime_type: MIME type, e.g. application/pdf (optional).
         file_size: File size in bytes (optional).
         superseded_by: UUID of the artefact that supersedes this one (optional).
+        quiet: Set true to suppress guidance messages (useful for batch operations).
     """
     payload = {
         "name": name,
@@ -155,6 +157,8 @@ async def artefact_create(
     if superseded_by is not None:
         payload["superseded_by"] = superseded_by
     result = await client.post("/artefacts", json=payload)
+    if not quiet and isinstance(result, dict) and result.get("id"):
+        result["guidance"] = "Link this artefact to at least one entity (ticket, project, milestone) with artefact_link to prevent orphaning."
     return json.dumps(result, indent=2)
 
 
