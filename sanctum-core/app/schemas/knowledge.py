@@ -2,6 +2,7 @@ from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from .shared import SanctumBase
+from .artefacts import ArtefactLite
 
 # --- COMMENTS (Shared but placed here for now) ---
 class CommentCreate(SanctumBase):
@@ -70,7 +71,7 @@ class ArticleResponse(ArticleCreate):
     author_name: Optional[str] = None
     history: list[ArticleHistoryResponse] = []
     related_articles: list[RelatedArticleResponse] = []
-    artefacts: list = []
+    artefacts: List[ArtefactLite] = []
     created_at: datetime
     updated_at: Optional[datetime] = None
 
