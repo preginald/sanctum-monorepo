@@ -6,6 +6,7 @@ from decimal import Decimal
 from pydantic import Field
 from .crm import ContactResponse
 from .artefacts import ArtefactLite
+from .knowledge import CommentResponse
 from .shared import SanctumBase, InvoiceLite, ArticleLite, AssetLite
 
 
@@ -154,6 +155,7 @@ class TicketResponse(TicketCreate):
     assets: List[AssetLite] = []
     artefacts: List[ArtefactLite] = []
     related_tickets: List[TicketRelationResponse] = []
+    comments: List[CommentResponse] = []
 
     total_hours: float = 0.0
     resolution_comment_id: Optional[UUID] = None
