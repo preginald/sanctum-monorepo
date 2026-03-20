@@ -123,9 +123,12 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         ).all()
         if artefact_ids:
             ids = [r[0] for r in artefact_ids]
-            response_data.artefacts = db.query(models.Artefact).filter(
-                models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
-            ).all()
+            response_data.artefacts = [
+                schemas.ArtefactLite(id=a.id, name=a.name, artefact_type=a.artefact_type, url=a.url)
+                for a in db.query(models.Artefact).filter(
+                    models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+                ).all()
+            ]
     except Exception:
         db.rollback()
 
