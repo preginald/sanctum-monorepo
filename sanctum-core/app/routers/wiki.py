@@ -13,43 +13,57 @@ router = APIRouter(tags=["Wiki"])
 
 # --- HELPERS ---
 
+IDENTIFIER_PREFIX_MAP = {
+    'standard operating procedure': 'SOP',
+    'system documentation': 'SYS',
+    'developer documentation': 'DOC',
+    'developer-docs': 'DOC',
+    'troubleshooting guide': 'TRB',
+    'general knowledge': 'WIKI',
+    'template': 'TPL',
+}
+
+
 def _generate_identifier(db: Session, category: str) -> str:
     """
-    Generates a unique ID based on category prefixes.
-    SOP -> SOP-001
-    Troubleshooting -> TRB-001
-    Wiki -> WIKI-001
-    Template -> TPL-001
+    Generates the next sequential identifier for a category prefix.
+    Scans all existing identifiers with the prefix and picks MAX(n)+1.
+    The UNIQUE constraint on articles.identifier prevents race conditions —
+    if two concurrent creates collide, the DB rejects the second insert.
     """
-    prefix_map = {
-        'standard operating procedure': 'SOP',
-        'system documentation': 'SYS',
-        'developer documentation': 'DOC',
-        'troubleshooting guide': 'TRB',
-        'general knowledge': 'WIKI',
-        'template': 'TPL',
-    }
-    prefix = prefix_map.get(category.lower(), 'DOC')
+    prefix = IDENTIFIER_PREFIX_MAP.get(category.lower(), 'DOC')
 
-    # Find the highest ID with this prefix
-    # We filter by length to ensure we are comparing "SOP-001" not "SOP-1000" wrongly if sorting string wise
-    # Ideally we'd use a regex query, but for compatibility let's fetch the last created
-    last_article = db.query(models.Article)\
+    existing = db.query(models.Article.identifier)\
         .filter(models.Article.identifier.ilike(f"{prefix}-%"))\
-        .order_by(models.Article.created_at.desc())\
-        .first()
+        .all()
 
-    next_num = 1
-    if last_article and last_article.identifier:
-        try:
-            # Extract the number part
-            parts = last_article.identifier.split('-')
+    max_num = 0
+    for (ident,) in existing:
+        if ident:
+            parts = ident.split('-')
             if len(parts) >= 2 and parts[-1].isdigit():
-                next_num = int(parts[-1]) + 1
-        except Exception:
-            pass # Fallback to 1 if parsing fails
+                max_num = max(max_num, int(parts[-1]))
 
-    return f"{prefix}-{str(next_num).zfill(3)}"
+    return f"{prefix}-{str(max_num + 1).zfill(3)}"
+
+
+def _check_identifier_conflict(db: Session, identifier: str, exclude_id: str = None):
+    """Raises 409 if identifier is already used by another article."""
+    query = db.query(models.Article).filter(models.Article.identifier == identifier)
+    if exclude_id:
+        query = query.filter(models.Article.id != exclude_id)
+    existing = query.first()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": "identifier_conflict",
+                "identifier": identifier,
+                "existing_article_id": str(existing.id),
+                "existing_article_title": existing.title,
+                "message": f"Identifier {identifier} is already assigned to another article.",
+            },
+        )
 
 def _increment_version(current_version: str) -> str:
     """
@@ -149,6 +163,8 @@ def create_article(article: schemas.ArticleCreate, current_user: models.User = D
     # AUTOMATION: Generate Identifier if missing
     if not article_data.get('identifier'):
         article_data['identifier'] = _generate_identifier(db, article_data.get('category', 'wiki'))
+    else:
+        _check_identifier_conflict(db, article_data['identifier'])
 
     new_article = models.Article(**article_data, author_id=current_user.id)
     db.add(new_article)
@@ -184,6 +200,10 @@ def update_article(
 
     update_data = update.model_dump(exclude_unset=True)
     update_data.pop("change_comment", None)  # not an article field
+
+    # 1b. IDENTIFIER CONFLICT CHECK
+    if 'identifier' in update_data and update_data['identifier'] != article.identifier:
+        _check_identifier_conflict(db, update_data['identifier'], exclude_id=str(article.id))
 
     # 2. AUTOMATION: Smart Versioning
     # If version is missing OR matches the current DB version, we auto-increment

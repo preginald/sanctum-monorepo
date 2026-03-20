@@ -64,6 +64,7 @@ async def article_update(
     article_id: str,
     title: str | None = None,
     content: str | None = None,
+    identifier: str | None = None,
 ) -> str:
     """Update an article (full replacement of provided fields).
 
@@ -71,12 +72,15 @@ async def article_update(
         article_id: UUID of the article.
         title: New title (optional).
         content: New content in markdown (optional).
+        identifier: New identifier like DOC-001, SOP-099 (optional).
     """
     payload = {}
     if title is not None:
         payload["title"] = title
     if content is not None:
         payload["content"] = _unescape(content)
+    if identifier is not None:
+        payload["identifier"] = identifier
     result = await client.put(f"/articles/{article_id}", json=payload)
     return json.dumps(result, indent=2)
 
