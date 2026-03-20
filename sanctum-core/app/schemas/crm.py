@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 from .shared import SanctumBase
+from .artefacts import ArtefactLite
 
 class AccountCreate(SanctumBase):
     name: str
@@ -19,7 +20,7 @@ class AccountUpdate(SanctumBase):
 class AccountResponse(AccountCreate):
     id: UUID
     ingest_token: Optional[UUID] = None  # Add this here
-    artefacts: list = []
+    artefacts: List[ArtefactLite] = []
 
     class Config:
         from_attributes = True
