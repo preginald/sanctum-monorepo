@@ -25,7 +25,7 @@ from .strategy import (
 from .operations import (
     TimeEntryCreate, TimeEntryUpdate, TimeEntryResponse,
     TicketMaterialCreate, TicketMaterialUpdate, TicketMaterialResponse,
-    TicketCreate, TicketUpdate, TicketResponse, TicketRelationResponse, LeadSchema
+    TicketCreate, TicketUpdate, TicketResponse, TicketRelationResponse, TicketRelationCreate, LeadSchema
 )
 from .knowledge import (
     CommentCreate, CommentResponse,

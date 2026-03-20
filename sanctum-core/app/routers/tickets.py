@@ -391,12 +391,10 @@ def unlink_article_from_ticket(ticket_id: int, article_id: str, db: Session = De
     return {"status": "unlinked"}
 
 @router.post("/{ticket_id}/relations")
-def link_ticket_relation(ticket_id: int, body: dict, db: Session = Depends(get_db)):
-    related_id = body.get("related_id")
-    relation_type = body.get("relation_type", "relates_to")
-    visibility = body.get("visibility", "internal")
-    if not related_id:
-        raise HTTPException(status_code=422, detail="related_id is required")
+def link_ticket_relation(ticket_id: int, body: schemas.TicketRelationCreate, db: Session = Depends(get_db)):
+    related_id = body.related_id
+    relation_type = body.relation_type.value
+    visibility = body.visibility.value
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     related = db.query(models.Ticket).filter(models.Ticket.id == related_id).first()
     if not ticket or not related:
