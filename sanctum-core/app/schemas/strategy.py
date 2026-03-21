@@ -97,14 +97,14 @@ class MilestoneReorderRequest(SanctumBase):
 class MilestoneCreate(SanctumBase):
     name: str
     due_date: Optional[date] = None
-    status: MilestoneStatusEnum = MilestoneStatusEnum.pending
+    status: str = "pending"
     billable_amount: Decimal = Decimal("0.00")
     sequence: int = 1
     description: Optional[str] = None
 
 class MilestoneUpdate(SanctumBase):
     name: Optional[str] = None
-    status: Optional[MilestoneStatusEnum] = None
+    status: Optional[str] = None
     billable_amount: Optional[Decimal] = None
     due_date: Optional[date] = None
     sequence: Optional[int] = None
