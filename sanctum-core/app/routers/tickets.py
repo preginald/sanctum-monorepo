@@ -202,6 +202,22 @@ def update_ticket(
                 },
             )
 
+    # Budget enforcement (BUS-001 D3/D7)
+    if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':
+        if ticket.milestone and ticket.milestone.project:
+            project = ticket.milestone.project
+            if project.market_value is None and project.quoted_price is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "detail": f"project_budget_required: set market_value or quoted_price on project '{project.name}' before resolving tickets",
+                        "error_code": "project_budget_required",
+                        "project_id": str(project.id),
+                        "project_name": project.name,
+                        "help": "Set market_value or quoted_price on the project. See BUS-001 D3.",
+                    },
+                )
+
     # No-billable reason enforcement
     if update_data.get('no_billable') and not (update_data.get('no_billable_reason') or '').strip():
         raise HTTPException(
