@@ -5,7 +5,7 @@ import api from '../lib/api';
 import {
   Loader2, FileText, Link2, Code, Key, File, Ticket, BookOpen, Building2,
   FolderOpen, Flag, History, Edit2, Save, X, RotateCcw, ChevronDown, ChevronUp,
-  Shield, Tag
+  Shield, Tag, AlertTriangle, Archive
 } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import MetadataStrip from '../components/ui/MetadataStrip';
@@ -64,6 +64,16 @@ export default function ArtefactDetail() {
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Sticky nav scroll detection
+  const [isScrolled, setIsScrolled] = useState(false);
+  useEffect(() => {
+    const scrollContainer = document.querySelector('main');
+    if (!scrollContainer) return;
+    const handleScroll = () => setIsScrolled(scrollContainer.scrollTop > 60);
+    scrollContainer.addEventListener('scroll', handleScroll);
+    return () => scrollContainer.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => { fetchArtefact(); }, [artefactId]);
 
@@ -147,65 +157,90 @@ export default function ArtefactDetail() {
   const linkedProjects = (artefact.links || []).filter(l => l.linked_entity_type === 'project');
   const linkedMilestones = (artefact.links || []).filter(l => l.linked_entity_type === 'milestone');
 
+  // Subtitle: type + clickable account
+  const subtitleContent = (
+    <span>
+      {artefact.artefact_type}
+      {artefact.account_name && (
+        <>
+          {' \u2022 '}
+          <button onClick={() => navigate(`/clients/${artefact.account_id}`)} className="text-sanctum-gold hover:underline">
+            {artefact.account_name}
+          </button>
+        </>
+      )}
+    </span>
+  );
+
   return (
     <Layout
       title={artefact.name}
+      subtitle={subtitleContent}
       breadcrumb={[
         { label: artefact?.account_name, path: artefact?.account_id ? `/clients/${artefact.account_id}` : null },
         { label: 'Artefacts', path: '/artefacts' },
       ]}
       badges={[{ value: artefact.artefact_type, map: 'artefactType' }]}
+      actions={!editing && (
+        <button
+          onClick={() => { setEditContent(artefact.content || ''); setEditing(true); }}
+          className="flex items-center gap-2 px-3 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold transition-colors"
+        >
+          <Edit2 size={16} /> Edit
+        </button>
+      )}
     >
-      <MetadataStrip
-        className="mb-4"
-        storageKey="ds_metadata_expanded_artefact"
-        collapsed={<>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${statusColor(artefact.status)}`}>{artefact.status}</span>
-          <span className="opacity-40">·</span>
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${typeColor(artefact.artefact_type)}`}>{artefact.artefact_type}</span>
-          {artefact.category && <>
-            <span className="opacity-40">·</span>
-            <span className="text-[10px] opacity-50 uppercase">{artefact.category}</span>
-          </>}
-          <span className="opacity-40">·</span>
-          <span className="opacity-50 font-mono text-[10px]">{artefact.version}</span>
-          {artefact.sensitivity && artefact.sensitivity !== 'internal' && <>
-            <span className="opacity-40">·</span>
-            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${sensitivityColor(artefact.sensitivity)}`}>{artefact.sensitivity}</span>
-          </>}
-          <span className="opacity-40">·</span>
-          <span className="opacity-50">{formatDate(artefact.created_at)}</span>
-          {artefact.creator_name && <>
-            <span className="opacity-40">·</span>
-            <span className="opacity-50">{artefact.creator_name}</span>
-          </>}
-        </>}
-        badges={[
-          { label: artefact.status, className: statusColor(artefact.status) },
-          { label: artefact.artefact_type, className: typeColor(artefact.artefact_type) },
-          ...(artefact.sensitivity ? [{ label: artefact.sensitivity, className: sensitivityColor(artefact.sensitivity) }] : []),
-        ]}
-        dates={[
-          { label: 'Created', value: artefact.created_at },
-          { label: 'Updated', value: artefact.updated_at },
-        ]}
-        rows={[
-          { label: 'Created By', value: artefact.creator_name || '—' },
-          { label: 'Type', value: artefact.artefact_type, mono: true },
-          { label: 'Version', value: artefact.version || 'v1.0', mono: true },
-          { label: 'Account', value: artefact.account_name || 'Internal' },
-          ...(artefact.category ? [{ label: 'Category', value: artefact.category }] : []),
-          ...(artefact.sensitivity ? [{ label: 'Sensitivity', value: artefact.sensitivity }] : []),
-          ...(artefact.mime_type ? [{ label: 'MIME Type', value: artefact.mime_type, mono: true }] : []),
-          ...(artefact.file_size ? [{ label: 'File Size', value: `${(artefact.file_size / 1024).toFixed(1)} KB` }] : []),
-        ]}
-        id={artefact.id}
-      />
+      {/* CONTEXTUAL STICKY NAV */}
+      <div className={`fixed top-16 left-0 right-0 z-20 transition-all duration-200 ${isScrolled ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+        <div className="bg-slate-900/95 backdrop-blur border-b border-slate-700 px-6 py-2 flex items-center justify-between">
+          <span className="text-sm font-bold truncate text-white">
+            {artefact.name}
+          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {!editing && (
+              <button
+                onClick={() => { setEditContent(artefact.content || ''); setEditing(true); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold transition-colors text-slate-300 hover:text-white"
+              >
+                <Edit2 size={13} /> Edit
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* LEFT — DETAILS */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* ALERT CARD — Superseded */}
+          {artefact.status === 'superseded' && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 flex items-start gap-3">
+              <AlertTriangle size={18} className="text-blue-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-blue-300">This artefact has been superseded</p>
+                {artefact.superseded_by ? (
+                  <Link to={`/artefacts/${artefact.superseded_by}`} className="text-sm text-sanctum-gold hover:underline mt-1 inline-block">
+                    View replacement artefact
+                  </Link>
+                ) : (
+                  <p className="text-xs opacity-50 mt-1">A newer version exists but is not linked.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ALERT CARD — Archived */}
+          {artefact.status === 'archived' && (
+            <div className="bg-slate-500/10 border border-slate-600 rounded-xl p-4 flex items-start gap-3">
+              <Archive size={18} className="text-slate-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-bold text-slate-300">This artefact has been archived</p>
+                <p className="text-xs opacity-50 mt-1">Archived artefacts are retained for reference but are no longer active.</p>
+              </div>
+            </div>
+          )}
 
           {/* PROPERTIES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
@@ -270,59 +305,52 @@ export default function ArtefactDetail() {
             </div>
           )}
 
-          {/* CONTENT — markdown rendering with inline edit */}
-          <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-bold uppercase tracking-wider opacity-70">Content</h3>
-              {!editing ? (
-                <button
-                  onClick={() => { setEditContent(artefact.content || ''); setEditing(true); }}
-                  className="flex items-center gap-1 text-xs opacity-40 hover:opacity-100 transition-opacity"
-                >
-                  <Edit2 size={12} /> Edit
-                </button>
+          {/* CONTENT — hidden when no content and not editing */}
+          {(artefact.content || editing) && (
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold uppercase tracking-wider opacity-70">Content</h3>
+                {editing && (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => { setEditing(false); setChangeComment(''); }}
+                      className="flex items-center gap-1 text-xs opacity-40 hover:opacity-100"
+                    >
+                      <X size={12} /> Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveContent}
+                      disabled={saving}
+                      className="flex items-center gap-1 text-xs text-sanctum-gold hover:opacity-80"
+                    >
+                      {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save
+                    </button>
+                  </div>
+                )}
+              </div>
+              {editing ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editContent}
+                    onChange={e => setEditContent(e.target.value)}
+                    className="w-full h-64 bg-black/30 border border-slate-600 rounded p-3 text-sm font-mono text-white focus:outline-none focus:border-sanctum-gold resize-y"
+                    placeholder="Markdown content..."
+                  />
+                  <input
+                    type="text"
+                    value={changeComment}
+                    onChange={e => setChangeComment(e.target.value)}
+                    placeholder="Change comment (optional)"
+                    className="w-full bg-black/30 border border-slate-600 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-sanctum-gold"
+                  />
+                </div>
               ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => { setEditing(false); setChangeComment(''); }}
-                    className="flex items-center gap-1 text-xs opacity-40 hover:opacity-100"
-                  >
-                    <X size={12} /> Cancel
-                  </button>
-                  <button
-                    onClick={handleSaveContent}
-                    disabled={saving}
-                    className="flex items-center gap-1 text-xs text-sanctum-gold hover:opacity-80"
-                  >
-                    {saving ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Save
-                  </button>
+                <div className="prose-sm">
+                  <SanctumMarkdown content={artefact.content} />
                 </div>
               )}
             </div>
-            {editing ? (
-              <div className="space-y-2">
-                <textarea
-                  value={editContent}
-                  onChange={e => setEditContent(e.target.value)}
-                  className="w-full h-64 bg-black/30 border border-slate-600 rounded p-3 text-sm font-mono text-white focus:outline-none focus:border-sanctum-gold resize-y"
-                  placeholder="Markdown content..."
-                />
-                <input
-                  type="text"
-                  value={changeComment}
-                  onChange={e => setChangeComment(e.target.value)}
-                  placeholder="Change comment (optional)"
-                  className="w-full bg-black/30 border border-slate-600 rounded px-3 py-1.5 text-xs focus:outline-none focus:border-sanctum-gold"
-                />
-              </div>
-            ) : artefact.content ? (
-              <div className="prose-sm">
-                <SanctumMarkdown content={artefact.content} />
-              </div>
-            ) : (
-              <p className="text-sm opacity-40 italic">No content yet. Click Edit to add markdown content.</p>
-            )}
-          </div>
+          )}
 
           {/* DESCRIPTION */}
           {artefact.description && (
@@ -331,20 +359,10 @@ export default function ArtefactDetail() {
               <p className="text-sm leading-relaxed opacity-80 whitespace-pre-wrap">{artefact.description}</p>
             </div>
           )}
-
-          {/* SUPERSEDES / SUPERSEDED BY */}
-          {artefact.superseded_by && (
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex items-center gap-3">
-              <span className="text-xs opacity-60">Superseded by:</span>
-              <Link to={`/artefacts/${artefact.superseded_by}`} className="text-sm text-sanctum-gold hover:underline font-bold">
-                View replacement artefact
-              </Link>
-            </div>
-          )}
         </div>
 
         {/* RIGHT — SIDEBAR */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start">
 
           {/* STATUS CONTROLS */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
@@ -425,7 +443,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/projects/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors text-sm text-sanctum-gold hover:underline"
                   >
-                    {l.linked_entity_id}
+                    {l.linked_entity_name || l.linked_entity_id}
                   </button>
                 ))}
               </div>
@@ -445,7 +463,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/milestones/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors text-sm text-sanctum-gold hover:underline"
                   >
-                    {l.linked_entity_id}
+                    {l.linked_entity_name || l.linked_entity_id}
                   </button>
                 ))}
               </div>
@@ -467,7 +485,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/tickets/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors"
                   >
-                    <span className="text-xs font-bold">#{l.linked_entity_id}</span>
+                    <span className="text-xs font-bold text-sanctum-gold">{l.linked_entity_name || `#${l.linked_entity_id}`}</span>
                   </button>
                 ))}
               </div>
@@ -489,7 +507,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/wiki/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors"
                   >
-                    <span className="text-xs font-mono opacity-60">{l.linked_entity_id}</span>
+                    <span className="text-xs text-sanctum-gold">{l.linked_entity_name || l.linked_entity_id}</span>
                   </button>
                 ))}
               </div>
@@ -509,7 +527,7 @@ export default function ArtefactDetail() {
                     onClick={() => navigate(`/clients/${l.linked_entity_id}`)}
                     className="w-full text-left p-3 bg-black/30 rounded-lg hover:bg-white/5 transition-colors text-sanctum-gold hover:underline text-sm font-bold"
                   >
-                    {l.linked_entity_id}
+                    {l.linked_entity_name || l.linked_entity_id}
                   </button>
                 ))}
               </div>
@@ -530,6 +548,52 @@ export default function ArtefactDetail() {
               </div>
             </div>
           )}
+
+          {/* METADATA STRIP — last sidebar card */}
+          <MetadataStrip
+            storageKey="ds_metadata_expanded_artefact"
+            collapsed={<>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${statusColor(artefact.status)}`}>{artefact.status}</span>
+              <span className="opacity-40">&middot;</span>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${typeColor(artefact.artefact_type)}`}>{artefact.artefact_type}</span>
+              {artefact.category && <>
+                <span className="opacity-40">&middot;</span>
+                <span className="text-[10px] opacity-50 uppercase">{artefact.category}</span>
+              </>}
+              <span className="opacity-40">&middot;</span>
+              <span className="opacity-50 font-mono text-[10px]">{artefact.version}</span>
+              {artefact.sensitivity && artefact.sensitivity !== 'internal' && <>
+                <span className="opacity-40">&middot;</span>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase ${sensitivityColor(artefact.sensitivity)}`}>{artefact.sensitivity}</span>
+              </>}
+              <span className="opacity-40">&middot;</span>
+              <span className="opacity-50">{formatDate(artefact.created_at)}</span>
+              {artefact.creator_name && <>
+                <span className="opacity-40">&middot;</span>
+                <span className="opacity-50">{artefact.creator_name}</span>
+              </>}
+            </>}
+            badges={[
+              { label: artefact.status, className: statusColor(artefact.status) },
+              { label: artefact.artefact_type, className: typeColor(artefact.artefact_type) },
+              ...(artefact.sensitivity ? [{ label: artefact.sensitivity, className: sensitivityColor(artefact.sensitivity) }] : []),
+            ]}
+            dates={[
+              { label: 'Created', value: artefact.created_at },
+              { label: 'Updated', value: artefact.updated_at },
+            ]}
+            rows={[
+              { label: 'Created By', value: artefact.creator_name || '—' },
+              { label: 'Type', value: artefact.artefact_type, mono: true },
+              { label: 'Version', value: artefact.version || 'v1.0', mono: true },
+              { label: 'Account', value: artefact.account_name || 'Internal' },
+              ...(artefact.category ? [{ label: 'Category', value: artefact.category }] : []),
+              ...(artefact.sensitivity ? [{ label: 'Sensitivity', value: artefact.sensitivity }] : []),
+              ...(artefact.mime_type ? [{ label: 'MIME Type', value: artefact.mime_type, mono: true }] : []),
+              ...(artefact.file_size ? [{ label: 'File Size', value: `${(artefact.file_size / 1024).toFixed(1)} KB` }] : []),
+            ]}
+            id={artefact.id}
+          />
         </div>
       </div>
     </Layout>

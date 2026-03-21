@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import text as sa_text
 from typing import List, Optional
 import re
 from .. import models, schemas, auth
@@ -25,6 +26,62 @@ def _attach_transitions(artefact):
     """Attach available_transitions to artefact for response serialisation."""
     artefact.available_transitions = _get_available_transitions(artefact.status or 'draft')
     return artefact
+
+
+def _enrich_links(db: Session, links):
+    """Resolve linked_entity_name for each link by joining to the relevant table."""
+    if not links:
+        return
+    # Group link IDs by entity type
+    by_type = {}
+    for link in links:
+        by_type.setdefault(link.linked_entity_type, []).append(link.linked_entity_id)
+
+    # Query name for each entity type in batch
+    name_map = {}  # (type, id_str) -> name
+
+    if 'ticket' in by_type:
+        ids = [int(i) for i in by_type['ticket']]
+        rows = db.execute(sa_text(
+            "SELECT id, subject FROM tickets WHERE id = ANY(:ids)"
+        ), {"ids": ids}).fetchall()
+        for row in rows:
+            name_map[('ticket', str(row.id))] = f"#{row.id} {row.subject}"
+
+    if 'project' in by_type:
+        rows = db.execute(sa_text(
+            "SELECT id::text, name FROM projects WHERE id::text = ANY(:ids)"
+        ), {"ids": by_type['project']}).fetchall()
+        for row in rows:
+            name_map[('project', row.id)] = row.name
+
+    if 'milestone' in by_type:
+        rows = db.execute(sa_text(
+            "SELECT id::text, name FROM milestones WHERE id::text = ANY(:ids)"
+        ), {"ids": by_type['milestone']}).fetchall()
+        for row in rows:
+            name_map[('milestone', row.id)] = row.name
+
+    if 'account' in by_type:
+        rows = db.execute(sa_text(
+            "SELECT id::text, name FROM accounts WHERE id::text = ANY(:ids)"
+        ), {"ids": by_type['account']}).fetchall()
+        for row in rows:
+            name_map[('account', row.id)] = row.name
+
+    if 'article' in by_type:
+        rows = db.execute(sa_text(
+            "SELECT id::text, identifier, title FROM articles WHERE id::text = ANY(:ids)"
+        ), {"ids": by_type['article']}).fetchall()
+        for row in rows:
+            prefix = f"{row.identifier} " if row.identifier else ""
+            name_map[('article', row.id)] = f"{prefix}{row.title}"
+
+    # Assign resolved names back to link objects
+    for link in links:
+        link.linked_entity_name = name_map.get(
+            (link.linked_entity_type, link.linked_entity_id)
+        )
 
 
 def _increment_version(current_version: str) -> str:
@@ -85,6 +142,7 @@ def list_artefacts(
         for a in artefacts:
             a.account_name = a.account.name if a.account else None
             a.creator_name = a.creator.full_name if a.creator else None
+            _enrich_links(db, a.links)
             _attach_transitions(a)
         return artefacts
     except Exception:
@@ -107,6 +165,7 @@ def get_artefact(
         raise HTTPException(status_code=404, detail="Artefact not found")
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
+    _enrich_links(db, artefact.links)
     return _attach_transitions(artefact)
 
 
@@ -168,6 +227,7 @@ def update_artefact(
     db.refresh(artefact)
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
+    _enrich_links(db, artefact.links)
     return _attach_transitions(artefact)
 
 
@@ -187,7 +247,7 @@ def delete_artefact(
 
 # --- HISTORY ---
 
-@router.get("/artefacts/{artefact_id}/history")
+@router.get("/artefacts/{artefact_id}/history", response_model=schemas.Page[schemas.ArtefactHistoryResponse])
 def get_artefact_history(
     artefact_id: str,
     page: int = 1,
@@ -261,6 +321,7 @@ def revert_artefact(
     db.refresh(artefact)
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
+    _enrich_links(db, artefact.links)
     return _attach_transitions(artefact)
 
 

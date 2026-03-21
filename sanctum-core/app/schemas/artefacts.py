@@ -48,6 +48,7 @@ class ArtefactLinkResponse(SanctumBase):
     artefact_id: UUID
     linked_entity_type: str
     linked_entity_id: str  # String to support both integer (ticket) and UUID (account/article) PKs
+    linked_entity_name: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
