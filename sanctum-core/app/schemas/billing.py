@@ -25,6 +25,7 @@ class ProductUpdate(SanctumBase):
 class ProductResponse(ProductCreate):
     id: UUID
     is_active: bool
+    created_at: Optional[datetime] = None
 
 # --- INVOICES ---
 class InvoiceItemCreate(SanctumBase):

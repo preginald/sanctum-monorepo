@@ -17,6 +17,7 @@ import tools.search  # noqa: E402, F401
 import tools.invoices  # noqa: E402, F401
 import tools.projects  # noqa: E402, F401
 import tools.artefacts  # noqa: E402, F401
+import tools.catalog  # noqa: E402, F401
 
 if __name__ == "__main__":
     transport = os.getenv("MCP_TRANSPORT", "streamable-http")

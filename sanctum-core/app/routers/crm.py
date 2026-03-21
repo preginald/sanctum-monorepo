@@ -184,9 +184,19 @@ def update_deal(deal_id: str, deal_update: schemas.DealUpdate, db: Session = Dep
 
 # --- PRODUCTS ---
 @router.get("/products", response_model=List[schemas.ProductResponse])
-def get_products(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+def get_products(product_type: str | None = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': return []
-    return db.query(models.Product).filter(models.Product.is_active == True).all()
+    query = db.query(models.Product).filter(models.Product.is_active == True)
+    if product_type:
+        query = query.filter(models.Product.type == product_type)
+    return query.all()
+
+@router.get("/products/{product_id}", response_model=schemas.ProductResponse)
+def get_product(product_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
+    product = db.query(models.Product).filter(models.Product.id == product_id).first()
+    if not product: raise HTTPException(status_code=404, detail="Product not found")
+    return product
 
 @router.post("/products", response_model=schemas.ProductResponse)
 def create_product(product: schemas.ProductCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
