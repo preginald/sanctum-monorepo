@@ -1,7 +1,7 @@
 """
 Milestone validation — enforces status lifecycle per SYS-006.
 
-Transition rules: pending → active → completed, completed → active (reopen).
+Transition rules: derived from SYS-006 at runtime via governance provider.
 Conditional checks: description required for activation, all tickets resolved for completion.
 Sealed completion: reject ticket assignment to completed milestones.
 Completion advisory: hint when last ticket in a milestone resolves.
@@ -11,18 +11,28 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from .. import models
+from .governance import get_milestone_transitions as _gov_milestone_transitions, get_allowed_milestone_statuses
 
 
-MILESTONE_TRANSITIONS = {
-    "pending":   ["active"],
-    "active":    ["completed"],
-    "completed": ["active"],
-}
-
-
-def get_available_transitions(status: str) -> list[str]:
+def get_available_transitions(status: str, db: Session) -> list[str]:
     """Return allowed target statuses for a milestone."""
-    return list(MILESTONE_TRANSITIONS.get(status, []))
+    transitions_map = _gov_milestone_transitions(db)
+    return list(transitions_map.get(status, []))
+
+
+def validate_milestone_status(status: str, db: Session) -> None:
+    """Validate milestone status against SYS-006 controlled vocabulary."""
+    allowed = get_allowed_milestone_statuses(db)
+    if status not in allowed:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": f"Invalid milestone status: '{status}'",
+                "allowed": allowed,
+                "reference": "SYS-006",
+                "help": "See SYS-006 Controlled Vocabularies > Statuses.",
+            },
+        )
 
 
 def validate_milestone_transition(
@@ -32,7 +42,8 @@ def validate_milestone_transition(
 
     Raises HTTPException(422) if the transition is invalid or conditions are not met.
     """
-    allowed = MILESTONE_TRANSITIONS.get(current, [])
+    transitions_map = _gov_milestone_transitions(db)
+    allowed = transitions_map.get(current, [])
     if requested not in allowed:
         raise HTTPException(
             status_code=422,
@@ -40,7 +51,8 @@ def validate_milestone_transition(
                 "detail": f"Invalid milestone status transition: {current} → {requested}",
                 "current": current,
                 "requested": requested,
-                "allowed": get_available_transitions(current),
+                "allowed": get_available_transitions(current, db),
+                "reference": "SYS-006",
                 "help": "See SYS-006 for the milestone status lifecycle.",
             },
         )

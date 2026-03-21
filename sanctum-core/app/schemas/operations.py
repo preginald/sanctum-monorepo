@@ -103,15 +103,15 @@ class TicketCreate(SanctumBase):
     contact_ids: List[UUID] = []
     subject: str
     description: Optional[str] = None
-    priority: PriorityEnum = PriorityEnum.normal
+    priority: str = "normal"
     assigned_tech_id: Optional[UUID] = None
-    ticket_type: TicketTypeEnum = TicketTypeEnum.support
+    ticket_type: str = "support"
     milestone_id: Optional[UUID] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketUpdate(SanctumBase):
     status: Optional[str] = None
-    priority: Optional[PriorityEnum] = None
+    priority: Optional[str] = None
     subject: Optional[str] = None
     description: Optional[str] = None
     resolution: Optional[str] = None
@@ -119,7 +119,7 @@ class TicketUpdate(SanctumBase):
     contact_ids: Optional[List[UUID]] = None
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
-    ticket_type: Optional[TicketTypeEnum] = None
+    ticket_type: Optional[str] = None
     milestone_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     resolution_comment_id: Optional[UUID] = None

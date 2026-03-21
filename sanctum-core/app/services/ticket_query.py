@@ -89,6 +89,6 @@ def enrich_ticket_response(ticket, db: Session) -> dict:
     t_dict['related_invoices'] = list(unique_invoices.values())
 
     # Transitions
-    t_dict['available_transitions'] = get_available_transitions(ticket.status)
+    t_dict['available_transitions'] = get_available_transitions(ticket.status, db)
 
     return t_dict

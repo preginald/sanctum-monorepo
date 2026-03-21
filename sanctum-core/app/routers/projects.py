@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
-from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions
+from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -76,11 +76,12 @@ def list_milestones(project_id: str, db: Session = Depends(get_db)):
         models.Milestone.project_id == project_id
     ).order_by(models.Milestone.sequence.asc()).all()
     for ms in milestones:
-        ms.available_transitions = get_milestone_transitions(ms.status)
+        ms.available_transitions = get_milestone_transitions(ms.status, db)
     return milestones
 
 @router.post("/projects/{project_id}/milestones", response_model=schemas.MilestoneResponse)
 def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Session = Depends(get_db)):
+    validate_milestone_status(milestone.status, db)
     new_milestone = models.Milestone(**milestone.model_dump(), project_id=project_id)
     db.add(new_milestone)
     db.commit()
@@ -109,7 +110,7 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
     db.commit()
     db.refresh(ms)
     ms.project_name = ms.project.name if ms.project else None
-    ms.available_transitions = get_milestone_transitions(ms.status)
+    ms.available_transitions = get_milestone_transitions(ms.status, db)
     return ms
 
 @router.get("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
@@ -208,7 +209,7 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
         account_name=ms.project.account.name if ms.project and ms.project.account else None,
         tickets=ticket_briefs,
         artefacts=artefact_list,
-        available_transitions=get_milestone_transitions(ms.status),
+        available_transitions=get_milestone_transitions(ms.status, db),
     )
 
 @router.get("/projects/{project_id}/artefacts", response_model=List[schemas.ArtefactLite])

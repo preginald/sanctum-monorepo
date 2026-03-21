@@ -6,7 +6,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
-from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions
+from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions, validate_ticket_type, validate_ticket_priority
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
 
@@ -48,6 +48,8 @@ def create_ticket(
             ticket.contact_ids.append(linked_contact.id)
 
     if not ticket.skip_validation:
+        validate_ticket_type(ticket.ticket_type, db)
+        validate_ticket_priority(ticket.priority, db)
         validate_ticket_description(ticket.ticket_type, ticket.description)
         validate_milestone_sealed(ticket.milestone_id, db)
 
@@ -162,6 +164,12 @@ def update_ticket(
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
     update_data = ticket_update.model_dump(exclude_unset=True)
 
+    # Type/priority validation on update
+    if not ticket_update.skip_validation and 'ticket_type' in update_data:
+        validate_ticket_type(update_data['ticket_type'], db)
+    if not ticket_update.skip_validation and 'priority' in update_data:
+        validate_ticket_priority(update_data['priority'], db)
+
     # Description validation on update
     if not ticket_update.skip_validation and ('description' in update_data or 'ticket_type' in update_data):
         effective_type = update_data.get('ticket_type', ticket.ticket_type)
@@ -170,7 +178,7 @@ def update_ticket(
 
     # Status transition validation
     if not ticket_update.skip_validation and 'status' in update_data and update_data['status'] != ticket.status:
-        validate_ticket_transition(ticket.status, update_data['status'])
+        validate_ticket_transition(ticket.status, update_data['status'], db)
 
     # Resolution comment enforcement
     if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':

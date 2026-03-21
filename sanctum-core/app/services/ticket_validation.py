@@ -2,37 +2,32 @@
 Ticket validation — enforces template conformity and status lifecycle.
 
 Description validation: required section headings per ticket type (DOC-013–016).
-Status transitions: enforced per SYS-005 lifecycle rules.
+Status transitions: derived from SYS-005 at runtime via governance provider.
+Type/priority validation: derived from SYS-005 controlled vocabularies.
 See SYS-002 for the enforcement philosophy.
 """
 import re
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
+
+from .governance import get_ticket_transitions, get_allowed_ticket_types, get_allowed_priorities
 
 
-# Status transition map per SYS-005
-TICKET_TRANSITIONS = {
-    "new":      ["open", "pending"],
-    "open":     ["qa", "resolved", "pending"],
-    "pending":  ["open", "resolved"],
-    "qa":       ["resolved"],
-    "resolved": ["closed"],
-    "closed":   [],
-}
-
-
-def get_available_transitions(status: str) -> list[str]:
+def get_available_transitions(status: str, db: Session) -> list[str]:
     """Return allowed target statuses. Any status can transition to 'new' (reopen)."""
-    transitions = list(TICKET_TRANSITIONS.get(status, []))
+    transitions_map = get_ticket_transitions(db)
+    transitions = list(transitions_map.get(status, []))
     if status != "new":
         transitions.append("new")
     return transitions
 
 
-def validate_ticket_transition(current: str, requested: str) -> None:
+def validate_ticket_transition(current: str, requested: str, db: Session) -> None:
     """Validate a status transition. Raises HTTPException(422) if invalid."""
     if requested == "new":
         return  # Reopening is always allowed
-    allowed = TICKET_TRANSITIONS.get(current, [])
+    transitions_map = get_ticket_transitions(db)
+    allowed = transitions_map.get(current, [])
     if requested not in allowed:
         raise HTTPException(
             status_code=422,
@@ -40,8 +35,39 @@ def validate_ticket_transition(current: str, requested: str) -> None:
                 "detail": f"Invalid status transition: {current} → {requested}",
                 "current": current,
                 "requested": requested,
-                "allowed": get_available_transitions(current),
+                "allowed": get_available_transitions(current, db),
+                "reference": "SYS-005",
                 "help": "See SYS-005 for the ticket status lifecycle.",
+            },
+        )
+
+
+def validate_ticket_type(ticket_type: str, db: Session) -> None:
+    """Validate ticket type against SYS-005 controlled vocabulary."""
+    allowed = get_allowed_ticket_types(db)
+    if ticket_type not in allowed:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": f"Invalid ticket type: '{ticket_type}'",
+                "allowed": allowed,
+                "reference": "SYS-005",
+                "help": "See SYS-005 Controlled Vocabularies > Ticket Types.",
+            },
+        )
+
+
+def validate_ticket_priority(priority: str, db: Session) -> None:
+    """Validate priority against SYS-005 controlled vocabulary."""
+    allowed = get_allowed_priorities(db)
+    if priority not in allowed:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": f"Invalid priority: '{priority}'",
+                "allowed": allowed,
+                "reference": "SYS-005",
+                "help": "See SYS-005 Controlled Vocabularies > Priorities.",
             },
         )
 
