@@ -48,9 +48,9 @@ setup_mcp() {
     # Remove existing entry if present
     claude mcp remove "$name" 2>/dev/null || true
 
-    # Add with Bearer token header
-    claude mcp add "$name" --transport http --url "$MCP_URL" \
-        --header "Authorization: Bearer $token"
+    # Add with Bearer token header (name then URL as positional args)
+    claude mcp add "$name" "$MCP_URL" -t http \
+        -H "Authorization: Bearer $token"
 
     echo "  $name → $MCP_URL (token from $(basename "$env_file"))"
 }
