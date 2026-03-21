@@ -189,6 +189,19 @@ def update_ticket(
                 detail="Resolution requires a resolution comment. See SYS-005."
             )
 
+    # Time entry enforcement (BUS-001 D2/D7)
+    if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':
+        if ticket.total_hours == 0 and not (update_data.get('no_billable') or ticket.no_billable):
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "detail": "time_entry_required: log time entries or set no_billable before resolving",
+                    "error_code": "time_entry_required",
+                    "total_hours": 0,
+                    "help": "Log time entries on this ticket, or set no_billable=true with a reason. See BUS-001 D2.",
+                },
+            )
+
     # No-billable reason enforcement
     if update_data.get('no_billable') and not (update_data.get('no_billable_reason') or '').strip():
         raise HTTPException(
