@@ -1,6 +1,6 @@
 """add ticket no_billable fields
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 0aac40e8a806
 Revises: 9bc5d937ca4f
 Create Date: 2026-03-22
 
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = 'a1b2c3d4e5f6'
+revision = '0aac40e8a806'
 down_revision = '9bc5d937ca4f'
 branch_labels = None
 depends_on = None
