@@ -397,7 +397,7 @@ def finalize_audit(audit_id: str, db: Session = Depends(get_db)):
 
 # --- RATE CARDS ---
 @router.get("/rate-cards", response_model=List[schemas.RateCardResponse])
-def list_rate_cards(account_id: Optional[str] = None, tier: Optional[str] = None, system: Optional[bool] = None, db: Session = Depends(get_db)):
+def list_rate_cards(account_id: Optional[str] = None, tier: Optional[str] = None, system: Optional[bool] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     query = db.query(models.RateCard)
     if system:
         query = query.filter(models.RateCard.account_id == None)
@@ -412,7 +412,7 @@ def list_rate_cards(account_id: Optional[str] = None, tier: Optional[str] = None
 
 
 @router.get("/rate-cards/lookup", response_model=schemas.RateCardResponse)
-def lookup_rate(account_id: str, tier: str, as_of: Optional[date] = None, db: Session = Depends(get_db)):
+def lookup_rate(account_id: str, tier: str, as_of: Optional[date] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     target_date = as_of or date.today()
     # Try account override first
     card = db.query(models.RateCard).filter(
@@ -434,7 +434,7 @@ def lookup_rate(account_id: str, tier: str, as_of: Optional[date] = None, db: Se
 
 
 @router.post("/rate-cards", response_model=schemas.RateCardResponse)
-def create_rate_card(card: schemas.RateCardCreate, db: Session = Depends(get_db)):
+def create_rate_card(card: schemas.RateCardCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     new_card = models.RateCard(**card.model_dump())
     db.add(new_card)
     db.commit()
@@ -444,7 +444,7 @@ def create_rate_card(card: schemas.RateCardCreate, db: Session = Depends(get_db)
 
 
 @router.put("/rate-cards/{card_id}", response_model=schemas.RateCardResponse)
-def update_rate_card(card_id: str, update: schemas.RateCardUpdate, db: Session = Depends(get_db)):
+def update_rate_card(card_id: str, update: schemas.RateCardUpdate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     card = db.query(models.RateCard).filter(models.RateCard.id == card_id).first()
     if not card:
         raise HTTPException(status_code=404, detail="Rate card not found")
