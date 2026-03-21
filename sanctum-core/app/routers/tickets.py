@@ -6,7 +6,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
-from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions, validate_ticket_type, validate_ticket_priority
+from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions, validate_ticket_type, validate_ticket_priority, auto_transition_from_new, SUBSTANTIVE_FIELDS
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
 
@@ -194,6 +194,11 @@ def update_ticket(
         new_milestone_id = update_data['milestone_id']
         if new_milestone_id and new_milestone_id != ticket.milestone_id:
             validate_milestone_sealed(new_milestone_id, db)
+
+    # Auto-transition from 'new' → 'open' on substantive field changes (#774)
+    if ticket.status == 'new' and 'status' not in update_data:
+        if SUBSTANTIVE_FIELDS & set(update_data.keys()):
+            auto_transition_from_new(ticket, db)
 
     was_resolved = ticket.status == 'resolved'
     old_tech_id = ticket.assigned_tech_id

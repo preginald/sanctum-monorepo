@@ -15,6 +15,7 @@ from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact, Com
 from ..services.event_bus import event_bus
 from ..services.account_service import account_needs_questionnaire, get_account_lifecycle_stage, process_questionnaire_submission
 from ..services.content_engine import resolve_content
+from ..services.ticket_validation import auto_transition_from_new
 
 router = APIRouter(prefix="/portal", tags=["Portal"])
 
@@ -484,6 +485,9 @@ def create_portal_comment(
     current_user: models.User = Depends(auth.get_current_active_user)
 ):
     ticket, contact = verify_ticket_access(ticket_id, current_user, db, impersonate)
+
+    # Auto-transition ticket from 'new' → 'open' when commenting (#774)
+    auto_transition_from_new(ticket, db)
 
     new_comment = Comment(
         ticket_id=ticket.id,

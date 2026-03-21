@@ -6,11 +6,14 @@ Status transitions: derived from SYS-005 at runtime via governance provider.
 Type/priority validation: derived from SYS-005 controlled vocabularies.
 See SYS-002 for the enforcement philosophy.
 """
+import logging
 import re
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from .governance import get_ticket_transitions, get_allowed_ticket_types, get_allowed_priorities
+
+logger = logging.getLogger(__name__)
 
 
 def get_available_transitions(status: str, db: Session) -> list[str]:
@@ -93,6 +96,22 @@ TEMPLATE_REQUIREMENTS = {
 }
 
 EXEMPT_TYPES = {"support", "access", "maintenance", "alert", "hotfix", "test"}
+
+# Fields that indicate substantive work (trigger auto-transition from 'new')
+SUBSTANTIVE_FIELDS = {"description", "priority", "milestone_id", "assigned_tech_id"}
+
+
+def auto_transition_from_new(ticket, db: Session) -> bool:
+    """Auto-transition a ticket from 'new' to 'open' if it is currently 'new'.
+
+    Returns True if the transition was applied.
+    """
+    if ticket.status != "new":
+        return False
+    ticket.status = "open"
+    db.flush()
+    logger.info("Auto-transitioned ticket #%s from new → open", ticket.id)
+    return True
 
 
 def validate_ticket_description(ticket_type: str, description: str | None) -> None:

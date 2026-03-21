@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.ticket_validation import auto_transition_from_new
 
 router = APIRouter(tags=["Comments"])
 
@@ -23,6 +24,12 @@ def get_comments(ticket_id: Optional[int] = None, deal_id: Optional[str] = None,
 
 @router.post("/comments", response_model=schemas.CommentResponse)
 def create_comment(comment: schemas.CommentCreate, current_user: models.User = Depends(auth.get_current_active_user), resolve_embeds: bool = False, db: Session = Depends(get_db)):
+    # Auto-transition ticket from 'new' → 'open' when commenting (#774)
+    if comment.ticket_id:
+        ticket = db.query(models.Ticket).filter(models.Ticket.id == comment.ticket_id).first()
+        if ticket:
+            auto_transition_from_new(ticket, db)
+
     new_comment = models.Comment(
         author_id=current_user.id, body=comment.body, visibility=comment.visibility,
         ticket_id=comment.ticket_id, deal_id=comment.deal_id, audit_id=comment.audit_id
