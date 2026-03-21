@@ -185,3 +185,91 @@ async def project_overview(
         "milestones": result_milestones,
     }
     return json.dumps(overview, indent=2)
+
+
+@mcp.tool()
+async def rate_card_list(
+    account_id: str | None = None,
+    tier: str | None = None,
+    system: bool = False,
+) -> str:
+    """List rate cards with optional filters.
+
+    Args:
+        account_id: Filter by account UUID.
+        tier: Filter by tier (project_delivery, reactive, consulting, internal).
+        system: Set true to list only system defaults (account_id is NULL).
+    """
+    params = {}
+    if system:
+        params["system"] = "true"
+    elif account_id:
+        params["account_id"] = account_id
+    if tier:
+        params["tier"] = tier
+    result = await client.get("/rate-cards", params=params)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def rate_card_create(
+    tier: str,
+    hourly_rate: str,
+    effective_from: str,
+    account_id: str | None = None,
+) -> str:
+    """Create a rate card. Omit account_id for a system default.
+
+    Args:
+        tier: One of: project_delivery, reactive, consulting, internal.
+        hourly_rate: Rate in AUD as decimal string (e.g. "250.00").
+        effective_from: Date in YYYY-MM-DD format.
+        account_id: UUID of the account for an override. Omit for system default.
+    """
+    payload = {"tier": tier, "hourly_rate": hourly_rate, "effective_from": effective_from}
+    if account_id:
+        payload["account_id"] = account_id
+    result = await client.post("/rate-cards", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def rate_card_update(
+    card_id: str,
+    hourly_rate: str | None = None,
+    effective_from: str | None = None,
+) -> str:
+    """Update a rate card.
+
+    Args:
+        card_id: UUID of the rate card.
+        hourly_rate: New rate in AUD as decimal string.
+        effective_from: New effective date in YYYY-MM-DD format.
+    """
+    payload = {}
+    if hourly_rate is not None:
+        payload["hourly_rate"] = hourly_rate
+    if effective_from is not None:
+        payload["effective_from"] = effective_from
+    result = await client.put(f"/rate-cards/{card_id}", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def rate_card_lookup(
+    account_id: str,
+    tier: str,
+    as_of: str | None = None,
+) -> str:
+    """Look up the effective rate for an account and tier. Returns account override if exists, otherwise system default.
+
+    Args:
+        account_id: UUID of the account.
+        tier: One of: project_delivery, reactive, consulting, internal.
+        as_of: Optional date in YYYY-MM-DD format. Defaults to today.
+    """
+    params = {"account_id": account_id, "tier": tier}
+    if as_of:
+        params["as_of"] = as_of
+    result = await client.get("/rate-cards/lookup", params=params)
+    return json.dumps(result, indent=2)

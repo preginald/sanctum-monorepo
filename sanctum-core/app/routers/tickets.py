@@ -331,6 +331,18 @@ def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
 def create_time_entry(ticket_id: int, entry: schemas.TimeEntryCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
+    # Minimum billing increment: 15 minutes (BUS-001 D4)
+    duration_minutes = (entry.end_time - entry.start_time).total_seconds() / 60
+    if duration_minutes < 15:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": f"minimum_increment: time entry is {duration_minutes:.0f} minutes — minimum billing increment is 15 minutes (0.25 hours)",
+                "error_code": "minimum_increment",
+                "duration_minutes": round(duration_minutes),
+                "help": "Adjust start_time or end_time so the entry is at least 15 minutes. See BUS-001 D4.",
+            },
+        )
     new_entry = models.TicketTimeEntry(
         ticket_id=ticket_id, user_id=current_user.id, start_time=entry.start_time, end_time=entry.end_time, description=entry.description, product_id=entry.product_id
     )
@@ -347,6 +359,19 @@ def update_time_entry(entry_id: str, update: schemas.TimeEntryUpdate, db: Sessio
     if not entry: raise HTTPException(status_code=404, detail="Entry not found")
     if update.start_time: entry.start_time = update.start_time
     if update.end_time: entry.end_time = update.end_time
+    # Minimum billing increment check after applying time changes (BUS-001 D4)
+    if update.start_time or update.end_time:
+        duration_minutes = (entry.end_time - entry.start_time).total_seconds() / 60
+        if duration_minutes < 15:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "detail": f"minimum_increment: time entry is {duration_minutes:.0f} minutes — minimum billing increment is 15 minutes (0.25 hours)",
+                    "error_code": "minimum_increment",
+                    "duration_minutes": round(duration_minutes),
+                    "help": "Adjust start_time or end_time so the entry is at least 15 minutes. See BUS-001 D4.",
+                },
+            )
     if update.description is not None: entry.description = update.description
     if update.product_id: entry.product_id = update.product_id
     db.commit()

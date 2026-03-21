@@ -20,7 +20,8 @@ from .strategy import (
     DealCreate, DealUpdate, DealResponse,
     MilestoneReorderRequest, MilestoneCreate, MilestoneUpdate, MilestoneResponse, TicketBrief,
     ProjectCreate, ProjectUpdate, ProjectResponse,
-    AuditCreate, AuditUpdate, AuditResponse, AuditItem
+    AuditCreate, AuditUpdate, AuditResponse, AuditItem,
+    RateCardCreate, RateCardUpdate, RateCardResponse
 )
 from .operations import (
     TimeEntryCreate, TimeEntryUpdate, TimeEntryResponse,

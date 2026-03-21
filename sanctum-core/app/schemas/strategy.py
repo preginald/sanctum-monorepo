@@ -185,6 +185,34 @@ class ProjectResponse(ProjectCreate):
     milestones: List[MilestoneResponse] = []
     artefacts: List[ArtefactLite] = []
 
+VALID_RATE_TIERS = {"project_delivery", "reactive", "consulting", "internal"}
+
+# --- RATE CARDS ---
+class RateCardCreate(SanctumBase):
+    account_id: Optional[UUID] = None
+    tier: str
+
+    @model_validator(mode="after")
+    def validate_tier(self):
+        if self.tier not in VALID_RATE_TIERS:
+            raise ValueError(f"tier must be one of: {', '.join(sorted(VALID_RATE_TIERS))}")
+        return self
+    hourly_rate: Decimal
+    effective_from: date
+
+class RateCardUpdate(SanctumBase):
+    hourly_rate: Optional[Decimal] = None
+    effective_from: Optional[date] = None
+
+class RateCardResponse(SanctumBase):
+    id: UUID
+    account_id: Optional[UUID] = None
+    tier: str
+    hourly_rate: Decimal
+    effective_from: date
+    created_at: datetime
+    account_name: Optional[str] = None
+
 # --- AUDITS ---
 class AuditItem(SanctumBase):
     category: str
