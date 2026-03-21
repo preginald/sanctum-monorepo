@@ -1,5 +1,5 @@
 """
-Generate API tokens for service accounts (Claude Chat + Claude Code).
+Generate API tokens for all service accounts (6 agent identities).
 
 Run AFTER the migration has been applied:
     cd sanctum-core && source venv/bin/activate
@@ -27,13 +27,33 @@ engine = create_engine(DATABASE_URL)
 SERVICE_ACCOUNTS = [
     {
         "user_id": "a1b2c3d4-0001-4000-8000-000000000001",
-        "name": "Claude Chat",
-        "token_name": "MCP Server Token",
+        "name": "The Oracle",
+        "token_name": "Oracle MCP Token",
     },
     {
         "user_id": "a1b2c3d4-0002-4000-8000-000000000002",
-        "name": "Claude Code",
-        "token_name": "Code Session Token",
+        "name": "The Operator",
+        "token_name": "Operator MCP Token",
+    },
+    {
+        "user_id": "a1b2c3d4-0003-4000-8000-000000000003",
+        "name": "The Architect",
+        "token_name": "Architect MCP Token",
+    },
+    {
+        "user_id": "a1b2c3d4-0004-4000-8000-000000000004",
+        "name": "The Surgeon",
+        "token_name": "Surgeon MCP Token",
+    },
+    {
+        "user_id": "a1b2c3d4-0005-4000-8000-000000000005",
+        "name": "The Sentinel",
+        "token_name": "Sentinel MCP Token",
+    },
+    {
+        "user_id": "a1b2c3d4-0006-4000-8000-000000000006",
+        "name": "The Scribe",
+        "token_name": "Scribe MCP Token",
     },
 ]
 
@@ -75,4 +95,4 @@ with engine.connect() as conn:
         print(f"  SAVE THIS TOKEN NOW — it cannot be retrieved again.")
         print(f"{'='*60}")
 
-print("\nDone. Update MCP server and Code session configs with the tokens above.")
+print("\nDone. Run scripts/dev/mcp-setup.sh to configure MCP servers with the new tokens.")
