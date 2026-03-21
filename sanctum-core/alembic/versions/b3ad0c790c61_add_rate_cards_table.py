@@ -29,6 +29,21 @@ def upgrade() -> None:
         sa.Column('created_at', sa.TIMESTAMP(timezone=True), server_default=sa.func.now()),
     )
 
+    # Unique constraint: one rate per (account, tier, effective_from)
+    # Partial index for system defaults (account_id IS NULL)
+    op.create_index(
+        'ix_rate_cards_system_unique',
+        'rate_cards', ['tier', 'effective_from'],
+        unique=True,
+        postgresql_where=sa.text('account_id IS NULL'),
+    )
+    op.create_index(
+        'ix_rate_cards_account_unique',
+        'rate_cards', ['account_id', 'tier', 'effective_from'],
+        unique=True,
+        postgresql_where=sa.text('account_id IS NOT NULL'),
+    )
+
     # Seed system default rates (BUS-001 D4)
     op.execute("""
         INSERT INTO rate_cards (tier, hourly_rate, effective_from) VALUES
