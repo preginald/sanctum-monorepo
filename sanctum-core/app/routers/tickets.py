@@ -189,6 +189,13 @@ def update_ticket(
                 detail="Resolution requires a resolution comment. See SYS-005."
             )
 
+    # No-billable reason enforcement
+    if update_data.get('no_billable') and not (update_data.get('no_billable_reason') or '').strip():
+        raise HTTPException(
+            status_code=422,
+            detail="no_billable_reason is required when no_billable is true."
+        )
+
     # Sealed milestone check — reject assignment to completed milestones
     if not ticket_update.skip_validation and 'milestone_id' in update_data:
         new_milestone_id = update_data['milestone_id']

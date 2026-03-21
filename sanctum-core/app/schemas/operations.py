@@ -123,6 +123,8 @@ class TicketUpdate(SanctumBase):
     milestone_id: Optional[UUID] = None
     contact_id: Optional[UUID] = None
     resolution_comment_id: Optional[UUID] = None
+    no_billable: Optional[bool] = None
+    no_billable_reason: Optional[str] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketRelationResponse(SanctumBase):
@@ -161,6 +163,8 @@ class TicketResponse(TicketCreate):
 
     total_hours: float = 0.0
     resolution_comment_id: Optional[UUID] = None
+    no_billable: bool = False
+    no_billable_reason: Optional[str] = None
     available_transitions: List[str] = []
 
     # Milestone completion advisory (populated when resolving the last open ticket)

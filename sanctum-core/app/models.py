@@ -230,6 +230,9 @@ class Ticket(Base):
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())
     closed_at = Column(TIMESTAMP(timezone=True))
 
+    no_billable = Column(Boolean, default=False, server_default=text("false"))
+    no_billable_reason = Column(Text, nullable=True)
+
     account = relationship("Account", back_populates="tickets")
     contact = relationship("Contact", foreign_keys=[contact_id]) # Legacy Relationship
 
