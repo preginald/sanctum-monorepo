@@ -176,6 +176,12 @@ async def project_overview(
     overview = {
         "project": project.get("name"),
         "account": project.get("account_name"),
+        "budget": project.get("budget"),
+        "market_value": project.get("market_value"),
+        "quoted_price": project.get("quoted_price"),
+        "discount_amount": project.get("discount_amount"),
+        "discount_reason": project.get("discount_reason"),
+        "pricing_model": project.get("pricing_model"),
         "milestones": result_milestones,
     }
     return json.dumps(overview, indent=2)
