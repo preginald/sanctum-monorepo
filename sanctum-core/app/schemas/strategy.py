@@ -185,6 +185,26 @@ class ProjectResponse(ProjectCreate):
     milestones: List[MilestoneResponse] = []
     artefacts: List[ArtefactLite] = []
 
+# --- RATE CARDS ---
+class RateCardCreate(SanctumBase):
+    account_id: Optional[UUID] = None
+    tier: str
+    hourly_rate: Decimal
+    effective_from: date
+
+class RateCardUpdate(SanctumBase):
+    hourly_rate: Optional[Decimal] = None
+    effective_from: Optional[date] = None
+
+class RateCardResponse(SanctumBase):
+    id: UUID
+    account_id: Optional[UUID] = None
+    tier: str
+    hourly_rate: Decimal
+    effective_from: date
+    created_at: datetime
+    account_name: Optional[str] = None
+
 # --- AUDITS ---
 class AuditItem(SanctumBase):
     category: str

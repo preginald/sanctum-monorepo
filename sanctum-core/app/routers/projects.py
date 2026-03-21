@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, text as sa_text
 from typing import List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
@@ -393,3 +393,65 @@ def finalize_audit(audit_id: str, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(audit_record)
     return audit_record
+
+
+# --- RATE CARDS ---
+@router.get("/rate-cards", response_model=List[schemas.RateCardResponse])
+def list_rate_cards(account_id: Optional[str] = None, tier: Optional[str] = None, system: Optional[bool] = None, db: Session = Depends(get_db)):
+    query = db.query(models.RateCard)
+    if system:
+        query = query.filter(models.RateCard.account_id == None)
+    elif account_id:
+        query = query.filter(models.RateCard.account_id == account_id)
+    if tier:
+        query = query.filter(models.RateCard.tier == tier)
+    cards = query.order_by(models.RateCard.tier, models.RateCard.effective_from.desc()).all()
+    for c in cards:
+        c.account_name = c.account.name if c.account else None
+    return cards
+
+
+@router.get("/rate-cards/lookup", response_model=schemas.RateCardResponse)
+def lookup_rate(account_id: str, tier: str, as_of: Optional[date] = None, db: Session = Depends(get_db)):
+    target_date = as_of or date.today()
+    # Try account override first
+    card = db.query(models.RateCard).filter(
+        models.RateCard.account_id == account_id,
+        models.RateCard.tier == tier,
+        models.RateCard.effective_from <= target_date,
+    ).order_by(models.RateCard.effective_from.desc()).first()
+    # Fall back to system default
+    if not card:
+        card = db.query(models.RateCard).filter(
+            models.RateCard.account_id == None,
+            models.RateCard.tier == tier,
+            models.RateCard.effective_from <= target_date,
+        ).order_by(models.RateCard.effective_from.desc()).first()
+    if not card:
+        raise HTTPException(status_code=404, detail=f"No rate card found for tier '{tier}'")
+    card.account_name = card.account.name if card.account else None
+    return card
+
+
+@router.post("/rate-cards", response_model=schemas.RateCardResponse)
+def create_rate_card(card: schemas.RateCardCreate, db: Session = Depends(get_db)):
+    new_card = models.RateCard(**card.model_dump())
+    db.add(new_card)
+    db.commit()
+    db.refresh(new_card)
+    new_card.account_name = new_card.account.name if new_card.account else None
+    return new_card
+
+
+@router.put("/rate-cards/{card_id}", response_model=schemas.RateCardResponse)
+def update_rate_card(card_id: str, update: schemas.RateCardUpdate, db: Session = Depends(get_db)):
+    card = db.query(models.RateCard).filter(models.RateCard.id == card_id).first()
+    if not card:
+        raise HTTPException(status_code=404, detail="Rate card not found")
+    update_data = update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(card, field, value)
+    db.commit()
+    db.refresh(card)
+    card.account_name = card.account.name if card.account else None
+    return card

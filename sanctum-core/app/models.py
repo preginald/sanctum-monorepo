@@ -880,6 +880,18 @@ class ArtefactHistory(Base):
     author = relationship("User")
 
 
+class RateCard(Base):
+    __tablename__ = "rate_cards"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
+    tier = Column(String, nullable=False)
+    hourly_rate = Column(Numeric(8, 2), nullable=False)
+    effective_from = Column(Date, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    account = relationship("Account")
+
+
 # TRIGRAM INDEXES (pg_trgm)
 # Phase 75: The Omnisearch — fuzzy search support
 # ─────────────────────────────────────────────────────────────────────────────
