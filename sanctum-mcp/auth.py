@@ -14,6 +14,7 @@ import hmac
 import secrets
 import hashlib
 import base64
+from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import jwt
@@ -31,9 +32,27 @@ MCP_AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED", "true").lower() == "true"
 MCP_AUTH_USERNAME = os.getenv("MCP_AUTH_USERNAME", "admin")
 MCP_AUTH_PASSWORD = os.getenv("MCP_AUTH_PASSWORD", "")
 
-# In-memory stores (sufficient for single-instance server)
+# Auth codes are ephemeral (5 min TTL) — in-memory is fine
 _auth_codes = {}  # code -> {client_id, redirect_uri, code_challenge, expires_at}
-_registered_clients = {}  # client_id -> {client_secret, redirect_uris, client_name}
+
+# Registered clients persisted to disk so they survive server restarts
+_CLIENTS_FILE = Path(__file__).parent / "registered_clients.json"
+
+
+def _load_registered_clients() -> dict:
+    if _CLIENTS_FILE.exists():
+        try:
+            return json.loads(_CLIENTS_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def _save_registered_clients() -> None:
+    _CLIENTS_FILE.write_text(json.dumps(_registered_clients, indent=2))
+
+
+_registered_clients = _load_registered_clients()
 
 ALLOWED_CALLBACKS = [
     "https://claude.ai/api/mcp/auth_callback",
@@ -440,6 +459,7 @@ class OAuthMiddleware:
             "redirect_uris": redirect_uris,
             "client_name": client_name,
         }
+        _save_registered_clients()
 
         response = {
             "client_id": new_client_id,
