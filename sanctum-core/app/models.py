@@ -55,6 +55,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     account_id = Column(UUID(as_uuid=True), ForeignKey("accounts.id"), nullable=True)
 
+    user_type = Column(String, default="human", nullable=False, server_default="human")
     totp_secret = Column(String, nullable=True)
 
     account = relationship("Account", foreign_keys=[account_id])
