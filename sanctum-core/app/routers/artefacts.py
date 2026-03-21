@@ -247,7 +247,7 @@ def delete_artefact(
 
 # --- HISTORY ---
 
-@router.get("/artefacts/{artefact_id}/history")
+@router.get("/artefacts/{artefact_id}/history", response_model=schemas.Page[schemas.ArtefactHistoryResponse])
 def get_artefact_history(
     artefact_id: str,
     page: int = 1,
