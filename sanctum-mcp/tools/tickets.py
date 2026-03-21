@@ -218,6 +218,8 @@ async def ticket_resolve(
     ticket_id: int,
     body: str | None = None,
     comment_id: str | None = None,
+    no_billable: bool = False,
+    no_billable_reason: str | None = None,
 ) -> str:
     """Resolve a ticket with a linked resolution comment.
 
@@ -228,6 +230,8 @@ async def ticket_resolve(
         ticket_id: The ticket number.
         body: Resolution text in markdown (creates a new comment).
         comment_id: UUID of an existing comment to use as the resolution.
+        no_billable: Skip time entry gate for this ticket (default false).
+        no_billable_reason: Required justification when no_billable is true.
     """
     if not body and not comment_id:
         return json.dumps({"error": "Either body or comment_id is required"})
@@ -264,6 +268,9 @@ async def ticket_resolve(
         "resolution": resolution_text,
         "resolution_comment_id": resolution_cid,
     }
+    if no_billable:
+        ticket_payload["no_billable"] = True
+        ticket_payload["no_billable_reason"] = no_billable_reason
     result = await client.put(f"/tickets/{ticket_id}", json=ticket_payload)
     return json.dumps(result, indent=2)
 
