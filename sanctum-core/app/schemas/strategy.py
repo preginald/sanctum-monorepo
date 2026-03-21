@@ -160,6 +160,11 @@ class ProjectCreate(SanctumBase):
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     budget: Decimal = Decimal("0.00")
+    market_value: Optional[Decimal] = None
+    quoted_price: Optional[Decimal] = None
+    discount_amount: Optional[Decimal] = None
+    discount_reason: Optional[str] = None
+    pricing_model: Optional[str] = None
 
 class ProjectUpdate(SanctumBase):
     name: Optional[str] = None
@@ -167,6 +172,11 @@ class ProjectUpdate(SanctumBase):
     status: Optional[str] = None
     budget: Optional[Decimal] = None
     due_date: Optional[date] = None
+    market_value: Optional[Decimal] = None
+    quoted_price: Optional[Decimal] = None
+    discount_amount: Optional[Decimal] = None
+    discount_reason: Optional[str] = None
+    pricing_model: Optional[str] = None
 
 class ProjectResponse(ProjectCreate):
     id: UUID

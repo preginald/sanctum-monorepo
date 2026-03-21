@@ -177,6 +177,11 @@ class Project(Base):
     start_date = Column(Date, nullable=True)
     due_date = Column(Date, nullable=True)
     budget = Column(Numeric(12, 2), default=0.0)
+    market_value = Column(Numeric(12, 2), nullable=True)
+    quoted_price = Column(Numeric(12, 2), nullable=True)
+    discount_amount = Column(Numeric(12, 2), nullable=True)
+    discount_reason = Column(Text, nullable=True)
+    pricing_model = Column(String, nullable=True)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 

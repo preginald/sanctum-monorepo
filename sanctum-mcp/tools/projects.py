@@ -54,6 +54,11 @@ async def project_create(
     description: str | None = None,
     due_date: str | None = None,
     budget: str | None = None,
+    market_value: str | None = None,
+    quoted_price: str | None = None,
+    discount_amount: str | None = None,
+    discount_reason: str | None = None,
+    pricing_model: str | None = None,
 ) -> str:
     """Create a new project.
 
@@ -63,14 +68,21 @@ async def project_create(
         description: Optional project description.
         due_date: Optional due date in YYYY-MM-DD format.
         budget: Optional budget as decimal string (e.g. "5000.00").
+        market_value: Agency-rate benchmark as decimal string (e.g. "10000.00").
+        quoted_price: Actual price quoted to client as decimal string.
+        discount_amount: Discount as decimal string (market_value - quoted_price).
+        discount_reason: Required when discount_amount > 0 (e.g. "launch support").
+        pricing_model: One of: fixed_price, time_and_materials.
     """
     payload = {"account_id": account_id, "name": name}
-    if description:
-        payload["description"] = description
-    if due_date:
-        payload["due_date"] = due_date
-    if budget:
-        payload["budget"] = budget
+    for key, val in {
+        "description": description, "due_date": due_date, "budget": budget,
+        "market_value": market_value, "quoted_price": quoted_price,
+        "discount_amount": discount_amount, "discount_reason": discount_reason,
+        "pricing_model": pricing_model,
+    }.items():
+        if val is not None:
+            payload[key] = val
     result = await client.post("/projects", json=payload)
     return json.dumps(result, indent=2)
 
@@ -83,6 +95,11 @@ async def project_update(
     description: str | None = None,
     budget: str | None = None,
     due_date: str | None = None,
+    market_value: str | None = None,
+    quoted_price: str | None = None,
+    discount_amount: str | None = None,
+    discount_reason: str | None = None,
+    pricing_model: str | None = None,
 ) -> str:
     """Update a project. Only provided fields are changed.
 
@@ -93,18 +110,21 @@ async def project_update(
         description: New description.
         budget: Budget as decimal string (e.g. "5000.00").
         due_date: Due date in YYYY-MM-DD format.
+        market_value: Agency-rate benchmark as decimal string (e.g. "10000.00").
+        quoted_price: Actual price quoted to client as decimal string.
+        discount_amount: Discount as decimal string (market_value - quoted_price).
+        discount_reason: Required when discount_amount > 0 (e.g. "launch support").
+        pricing_model: One of: fixed_price, time_and_materials.
     """
     payload = {}
-    if name is not None:
-        payload["name"] = name
-    if status is not None:
-        payload["status"] = status
-    if description is not None:
-        payload["description"] = description
-    if budget is not None:
-        payload["budget"] = budget
-    if due_date is not None:
-        payload["due_date"] = due_date
+    for key, val in {
+        "name": name, "status": status, "description": description,
+        "budget": budget, "due_date": due_date, "market_value": market_value,
+        "quoted_price": quoted_price, "discount_amount": discount_amount,
+        "discount_reason": discount_reason, "pricing_model": pricing_model,
+    }.items():
+        if val is not None:
+            payload[key] = val
     result = await client.put(f"/projects/{project_id}", json=payload)
     return json.dumps(result, indent=2)
 

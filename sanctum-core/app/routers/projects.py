@@ -53,10 +53,9 @@ def create_project(project: schemas.ProjectCreate, current_user: models.User = D
 def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session = Depends(get_db)):
     proj = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not proj: raise HTTPException(status_code=404, detail="Project not found")
-    if update.status: proj.status = update.status
-    if update.name: proj.name = update.name
-    if update.budget is not None: proj.budget = update.budget
-    if update.due_date: proj.due_date = update.due_date
+    update_data = update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(proj, field, value)
     db.commit()
     db.refresh(proj)
     proj.account_name = proj.account.name
