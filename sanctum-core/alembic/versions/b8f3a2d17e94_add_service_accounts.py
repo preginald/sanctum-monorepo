@@ -23,11 +23,13 @@ def upgrade() -> None:
 
     # Step 2: Seed service account users
     # UUIDs are deterministic so they can be referenced in config/scripts
+    # password_hash is NOT NULL in DB — use '!' (unmatchable bcrypt, login disabled)
     op.execute("""
-        INSERT INTO users (id, email, full_name, role, user_type, is_active, account_id)
+        INSERT INTO users (id, email, password_hash, full_name, role, user_type, is_active, account_id)
         VALUES (
             'a1b2c3d4-0001-4000-8000-000000000001',
             'claude-chat@system.local',
+            '!',
             'Claude Chat',
             'admin',
             'service_account',
@@ -37,10 +39,11 @@ def upgrade() -> None:
         ON CONFLICT (email) DO NOTHING;
     """)
     op.execute("""
-        INSERT INTO users (id, email, full_name, role, user_type, is_active, account_id)
+        INSERT INTO users (id, email, password_hash, full_name, role, user_type, is_active, account_id)
         VALUES (
             'a1b2c3d4-0002-4000-8000-000000000002',
             'claude-code@system.local',
+            '!',
             'Claude Code',
             'admin',
             'service_account',
