@@ -217,6 +217,22 @@ def update_ticket(
                         "help": "Set market_value or quoted_price on the project. See BUS-001 D3.",
                     },
                 )
+            # Discount register enforcement (BUS-001 D5/D7)
+            if (project.market_value is not None and project.quoted_price is not None
+                    and project.quoted_price < project.market_value
+                    and not (project.discount_reason or '').strip()):
+                discount_amount = project.market_value - project.quoted_price
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "detail": f"discount_reason_required: quoted_price is ${discount_amount:,.2f} below market_value on project '{project.name}' — set a discount_reason before resolving tickets",
+                        "error_code": "discount_reason_required",
+                        "project_id": str(project.id),
+                        "project_name": project.name,
+                        "discount_amount": str(discount_amount),
+                        "help": "Set discount_reason on the project (e.g. 'launch support', 'gift'). See BUS-001 D5.",
+                    },
+                )
 
     # No-billable reason enforcement
     if update_data.get('no_billable') and not (update_data.get('no_billable_reason') or '').strip():

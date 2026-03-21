@@ -12,6 +12,28 @@ import os
 
 router = APIRouter(tags=["Projects & Audits"])
 
+
+def _validate_discount(market_value, quoted_price, discount_reason):
+    """Validate discount register per BUS-001 D5/D7. Returns computed discount_amount or None."""
+    if market_value is not None and quoted_price is not None:
+        if quoted_price < market_value:
+            discount_amount = market_value - quoted_price
+            if not (discount_reason or '').strip():
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "detail": f"discount_reason_required: quoted_price is ${discount_amount:,.2f} below market_value — provide a discount_reason",
+                        "error_code": "discount_reason_required",
+                        "discount_amount": str(discount_amount),
+                        "help": "Provide a discount_reason (e.g. 'launch support', 'gift'). See BUS-001 D5.",
+                    },
+                )
+            return discount_amount
+        else:
+            return Decimal("0")
+    return None
+
+
 # --- PROJECTS ---
 @router.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
@@ -41,7 +63,13 @@ def get_project_detail(project_id: str, db: Session = Depends(get_db)):
 @router.post("/projects", response_model=schemas.ProjectResponse)
 def create_project(project: schemas.ProjectCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
-    new_project = models.Project(**project.model_dump())
+    data = project.model_dump()
+    discount_amount = _validate_discount(data.get('market_value'), data.get('quoted_price'), data.get('discount_reason'))
+    if discount_amount is not None:
+        data['discount_amount'] = discount_amount
+        if discount_amount == 0:
+            data['discount_reason'] = None
+    new_project = models.Project(**data)
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
@@ -54,6 +82,15 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
     proj = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not proj: raise HTTPException(status_code=404, detail="Project not found")
     update_data = update.model_dump(exclude_unset=True)
+    # Merge existing values with update for discount validation
+    effective_mv = update_data.get('market_value', proj.market_value)
+    effective_qp = update_data.get('quoted_price', proj.quoted_price)
+    effective_dr = update_data.get('discount_reason', proj.discount_reason)
+    discount_amount = _validate_discount(effective_mv, effective_qp, effective_dr)
+    if discount_amount is not None:
+        update_data['discount_amount'] = discount_amount
+        if discount_amount == 0:
+            update_data['discount_reason'] = None
     for field, value in update_data.items():
         setattr(proj, field, value)
     db.commit()
