@@ -4,7 +4,7 @@ import Layout from '../components/Layout';
 import { handleSmartWrap } from '../lib/textUtils';
 import {
   Loader2, Plus, Receipt, Flag, X, Clipboard, Edit2,
-  Hash, DollarSign, Calendar, FileText
+  Hash, DollarSign, Calendar, FileText, Clock
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -97,6 +97,11 @@ export default function MilestoneDetail() {
   const totalTickets = milestone.tickets?.length || 0;
   const resolvedTickets = milestone.tickets?.filter(t => t.status === 'resolved').length || 0;
   const canBill = billable > 0 && !milestone.invoice_id;
+
+  const totalHours = milestone.tickets?.reduce((s, t) => s + (t.total_hours || 0), 0) || 0;
+  const totalInternalCost = milestone.tickets?.reduce((s, t) => s + parseFloat(t.total_cost || 0), 0) || 0;
+  const totalUnpriced = milestone.tickets?.reduce((s, t) => s + (t.unpriced_entries || 0), 0) || 0;
+  const hasDeliveryCost = totalHours > 0;
 
   const editButton = (
     <button
@@ -281,6 +286,30 @@ export default function MilestoneDetail() {
               </div>
             </div>
           </div>
+
+          {/* DELIVERY COST */}
+          {hasDeliveryCost && (
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+              <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
+                <Clock size={14} /> Delivery Cost
+              </h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-baseline">
+                  <span className="opacity-50">Total Hours</span>
+                  <span className="font-mono font-bold text-white text-lg">{totalHours.toFixed(1)}h</span>
+                </div>
+                <div className="flex justify-between items-baseline">
+                  <span className="opacity-50">Internal Cost</span>
+                  <span className="font-mono font-bold text-white text-lg">${totalInternalCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+                </div>
+                {totalUnpriced > 0 && (
+                  <div className="text-[10px] text-orange-400/60">
+                    {totalUnpriced} {totalUnpriced === 1 ? 'entry' : 'entries'} unpriced
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* ARTEFACTS */}
           <ArtefactCard
