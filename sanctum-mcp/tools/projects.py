@@ -144,7 +144,7 @@ async def project_overview(
         project_id: UUID of the project.
         status: Filter tickets by status. Default "open" excludes resolved. Use "all" for no filter.
     """
-    project = await client.get(f"/projects/{project_id}")
+    project = await client.get(f"/projects/{project_id}", params={"expand": "milestones"})
     milestones = project.get("milestones", []) if isinstance(project, dict) else []
 
     # Sort by sequence

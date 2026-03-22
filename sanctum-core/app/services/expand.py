@@ -53,7 +53,7 @@ def _detect_consumer_type(user: Optional[models.User]) -> str:
     """Determine consumer type from authenticated user."""
     if user is None:
         return "human"
-    if user.user_type == "service":
+    if user.user_type == "service_account":
         return "service"
     return "human"
 
@@ -161,9 +161,8 @@ def filter_response(
             data.pop("health_check", None)
             continue
 
-        # Standard case: replace list with count
+        # Standard case: remove the list field (count is pre-populated on schema)
         if field_name in data and isinstance(data[field_name], list):
-            data[f"{field_name}_count"] = len(data[field_name])
             del data[field_name]
 
     return data

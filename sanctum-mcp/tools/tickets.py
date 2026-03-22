@@ -17,9 +17,10 @@ def _compute_delivery_hints(ticket: dict) -> list[str]:
     """Compute delivery hints for a ticket based on its current state."""
     hints = []
 
-    # No linked articles
+    # No linked articles (check list or count field)
     articles = ticket.get("articles") or []
-    if not articles:
+    article_count = ticket.get("article_count", len(articles))
+    if article_count == 0:
         hints.append("No linked articles — consider linking relevant KB articles with ticket_relate_article.")
 
     # Acceptance criteria analysis
