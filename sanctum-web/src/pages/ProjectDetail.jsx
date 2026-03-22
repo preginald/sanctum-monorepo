@@ -364,7 +364,7 @@ export default function ProjectDetail() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
           <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl w-full max-w-sm relative">
             <button onClick={() => setShowMsModal(false)} className="absolute top-4 right-4 opacity-50 hover:opacity-100"><X size={20} /></button>
-            <h2 className="text-lg font-bold mb-4">{editingMsId ? 'Edit Milestone' : 'Add Milestone'}</h2>
+            <h2 className="text-lg font-bold mb-4 flex items-center gap-2">{editingMsId ? <><Edit2 size={18} className="text-sanctum-gold" /> Edit Milestone</> : <><Plus size={18} className="text-sanctum-gold" /> Add Milestone</>}</h2>
             <div className="space-y-3">
               <div><label className="text-xs opacity-50 block mb-1">Sequence</label><input type="number" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.sequence} onChange={e => setMsForm({ ...msForm, sequence: e.target.value })} /></div>
               <div><label className="text-xs opacity-50 block mb-1">Name</label><input required placeholder="Name" className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={msForm.name} onChange={e => setMsForm({ ...msForm, name: e.target.value })} /></div>
