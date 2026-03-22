@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from .. import models, schemas, auth
@@ -8,6 +10,7 @@ from uuid import UUID
 import re
 import os
 from ..services.content_engine import resolve_content
+from ..services.expand import ExpandConfig, get_expand_config, filter_response
 
 router = APIRouter(tags=["Wiki"])
 
@@ -96,7 +99,7 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     return articles
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
-def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: bool = False, db: Session = Depends(get_db)):
+def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: bool = False, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
     query = db.query(models.Article).options(joinedload(models.Article.author))
     try:
         uid = UUID(slug)
@@ -110,17 +113,27 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
 
     if article.author: article.author_name = article.author.full_name
 
-    # Load related articles from both directions of the join table
-    from sqlalchemy import or_
+    # Load related articles (needed for count even when not expanding)
+    from sqlalchemy import or_, func as sa_func
     ar = models.article_relations
     related_ids_a = db.query(ar.c.related_id).filter(ar.c.article_id == article.id)
     related_ids_b = db.query(ar.c.article_id).filter(ar.c.related_id == article.id)
-    related = db.query(models.Article).filter(
-        or_(models.Article.id.in_(related_ids_a), models.Article.id.in_(related_ids_b))
-    ).all()
+
+    if expand.should_expand("related_articles"):
+        related = db.query(models.Article).filter(
+            or_(models.Article.id.in_(related_ids_a), models.Article.id.in_(related_ids_b))
+        ).all()
+        related_article_count = len(related)
+    else:
+        related = []
+        related_article_count = db.query(sa_func.count()).filter(
+            or_(
+                models.Article.id.in_(related_ids_a),
+                models.Article.id.in_(related_ids_b),
+            )
+        ).scalar()
 
     # Parse into Pydantic model while still attached to the session
-    # This safely loads all lazy attributes (like 'history') without DetachedInstanceError
     response_data = schemas.ArticleResponse.model_validate(article)
     response_data.related_articles = [
         schemas.RelatedArticleResponse(
@@ -129,7 +142,11 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         ) for r in related
     ]
 
-    # Load linked artefacts (graceful if table doesn't exist yet)
+    # Counts
+    response_data.revision_count = len(response_data.history)
+    response_data.related_article_count = related_article_count
+
+    # Load linked artefacts
     try:
         artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
             models.ArtefactLink.linked_entity_type == "article",
@@ -137,14 +154,19 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         ).all()
         if artefact_ids:
             ids = [r[0] for r in artefact_ids]
-            response_data.artefacts = [
-                schemas.ArtefactLite(id=a.id, name=a.name, artefact_type=a.artefact_type, url=a.url)
-                for a in db.query(models.Artefact).filter(
-                    models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
-                ).all()
-            ]
+            if expand.should_expand("artefacts"):
+                response_data.artefacts = [
+                    schemas.ArtefactLite(id=a.id, name=a.name, artefact_type=a.artefact_type, url=a.url)
+                    for a in db.query(models.Artefact).filter(
+                        models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+                    ).all()
+                ]
+            response_data.artefact_count = len(artefact_ids)
+        else:
+            response_data.artefact_count = 0
     except Exception:
         db.rollback()
+        response_data.artefact_count = 0
 
     # Resolve shortcodes safely on the Pydantic object
     if resolve_embeds and response_data.content:
@@ -152,7 +174,9 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
     elif inline_embeds and response_data.content:
         response_data.content = resolve_content(db, response_data.content, inline_mode=True)
 
-    return response_data
+    result = jsonable_encoder(response_data)
+    filtered = filter_response(result, expand, "article")
+    return JSONResponse(content=filtered)
 
 @router.post("/articles", response_model=schemas.ArticleResponse)
 def create_article(article: schemas.ArticleCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
