@@ -252,7 +252,7 @@ const fetchPortal = async () => {
           <StatWidget
             icon={BookOpen}
             label="Knowledge Base"
-            count="View All"
+            count={data.article_count || 0}
             onClick={() => portalNav('/portal/wiki')}
             isNaked={theme.isNaked}
           />
