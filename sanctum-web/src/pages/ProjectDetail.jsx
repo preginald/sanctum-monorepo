@@ -174,7 +174,7 @@ export default function ProjectDetail() {
 
           {/* HEALTH SUMMARY */}
           <div className="p-5 bg-slate-900 border border-slate-700 rounded-xl">
-            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
               <BarChart2 size={14} /> Project Health
             </h3>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
