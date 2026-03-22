@@ -138,6 +138,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
                     labelKey="name"
                     subLabelKey="type"
                     icon={Building}
+                    displaySelected={true}
                 />
                 {form.account_id && (
                     <div className="mt-2 text-right">
@@ -215,6 +216,7 @@ export default function TicketCreateModal({ isOpen, onClose, onSuccess, preselec
                         labelKey="title"
                         subLabelKey="subtitle"
                         icon={Briefcase}
+                        displaySelected={true}
                     />
                     {form.milestone_id && (
                         <button type="button" onClick={() => setForm({...form, milestone_id: ''})} className="text-[10px] text-red-400 mt-1 hover:underline">

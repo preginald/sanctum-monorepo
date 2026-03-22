@@ -7,7 +7,6 @@ import api from '../lib/api';
 import useAuthStore from '../store/authStore';
 import ConfirmationModal from '../components/ui/ConfirmationModal';
 import { useToast } from '../context/ToastContext';
-import SearchableSelect from '../components/ui/SearchableSelect';
 import SendNotificationForm from '../components/ui/SendNotificationForm';
 import { PAYMENT_METHODS } from '../lib/constants';
 import RenewalModal from '../components/ui/RenewalModal';

@@ -252,7 +252,7 @@ if (!isEditing) {
         </div>
 
         <div className="grid grid-cols-2 gap-6 p-4 bg-slate-800/50 rounded border border-slate-700">
-            <div><label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Project / Milestone</label><SearchableSelect items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, title: m.name, subtitle: p.name })))} selectedIds={formData.milestone_id ? [formData.milestone_id] : []} onSelect={(item) => setFormData({...formData, milestone_id: item.id})} placeholder="Search Project..." labelKey="title" subLabelKey="subtitle" icon={Briefcase} /></div>
+            <div><label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Project / Milestone</label><SearchableSelect items={accountProjects.flatMap(p => p.milestones.map(m => ({ id: m.id, title: m.name, subtitle: p.name })))} selectedIds={formData.milestone_id ? [formData.milestone_id] : []} onSelect={(item) => setFormData({...formData, milestone_id: item.id})} placeholder="Search Project..." labelKey="title" subLabelKey="subtitle" icon={Briefcase} displaySelected={true} /></div>
             <div>
               <label className="block text-xs uppercase opacity-50 mb-1 text-blue-400">Contacts</label>
               <SearchableSelect items={contactOptions} selectedIds={formData.contact_ids || []} onSelect={handleAddContact} placeholder="Add Contact..." labelKey="title" subLabelKey="subtitle" icon={User} />
