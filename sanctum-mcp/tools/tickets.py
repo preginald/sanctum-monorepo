@@ -84,14 +84,18 @@ async def ticket_list(
 
 
 @mcp.tool()
-async def ticket_show(ticket_id: int, quiet: bool = False) -> str:
+async def ticket_show(ticket_id: int, quiet: bool = False, expand: str = None) -> str:
     """Show details for a single ticket by ID.
 
     Args:
         ticket_id: The ticket number.
         quiet: Set true to suppress delivery hints (useful for batch operations).
+        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets), 'all', or 'none'.
     """
-    result = await client.get(f"/tickets/{ticket_id}")
+    params = {}
+    if expand is not None:
+        params["expand"] = expand
+    result = await client.get(f"/tickets/{ticket_id}", params=params or None)
     if not quiet and isinstance(result, dict):
         result["delivery_hints"] = _compute_delivery_hints(result)
     return json.dumps(result, indent=2)

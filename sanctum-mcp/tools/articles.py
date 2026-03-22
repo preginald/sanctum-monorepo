@@ -20,13 +20,17 @@ async def article_list() -> str:
 
 
 @mcp.tool()
-async def article_show(slug: str) -> str:
+async def article_show(slug: str, expand: str = None) -> str:
     """Show an article by slug or identifier (e.g. DOC-009, SOP-099).
 
     Args:
         slug: Article slug or identifier.
+        expand: Comma-separated fields to expand (history,related_articles,artefacts), 'all', or 'none'.
     """
-    result = await client.get(f"/articles/{slug}")
+    params = {}
+    if expand is not None:
+        params["expand"] = expand
+    result = await client.get(f"/articles/{slug}", params=params or None)
     return json.dumps(result, indent=2)
 
 

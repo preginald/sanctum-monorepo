@@ -37,13 +37,17 @@ async def project_list(
 
 
 @mcp.tool()
-async def project_show(project_id: str) -> str:
+async def project_show(project_id: str, expand: str = None) -> str:
     """Show details for a project by UUID.
 
     Args:
         project_id: UUID of the project.
+        expand: Comma-separated fields to expand (milestones,artefacts), 'all', or 'none'.
     """
-    result = await client.get(f"/projects/{project_id}")
+    params = {}
+    if expand is not None:
+        params["expand"] = expand
+    result = await client.get(f"/projects/{project_id}", params=params or None)
     return json.dumps(result, indent=2)
 
 
