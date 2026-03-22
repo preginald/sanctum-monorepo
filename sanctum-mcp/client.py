@@ -4,13 +4,10 @@ Uses a shared httpx.AsyncClient with connection pooling to avoid
 per-request TCP/TLS overhead. Includes retry with backoff for
 transient errors (connection resets, 502/503/504).
 
-Supports per-request token override via context var (set by middleware
-when an incoming MCP request carries a Bearer token). Falls back to
-SANCTUM_API_TOKEN env var.
+Authenticates to the core API using the SANCTUM_API_TOKEN env var.
 """
 
 import asyncio
-import contextvars
 import logging
 import os
 
@@ -24,20 +21,12 @@ log = logging.getLogger(__name__)
 API_BASE = os.getenv("SANCTUM_API_BASE", "https://core.digitalsanctum.com.au/api")
 API_TOKEN = os.getenv("SANCTUM_API_TOKEN", "")
 
-# Per-request token override — set by auth middleware from incoming Authorization header
-request_token: contextvars.ContextVar[str] = contextvars.ContextVar("request_token", default="")
-
 _TIMEOUT = httpx.Timeout(30, connect=10)
 _LIMITS = httpx.Limits(max_connections=20, max_keepalive_connections=10)
 _MAX_RETRIES = 3
 _RETRY_STATUSES = {502, 503, 504}
 
 _client: httpx.AsyncClient | None = None
-
-
-def _active_token() -> str:
-    """Return the per-request token if set, otherwise the env var token."""
-    return request_token.get() or API_TOKEN
 
 
 async def _get_client() -> httpx.AsyncClient:
@@ -55,7 +44,7 @@ async def _request(method: str, path: str, **kwargs) -> httpx.Response:
     """Execute an HTTP request with retry on transient errors."""
     client = await _get_client()
     kwargs.setdefault("headers", {})
-    kwargs["headers"]["Authorization"] = f"Bearer {_active_token()}"
+    kwargs["headers"]["Authorization"] = f"Bearer {API_TOKEN}"
     kwargs["headers"]["Content-Type"] = "application/json"
     last_exc: Exception | None = None
     for attempt in range(_MAX_RETRIES):

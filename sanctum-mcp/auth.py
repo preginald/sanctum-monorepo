@@ -215,13 +215,6 @@ class OAuthMiddleware:
         if path == "/register" and method == "POST":
             return await self._handle_register(scope, receive, send)
 
-        # --- Extract Bearer token for API passthrough (always, even if auth disabled) ---
-        raw_headers = dict(scope.get("headers", []))
-        raw_auth = raw_headers.get(b"authorization", b"").decode()
-        if raw_auth.startswith("Bearer "):
-            from client import request_token
-            request_token.set(raw_auth[7:])
-
         # --- Skip auth if disabled ---
         if not MCP_AUTH_ENABLED:
             return await self.app(scope, receive, send)
