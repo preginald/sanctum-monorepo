@@ -53,6 +53,31 @@ def get_project_detail(project_id: str, db: Session = Depends(get_db)):
     project = db.query(models.Project).options(joinedload(models.Project.milestones).selectinload(models.Milestone.tickets), joinedload(models.Project.account)).filter(models.Project.id == project_id).first()
     if not project: raise HTTPException(status_code=404, detail="Project not found")
     project.account_name = project.account.name
+
+    # Annotate tickets with time entry cost aggregates (avoids N+1)
+    ticket_ids = [t.id for m in project.milestones for t in m.tickets]
+    if ticket_ids:
+        TE = models.TicketTimeEntry
+        cost_data = db.query(
+            TE.ticket_id,
+            func.sum(func.extract('epoch', TE.end_time - TE.start_time) / 3600).label('hours'),
+            func.sum(
+                func.coalesce(models.Product.unit_price, 0) *
+                func.extract('epoch', TE.end_time - TE.start_time) / 3600
+            ).label('cost'),
+            func.count(1).filter(TE.product_id.is_(None)).label('unpriced'),
+        ).outerjoin(models.Product, TE.product_id == models.Product.id).filter(
+            TE.ticket_id.in_(ticket_ids)
+        ).group_by(TE.ticket_id).all()
+        cost_map = {r.ticket_id: r for r in cost_data}
+        for ms in project.milestones:
+            for t in ms.tickets:
+                row = cost_map.get(t.id)
+                if row:
+                    t.__dict__['total_hours'] = round(float(row.hours or 0), 2)
+                    t.__dict__['total_cost'] = Decimal(str(round(float(row.cost or 0), 2)))
+                    t.__dict__['unpriced_entries'] = int(row.unpriced or 0)
+
     # Attach linked artefacts
     artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
         models.ArtefactLink.linked_entity_type == "project",

@@ -121,6 +121,9 @@ export default function ProjectDetail() {
   const totalBilled = project.milestones?.reduce((sum, m) => m.invoice_id ? sum + parseFloat(m.billable_amount || 0) : sum, 0) || 0;
   const totalBillable = project.milestones?.reduce((sum, m) => sum + parseFloat(m.billable_amount || 0), 0) || 0;
   const overallPct = totalTickets > 0 ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
+  const totalHours = allTickets.reduce((sum, t) => sum + (t.total_hours || 0), 0);
+  const totalInternalCost = allTickets.reduce((sum, t) => sum + parseFloat(t.total_cost || 0), 0);
+  const totalUnpriced = allTickets.reduce((sum, t) => sum + (t.unpriced_entries || 0), 0);
 
   const visibleMilestones = project.milestones?.filter(ms =>
     showCompletedMs ? true : ms.status !== 'completed'
@@ -278,6 +281,17 @@ export default function ProjectDetail() {
                         </div>
                       )}
                     </div>
+
+                    {/* COST SUMMARY */}
+                    {(() => {
+                      const msHours = (ms.tickets || []).reduce((s, t) => s + (t.total_hours || 0), 0);
+                      const msCost = (ms.tickets || []).reduce((s, t) => s + parseFloat(t.total_cost || 0), 0);
+                      return msHours > 0 ? (
+                        <span className="text-[10px] font-mono opacity-40 shrink-0 whitespace-nowrap">
+                          {msHours.toFixed(1)}h · ${msCost.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                      ) : null;
+                    })()}
 
                     {/* STATUS + BILLING */}
                     <div className="flex items-center gap-2 shrink-0">
