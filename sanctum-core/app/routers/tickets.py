@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
@@ -12,7 +11,7 @@ from ..services.ticket_validation import validate_ticket_description, validate_t
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
 from ..services.cascade import cascade_from_ticket
-from ..services.expand import ExpandConfig, get_expand_config, filter_response
+from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -164,8 +163,7 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, expand: Expan
     response_data.related_ticket_count = len(response_data.related_tickets)
 
     result = jsonable_encoder(response_data)
-    filtered = filter_response(result, expand, "ticket")
-    return JSONResponse(content=filtered)
+    return expanded_response(result, expand, "ticket")
 
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
 def update_ticket(

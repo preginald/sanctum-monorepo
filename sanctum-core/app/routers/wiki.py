@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from .. import models, schemas, auth
@@ -10,7 +9,7 @@ from uuid import UUID
 import re
 import os
 from ..services.content_engine import resolve_content
-from ..services.expand import ExpandConfig, get_expand_config, filter_response
+from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 
 router = APIRouter(tags=["Wiki"])
 
@@ -175,8 +174,7 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         response_data.content = resolve_content(db, response_data.content, inline_mode=True)
 
     result = jsonable_encoder(response_data)
-    filtered = filter_response(result, expand, "article")
-    return JSONResponse(content=filtered)
+    return expanded_response(result, expand, "article")
 
 @router.post("/articles", response_model=schemas.ArticleResponse)
 def create_article(article: schemas.ArticleCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):

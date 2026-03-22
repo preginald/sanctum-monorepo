@@ -10,7 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
+import json
+
 from fastapi import Depends, HTTPException, Query, Request
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -164,3 +167,29 @@ def filter_response(
             del data[field_name]
 
     return data
+
+
+def _estimate_tokens(data: dict) -> int:
+    """Rough token estimate: ~4 chars per token in JSON."""
+    return len(json.dumps(data, default=str)) // 4
+
+
+def expanded_response(
+    data: dict,
+    expand: ExpandConfig,
+    entity_type: str,
+) -> JSONResponse:
+    """Filter response and return JSONResponse with observability headers."""
+    filtered = filter_response(data, expand, entity_type)
+
+    # Build X-Expand-Applied header
+    expandable = EXPANDABLE_FIELDS.get(entity_type, set())
+    applied = sorted(f for f in expandable if expand.should_expand(f))
+
+    headers = {
+        "X-Consumer-Type": expand.consumer_type,
+        "X-Expand-Applied": ",".join(applied) if applied else "none",
+        "X-Response-Tokens": str(_estimate_tokens(filtered)),
+    }
+
+    return JSONResponse(content=filtered, headers=headers)

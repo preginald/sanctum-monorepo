@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
-from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, text as sa_text
 from typing import List, Optional
@@ -11,7 +10,7 @@ from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
 from ..services.project_validation import validate_project_transition, get_available_transitions as get_project_transitions
 from ..services.cascade import cascade_from_milestone
-from ..services.expand import ExpandConfig, get_expand_config, filter_response
+from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -120,8 +119,7 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
     response_data = jsonable_encoder(schemas.ProjectResponse.model_validate(project))
     response_data["milestone_count"] = milestone_count
     response_data["artefact_count"] = artefact_count
-    filtered = filter_response(response_data, expand, "project")
-    return JSONResponse(content=filtered)
+    return expanded_response(response_data, expand, "project")
 
 @router.post("/projects", response_model=schemas.ProjectResponse)
 def create_project(project: schemas.ProjectCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
@@ -321,8 +319,7 @@ def get_milestone_detail(milestone_id: str, expand: ExpandConfig = Depends(get_e
     )
 
     response_data = jsonable_encoder(ms_response)
-    filtered = filter_response(response_data, expand, "milestone")
-    return JSONResponse(content=filtered)
+    return expanded_response(response_data, expand, "milestone")
 
 @router.get("/projects/{project_id}/artefacts", response_model=List[schemas.ArtefactLite])
 def project_artefacts(project_id: str, db: Session = Depends(get_db)):
