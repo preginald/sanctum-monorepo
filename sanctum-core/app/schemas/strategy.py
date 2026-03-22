@@ -123,6 +123,9 @@ class TicketBrief(SanctumBase):
     description: Optional[str] = None
     has_articles: bool = False
     related_tickets: List[TicketRelationResponse] = []
+    total_hours: float = 0.0
+    total_cost: Decimal = Decimal("0.00")
+    unpriced_entries: int = 0
 
     @model_validator(mode="before")
     @classmethod
