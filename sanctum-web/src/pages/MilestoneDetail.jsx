@@ -4,7 +4,7 @@ import Layout from '../components/Layout';
 import { handleSmartWrap } from '../lib/textUtils';
 import {
   Loader2, Plus, Receipt, Flag, X, Clipboard, Edit2,
-  Hash, DollarSign, Calendar, FileText, Clock
+  Hash, DollarSign, Calendar, FileText, Clock, BarChart2
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -102,6 +102,7 @@ export default function MilestoneDetail() {
   const totalInternalCost = milestone.tickets?.reduce((s, t) => s + parseFloat(t.total_cost || 0), 0) || 0;
   const totalUnpriced = milestone.tickets?.reduce((s, t) => s + (t.unpriced_entries || 0), 0) || 0;
   const hasDeliveryCost = totalHours > 0;
+  const completionPct = totalTickets > 0 ? Math.round((resolvedTickets / totalTickets) * 100) : 0;
 
   const editButton = (
     <button
@@ -179,6 +180,47 @@ export default function MilestoneDetail() {
 
         {/* PRIMARY COLUMN */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* HEALTH SUMMARY */}
+          <div className="p-5 bg-slate-900 border border-slate-700 rounded-xl">
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
+              <BarChart2 size={14} /> Milestone Health
+            </h3>
+            <div className={`grid ${hasDeliveryCost ? 'grid-cols-4' : 'grid-cols-3'} gap-3 mb-4`}>
+              <div className="bg-black/30 rounded-lg p-3 text-center">
+                <p className="text-[10px] uppercase opacity-50 font-bold mb-1">Tickets</p>
+                <p className="text-2xl font-bold text-white">{totalTickets}</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 text-center">
+                <p className="text-[10px] uppercase opacity-50 font-bold mb-1">Resolved</p>
+                <p className="text-2xl font-bold text-green-400">{resolvedTickets}</p>
+              </div>
+              <div className="bg-black/30 rounded-lg p-3 text-center">
+                <p className="text-[10px] uppercase opacity-50 font-bold mb-1">Complete</p>
+                <p className="text-2xl font-bold text-white">{completionPct}%</p>
+              </div>
+              {hasDeliveryCost && (
+                <div className="bg-black/30 rounded-lg p-3 text-center">
+                  <p className="text-[10px] uppercase opacity-50 font-bold mb-1">Hours</p>
+                  <p className="text-2xl font-bold text-white">{totalHours.toFixed(1)}</p>
+                </div>
+              )}
+            </div>
+            {totalTickets > 0 && (
+              <>
+                <div className="mb-1 flex justify-between text-xs opacity-50">
+                  <span>Completion</span>
+                  <span>{completionPct}%</span>
+                </div>
+                <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${resolvedTickets === totalTickets ? 'bg-green-500' : 'bg-sanctum-gold/60'}`}
+                    style={{ width: `${completionPct}%` }}
+                  />
+                </div>
+              </>
+            )}
+          </div>
 
           {/* TICKET LIST */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-6">
