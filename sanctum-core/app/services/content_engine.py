@@ -76,11 +76,11 @@ def resolve_content(db: Session, text: str, portal_mode: bool = False, inline_mo
         else:
             header_link = f'<a href="/wiki/{article.slug}" class="ds-portal-link">{article.title}</a>'
         return (
-            f'\n<div class="ds-embed my-4 rounded-lg border border-white/10 bg-black/20 overflow-hidden" data-identifier="{article.identifier or article.slug}">\n'
-            f'  <div class="ds-embed-header px-4 py-2 bg-white/5 border-b border-white/10 text-xs font-bold">\n'
+            f'\n<div class="ds-embed" data-identifier="{article.identifier or article.slug}">\n'
+            f'  <div class="ds-embed-header">\n'
             f'    {header_link}\n'
             f'  </div>\n'
-            f'  <div class="ds-embed-text p-4">\n\n'
+            f'  <div class="ds-embed-content">\n\n'
             f'{embedded_text}\n\n'
             f'  </div>\n'
             f'</div>\n'
