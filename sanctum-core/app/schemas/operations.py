@@ -161,6 +161,14 @@ class TicketResponse(TicketCreate):
     related_tickets: List[TicketRelationResponse] = []
     comments: List[CommentResponse] = []
 
+    # Expand contract count fields (SYS-032)
+    comment_count: Optional[int] = None
+    article_count: Optional[int] = None
+    artefact_count: Optional[int] = None
+    time_entry_count: Optional[int] = None
+    material_count: Optional[int] = None
+    related_ticket_count: Optional[int] = None
+
     total_hours: float = 0.0
     resolution_comment_id: Optional[UUID] = None
     no_billable: bool = False

@@ -72,6 +72,10 @@ class ArticleResponse(ArticleCreate):
     history: list[ArticleHistoryResponse] = []
     related_articles: list[RelatedArticleResponse] = []
     artefacts: List[ArtefactLite] = []
+    # Expand contract count fields (SYS-032)
+    revision_count: Optional[int] = None
+    related_article_count: Optional[int] = None
+    artefact_count: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

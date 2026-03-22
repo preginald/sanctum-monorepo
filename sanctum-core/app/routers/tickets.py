@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
@@ -10,6 +11,7 @@ from ..services.ticket_validation import validate_ticket_description, validate_t
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
 from ..services.cascade import cascade_from_ticket
+from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -88,7 +90,7 @@ def create_ticket(
 
 
 @router.get("/{ticket_id}", response_model=schemas.TicketResponse)
-def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session = Depends(get_db)):
+def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
     ticket = base_ticket_query(db).filter(models.Ticket.id == ticket_id).first()
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -127,7 +129,7 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session =
         ))
     response_data.related_tickets = related
 
-    # Load linked artefacts (graceful if table doesn't exist yet)
+    # Load linked artefacts
     try:
         artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
             models.ArtefactLink.linked_entity_type == "ticket",
@@ -152,7 +154,16 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, db: Session =
         except Exception as e:
             print(f"Content Engine failed: {e}")
 
-    return response_data
+    # Populate count fields before filtering
+    response_data.comment_count = len(response_data.comments)
+    response_data.article_count = len(response_data.articles)
+    response_data.artefact_count = len(response_data.artefacts)
+    response_data.time_entry_count = len(response_data.time_entries)
+    response_data.material_count = len(response_data.materials)
+    response_data.related_ticket_count = len(response_data.related_tickets)
+
+    result = jsonable_encoder(response_data)
+    return expanded_response(result, expand, "ticket")
 
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
 def update_ticket(
