@@ -153,6 +153,8 @@ class MilestoneResponse(MilestoneCreate):
     account_name: Optional[str] = None
     tickets: List[TicketBrief] = []
     artefacts: List[ArtefactLite] = []
+    # Expand contract count fields (SYS-032)
+    ticket_count: Optional[int] = None
     available_transitions: List[str] = []
 
 class ProjectCreate(SanctumBase):
@@ -188,6 +190,9 @@ class ProjectResponse(ProjectCreate):
     status: str
     milestones: List[MilestoneResponse] = []
     artefacts: List[ArtefactLite] = []
+    # Expand contract count fields (SYS-032)
+    milestone_count: Optional[int] = None
+    artefact_count: Optional[int] = None
     available_transitions: List[str] = []
 
 VALID_RATE_TIERS = {"project_delivery", "reactive", "consulting", "internal"}
