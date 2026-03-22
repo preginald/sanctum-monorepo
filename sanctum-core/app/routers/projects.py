@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func, text as sa_text
 from typing import List, Optional
@@ -9,6 +11,7 @@ from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
 from ..services.project_validation import validate_project_transition, get_available_transitions as get_project_transitions
 from ..services.cascade import cascade_from_milestone
+from ..services.expand import ExpandConfig, get_expand_config, filter_response
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -49,46 +52,76 @@ def get_projects(account_id: Optional[str] = None, current_user: models.User = D
     return projects
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
-def get_project_detail(project_id: str, db: Session = Depends(get_db)):
-    project = db.query(models.Project).options(joinedload(models.Project.milestones).selectinload(models.Milestone.tickets), joinedload(models.Project.account)).filter(models.Project.id == project_id).first()
+def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
+    # Skip expensive milestone/ticket joinedload when not expanding
+    if expand.should_expand("milestones"):
+        project = db.query(models.Project).options(
+            joinedload(models.Project.milestones).selectinload(models.Milestone.tickets),
+            joinedload(models.Project.account),
+        ).filter(models.Project.id == project_id).first()
+    else:
+        project = db.query(models.Project).options(
+            joinedload(models.Project.account),
+        ).filter(models.Project.id == project_id).first()
+
     if not project: raise HTTPException(status_code=404, detail="Project not found")
     project.account_name = project.account.name
 
-    # Annotate tickets with time entry cost aggregates (avoids N+1)
-    ticket_ids = [t.id for m in project.milestones for t in m.tickets]
-    if ticket_ids:
-        TE = models.TicketTimeEntry
-        cost_data = db.query(
-            TE.ticket_id,
-            func.sum(func.extract('epoch', TE.end_time - TE.start_time) / 3600).label('hours'),
-            func.sum(
-                func.coalesce(models.Product.unit_price, 0) *
-                func.extract('epoch', TE.end_time - TE.start_time) / 3600
-            ).label('cost'),
-            func.count(1).filter(TE.product_id.is_(None)).label('unpriced'),
-        ).outerjoin(models.Product, TE.product_id == models.Product.id).filter(
-            TE.ticket_id.in_(ticket_ids)
-        ).group_by(TE.ticket_id).all()
-        cost_map = {r.ticket_id: r for r in cost_data}
-        for ms in project.milestones:
-            for t in ms.tickets:
-                row = cost_map.get(t.id)
-                if row:
-                    t.__dict__['total_hours'] = round(float(row.hours or 0), 2)
-                    t.__dict__['total_cost'] = Decimal(str(round(float(row.cost or 0), 2)))
-                    t.__dict__['unpriced_entries'] = int(row.unpriced or 0)
+    # Annotate tickets with time entry cost aggregates (only when milestones expanded)
+    if expand.should_expand("milestones"):
+        ticket_ids = [t.id for m in project.milestones for t in m.tickets]
+        if ticket_ids:
+            TE = models.TicketTimeEntry
+            cost_data = db.query(
+                TE.ticket_id,
+                func.sum(func.extract('epoch', TE.end_time - TE.start_time) / 3600).label('hours'),
+                func.sum(
+                    func.coalesce(models.Product.unit_price, 0) *
+                    func.extract('epoch', TE.end_time - TE.start_time) / 3600
+                ).label('cost'),
+                func.count(1).filter(TE.product_id.is_(None)).label('unpriced'),
+            ).outerjoin(models.Product, TE.product_id == models.Product.id).filter(
+                TE.ticket_id.in_(ticket_ids)
+            ).group_by(TE.ticket_id).all()
+            cost_map = {r.ticket_id: r for r in cost_data}
+            for ms in project.milestones:
+                for t in ms.tickets:
+                    row = cost_map.get(t.id)
+                    if row:
+                        t.__dict__['total_hours'] = round(float(row.hours or 0), 2)
+                        t.__dict__['total_cost'] = Decimal(str(round(float(row.cost or 0), 2)))
+                        t.__dict__['unpriced_entries'] = int(row.unpriced or 0)
 
-    # Attach linked artefacts
-    artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
-        models.ArtefactLink.linked_entity_type == "project",
-        models.ArtefactLink.linked_entity_id == str(project_id),
-    ).all()
-    ids = [r[0] for r in artefact_ids]
-    project.artefacts = db.query(models.Artefact).filter(
-        models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
-    ).all() if ids else []
+    # Attach linked artefacts (only when expanding)
+    if expand.should_expand("artefacts"):
+        artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
+            models.ArtefactLink.linked_entity_type == "project",
+            models.ArtefactLink.linked_entity_id == str(project_id),
+        ).all()
+        ids = [r[0] for r in artefact_ids]
+        project.artefacts = db.query(models.Artefact).filter(
+            models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
+        ).all() if ids else []
+
     project.available_transitions = get_project_transitions(project.status, db)
-    return project
+
+    # Compute counts before filtering (need full data for accurate counts)
+    milestone_count = len(project.milestones) if hasattr(project, 'milestones') and project.milestones else (
+        db.query(func.count(models.Milestone.id)).filter(models.Milestone.project_id == project_id).scalar()
+    )
+    artefact_count = len(project.artefacts) if hasattr(project, 'artefacts') and project.artefacts else (
+        db.query(func.count(models.ArtefactLink.id)).filter(
+            models.ArtefactLink.linked_entity_type == "project",
+            models.ArtefactLink.linked_entity_id == str(project_id),
+        ).scalar()
+    )
+
+    # Serialise, filter, and return
+    response_data = jsonable_encoder(schemas.ProjectResponse.model_validate(project))
+    response_data["milestone_count"] = milestone_count
+    response_data["artefact_count"] = artefact_count
+    filtered = filter_response(response_data, expand, "project")
+    return JSONResponse(content=filtered)
 
 @router.post("/projects", response_model=schemas.ProjectResponse)
 def create_project(project: schemas.ProjectCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
@@ -191,7 +224,7 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
     return ms
 
 @router.get("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
-def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
+def get_milestone_detail(milestone_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
     ms = db.query(models.Milestone).options(
         joinedload(models.Milestone.tickets),
         joinedload(models.Milestone.project).joinedload(models.Project.account)
@@ -216,7 +249,6 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
             WHERE tr.ticket_id = ANY(:tids) OR tr.related_id = ANY(:tids)
         """), {"tids": ticket_ids}).fetchall()
 
-        # Group relations by ticket
         from collections import defaultdict
         rel_map = defaultdict(list)
         for row in relations_raw:
@@ -227,7 +259,6 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
                         relation_type = "blocked_by"
                     elif row.relation_type == "duplicates" and row.source_id != tid:
                         relation_type = "duplicate_of"
-                    # Don't add self-references
                     if row.id != tid:
                         rel_map[tid].append(schemas.TicketRelationResponse(
                             id=row.id, subject=row.subject, status=row.status,
@@ -235,7 +266,6 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
                             relation_type=relation_type, visibility=row.visibility
                         ))
 
-    # Build ticket briefs manually to avoid ORM related_tickets serialisation
     # Check which tickets have linked articles
     article_tids = set()
     if ticket_ids:
@@ -270,7 +300,7 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
         models.Artefact.id.in_(art_ids), models.Artefact.is_deleted == False
     ).all() if art_ids else []
 
-    return schemas.MilestoneResponse(
+    ms_response = schemas.MilestoneResponse(
         id=ms.id,
         name=ms.name,
         due_date=ms.due_date,
@@ -286,8 +316,13 @@ def get_milestone_detail(milestone_id: str, db: Session = Depends(get_db)):
         account_name=ms.project.account.name if ms.project and ms.project.account else None,
         tickets=ticket_briefs,
         artefacts=artefact_list,
+        ticket_count=len(ticket_briefs),
         available_transitions=get_milestone_transitions(ms.status, db),
     )
+
+    response_data = jsonable_encoder(ms_response)
+    filtered = filter_response(response_data, expand, "milestone")
+    return JSONResponse(content=filtered)
 
 @router.get("/projects/{project_id}/artefacts", response_model=List[schemas.ArtefactLite])
 def project_artefacts(project_id: str, db: Session = Depends(get_db)):

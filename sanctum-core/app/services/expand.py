@@ -10,9 +10,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Optional
 
-from fastapi import Depends, Query, Request
+from fastapi import Depends, HTTPException, Query, Request
+from sqlalchemy.orm import Session
 
-from ..auth import get_current_active_user
+from ..auth import get_current_user
+from ..database import get_db
 from .. import models
 
 
@@ -34,7 +36,7 @@ class ExpandConfig:
 
     fields: set[str] = field(default_factory=set)
     expand_all: bool = False
-    consumer_type: str = "human"  # "human", "service", "api"
+    consumer_type: str = "human"  # "human", "service"
     raw_param: Optional[str] = None
 
     def should_expand(self, field_name: str) -> bool:
@@ -44,33 +46,40 @@ class ExpandConfig:
         return field_name in self.fields
 
 
-def _detect_consumer_type(user: models.User) -> str:
+def _detect_consumer_type(user: Optional[models.User]) -> str:
     """Determine consumer type from authenticated user."""
+    if user is None:
+        return "human"
     if user.user_type == "service":
         return "service"
     return "human"
 
 
 def _default_expand_all(consumer_type: str) -> bool:
-    """Human users get expand=all by default; service/api get expand=none."""
+    """Human users get expand=all by default; service accounts get expand=none."""
     return consumer_type == "human"
 
 
-def get_expand_config(
-    expand: Optional[str] = Query(
-        None,
-        description=(
-            "Comma-separated fields to expand, 'all' for everything, "
-            "'none' for lean response. Omit for consumer-aware default."
-        ),
-    ),
-    current_user: models.User = Depends(get_current_active_user),
-) -> ExpandConfig:
-    """FastAPI dependency that parses the ?expand= query parameter."""
-    consumer_type = _detect_consumer_type(current_user)
+def _get_optional_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> Optional[models.User]:
+    """Soft auth — returns user if a valid token is present, None otherwise."""
+    auth_header = request.headers.get("authorization", "")
+    if not auth_header.lower().startswith("bearer "):
+        return None
+    token = auth_header[7:]
+    if not token:
+        return None
+    try:
+        return get_current_user(token=token, db=db)
+    except HTTPException:
+        return None
 
+
+def _parse_expand(expand: Optional[str], consumer_type: str) -> ExpandConfig:
+    """Parse the raw expand query parameter into an ExpandConfig."""
     if expand is None:
-        # Consumer-aware default
         return ExpandConfig(
             expand_all=_default_expand_all(consumer_type),
             consumer_type=consumer_type,
@@ -94,7 +103,6 @@ def get_expand_config(
             raw_param=expand,
         )
 
-    # Comma-separated field names
     fields = {f.strip() for f in raw.split(",") if f.strip()}
     return ExpandConfig(
         fields=fields,
@@ -102,6 +110,21 @@ def get_expand_config(
         consumer_type=consumer_type,
         raw_param=expand,
     )
+
+
+def get_expand_config(
+    expand: Optional[str] = Query(
+        None,
+        description=(
+            "Comma-separated fields to expand, 'all' for everything, "
+            "'none' for lean response. Omit for consumer-aware default."
+        ),
+    ),
+    current_user: Optional[models.User] = Depends(_get_optional_user),
+) -> ExpandConfig:
+    """FastAPI dependency that parses ?expand= with optional consumer detection."""
+    consumer_type = _detect_consumer_type(current_user)
+    return _parse_expand(expand, consumer_type)
 
 
 def filter_response(
