@@ -155,6 +155,8 @@ async def ticket_update(
     ticket_type: str | None = None,
     milestone_id: str | None = None,
     resolution_comment_id: str | None = None,
+    no_billable: bool = False,
+    no_billable_reason: str | None = None,
     skip_validation: bool = False,
 ) -> str:
     """Update an existing ticket. Only provided fields are changed.
@@ -168,6 +170,8 @@ async def ticket_update(
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         milestone_id: UUID of the milestone.
         resolution_comment_id: UUID of the comment to link as resolution.
+        no_billable: Skip time entry gate for this ticket (default false).
+        no_billable_reason: Required justification when no_billable is true.
         skip_validation: Set true to bypass description template validation.
     """
     payload = {}
@@ -185,6 +189,9 @@ async def ticket_update(
         payload["milestone_id"] = milestone_id
     if resolution_comment_id is not None:
         payload["resolution_comment_id"] = resolution_comment_id
+    if no_billable:
+        payload["no_billable"] = True
+        payload["no_billable_reason"] = no_billable_reason
     if skip_validation:
         payload["skip_validation"] = True
     result = await client.put(f"/tickets/{ticket_id}", json=payload)
