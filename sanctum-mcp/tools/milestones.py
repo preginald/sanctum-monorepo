@@ -57,12 +57,14 @@ async def milestone_show(milestone_id: str, quiet: bool = False, expand: str = N
 
     Args:
         milestone_id: UUID of the milestone.
-        quiet: Set true to suppress health check (useful for batch operations).
-        expand: Comma-separated fields to expand (ticket_descriptions,health_check), 'all', or 'none'.
+        quiet: Set true to suppress health check (useful for batch operations). Also sets expand=none if expand is not explicitly provided.
+        expand: Comma-separated fields to expand (ticket_descriptions,health_check), 'all', or 'none'. Overrides quiet when both are provided.
     """
     params = {}
     if expand is not None:
         params["expand"] = expand
+    elif quiet:
+        params["expand"] = "none"
     result = await client.get(f"/milestones/{milestone_id}", params=params or None)
     if not quiet and isinstance(result, dict):
         result["health_check"] = _compute_health_check(result)

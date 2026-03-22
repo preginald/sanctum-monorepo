@@ -21,13 +21,17 @@ async def product_list(product_type: str | None = None) -> str:
 
 
 @mcp.tool()
-async def product_show(product_id: str) -> str:
+async def product_show(product_id: str, expand: str = None) -> str:
     """Show details for a single product/service.
 
     Args:
         product_id: UUID of the product.
+        expand: Comma-separated fields to expand, 'all', or 'none'. No expandable fields defined yet — parameter accepted for forward compatibility.
     """
-    result = await client.get(f"/products/{product_id}")
+    params = {}
+    if expand is not None:
+        params["expand"] = expand
+    result = await client.get(f"/products/{product_id}", params=params or None)
     return json.dumps(result, indent=2)
 
 
