@@ -22,7 +22,7 @@ start_server() {
     fi
 
     cd "$MCP_DIR"
-    MCP_PORT="$PORT" MCP_AUTH_ENABLED=false \
+    MCP_PORT="$PORT" MCP_AUTH_ENABLED=false MCP_RELOAD=true \
         "$MCP_DIR/venv/bin/python" "$MCP_DIR/server.py" &
     local pid=$!
     echo "$pid" > "$PID_FILE"
@@ -54,11 +54,12 @@ status_server() {
 }
 
 case "${1:-start}" in
-    start)  start_server ;;
-    stop)   stop_server ;;
-    status) status_server ;;
+    start)   start_server ;;
+    stop)    stop_server ;;
+    restart) stop_server; start_server ;;
+    status)  status_server ;;
     *)
-        echo "Usage: $0 [start|stop|status]"
+        echo "Usage: $0 [start|stop|restart|status]"
         exit 1
         ;;
 esac
