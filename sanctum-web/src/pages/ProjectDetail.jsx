@@ -4,7 +4,7 @@ import Layout from '../components/Layout';
 import {
   Loader2, Plus, Receipt, Flag,
   X, Edit2, ChevronUp, ChevronDown,
-  BarChart2
+  BarChart2, Calendar
 } from 'lucide-react';
 import api from '../lib/api';
 
@@ -268,6 +268,9 @@ export default function ProjectDetail() {
                           <Edit2 size={11} />
                         </button>
                       </div>
+                      {ms.description && (
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{ms.description}</p>
+                      )}
                       {/* PROGRESS BAR */}
                       {progress.total > 0 && (
                         <div className="flex items-center gap-2 mt-1">
@@ -281,6 +284,14 @@ export default function ProjectDetail() {
                         </div>
                       )}
                     </div>
+
+                    {/* DUE DATE */}
+                    {ms.due_date && (
+                      <span className="flex items-center gap-1 text-[10px] font-mono opacity-40 shrink-0 whitespace-nowrap">
+                        <Calendar size={10} />
+                        {new Date(ms.due_date).toLocaleDateString('en-AU', { day: '2-digit', month: 'short' })}
+                      </span>
+                    )}
 
                     {/* COST SUMMARY */}
                     {(() => {
