@@ -260,7 +260,7 @@ export default function MilestoneDetail() {
 
           {/* MILESTONE PROPERTIES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
               <Flag size={14} /> Properties
             </h3>
             <div className="space-y-3">
@@ -363,7 +363,7 @@ export default function MilestoneDetail() {
 
           {/* PARENT PROJECT */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
-            <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3">Project</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-3">Project</h3>
             <Link
               to={`/projects/${milestone.project_id}`}
               className="text-sanctum-gold hover:underline font-semibold text-sm"
