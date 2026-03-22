@@ -83,13 +83,17 @@ async def artefact_list(
 
 
 @mcp.tool()
-async def artefact_show(artefact_id: str) -> str:
+async def artefact_show(artefact_id: str, expand: str = None) -> str:
     """Show details for an artefact by UUID.
 
     Args:
         artefact_id: UUID of the artefact.
+        expand: Comma-separated fields to expand, 'all', or 'none'. No expandable fields defined yet — parameter accepted for forward compatibility.
     """
-    result = await client.get(f"/artefacts/{artefact_id}")
+    params = {}
+    if expand is not None:
+        params["expand"] = expand
+    result = await client.get(f"/artefacts/{artefact_id}", params=params or None)
     return json.dumps(result, indent=2)
 
 

@@ -90,12 +90,14 @@ async def ticket_show(ticket_id: int, quiet: bool = False, expand: str = None) -
 
     Args:
         ticket_id: The ticket number.
-        quiet: Set true to suppress delivery hints (useful for batch operations).
-        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets), 'all', or 'none'.
+        quiet: Set true to suppress delivery hints (useful for batch operations). Also sets expand=none if expand is not explicitly provided.
+        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets), 'all', or 'none'. Overrides quiet when both are provided.
     """
     params = {}
     if expand is not None:
         params["expand"] = expand
+    elif quiet:
+        params["expand"] = "none"
     result = await client.get(f"/tickets/{ticket_id}", params=params or None)
     if not quiet and isinstance(result, dict):
         result["delivery_hints"] = _compute_delivery_hints(result)
