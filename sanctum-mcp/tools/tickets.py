@@ -352,3 +352,80 @@ async def ticket_delete(ticket_id: int) -> str:
     """
     result = await client.delete(f"/tickets/{ticket_id}")
     return json.dumps(result, indent=2)
+
+
+# ── Time Entry Tools ──────────────────────────────────────────────
+
+
+@mcp.tool()
+async def time_entry_create(
+    ticket_id: int,
+    start_time: str,
+    end_time: str,
+    description: str | None = None,
+    product_id: str | None = None,
+) -> str:
+    """Create a time entry on a ticket.
+
+    The backend enforces a 15-minute minimum billing increment (BUS-001 D4).
+    Times must be ISO 8601 format (e.g. '2026-03-20T10:00:00+11:00').
+
+    Args:
+        ticket_id: The ticket number.
+        start_time: Start time in ISO 8601 format.
+        end_time: End time in ISO 8601 format.
+        description: Optional description of work performed.
+        product_id: Optional UUID of the billable product/service.
+    """
+    payload: dict = {
+        "start_time": start_time,
+        "end_time": end_time,
+    }
+    if description is not None:
+        payload["description"] = description
+    if product_id is not None:
+        payload["product_id"] = product_id
+    result = await client.post(f"/tickets/{ticket_id}/time_entries", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def time_entry_update(
+    entry_id: str,
+    start_time: str | None = None,
+    end_time: str | None = None,
+    description: str | None = None,
+    product_id: str | None = None,
+) -> str:
+    """Update an existing time entry.
+
+    Args:
+        entry_id: UUID of the time entry.
+        start_time: New start time in ISO 8601 format (optional).
+        end_time: New end time in ISO 8601 format (optional).
+        description: New description (optional).
+        product_id: New product/service UUID (optional).
+    """
+    payload: dict = {}
+    if start_time is not None:
+        payload["start_time"] = start_time
+    if end_time is not None:
+        payload["end_time"] = end_time
+    if description is not None:
+        payload["description"] = description
+    if product_id is not None:
+        payload["product_id"] = product_id
+    result = await client.put(f"/time_entries/{entry_id}", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def time_entry_delete(ticket_id: int, entry_id: str) -> str:
+    """Delete a time entry from a ticket.
+
+    Args:
+        ticket_id: The ticket number.
+        entry_id: UUID of the time entry to delete.
+    """
+    result = await client.delete(f"/tickets/{ticket_id}/time_entries/{entry_id}")
+    return json.dumps(result, indent=2)
