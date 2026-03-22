@@ -8,7 +8,8 @@ set -e
 
 REMOTE="sanctum-prod"
 APP_DIR="$HOME/DigitalSanctum"
-SERVICE="sanctum-api"
+SERVICE_API="sanctum-api"
+SERVICE_MCP="sanctum-mcp"
 LOG_DIR="/var/log/sanctum"
 LOG_FILE="$LOG_DIR/deploy.log"
 DRY_RUN=false
@@ -25,7 +26,7 @@ run() {
     if [ "$DRY_RUN" = true ]; then
         echo "  [dry-run] $*"
     else
-        eval "$@"
+        "$@"
     fi
 }
 
@@ -49,16 +50,35 @@ echo "→ Checking SSH connection..."
 remote "echo ok" > /dev/null 2>&1 && echo "  ✓ SSH connection OK" || { echo "  ✗ Cannot reach $REMOTE"; exit 1; }
 
 # --- 2. Git pull (ff-only) ---
+echo "→ Capturing current commit..."
+OLD_COMMIT=$(remote "cd $APP_DIR && git rev-parse HEAD 2>&1")
 echo "→ Pulling latest code..."
 PULL_OUTPUT=$(remote "cd $APP_DIR && git pull --ff-only origin main 2>&1")
 echo "  $PULL_OUTPUT"
+UP_TO_DATE=false
 if echo "$PULL_OUTPUT" | grep -q "Already up to date"; then
     echo "  ✓ Already up to date"
+    UP_TO_DATE=true
 elif echo "$PULL_OUTPUT" | grep -qi "error\|fatal\|conflict"; then
     echo "  ✗ Git pull failed — aborting"
     exit 1
 else
     echo "  ✓ Code updated"
+fi
+
+# --- 2.5. Determine changed directories ---
+RESTART_API=false
+RESTART_MCP=false
+if [ "$UP_TO_DATE" = false ]; then
+    CHANGED_FILES=$(remote "cd $APP_DIR && git diff --name-only $OLD_COMMIT HEAD 2>&1")
+    echo "→ Changed files since last deploy:"
+    echo "  $CHANGED_FILES"
+    if echo "$CHANGED_FILES" | grep -q '^sanctum-core/'; then
+        RESTART_API=true
+    fi
+    if echo "$CHANGED_FILES" | grep -q '^sanctum-mcp/'; then
+        RESTART_MCP=true
+    fi
 fi
 
 # --- 3. Check pending migrations ---
@@ -90,10 +110,21 @@ echo "→ Building frontend..."
 run remote "cd $APP_DIR/sanctum-web && npm install --silent && npm run build 2>&1 | tail -3"
 echo "  ✓ Frontend built"
 
-# --- 6. Restart service ---
-echo "→ Restarting $SERVICE..."
-run remote "sudo systemctl restart $SERVICE"
-echo "  ✓ Service restarted"
+# --- 6. Conditional service restarts (#764) ---
+if [ "$RESTART_API" = true ]; then
+    echo "→ Restarting $SERVICE_API (sanctum-core/ changed)..."
+    run remote "sudo systemctl restart $SERVICE_API"
+    echo "  ✓ $SERVICE_API restarted"
+else
+    echo "→ Skipping $SERVICE_API restart (no sanctum-core/ changes)"
+fi
+if [ "$RESTART_MCP" = true ]; then
+    echo "→ Restarting $SERVICE_MCP (sanctum-mcp/ changed)..."
+    run remote "sudo systemctl restart $SERVICE_MCP"
+    echo "  ✓ $SERVICE_MCP restarted"
+else
+    echo "→ Skipping $SERVICE_MCP restart (no sanctum-mcp/ changes)"
+fi
 
 # --- 7. Health check ---
 echo "→ Running health check..."
@@ -102,7 +133,7 @@ HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://core.digitalsanctum
 if [ "$HTTP_STATUS" = "200" ]; then
     echo "  ✓ Health check passed (HTTP $HTTP_STATUS)"
 else
-    echo "  ✗ Health check failed (HTTP $HTTP_STATUS) — check logs: journalctl -u $SERVICE"
+    echo "  ✗ Health check failed (HTTP $HTTP_STATUS) — check logs: journalctl -u $SERVICE_API"
     exit 1
 fi
 

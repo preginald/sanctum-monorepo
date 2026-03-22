@@ -22,8 +22,28 @@ jobs:
             # 2. PULL LATEST CODE
             echo "📥 Pulling latest code..."
             cd ~/DigitalSanctum
+            OLD_COMMIT=$(git rev-parse HEAD)
             git fetch origin main
             git reset --hard origin/main
+
+            # 2.5 DETERMINE CHANGED DIRECTORIES
+            RESTART_API=false
+            RESTART_MCP=false
+            if git cat-file -t "$OLD_COMMIT" > /dev/null 2>&1; then
+                CHANGED_FILES=$(git diff --name-only "$OLD_COMMIT" HEAD)
+                echo "📋 Changed files since last deploy:"
+                echo "$CHANGED_FILES"
+                if echo "$CHANGED_FILES" | grep -q '^sanctum-core/'; then
+                    RESTART_API=true
+                fi
+                if echo "$CHANGED_FILES" | grep -q '^sanctum-mcp/'; then
+                    RESTART_MCP=true
+                fi
+            else
+                echo "⚠️ Previous commit not found — restarting all services"
+                RESTART_API=true
+                RESTART_MCP=true
+            fi
 
             # 3. UPDATE BACKEND
             echo "🐍 Updating Backend..."
@@ -35,10 +55,19 @@ jobs:
             echo "🏗️ Running Database Migrations..."
             alembic upgrade head
 
-            # Restart Services (No Sudo Password needed due to sudoers config)
-            echo "🔄 Restarting Services..."
-            sudo systemctl restart sanctum-api
-            sudo systemctl restart sanctum-mcp
+            # Conditional service restarts (#764)
+            if [ "$RESTART_API" = true ]; then
+                echo "🔄 Restarting sanctum-api (sanctum-core/ changed)..."
+                sudo systemctl restart sanctum-api
+            else
+                echo "⏭️ Skipping sanctum-api restart (no sanctum-core/ changes)"
+            fi
+            if [ "$RESTART_MCP" = true ]; then
+                echo "🔄 Restarting sanctum-mcp (sanctum-mcp/ changed)..."
+                sudo systemctl restart sanctum-mcp
+            else
+                echo "⏭️ Skipping sanctum-mcp restart (no sanctum-mcp/ changes)"
+            fi
 
             # 3.7 SYNC APACHE CONFIGS (#715)
             echo "🔧 Checking Apache configs..."
@@ -95,8 +124,23 @@ jobs:
             # 2. PULL LATEST CODE
             echo "📥 Pulling latest test code..."
             cd ~/DigitalSanctum-test
+            OLD_COMMIT=$(git rev-parse HEAD)
             git fetch origin test
             git reset --hard origin/test
+
+            # 2.5 DETERMINE CHANGED DIRECTORIES
+            RESTART_API=false
+            if git cat-file -t "$OLD_COMMIT" > /dev/null 2>&1; then
+                CHANGED_FILES=$(git diff --name-only "$OLD_COMMIT" HEAD)
+                echo "📋 Changed files since last deploy:"
+                echo "$CHANGED_FILES"
+                if echo "$CHANGED_FILES" | grep -q '^sanctum-core/'; then
+                    RESTART_API=true
+                fi
+            else
+                echo "⚠️ Previous commit not found — restarting all services"
+                RESTART_API=true
+            fi
 
             # 3. UPDATE BACKEND (no migrations — only main runs migrations)
             echo "🐍 Updating Backend..."
@@ -104,9 +148,13 @@ jobs:
             source venv/bin/activate
             pip install -r requirements.txt
 
-            # Restart test service
-            echo "🔄 Restarting test service..."
-            sudo systemctl restart sanctum-api-test
+            # Conditional service restart (#764)
+            if [ "$RESTART_API" = true ]; then
+                echo "🔄 Restarting sanctum-api-test (sanctum-core/ changed)..."
+                sudo systemctl restart sanctum-api-test
+            else
+                echo "⏭️ Skipping sanctum-api-test restart (no sanctum-core/ changes)"
+            fi
 
             # 3.7 SYNC APACHE CONFIGS
             echo "🔧 Checking Apache configs..."
