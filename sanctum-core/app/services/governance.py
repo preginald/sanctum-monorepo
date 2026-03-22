@@ -117,6 +117,15 @@ FALLBACK_MILESTONE_TRANSITIONS = {
     "completed": ["active"],
 }
 
+FALLBACK_PROJECT_STATUSES = ["planning", "active", "completed", "on_hold"]
+
+FALLBACK_PROJECT_TRANSITIONS = {
+    "planning":   ["active", "on_hold"],
+    "active":     ["completed", "on_hold"],
+    "completed":  ["active"],
+    "on_hold":    ["planning", "active"],
+}
+
 
 # ---------------------------------------------------------------------------
 # Typed accessors
@@ -275,3 +284,67 @@ def get_milestone_transitions(db: Session) -> dict[str, list[str]]:
         logger.warning("Governance fallback for milestone_transitions: %s", e)
         _set_cached("milestone_transitions", FALLBACK_MILESTONE_TRANSITIONS)
         return FALLBACK_MILESTONE_TRANSITIONS
+
+
+def get_allowed_project_statuses(db: Session) -> list[str]:
+    """Return allowed project statuses from SYS-030 '### Statuses' table."""
+    cached = _get_cached("project_statuses")
+    if cached is not None:
+        return cached
+
+    try:
+        content = _fetch_article_content(db, "SYS-030")
+        if not content:
+            raise ValueError("SYS-030 not found")
+        rows = _parse_table_under_heading(content, "Statuses")
+        if not rows:
+            raise ValueError("No Statuses table found in SYS-030")
+        statuses = [row[0].strip("`").strip() for row in rows]
+        if not statuses:
+            raise ValueError("Empty Statuses table")
+        _set_cached("project_statuses", statuses)
+        return statuses
+    except Exception as e:
+        logger.warning("Governance fallback for project_statuses: %s", e)
+        _set_cached("project_statuses", FALLBACK_PROJECT_STATUSES)
+        return FALLBACK_PROJECT_STATUSES
+
+
+def get_project_transitions(db: Session) -> dict[str, list[str]]:
+    """Return project status transition map from SYS-030 '### Statuses' table."""
+    cached = _get_cached("project_transitions")
+    if cached is not None:
+        return cached
+
+    try:
+        content = _fetch_article_content(db, "SYS-030")
+        if not content:
+            raise ValueError("SYS-030 not found")
+        rows = _parse_table_under_heading(content, "Statuses")
+        if not rows:
+            raise ValueError("No Statuses table found in SYS-030")
+
+        transitions: dict[str, list[str]] = {}
+        for row in rows:
+            status = row[0].strip("`").strip()
+            transitions[status] = []
+
+        for row in rows:
+            status = row[0].strip("`").strip()
+            if len(row) >= 3:
+                from_col = row[2].strip()
+                if from_col and from_col != "(initial)":
+                    sources = [s.strip().strip("`") for s in from_col.split(",")]
+                    for source in sources:
+                        source = source.strip()
+                        if source and source in transitions:
+                            transitions[source].append(status)
+
+        if not transitions:
+            raise ValueError("Empty transition map")
+        _set_cached("project_transitions", transitions)
+        return transitions
+    except Exception as e:
+        logger.warning("Governance fallback for project_transitions: %s", e)
+        _set_cached("project_transitions", FALLBACK_PROJECT_TRANSITIONS)
+        return FALLBACK_PROJECT_TRANSITIONS

@@ -9,6 +9,7 @@ from ..services.notification_service import notification_service
 from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions, validate_ticket_type, validate_ticket_priority, auto_transition_from_new, SUBSTANTIVE_FIELDS
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
+from ..services.cascade import cascade_from_ticket
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -253,6 +254,7 @@ def update_ticket(
             auto_transition_from_new(ticket, db)
 
     was_resolved = ticket.status == 'resolved'
+    old_status = ticket.status
     old_tech_id = ticket.assigned_tech_id
 
     # 1. HANDLE MANY-TO-MANY CONTACTS
@@ -269,6 +271,10 @@ def update_ticket(
 
     # 3. GENERIC FIELDS
     for key, value in update_data.items(): setattr(ticket, key, value)
+
+    # 4. CASCADE: ticket status change → milestone → project
+    if ticket.status != old_status and ticket.milestone_id:
+        cascade_from_ticket(ticket, db)
 
     db.commit()
 

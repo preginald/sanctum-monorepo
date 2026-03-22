@@ -7,6 +7,8 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
+from ..services.project_validation import validate_project_transition, get_available_transitions as get_project_transitions
+from ..services.cascade import cascade_from_milestone
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -41,7 +43,9 @@ def get_projects(account_id: Optional[str] = None, current_user: models.User = D
     if current_user.role == 'client': query = query.filter(models.Project.account_id == current_user.account_id)
     if account_id: query = query.filter(models.Project.account_id == account_id)
     projects = query.all()
-    for p in projects: p.account_name = p.account.name
+    for p in projects:
+        p.account_name = p.account.name
+        p.available_transitions = get_project_transitions(p.status, db)
     return projects
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
@@ -58,6 +62,7 @@ def get_project_detail(project_id: str, db: Session = Depends(get_db)):
     project.artefacts = db.query(models.Artefact).filter(
         models.Artefact.id.in_(ids), models.Artefact.is_deleted == False
     ).all() if ids else []
+    project.available_transitions = get_project_transitions(project.status, db)
     return project
 
 @router.post("/projects", response_model=schemas.ProjectResponse)
@@ -75,6 +80,7 @@ def create_project(project: schemas.ProjectCreate, current_user: models.User = D
     db.refresh(new_project)
     new_project.account = db.query(models.Account).filter(models.Account.id == project.account_id).first()
     new_project.account_name = new_project.account.name
+    new_project.available_transitions = get_project_transitions(new_project.status, db)
     return new_project
 
 @router.put("/projects/{project_id}", response_model=schemas.ProjectResponse)
@@ -82,6 +88,9 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
     proj = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not proj: raise HTTPException(status_code=404, detail="Project not found")
     update_data = update.model_dump(exclude_unset=True)
+    # Project status transition validation
+    if 'status' in update_data and update_data['status'] != proj.status and not update.skip_validation:
+        validate_project_transition(proj.status, update_data['status'], proj, db)
     # Merge existing values with update for discount validation
     effective_mv = update_data.get('market_value', proj.market_value)
     effective_qp = update_data.get('quoted_price', proj.quoted_price)
@@ -96,6 +105,7 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
     db.commit()
     db.refresh(proj)
     proj.account_name = proj.account.name
+    proj.available_transitions = get_project_transitions(proj.status, db)
     return proj
 
 @router.delete("/projects/{project_id}")
@@ -136,6 +146,7 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
             ms.description = update.description
         validate_milestone_transition(ms.status, update.status, ms, db)
 
+    old_ms_status = ms.status
     if update.status: ms.status = update.status
     if update.name: ms.name = update.name
     if update.billable_amount is not None: ms.billable_amount = update.billable_amount
@@ -143,6 +154,9 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
     if update.sequence is not None: ms.sequence = update.sequence
     if update.description is not None: ms.description = update.description
     if update.invoice_id is not None: ms.invoice_id = update.invoice_id
+    # Cascade milestone status change to project
+    if ms.status != old_ms_status:
+        cascade_from_milestone(ms, db)
     db.commit()
     db.refresh(ms)
     ms.project_name = ms.project.name if ms.project else None
@@ -310,6 +324,7 @@ def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db))
     db.add(line_item)
     ms.invoice_id = new_invoice.id
     ms.status = 'completed'
+    cascade_from_milestone(ms, db)
     db.commit()
     db.refresh(new_invoice)
     return new_invoice

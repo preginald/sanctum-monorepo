@@ -177,6 +177,7 @@ class ProjectUpdate(SanctumBase):
     discount_amount: Optional[Decimal] = None
     discount_reason: Optional[str] = None
     pricing_model: Optional[str] = None
+    skip_validation: bool = Field(default=False, exclude=True)
 
 class ProjectResponse(ProjectCreate):
     id: UUID
@@ -184,6 +185,7 @@ class ProjectResponse(ProjectCreate):
     status: str
     milestones: List[MilestoneResponse] = []
     artefacts: List[ArtefactLite] = []
+    available_transitions: List[str] = []
 
 VALID_RATE_TIERS = {"project_delivery", "reactive", "consulting", "internal"}
 
