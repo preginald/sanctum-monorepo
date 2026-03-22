@@ -130,6 +130,8 @@ def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Se
     validate_milestone_status(milestone.status, db)
     new_milestone = models.Milestone(**milestone.model_dump(), project_id=project_id)
     db.add(new_milestone)
+    db.flush()
+    cascade_from_milestone(new_milestone, db)
     db.commit()
     db.refresh(new_milestone)
     return new_milestone

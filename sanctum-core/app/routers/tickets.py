@@ -328,6 +328,8 @@ def delete_ticket(ticket_id: int, db: Session = Depends(get_db)):
     tick = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not tick: raise HTTPException(status_code=404, detail="Ticket not found")
     tick.is_deleted = True
+    if tick.milestone_id:
+        cascade_from_ticket(tick, db)
     db.commit()
     return {"status": "archived"}
 
