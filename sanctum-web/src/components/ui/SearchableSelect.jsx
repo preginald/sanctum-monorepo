@@ -11,7 +11,7 @@ export default function SearchableSelect({
     valueKey = "id",
     icon: Icon,
     onClose,
-    displaySelected = true, // NEW: Defaults to true to show selection in input
+    displaySelected = false, // Default false for multi-select safety; pass true for single-select
     allowCreate = false // When true, shows "Create: {query}" option if no exact match
 }) {
     const [query, setQuery] = useState('');
@@ -117,8 +117,8 @@ export default function SearchableSelect({
             </div>
 
             {/* RESULTS LIST */}
-            {/* Only show list if query is different from selected item (to avoid showing list right after selection) */}
-            {(!displaySelected || (selectedIds.length === 1 && query !== items.find(i => i[valueKey] === selectedIds[0])?.[labelKey]) || selectedIds.length === 0) && (
+            {/* When displaySelected=true (single-select), hide list when query matches the selected item label */}
+            {(!displaySelected || selectedIds.length === 0 || (selectedIds.length >= 1 && query !== items.find(i => i[valueKey] === selectedIds[0])?.[labelKey])) && (
                 <div className="space-y-1 max-h-[250px] overflow-y-auto pr-1 custom-scrollbar">
                     {!query && filtered.length > 0 && (
                         <div className="px-2 py-1 flex items-center gap-1.5 text-[10px] uppercase tracking-wider font-bold text-slate-500">

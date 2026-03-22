@@ -337,6 +337,7 @@ export default function QuestionnaireForm({
               subLabelKey="website"
               valueKey="id"
               icon={currentQuestion.icon}
+              displaySelected={true}
             />
           )}
         </div>
