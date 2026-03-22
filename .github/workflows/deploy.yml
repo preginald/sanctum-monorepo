@@ -2,10 +2,11 @@ name: Sanctum Core Deploy
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "test" ]
 
 jobs:
-  deploy:
+  deploy-prod:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
@@ -76,3 +77,71 @@ jobs:
             cp -r dist/* /var/www/sanctum-core/
 
             echo "✅ Deployment Complete."
+
+  deploy-test:
+    if: github.ref == 'refs/heads/test'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy test via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            # 1. STOP ON ERROR
+            set -e
+
+            # 2. PULL LATEST CODE
+            echo "📥 Pulling latest test code..."
+            cd ~/DigitalSanctum-test
+            git fetch origin test
+            git reset --hard origin/test
+
+            # 3. UPDATE BACKEND (no migrations — only main runs migrations)
+            echo "🐍 Updating Backend..."
+            cd sanctum-core
+            source venv/bin/activate
+            pip install -r requirements.txt
+
+            # Restart test service
+            echo "🔄 Restarting test service..."
+            sudo systemctl restart sanctum-api-test
+
+            # 3.7 SYNC APACHE CONFIGS
+            echo "🔧 Checking Apache configs..."
+            cd ~/DigitalSanctum-test
+            set +e
+            APACHE_CHANGED=false
+            for conf in ops/apache/*.conf; do
+              fname=$(basename "$conf")
+              if ! diff -q "$conf" "/etc/apache2/sites-available/$fname" > /dev/null 2>&1; then
+                echo "  → Updating $fname"
+                sudo cp "$conf" "/etc/apache2/sites-available/$fname"
+                APACHE_CHANGED=true
+              fi
+            done
+            if [ "$APACHE_CHANGED" = true ]; then
+              echo "  → Validating Apache config..."
+              if sudo apache2ctl configtest 2>&1; then
+                sudo systemctl reload apache2
+                echo "  ✓ Apache reloaded"
+              else
+                echo "  ⚠ Apache configtest failed — skipping reload"
+              fi
+            else
+              echo "  ✓ No Apache config changes"
+            fi
+            set -e
+
+            # 4. UPDATE FRONTEND
+            echo "⚛️ Building Frontend..."
+            cd ~/DigitalSanctum-test/sanctum-web
+            npm install
+            npm run build
+
+            # Deploy static assets
+            echo "🚀 Deploying Static Assets..."
+            cp -r dist/* /var/www/sanctum-core-test/
+
+            echo "✅ Test Deployment Complete."
