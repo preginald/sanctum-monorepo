@@ -271,7 +271,7 @@ export default function ProjectDetail() {
                       {/* PROGRESS BAR */}
                       {progress.total > 0 && (
                         <div className="flex items-center gap-2 mt-1">
-                          <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all duration-500 ${progress.pct === 100 ? 'bg-green-500' : 'bg-sanctum-gold/60'}`}
                               style={{ width: `${progress.pct}%` }}
