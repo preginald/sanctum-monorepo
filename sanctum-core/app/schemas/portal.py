@@ -41,6 +41,7 @@ class PortalDashboard(SanctumBase):
     open_tickets: List[TicketResponse]
     invoices: List[InvoiceResponse]
     projects: List[ProjectResponse]
+    article_count: int = 0
 
 # Master Account View (Internal)
 class AccountDetail(AccountResponse):

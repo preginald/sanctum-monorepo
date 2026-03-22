@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.attributes import set_committed_value
-from sqlalchemy import desc, or_, asc
+from sqlalchemy import desc, or_, asc, distinct, func
 from uuid import UUID
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -196,7 +196,10 @@ def get_portal_dashboard(
         "lifecycle_stage": lifecycle_stage,  # Phase 61A
         "open_tickets": tickets,
         "invoices": invoices,
-        "projects": projects
+        "projects": projects,
+        "article_count": db.query(func.count(distinct(models.ticket_articles.c.article_id))).join(
+            models.Ticket, models.ticket_articles.c.ticket_id == models.Ticket.id
+        ).filter(models.Ticket.account_id == aid).scalar() or 0,
     }
 
 # --- PHASE 61A: QUESTIONNAIRE ENDPOINTS ---
