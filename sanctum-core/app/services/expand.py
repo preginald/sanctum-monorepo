@@ -24,7 +24,8 @@ from .. import models
 # Expandable fields per entity type (SYS-032 contract)
 EXPANDABLE_FIELDS: dict[str, set[str]] = {
     "project": {"milestones", "artefacts"},
-    "article": {"history", "related_articles", "artefacts"},
+    "article": {"history", "related_articles", "artefacts", "content"},
+    "artefact": {"content", "description"},
     "milestone": {"ticket_descriptions", "health_check"},
     "ticket": {
         "comments", "articles", "artefacts",
@@ -164,6 +165,10 @@ def filter_response(
         # Standard case: remove the list field (count is pre-populated on schema)
         if field_name in data and isinstance(data[field_name], list):
             del data[field_name]
+            continue
+
+        # Scalar field removal (e.g. content, description text fields)
+        data.pop(field_name, None)
 
     return data
 
