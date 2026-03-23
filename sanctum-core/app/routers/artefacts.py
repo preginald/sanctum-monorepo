@@ -122,7 +122,7 @@ def create_artefact(
     return _attach_transitions(new)
 
 
-@router.get("/artefacts")
+@router.get("/artefacts", response_model=List[schemas.ArtefactResponse])
 def list_artefacts(
     account_id: Optional[str] = None,
     artefact_type: Optional[str] = None,
@@ -154,10 +154,10 @@ def list_artefacts(
         return JSONResponse(content=result)
     except Exception:
         db.rollback()
-        return []
+        return JSONResponse(content=[])
 
 
-@router.get("/artefacts/{artefact_id}")
+@router.get("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
 def get_artefact(
     artefact_id: str,
     current_user: models.User = Depends(auth.get_current_active_user),

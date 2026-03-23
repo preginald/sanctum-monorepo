@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from .. import models, schemas, auth
@@ -86,7 +87,7 @@ def _increment_version(current_version: str) -> str:
 
 # --- ENDPOINTS ---
 
-@router.get("/articles")
+@router.get("/articles", response_model=List[schemas.ArticleResponse])
 def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(models.Article).options(joinedload(models.Article.author))
     if category: query = query.filter(models.Article.category == category)
@@ -98,7 +99,6 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     result = jsonable_encoder([schemas.ArticleResponse.model_validate(a) for a in articles])
     for item in result:
         item.pop("content", None)
-    from fastapi.responses import JSONResponse
     return JSONResponse(content=result)
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
