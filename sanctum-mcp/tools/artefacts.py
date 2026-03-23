@@ -88,7 +88,7 @@ async def artefact_show(artefact_id: str, expand: str = None) -> str:
 
     Args:
         artefact_id: UUID of the artefact.
-        expand: Comma-separated fields to expand, 'all', or 'none'. No expandable fields defined yet — parameter accepted for forward compatibility.
+        expand: Comma-separated fields to expand (content,description), 'all', or 'none'. Content and description excluded by default for service accounts.
     """
     params = {}
     if expand is not None:

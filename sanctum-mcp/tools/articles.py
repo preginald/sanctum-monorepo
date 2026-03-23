@@ -25,7 +25,7 @@ async def article_show(slug: str, expand: str = None) -> str:
 
     Args:
         slug: Article slug or identifier.
-        expand: Comma-separated fields to expand (history,related_articles,artefacts), 'all', or 'none'.
+        expand: Comma-separated fields to expand (content,history,related_articles,artefacts), 'all', or 'none'. Content excluded by default for service accounts.
     """
     params = {}
     if expand is not None:

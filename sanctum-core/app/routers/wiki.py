@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 from .. import models, schemas, auth
@@ -95,7 +96,10 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     for a in articles:
         if a.author: a.author_name = a.author.full_name
 
-    return articles
+    result = jsonable_encoder([schemas.ArticleResponse.model_validate(a) for a in articles])
+    for item in result:
+        item.pop("content", None)
+    return JSONResponse(content=result)
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
 def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: bool = False, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
@@ -167,11 +171,12 @@ def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: b
         db.rollback()
         response_data.artefact_count = 0
 
-    # Resolve shortcodes safely on the Pydantic object
-    if resolve_embeds and response_data.content:
-        response_data.content = resolve_content(db, response_data.content)
-    elif inline_embeds and response_data.content:
-        response_data.content = resolve_content(db, response_data.content, inline_mode=True)
+    # Resolve shortcodes only when content will be included in response
+    if expand.should_expand("content"):
+        if resolve_embeds and response_data.content:
+            response_data.content = resolve_content(db, response_data.content)
+        elif inline_embeds and response_data.content:
+            response_data.content = resolve_content(db, response_data.content, inline_mode=True)
 
     result = jsonable_encoder(response_data)
     return expanded_response(result, expand, "article")
