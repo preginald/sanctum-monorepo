@@ -10,9 +10,9 @@ Group=preginald
 WorkingDirectory=/home/preginald/DigitalSanctum/sanctum-mcp
 Environment="PATH=/home/preginald/DigitalSanctum/sanctum-mcp/venv/bin"
 EnvironmentFile=/home/preginald/DigitalSanctum/sanctum-mcp/.env
-ExecStartPre=/usr/bin/fuser -k -s 8100/tcp
+ExecStartPre=-/usr/bin/fuser -k -s 8100/tcp
 ExecStart=/home/preginald/DigitalSanctum/sanctum-mcp/venv/bin/python server.py
-ExecStopPost=/usr/bin/fuser -k -s 8100/tcp
+ExecStopPost=-/usr/bin/fuser -k -s 8100/tcp
 Restart=on-failure
 RestartSec=5
 
