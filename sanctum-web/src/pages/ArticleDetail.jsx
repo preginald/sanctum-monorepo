@@ -36,7 +36,7 @@ function TableOfContents({ content }) {
     headings.push({
       level: match[1].length,
       text: displayText,
-      slug: slugger.slug(rawText),
+      slug: slugger.slug(displayText),
     });
   }
 
