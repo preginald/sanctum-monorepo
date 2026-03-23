@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 // Added 'Copy' icon to imports
-import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate, Link2, Unlink, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, Edit2, Calendar, User, History, Clock, FileText, Copy, Download, Send, X, AlignLeft, MessageSquare, LayoutTemplate, Link2, Unlink, ChevronLeft, ChevronRight, List } from 'lucide-react';
 import { diffWords } from 'diff';
 import SearchableSelect from '../components/ui/SearchableSelect';
 import MetadataStrip from '../components/ui/MetadataStrip';
@@ -11,6 +11,62 @@ import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
 import { useToast } from '../context/ToastContext';
+import GithubSlugger from 'github-slugger';
+
+function stripInlineMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // bold **
+    .replace(/__(.+?)__/g, '$1')        // bold __
+    .replace(/\*(.+?)\*/g, '$1')        // italic *
+    .replace(/_(.+?)_/g, '$1')          // italic _
+    .replace(/`(.+?)`/g, '$1')          // inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // links
+}
+
+function TableOfContents({ content }) {
+  if (!content) return null;
+
+  const slugger = new GithubSlugger();
+  const headings = [];
+  const regex = /^(#{2,3})\s+(.+)$/gm;
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const rawText = match[2].trim();
+    const displayText = stripInlineMarkdown(rawText);
+    headings.push({
+      level: match[1].length,
+      text: displayText,
+      slug: slugger.slug(displayText),
+    });
+  }
+
+  if (headings.length < 3) return null;
+
+  const handleClick = (e, slug) => {
+    e.preventDefault();
+    document.getElementById(slug)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  return (
+    <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
+      <h3 className="text-sm font-bold uppercase tracking-wider opacity-70 mb-3 flex items-center gap-2">
+        <List size={14} /> Table of Contents
+      </h3>
+      <nav className="space-y-1">
+        {headings.map((h, i) => (
+          <a
+            key={`${h.slug}-${i}`}
+            href={`#${h.slug}`}
+            onClick={(e) => handleClick(e, h.slug)}
+            className={`block text-xs text-slate-400 hover:text-white transition-colors py-0.5 ${h.level === 3 ? 'pl-3' : ''}`}
+          >
+            {h.text}
+          </a>
+        ))}
+      </nav>
+    </div>
+  );
+}
 
 export default function ArticleDetail() {
   const fetchAllArticles = async () => {
@@ -387,6 +443,9 @@ Client: Digital Sanctum HQ`;
 
           {/* ARTEFACTS */}
           <ArtefactCard entityType="article" entityId={article.id} artefacts={article.artefacts || []} onUpdate={fetchArticle} />
+
+          {/* TABLE OF CONTENTS */}
+          <TableOfContents content={article.content} />
 
           {/* RELATED ARTICLES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">

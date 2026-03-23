@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import rehypeRaw from 'rehype-raw';
+import rehypeSlug from 'rehype-slug';
 import { PrismLight as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -121,7 +122,13 @@ const customSchema = {
     ...defaultSchema.attributes,
     '*': ['className', 'class', 'style'],
     'div': ['className', 'class', 'data-identifier'],
-    'a': ['href', 'className', 'class']
+    'a': ['href', 'className', 'class'],
+    'h1': [...(defaultSchema.attributes?.h1 || []), 'id'],
+    'h2': [...(defaultSchema.attributes?.h2 || []), 'id'],
+    'h3': [...(defaultSchema.attributes?.h3 || []), 'id'],
+    'h4': [...(defaultSchema.attributes?.h4 || []), 'id'],
+    'h5': [...(defaultSchema.attributes?.h5 || []), 'id'],
+    'h6': [...(defaultSchema.attributes?.h6 || []), 'id'],
   }
 };
 
@@ -173,7 +180,7 @@ export default function SanctumMarkdown({ content, className="" }) {
                 components={MarkdownComponents}
                 remarkPlugins={[remarkGfm]}
                 // REF: Security - Added rehype-sanitize
-                rehypePlugins={[rehypeRaw, [rehypeSanitize, customSchema]]}
+                rehypePlugins={[rehypeRaw, rehypeSlug, [rehypeSanitize, customSchema]]}
             >
                 {safeContent}
             </ReactMarkdown>
