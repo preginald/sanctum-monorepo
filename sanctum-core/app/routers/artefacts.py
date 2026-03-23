@@ -1,10 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text as sa_text
 from typing import List, Optional
 import re
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 
 router = APIRouter(tags=["Artefacts"])
 
@@ -119,7 +122,7 @@ def create_artefact(
     return _attach_transitions(new)
 
 
-@router.get("/artefacts", response_model=List[schemas.ArtefactResponse])
+@router.get("/artefacts")
 def list_artefacts(
     account_id: Optional[str] = None,
     artefact_type: Optional[str] = None,
@@ -144,16 +147,21 @@ def list_artefacts(
             a.creator_name = a.creator.full_name if a.creator else None
             _enrich_links(db, a.links)
             _attach_transitions(a)
-        return artefacts
+        result = jsonable_encoder([schemas.ArtefactResponse.model_validate(a) for a in artefacts])
+        for item in result:
+            item.pop("content", None)
+            item.pop("description", None)
+        return JSONResponse(content=result)
     except Exception:
         db.rollback()
         return []
 
 
-@router.get("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
+@router.get("/artefacts/{artefact_id}")
 def get_artefact(
     artefact_id: str,
     current_user: models.User = Depends(auth.get_current_active_user),
+    expand: ExpandConfig = Depends(get_expand_config),
     db: Session = Depends(get_db),
 ):
     artefact = db.query(models.Artefact).options(
@@ -166,7 +174,9 @@ def get_artefact(
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
     _enrich_links(db, artefact.links)
-    return _attach_transitions(artefact)
+    _attach_transitions(artefact)
+    result = jsonable_encoder(schemas.ArtefactResponse.model_validate(artefact))
+    return expanded_response(result, expand, "artefact")
 
 
 @router.put("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
