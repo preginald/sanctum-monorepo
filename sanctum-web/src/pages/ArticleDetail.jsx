@@ -11,27 +11,32 @@ import api from '../lib/api';
 import SanctumMarkdown from '../components/ui/SanctumMarkdown';
 // Added Toast Hook
 import { useToast } from '../context/ToastContext';
+import GithubSlugger from 'github-slugger';
 
-function generateSlug(text) {
+function stripInlineMarkdown(text) {
   return text
-    .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^a-z0-9-]/g, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // bold **
+    .replace(/__(.+?)__/g, '$1')        // bold __
+    .replace(/\*(.+?)\*/g, '$1')        // italic *
+    .replace(/_(.+?)_/g, '$1')          // italic _
+    .replace(/`(.+?)`/g, '$1')          // inline code
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1'); // links
 }
 
 function TableOfContents({ content }) {
   if (!content) return null;
 
+  const slugger = new GithubSlugger();
   const headings = [];
   const regex = /^(#{2,3})\s+(.+)$/gm;
   let match;
   while ((match = regex.exec(content)) !== null) {
+    const rawText = match[2].trim();
+    const displayText = stripInlineMarkdown(rawText);
     headings.push({
       level: match[1].length,
-      text: match[2].trim(),
-      slug: generateSlug(match[2].trim()),
+      text: displayText,
+      slug: slugger.slug(rawText),
     });
   }
 
@@ -440,7 +445,7 @@ Client: Digital Sanctum HQ`;
           <ArtefactCard entityType="article" entityId={article.id} artefacts={article.artefacts || []} onUpdate={fetchArticle} />
 
           {/* TABLE OF CONTENTS */}
-          <TableOfContents content={rawContent} />
+          <TableOfContents content={article.content} />
 
           {/* RELATED ARTICLES */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">
