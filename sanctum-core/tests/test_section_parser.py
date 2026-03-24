@@ -196,6 +196,13 @@ class TestReplaceSection:
         assert "Replaced." in result
         assert "Second" not in result
 
+    def test_replace_preserves_subsections(self):
+        """replace_section must not destroy sub-sections below the target."""
+        result = replace_section(SAMPLE_MD, "## Requirements", "New reqs.")
+        assert "New reqs." in result
+        assert "### Sub-requirement" in result
+        assert "Details here." in result
+
     def test_replace_empty_content(self):
         with pytest.raises(ValueError):
             replace_section("", "## Foo", "bar")

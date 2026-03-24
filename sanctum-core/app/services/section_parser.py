@@ -137,9 +137,8 @@ def get_section(markdown: str, heading: str, index: int = 0) -> Section | None:
 def replace_section(markdown: str, heading: str, new_body: str, index: int = 0) -> str:
     """Replace the body of a section, preserving document structure.
 
-    Uses same-or-higher-level heading stop logic: the section extends
-    from the heading to the next heading of equal or higher level (fewer #),
-    or end of document.
+    The section extends from the heading to the next heading of any level,
+    or end of document. Sub-sections are preserved.
 
     Args:
         markdown: The full markdown content.
@@ -159,11 +158,9 @@ def replace_section(markdown: str, heading: str, new_body: str, index: int = 0) 
     lines = markdown.split('\n')
     fenced = _find_fenced_ranges(lines)
 
-    # Find the target heading
-    heading_match = re.match(r'^(#{1,6})\s', heading)
-    if not heading_match:
+    # Validate heading format
+    if not re.match(r'^(#{1,6})\s', heading):
         raise ValueError(f"Invalid heading format: {heading}")
-    target_level = len(heading_match.group(1))
 
     # Find all occurrences of this heading
     occurrences: list[int] = []
@@ -178,13 +175,13 @@ def replace_section(markdown: str, heading: str, new_body: str, index: int = 0) 
 
     start = occurrences[index]
 
-    # Find end: next heading of same or higher level (not inside code block)
+    # Find end: next heading of any level (not inside code block)
     end = len(lines)
     for i in range(start + 1, len(lines)):
         if i in fenced:
             continue
         m = _HEADING_RE.match(lines[i])
-        if m and len(m.group(1)) <= target_level:
+        if m:
             end = i
             break
 
