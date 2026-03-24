@@ -179,6 +179,38 @@ def get_artefact(
     return expanded_response(result, expand, "artefact")
 
 
+@router.get("/artefacts/{artefact_id}/sections")
+def get_artefact_sections(
+    artefact_id: str,
+    section: Optional[str] = None,
+    index: int = 0,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """List section headings, or return a single section body if ?section= is provided."""
+    from ..services.section_parser import get_headings, get_section as _get_section
+
+    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
+    if not artefact:
+        raise HTTPException(status_code=404, detail="Artefact not found")
+
+    content = artefact.content or ""
+    if section:
+        result = _get_section(content, section, index=index)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Section not found: {section}")
+        return schemas.SectionDetail(
+            heading=result.heading, level=result.level,
+            index=result.index, body=result.body,
+        )
+
+    headings = get_headings(content)
+    return [
+        schemas.SectionHeading(heading=h.heading, level=h.level, index=h.index)
+        for h in headings
+    ]
+
+
 @router.put("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
 def update_artefact(
     artefact_id: str,
