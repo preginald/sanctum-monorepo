@@ -111,6 +111,37 @@ async def article_update_section(
 
 
 @mcp.tool()
+async def article_sections(article_id: str) -> str:
+    """List all section headings in an article.
+
+    Args:
+        article_id: UUID or slug of the article.
+    """
+    result = await client.get(f"/articles/{article_id}/sections")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def article_read_section(
+    article_id: str,
+    section_heading: str,
+    index: int = 0,
+) -> str:
+    """Read a single section of an article by heading.
+
+    Args:
+        article_id: UUID or slug of the article.
+        section_heading: Exact heading string (e.g. '## Environment & Auth').
+        index: Disambiguation index for duplicate headings (default 0).
+    """
+    result = await client.get(
+        f"/articles/{article_id}/sections",
+        params={"section": section_heading, "index": index},
+    )
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
 async def article_history(article_id: str, page_size: int = 10) -> str:
     """List version history for an article.
 
