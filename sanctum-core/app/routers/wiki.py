@@ -27,6 +27,18 @@ IDENTIFIER_PREFIX_MAP = {
 }
 
 
+def _resolve_article(db: Session, article_id: str):
+    """Resolve an article by UUID, slug, or identifier (e.g. DOC-009)."""
+    try:
+        uid = UUID(article_id)
+        return db.query(models.Article).filter(models.Article.id == uid).first()
+    except ValueError:
+        article = db.query(models.Article).filter(models.Article.slug == article_id).first()
+        if not article:
+            article = db.query(models.Article).filter(models.Article.identifier == article_id.upper()).first()
+        return article
+
+
 def _generate_identifier(db: Session, category: str) -> str:
     """
     Generates the next sequential identifier for a category prefix.
@@ -269,9 +281,7 @@ def get_article_sections(
     """List section headings, or return a single section body if ?section= is provided."""
     from ..services.section_parser import get_headings, get_section as _get_section
 
-    article = db.query(models.Article).filter(
-        (models.Article.id == article_id) | (models.Article.slug == article_id)
-    ).first()
+    article = _resolve_article(db, article_id)
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
@@ -300,7 +310,7 @@ def patch_article_section(
 ):
     from ..services.section_parser import get_section as _get_section, replace_section
 
-    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    article = _resolve_article(db, article_id)
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
