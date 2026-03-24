@@ -37,7 +37,7 @@ async def project_list(
 
 
 @mcp.tool()
-async def project_show(project_id: str, expand: str = None) -> str:
+async def project_show(project_id: str, expand: str | None = None) -> str:
     """Show details for a project by UUID.
 
     Args:
