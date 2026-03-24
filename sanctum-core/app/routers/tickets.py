@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.encoders import jsonable_encoder
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
@@ -15,7 +16,7 @@ from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
-@router.get("", response_model=List[schemas.TicketResponse])
+@router.get("")
 def get_tickets(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     query = base_ticket_query(db)\
         .join(models.Account)\
@@ -30,7 +31,14 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         query = query.filter(models.Ticket.account_id == current_user.account_id)
 
     tickets = query.order_by(models.Ticket.id.desc()).all()
-    return [enrich_ticket_response(t, db) for t in tickets]
+    items = []
+    for t in tickets:
+        item = jsonable_encoder(schemas.TicketResponse.model_validate(enrich_ticket_response(t, db)))
+        item.pop("description", None)
+        item.pop("resolution", None)
+        item.pop("resolved_description", None)
+        items.append(item)
+    return JSONResponse(content=items)
 
 @router.post("", response_model=schemas.TicketResponse)
 def create_ticket(
