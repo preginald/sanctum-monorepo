@@ -98,6 +98,37 @@ async def artefact_show(artefact_id: str, expand: str | None = None) -> str:
 
 
 @mcp.tool()
+async def artefact_sections(artefact_id: str) -> str:
+    """List all section headings in an artefact's content.
+
+    Args:
+        artefact_id: UUID of the artefact.
+    """
+    result = await client.get(f"/artefacts/{artefact_id}/sections")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
+async def artefact_read_section(
+    artefact_id: str,
+    section_heading: str,
+    index: int = 0,
+) -> str:
+    """Read a single section of an artefact by heading.
+
+    Args:
+        artefact_id: UUID of the artefact.
+        section_heading: Exact heading string (e.g. '## Implementation').
+        index: Disambiguation index for duplicate headings (default 0).
+    """
+    result = await client.get(
+        f"/artefacts/{artefact_id}/sections",
+        params={"section": section_heading, "index": index},
+    )
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool()
 async def artefact_create(
     name: str,
     artefact_type: str,

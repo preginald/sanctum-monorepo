@@ -31,7 +31,7 @@ from .operations import (
 from .knowledge import (
     CommentCreate, CommentResponse,
     ArticleCreate, ArticleUpdate, ArticleSectionPatch, ArticleResponse, ArticleHistoryResponse, ArticleRevertRequest, ArticleEmailRequest,
-    RelatedArticleResponse
+    RelatedArticleResponse, SectionHeading, SectionDetail
 )
 
 from .assets import AssetCreate, AssetUpdate, AssetResponse
