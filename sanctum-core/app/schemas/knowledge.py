@@ -79,6 +79,17 @@ class ArticleResponse(ArticleCreate):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
+class SectionHeading(SanctumBase):
+    heading: str
+    level: int
+    index: int = 0
+
+class SectionDetail(SanctumBase):
+    heading: str
+    level: int
+    index: int = 0
+    body: str
+
 class ArticleEmailRequest(SanctumBase):
     to_email: str
     cc_emails: list[str] = []

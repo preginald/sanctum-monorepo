@@ -258,6 +258,39 @@ def update_article(
     return article
 
 
+@router.get("/articles/{article_id}/sections")
+def get_article_sections(
+    article_id: str,
+    section: Optional[str] = None,
+    index: int = 0,
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """List section headings, or return a single section body if ?section= is provided."""
+    from ..services.section_parser import get_headings, get_section as _get_section
+
+    article = db.query(models.Article).filter(
+        (models.Article.id == article_id) | (models.Article.slug == article_id)
+    ).first()
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+
+    if section:
+        result = _get_section(article.content or "", section, index=index)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Section not found: {section}")
+        return schemas.SectionDetail(
+            heading=result.heading, level=result.level,
+            index=result.index, body=result.body,
+        )
+
+    headings = get_headings(article.content or "")
+    return [
+        schemas.SectionHeading(heading=h.heading, level=h.level, index=h.index)
+        for h in headings
+    ]
+
+
 @router.patch("/articles/{article_id}/sections", response_model=schemas.ArticleResponse)
 def patch_article_section(
     article_id: str,
