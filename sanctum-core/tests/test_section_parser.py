@@ -196,6 +196,31 @@ class TestReplaceSection:
         assert "Replaced." in result
         assert "Second" not in result
 
+    def test_replace_preserves_sub_sections(self):
+        """BUG-1 regression: replace_section must not destroy sub-sections."""
+        result = replace_section(SAMPLE_MD, "## Requirements", "New requirements.")
+        # Sub-section must survive
+        assert "### Sub-requirement" in result
+        assert "Details here." in result
+        # Replacement landed
+        assert "New requirements." in result
+        # Old body gone
+        assert "- Item 1" not in result
+        assert "- Item 2" not in result
+        # Sibling section preserved
+        assert "## Notes" in result
+
+    def test_replace_sub_section_only(self):
+        """Replacing a sub-section should not bleed into sibling sections."""
+        result = replace_section(SAMPLE_MD, "### Sub-requirement", "Updated detail.")
+        assert "Updated detail." in result
+        assert "Details here." not in result
+        # Parent section body preserved
+        assert "- Item 1" in result
+        # Following sibling preserved
+        assert "## Notes" in result
+        assert "Final notes." in result
+
     def test_replace_empty_content(self):
         with pytest.raises(ValueError):
             replace_section("", "## Foo", "bar")
