@@ -63,16 +63,16 @@ def _parse_table_under_heading(content: str, heading: str) -> list[list[str]]:
     Returns a list of rows, each row is a list of cell values (strings).
     The header row and separator row are excluded.
     """
-    # Find the heading
-    pattern = re.compile(r"^###\s+" + re.escape(heading.lstrip("# ").strip()), re.MULTILINE)
-    match = pattern.search(content)
-    if not match:
+    from .section_parser import get_section
+
+    # Build the full heading string (e.g. "### Allowed Values")
+    clean_heading = heading.lstrip("# ").strip()
+    full_heading = f"### {clean_heading}"
+    result = get_section(content, full_heading)
+    if not result:
         return []
 
-    # Extract text from heading to the next heading of equal or higher level
-    rest = content[match.end():]
-    next_heading = re.search(r"^#{1,3}\s+", rest, re.MULTILINE)
-    section = rest[:next_heading.start()] if next_heading else rest
+    section = result.body
 
     # Find table rows (lines starting with |)
     table_lines = [line.strip() for line in section.split("\n") if line.strip().startswith("|")]
