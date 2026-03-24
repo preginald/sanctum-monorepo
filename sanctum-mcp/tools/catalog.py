@@ -21,7 +21,7 @@ async def product_list(product_type: str | None = None) -> str:
 
 
 @mcp.tool()
-async def product_show(product_id: str, expand: str = None) -> str:
+async def product_show(product_id: str, expand: str | None = None) -> str:
     """Show details for a single product/service.
 
     Args:

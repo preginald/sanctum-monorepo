@@ -20,7 +20,7 @@ async def article_list() -> str:
 
 
 @mcp.tool()
-async def article_show(slug: str, expand: str = None) -> str:
+async def article_show(slug: str, expand: str | None = None) -> str:
     """Show an article by slug or identifier (e.g. DOC-009, SOP-099).
 
     Args:

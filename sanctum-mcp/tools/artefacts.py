@@ -83,7 +83,7 @@ async def artefact_list(
 
 
 @mcp.tool()
-async def artefact_show(artefact_id: str, expand: str = None) -> str:
+async def artefact_show(artefact_id: str, expand: str | None = None) -> str:
     """Show details for an artefact by UUID.
 
     Args:
@@ -308,7 +308,7 @@ async def artefact_history(
 async def artefact_revert(
     artefact_id: str,
     history_id: str,
-    change_comment: str = None,
+    change_comment: str | None = None,
 ) -> str:
     """Revert an artefact to a previous version.
 

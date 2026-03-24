@@ -52,7 +52,7 @@ async def milestone_list(project_id: str) -> str:
 
 
 @mcp.tool()
-async def milestone_show(milestone_id: str, quiet: bool = False, expand: str = None) -> str:
+async def milestone_show(milestone_id: str, quiet: bool = False, expand: str | None = None) -> str:
     """Show details for a milestone.
 
     Args:

@@ -85,7 +85,7 @@ async def ticket_list(
 
 
 @mcp.tool()
-async def ticket_show(ticket_id: int, quiet: bool = False, expand: str = None) -> str:
+async def ticket_show(ticket_id: int, quiet: bool = False, expand: str | None = None) -> str:
     """Show details for a single ticket by ID.
 
     Args:
