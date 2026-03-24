@@ -30,6 +30,7 @@ EXPANDABLE_FIELDS: dict[str, set[str]] = {
     "ticket": {
         "comments", "articles", "artefacts",
         "time_entries", "materials", "related_tickets",
+        "description", "resolution",
     },
 }
 
@@ -169,6 +170,10 @@ def filter_response(
 
         # Scalar field removal (e.g. content, description text fields)
         data.pop(field_name, None)
+
+        # Coupled fields: stripping description also strips resolved_description
+        if field_name == "description":
+            data.pop("resolved_description", None)
 
     return data
 

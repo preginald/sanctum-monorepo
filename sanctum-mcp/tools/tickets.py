@@ -91,16 +91,37 @@ async def ticket_show(ticket_id: int, quiet: bool = False, expand: str = None) -
     Args:
         ticket_id: The ticket number.
         quiet: Set true to suppress delivery hints (useful for batch operations). Also sets expand=none if expand is not explicitly provided.
-        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets), 'all', or 'none'. Overrides quiet when both are provided.
+        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets,description,resolution), 'all', or 'none'. Overrides quiet when both are provided.
     """
+    # Determine the expand param to send to the API
+    api_expand = expand
+    if api_expand is None and quiet:
+        api_expand = "none"
+
+    # For delivery hints we need description — ensure it's fetched even if
+    # the caller didn't request it, then strip it after computing hints.
+    need_hints = not quiet
+    hint_injected_description = False
+    if need_hints and api_expand is not None and api_expand != "all":
+        fields = {f.strip() for f in api_expand.split(",") if f.strip()}
+        if "description" not in fields:
+            fields.add("description")
+            hint_injected_description = True
+            api_expand = ",".join(sorted(fields))
+
     params = {}
-    if expand is not None:
-        params["expand"] = expand
-    elif quiet:
-        params["expand"] = "none"
+    if api_expand is not None:
+        params["expand"] = api_expand
+
     result = await client.get(f"/tickets/{ticket_id}", params=params or None)
-    if not quiet and isinstance(result, dict):
+
+    if need_hints and isinstance(result, dict):
         result["delivery_hints"] = _compute_delivery_hints(result)
+        # If we injected description solely for hints, strip it from output
+        if hint_injected_description:
+            result.pop("description", None)
+            result.pop("resolved_description", None)
+
     return json.dumps(result, indent=2)
 
 
