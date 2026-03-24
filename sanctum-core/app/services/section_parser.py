@@ -137,9 +137,8 @@ def get_section(markdown: str, heading: str, index: int = 0) -> Section | None:
 def replace_section(markdown: str, heading: str, new_body: str, index: int = 0) -> str:
     """Replace the body of a section, preserving document structure.
 
-    Uses same-or-higher-level heading stop logic: the section extends
-    from the heading to the next heading of equal or higher level (fewer #),
-    or end of document.
+    The section extends from the heading to the next heading of any level,
+    or end of document. Sub-sections are preserved.
 
     Args:
         markdown: The full markdown content.
