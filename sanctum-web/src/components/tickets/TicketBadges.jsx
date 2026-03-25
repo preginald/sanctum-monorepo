@@ -7,9 +7,14 @@ import {
 export const StatusBadge = ({ status }) => {
     const colors = {
         new: "bg-blue-500 text-white",
+        recon: "bg-violet-500 text-white",
+        proposal: "bg-fuchsia-500 text-white",
+        implementation: "bg-blue-600 text-white",
+        verification: "bg-purple-500 text-white",
+        review: "bg-cyan-500 text-white",
         open: "bg-green-500 text-white",
         pending: "bg-yellow-500 text-slate-900",
-        qa: "bg-purple-500 text-white", // Added styling for QA
+        qa: "bg-purple-500 text-white",
         resolved: "bg-slate-700 text-slate-400"
     };
     return (

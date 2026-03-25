@@ -27,9 +27,13 @@ export const TICKET_PRIORITIES = [
 
 export const TICKET_STATUSES = [
     "new",
+    "recon",
+    "proposal",
+    "implementation",
+    "verification",
+    "review",
     "open",
     "pending",
-    "qa",
     "resolved"
 ];
 
