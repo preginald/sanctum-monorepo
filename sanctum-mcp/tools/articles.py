@@ -9,6 +9,7 @@ from cost_tiers import (
     STANDARD_READ,
 )
 import client
+from token_guard import guard_fetch
 
 
 def _unescape(s: str | None) -> str | None:
@@ -26,13 +27,17 @@ async def article_list() -> str:
 
 
 @mcp.tool(annotations=STANDARD_READ)
-async def article_show(slug: str, expand: str | None = None) -> str:
+async def article_show(slug: str, expand: str | None = None, force: bool = False) -> str:
     """Show an article by slug or identifier (e.g. DOC-009, SOP-099).
 
     Args:
         slug: Article slug or identifier.
         expand: Comma-separated fields to expand (content,history,related_articles,artefacts), 'all', or 'none'. Content excluded by default for service accounts.
+        force: Set true to bypass the token guard and fetch full content regardless of document size.
     """
+    guarded = await guard_fetch("article", slug, expand, force=force)
+    if guarded is not None:
+        return guarded
     params = {}
     if expand is not None:
         params["expand"] = expand

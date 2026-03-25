@@ -10,6 +10,7 @@ from cost_tiers import (
     STANDARD_READ,
 )
 import client
+from token_guard import guard_fetch
 
 
 def _unescape(s: str | None) -> str | None:
@@ -90,13 +91,17 @@ async def artefact_list(
 
 
 @mcp.tool(annotations=STANDARD_READ)
-async def artefact_show(artefact_id: str, expand: str | None = None) -> str:
+async def artefact_show(artefact_id: str, expand: str | None = None, force: bool = False) -> str:
     """Show details for an artefact by UUID.
 
     Args:
         artefact_id: UUID of the artefact.
         expand: Comma-separated fields to expand (content,description), 'all', or 'none'. Content and description excluded by default for service accounts.
+        force: Set true to bypass the token guard and fetch full content regardless of document size.
     """
+    guarded = await guard_fetch("artefact", artefact_id, expand, force=force)
+    if guarded is not None:
+        return guarded
     params = {}
     if expand is not None:
         params["expand"] = expand
