@@ -16,7 +16,7 @@ from .. import models
 logger = logging.getLogger(__name__)
 
 # Ticket statuses that indicate active work
-ACTIVE_TICKET_STATUSES = {"open", "in_progress", "qa", "pending", "blocked"}
+ACTIVE_TICKET_STATUSES = {"open", "recon", "proposal", "implementation", "verification", "review", "pending"}
 # Ticket statuses that indicate completion
 TERMINAL_TICKET_STATUSES = {"resolved", "closed"}
 
