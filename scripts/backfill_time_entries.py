@@ -71,8 +71,6 @@ AGENT_KEYWORDS = [
 FLOOR_MINUTES = 15
 CEILING_MINUTES = 180  # 3 hours
 
-AEDT = timezone(timedelta(hours=11))
-
 
 # --- API helpers ---
 
@@ -161,7 +159,7 @@ def filter_backfill_candidates(tickets):
             continue
         if not t.get("no_billable"):
             continue
-        if t.get("time_entry_count", 0) != 0:
+        if t.get("time_entry_count") not in (None, 0):
             continue
         project_id = t.get("project_id")
         if project_id not in TARGET_PROJECTS:
@@ -246,7 +244,7 @@ def main():
 
         start_time = created_at
         end_time = start_time + timedelta(minutes=minutes)
-        description = f"Backfill -- estimated from delivery history [{ticket_type}, {human_comments} comments]"
+        description = f"Backfill — estimated from delivery history [{ticket_type}, {human_comments} comments]"
 
         entry = {
             "ticket_id": t["id"],
