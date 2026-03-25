@@ -2,13 +2,14 @@
 
 import json
 from app import mcp
+from cost_tiers import LIGHT, HEAVY
 import client
 
 RESOLVED_STATUSES = {"resolved"}
 DS_HQ = "dbc2c7b9-d8c2-493f-a6ed-527f7d191068"
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def project_list(
     account_id: str | None = None,
 ) -> str:
@@ -36,7 +37,7 @@ async def project_list(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def project_show(project_id: str, expand: str | None = None) -> str:
     """Show details for a project by UUID.
 
@@ -51,7 +52,7 @@ async def project_show(project_id: str, expand: str | None = None) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def project_create(
     name: str,
     account_id: str = DS_HQ,
@@ -91,7 +92,7 @@ async def project_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def project_update(
     project_id: str,
     name: str | None = None,
@@ -133,7 +134,7 @@ async def project_update(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def project_overview(
     project_id: str,
     status: str = "open",
@@ -191,7 +192,7 @@ async def project_overview(
     return json.dumps(overview, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def rate_card_list(
     account_id: str | None = None,
     tier: str | None = None,
@@ -215,7 +216,7 @@ async def rate_card_list(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def rate_card_create(
     tier: str,
     hourly_rate: str,
@@ -237,7 +238,7 @@ async def rate_card_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def rate_card_update(
     card_id: str,
     hourly_rate: str | None = None,
@@ -259,7 +260,7 @@ async def rate_card_update(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def rate_card_lookup(
     account_id: str,
     tier: str,

@@ -2,10 +2,11 @@
 
 import json
 from app import mcp
+from cost_tiers import LIGHT, HEAVY, DESTRUCTIVE
 import client
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def invoice_show(invoice_id: str) -> str:
     """Show details for an invoice.
 
@@ -16,7 +17,7 @@ async def invoice_show(invoice_id: str) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def invoice_create(
     account_id: str,
     description: str | None = None,
@@ -40,7 +41,7 @@ async def invoice_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def invoice_update(
     invoice_id: str,
     status: str | None = None,
@@ -66,7 +67,7 @@ async def invoice_update(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE)
 async def invoice_delete(invoice_id: str) -> str:
     """Delete an invoice.
 

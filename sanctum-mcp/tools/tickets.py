@@ -3,6 +3,7 @@
 import json
 import re
 from app import mcp
+from cost_tiers import LIGHT, HEAVY, DESTRUCTIVE
 import client
 
 
@@ -40,7 +41,7 @@ def _compute_delivery_hints(ticket: dict) -> list[str]:
     return hints
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def ticket_list(
     project: str | None = None,
     milestone: str | None = None,
@@ -84,7 +85,7 @@ async def ticket_list(
     return json.dumps(summary, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT)
 async def ticket_show(ticket_id: int, quiet: bool = False, expand: str | None = None) -> str:
     """Show details for a single ticket by ID.
 
@@ -125,7 +126,7 @@ async def ticket_show(ticket_id: int, quiet: bool = False, expand: str | None = 
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def ticket_create(
     subject: str,
     project_id: str,
@@ -173,7 +174,7 @@ async def ticket_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def ticket_update(
     ticket_id: int,
     subject: str | None = None,
@@ -226,7 +227,7 @@ async def ticket_update(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def ticket_comment(
     ticket_id: int,
     body: str,
@@ -248,7 +249,7 @@ async def ticket_comment(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def ticket_resolve(
     ticket_id: int,
     body: str | None = None,
@@ -314,7 +315,7 @@ async def ticket_resolve(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def ticket_relate_article(ticket_id: int, article_id: str) -> str:
     """Link an article to a ticket.
 
@@ -326,7 +327,7 @@ async def ticket_relate_article(ticket_id: int, article_id: str) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def ticket_relate_ticket(
     ticket_id: int,
     related_ticket_id: int,
@@ -347,7 +348,7 @@ async def ticket_relate_ticket(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE)
 async def ticket_unrelate_article(ticket_id: int, article_id: str) -> str:
     """Remove an article link from a ticket.
 
@@ -359,7 +360,7 @@ async def ticket_unrelate_article(ticket_id: int, article_id: str) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE)
 async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
     """Remove a link between two tickets.
 
@@ -371,7 +372,7 @@ async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE)
 async def ticket_delete(ticket_id: int) -> str:
     """Soft-delete (archive) a ticket.
 
@@ -385,7 +386,7 @@ async def ticket_delete(ticket_id: int) -> str:
 # ── Time Entry Tools ──────────────────────────────────────────────
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def time_entry_create(
     ticket_id: int,
     start_time: str,
@@ -417,7 +418,7 @@ async def time_entry_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY)
 async def time_entry_update(
     entry_id: str,
     start_time: str | None = None,
@@ -447,7 +448,7 @@ async def time_entry_update(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=DESTRUCTIVE)
 async def time_entry_delete(ticket_id: int, entry_id: str) -> str:
     """Delete a time entry from a ticket.
 
