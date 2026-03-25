@@ -176,7 +176,7 @@ async def article_revert(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool(annotations=HEAVY_WRITE)
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
 async def article_relate(article_id: str, related_article_id: str) -> str:
     """Link two articles together.
 
