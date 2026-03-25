@@ -28,6 +28,7 @@ MCP_CLIENT_ID = os.getenv("MCP_CLIENT_ID", "")
 MCP_CLIENT_SECRET = os.getenv("MCP_CLIENT_SECRET", "")
 MCP_JWT_SECRET = os.getenv("MCP_JWT_SECRET", os.getenv("MCP_CLIENT_SECRET", ""))
 MCP_TOKEN_EXPIRY = int(os.getenv("MCP_TOKEN_EXPIRY", "3600"))
+MCP_REFRESH_EXPIRY = int(os.getenv("MCP_REFRESH_EXPIRY", "2592000"))  # 30 days
 MCP_AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED", "true").lower() == "true"
 MCP_AUTH_USERNAME = os.getenv("MCP_AUTH_USERNAME", "admin")
 MCP_AUTH_PASSWORD = os.getenv("MCP_AUTH_PASSWORD", "")
@@ -37,6 +38,7 @@ _auth_codes = {}  # code -> {client_id, redirect_uri, code_challenge, expires_at
 
 # Registered clients persisted to disk so they survive server restarts
 _CLIENTS_FILE = Path(__file__).parent / "registered_clients.json"
+_REFRESH_FILE = Path(__file__).parent / "refresh_tokens.json"
 
 
 def _load_registered_clients() -> dict:
@@ -54,6 +56,22 @@ def _save_registered_clients() -> None:
 
 _registered_clients = _load_registered_clients()
 
+
+def _load_refresh_tokens() -> dict:
+    if _REFRESH_FILE.exists():
+        try:
+            return json.loads(_REFRESH_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def _save_refresh_tokens() -> None:
+    _REFRESH_FILE.write_text(json.dumps(_refresh_tokens, indent=2))
+
+
+_refresh_tokens = _load_refresh_tokens()  # token -> {sub, client_id, issued_at, expires_at}
+
 ALLOWED_CALLBACKS = [
     "https://claude.ai/api/mcp/auth_callback",
     "https://claude.com/api/mcp/auth_callback",
@@ -64,7 +82,7 @@ ALLOWED_CALLBACKS = [
 # TOKEN HELPERS
 # ─────────────────────────────────────────────
 
-def _create_token(sub: str = "") -> dict:
+def _create_token(sub: str = "", client_id: str = "") -> dict:
     now = int(time.time())
     payload = {
         "sub": sub or MCP_CLIENT_ID,
@@ -72,11 +90,20 @@ def _create_token(sub: str = "") -> dict:
         "exp": now + MCP_TOKEN_EXPIRY,
         "scope": "mcp",
     }
-    token = jwt.encode(payload, MCP_JWT_SECRET, algorithm="HS256")
+    access_token = jwt.encode(payload, MCP_JWT_SECRET, algorithm="HS256")
+    refresh_token = secrets.token_urlsafe(48)
+    _refresh_tokens[refresh_token] = {
+        "sub": sub or MCP_CLIENT_ID,
+        "client_id": client_id or sub or MCP_CLIENT_ID,
+        "issued_at": now,
+        "expires_at": now + MCP_REFRESH_EXPIRY,
+    }
+    _save_refresh_tokens()
     return {
-        "access_token": token,
+        "access_token": access_token,
         "token_type": "bearer",
         "expires_in": MCP_TOKEN_EXPIRY,
+        "refresh_token": refresh_token,
     }
 
 
@@ -263,7 +290,7 @@ class OAuthMiddleware:
             "token_endpoint": f"{MCP_SERVER_URL}/token",
             "registration_endpoint": f"{MCP_SERVER_URL}/register",
             "response_types_supported": ["code"],
-            "grant_types_supported": ["authorization_code", "client_credentials"],
+            "grant_types_supported": ["authorization_code", "client_credentials", "refresh_token"],
             "token_endpoint_auth_methods_supported": ["client_secret_post"],
             "code_challenge_methods_supported": ["S256", "plain"],
         }
@@ -287,6 +314,13 @@ class OAuthMiddleware:
             await self._send_response(send, status, headers, body)
             return
 
+        if not self._is_redirect_allowed(client_id, redirect_uri):
+            status, headers, body = _json_response(
+                400, {"error": "invalid_request", "error_description": "redirect_uri not allowed"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
+
         html = _login_page(client_id, redirect_uri, state, code_challenge, code_challenge_method)
         status, headers, body = _html_response(200, html)
         await self._send_response(send, status, headers, body)
@@ -304,6 +338,14 @@ class OAuthMiddleware:
         state = params.get("state", [""])[0]
         code_challenge = params.get("code_challenge", [""])[0]
         code_challenge_method = params.get("code_challenge_method", ["S256"])[0]
+
+        # Validate redirect_uri against allow list
+        if not self._is_redirect_allowed(client_id, redirect_uri):
+            status, headers, body = _json_response(
+                400, {"error": "invalid_request", "error_description": "redirect_uri not allowed"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
 
         # Validate credentials
         if not MCP_AUTH_PASSWORD:
@@ -353,6 +395,7 @@ class OAuthMiddleware:
             code = params.get("code", [""])[0]
             code_verifier = params.get("code_verifier", [""])[0]
             redirect_uri = params.get("redirect_uri", [""])[0]
+            refresh_token = params.get("refresh_token", [""])[0]
         elif "application/json" in content_type:
             try:
                 data = json.loads(body)
@@ -366,6 +409,7 @@ class OAuthMiddleware:
             code = data.get("code", "")
             code_verifier = data.get("code_verifier", "")
             redirect_uri = data.get("redirect_uri", "")
+            refresh_token = data.get("refresh_token", "")
         else:
             status, headers, resp_body = _json_response(400, {"error": "invalid_request"})
             await self._send_response(send, status, headers, resp_body)
@@ -375,6 +419,8 @@ class OAuthMiddleware:
             await self._token_authorization_code(send, client_id, client_secret, code, code_verifier, redirect_uri)
         elif grant_type == "client_credentials":
             await self._token_client_credentials(send, client_id, client_secret)
+        elif grant_type == "refresh_token":
+            await self._token_refresh(send, client_id, refresh_token)
         else:
             status, headers, resp_body = _json_response(400, {"error": "unsupported_grant_type"})
             await self._send_response(send, status, headers, resp_body)
@@ -412,7 +458,8 @@ class OAuthMiddleware:
                 return
 
         # Issue token
-        token_response = _create_token(sub=client_id)
+        effective_client_id = client_id or code_data["client_id"]
+        token_response = _create_token(sub=effective_client_id, client_id=effective_client_id)
         status, headers, body = _json_response(200, token_response)
         await self._send_response(send, status, headers, body)
 
@@ -435,7 +482,40 @@ class OAuthMiddleware:
             await self._send_response(send, status, headers, body)
             return
 
-        token_response = _create_token(sub=client_id)
+        token_response = _create_token(sub=client_id, client_id=client_id)
+        status, headers, body = _json_response(200, token_response)
+        await self._send_response(send, status, headers, body)
+
+    async def _token_refresh(self, send, client_id, refresh_token):
+        # Lazy cleanup: evict expired refresh tokens to prevent memory leak
+        now = time.time()
+        expired = [k for k, v in _refresh_tokens.items() if v["expires_at"] < now]
+        for k in expired:
+            del _refresh_tokens[k]
+        if expired:
+            _save_refresh_tokens()
+
+        # Validate refresh token
+        token_data = _refresh_tokens.pop(refresh_token, None)
+        if not token_data:
+            status, headers, body = _json_response(
+                400, {"error": "invalid_grant", "error_description": "Invalid or expired refresh token"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
+
+        if token_data["expires_at"] < now:
+            _save_refresh_tokens()
+            status, headers, body = _json_response(
+                400, {"error": "invalid_grant", "error_description": "Refresh token expired"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
+
+        # Issue new access + refresh token pair (single-use rotation)
+        effective_sub = token_data["sub"]
+        effective_client = token_data.get("client_id", client_id or effective_sub)
+        token_response = _create_token(sub=effective_sub, client_id=effective_client)
         status, headers, body = _json_response(200, token_response)
         await self._send_response(send, status, headers, body)
 
@@ -469,13 +549,28 @@ class OAuthMiddleware:
             "client_secret": new_client_secret,
             "client_name": client_name,
             "redirect_uris": redirect_uris,
-            "grant_types": ["authorization_code", "client_credentials"],
+            "grant_types": ["authorization_code", "client_credentials", "refresh_token"],
             "token_endpoint_auth_method": "client_secret_post",
         }
         status, headers, resp_body = _json_response(201, response)
         await self._send_response(send, status, headers, resp_body)
 
     # ─── Helpers ──────────────────────────────
+
+    def _is_redirect_allowed(self, client_id: str, redirect_uri: str) -> bool:
+        """Check redirect_uri against ALLOWED_CALLBACKS and registered client URIs."""
+        parsed = urlparse(redirect_uri)
+        base_uri = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+        if base_uri in ALLOWED_CALLBACKS:
+            return True
+        # Also accept URIs registered by dynamic clients (e.g. Claude Code localhost)
+        client_data = _registered_clients.get(client_id, {})
+        if redirect_uri in client_data.get("redirect_uris", []):
+            return True
+        # Allow localhost callbacks for dev (dynamic registration uses ephemeral ports)
+        if parsed.hostname in ("localhost", "127.0.0.1"):
+            return True
+        return False
 
     async def _read_body(self, receive) -> bytes:
         body = b""
