@@ -126,6 +126,30 @@ Parent Session
                          Post findings."
 ```
 
+## Cost-Tier Routing Guidance
+
+Every MCP tool carries a `cost_tier` annotation (via `ToolAnnotations`) that classifies its complexity. Orchestrators should use these tiers when deciding which agent to delegate to.
+
+### Tier Taxonomy
+
+| Tier | MCP Hints | Tool Count | Examples |
+|---|---|---|---|
+| `light` | readOnly, idempotent | 16 | `ticket_list`, `search`, `article_sections`, `artefact_history` |
+| `standard` | readOnly, idempotent | 7 | `ticket_show`, `article_show`, `project_overview` |
+| `heavy` | not readOnly | 30 | `ticket_create`, `ticket_update`, `artefact_link`, `article_revert` |
+| `destructive` | destructive | 4 | `ticket_delete`, `artefact_delete`, `invoice_delete`, `time_entry_delete` |
+
+### Routing Rules
+
+- **Light-tier tools** are safe for any agent. Prefer delegating to sonnet-class agents (`sanctum-qa`, `sanctum-writer`) when the task only requires reads.
+- **Standard-tier tools** may return large payloads (expand). Still read-only, but consider whether the task needs opus-class reasoning to interpret the result.
+- **Heavy-tier tools** modify state. Delegate to the appropriate specialist (`sanctum-implementer` for code, `sanctum-reviewer` for ticket/KB management).
+- **Destructive-tier tools** are irreversible. The parent orchestrator should confirm before delegating, and prefer opus-class agents for the decision.
+
+### How Annotations Are Exposed
+
+Annotations are set via `ToolAnnotations` on each `@mcp.tool()` decorator. They appear in the MCP tool listing response under the `annotations` field. The custom `cost_tier` field is added via Pydantic's `extra="allow"` on `ToolAnnotations`.
+
 ## When to Use Each Agent
 
 | Scenario | Agent | Identity |

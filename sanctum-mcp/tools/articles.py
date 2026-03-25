@@ -2,6 +2,12 @@
 
 import json
 from app import mcp
+from cost_tiers import (
+    HEAVY_IDEMPOTENT,
+    HEAVY_WRITE,
+    LIGHT_READ,
+    STANDARD_READ,
+)
 import client
 
 
@@ -12,14 +18,14 @@ def _unescape(s: str | None) -> str | None:
     return s.replace("\\n", "\n")
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT_READ)
 async def article_list() -> str:
     """List all articles in the knowledge base."""
     result = await client.get("/articles")
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=STANDARD_READ)
 async def article_show(slug: str, expand: str | None = None) -> str:
     """Show an article by slug or identifier (e.g. DOC-009, SOP-099).
 
@@ -34,7 +40,7 @@ async def article_show(slug: str, expand: str | None = None) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_WRITE)
 async def article_create(
     title: str,
     slug: str,
@@ -63,7 +69,7 @@ async def article_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
 async def article_update(
     article_id: str,
     title: str | None = None,
@@ -89,7 +95,7 @@ async def article_update(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
 async def article_update_section(
     article_id: str,
     section_heading: str,
@@ -110,7 +116,7 @@ async def article_update_section(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT_READ)
 async def article_sections(article_id: str) -> str:
     """List all section headings in an article.
 
@@ -121,7 +127,7 @@ async def article_sections(article_id: str) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT_READ)
 async def article_read_section(
     article_id: str,
     section_heading: str,
@@ -141,7 +147,7 @@ async def article_read_section(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT_READ)
 async def article_history(article_id: str, page_size: int = 10) -> str:
     """List version history for an article.
 
@@ -155,7 +161,7 @@ async def article_history(article_id: str, page_size: int = 10) -> str:
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_WRITE)
 async def article_revert(
     article_id: str,
     history_id: str,
@@ -170,7 +176,7 @@ async def article_revert(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
 async def article_relate(article_id: str, related_article_id: str) -> str:
     """Link two articles together.
 

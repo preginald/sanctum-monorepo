@@ -2,10 +2,11 @@
 
 import json
 from app import mcp
+from cost_tiers import LIGHT_READ
 import client
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT_READ)
 async def search(
     query: str,
     entity_type: str | None = None,
