@@ -4,10 +4,12 @@ import json
 from decimal import Decimal
 from app import mcp
 from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
+from telemetry import with_telemetry
 import client
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def product_list(product_type: str | None = None) -> str:
     """List all products/services in the catalog.
 
@@ -22,6 +24,7 @@ async def product_list(product_type: str | None = None) -> str:
 
 
 @mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
 async def product_show(product_id: str, expand: str | None = None) -> str:
     """Show details for a single product/service.
 
@@ -37,6 +40,7 @@ async def product_show(product_id: str, expand: str | None = None) -> str:
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def product_create(
     name: str,
     type: str,
@@ -71,6 +75,7 @@ async def product_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def product_update(
     product_id: str,
     name: str | None = None,

@@ -892,6 +892,25 @@ class RateCard(Base):
 
     account = relationship("Account")
 
+# Phase 79: MCP Usage Telemetry (#950)
+class McpToolCall(Base):
+    __tablename__ = "mcp_tool_calls"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    called_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+    tool_name = Column(String, nullable=False)
+    cost_tier = Column(String, nullable=True)
+    agent_persona = Column(String, nullable=True)
+    session_id = Column(String, nullable=True)
+    latency_ms = Column(Integer, nullable=False)
+    response_bytes = Column(Integer, nullable=True)
+    token_estimate = Column(Integer, nullable=True)
+    http_calls = Column(Integer, nullable=False, default=1)
+    status = Column(String, nullable=False, default="success")
+    error_message = Column(Text, nullable=True)
+
+Index('ix_mcp_tool_calls_called_at_tool_name', McpToolCall.called_at, McpToolCall.tool_name)
+Index('ix_mcp_tool_calls_agent_persona', McpToolCall.agent_persona)
+
 
 # TRIGRAM INDEXES (pg_trgm)
 # Phase 75: The Omnisearch — fuzzy search support

@@ -10,6 +10,7 @@ from cost_tiers import (
     LIGHT_READ,
     STANDARD_READ,
 )
+from telemetry import with_telemetry
 import client
 
 
@@ -48,6 +49,7 @@ def _compute_delivery_hints(ticket: dict) -> list[str]:
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def ticket_list(
     project: str | None = None,
     milestone: str | None = None,
@@ -92,6 +94,7 @@ async def ticket_list(
 
 
 @mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
 async def ticket_show(ticket_id: int, quiet: bool = False, expand: str | None = None) -> str:
     """Show details for a single ticket by ID.
 
@@ -133,6 +136,7 @@ async def ticket_show(ticket_id: int, quiet: bool = False, expand: str | None = 
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def ticket_create(
     subject: str,
     project_id: str,
@@ -181,6 +185,7 @@ async def ticket_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def ticket_update(
     ticket_id: int,
     subject: str | None = None,
@@ -234,6 +239,7 @@ async def ticket_update(
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def ticket_comment(
     ticket_id: int,
     body: str,
@@ -256,6 +262,7 @@ async def ticket_comment(
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def ticket_resolve(
     ticket_id: int,
     body: str | None = None,
@@ -322,6 +329,7 @@ async def ticket_resolve(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def ticket_relate_article(ticket_id: int, article_id: str) -> str:
     """Link an article to a ticket.
 
@@ -334,6 +342,7 @@ async def ticket_relate_article(ticket_id: int, article_id: str) -> str:
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def ticket_relate_ticket(
     ticket_id: int,
     related_ticket_id: int,
@@ -355,6 +364,7 @@ async def ticket_relate_ticket(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def ticket_unrelate_article(ticket_id: int, article_id: str) -> str:
     """Remove an article link from a ticket.
 
@@ -367,6 +377,7 @@ async def ticket_unrelate_article(ticket_id: int, article_id: str) -> str:
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
     """Remove a link between two tickets.
 
@@ -379,6 +390,7 @@ async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
 
 
 @mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
 async def ticket_delete(ticket_id: int) -> str:
     """Soft-delete (archive) a ticket.
 
@@ -393,6 +405,7 @@ async def ticket_delete(ticket_id: int) -> str:
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def time_entry_create(
     ticket_id: int,
     start_time: str,
@@ -425,6 +438,7 @@ async def time_entry_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def time_entry_update(
     entry_id: str,
     start_time: str | None = None,
@@ -455,6 +469,7 @@ async def time_entry_update(
 
 
 @mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
 async def time_entry_delete(ticket_id: int, entry_id: str) -> str:
     """Delete a time entry from a ticket.
 

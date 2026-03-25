@@ -9,6 +9,7 @@ from cost_tiers import (
     LIGHT_READ,
     STANDARD_READ,
 )
+from telemetry import with_telemetry
 import client
 from token_guard import guard_fetch
 
@@ -31,6 +32,7 @@ def _parse_metadata(metadata: str | None) -> dict | None:
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def artefact_list(
     account_id: str | None = None,
     artefact_type: str | None = None,
@@ -91,6 +93,7 @@ async def artefact_list(
 
 
 @mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
 async def artefact_show(artefact_id: str, expand: str | None = None, force: bool = False) -> str:
     """Show details for an artefact by UUID.
 
@@ -110,6 +113,7 @@ async def artefact_show(artefact_id: str, expand: str | None = None, force: bool
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def artefact_sections(artefact_id: str) -> str:
     """List all section headings in an artefact's content.
 
@@ -121,6 +125,7 @@ async def artefact_sections(artefact_id: str) -> str:
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def artefact_read_section(
     artefact_id: str,
     section_heading: str,
@@ -141,6 +146,7 @@ async def artefact_read_section(
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def artefact_create(
     name: str,
     artefact_type: str,
@@ -210,6 +216,7 @@ async def artefact_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def artefact_update(
     artefact_id: str,
     name: str | None = None,
@@ -282,6 +289,7 @@ async def artefact_update(
 
 
 @mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
 async def artefact_delete(artefact_id: str) -> str:
     """Soft-delete (archive) an artefact.
 
@@ -293,6 +301,7 @@ async def artefact_delete(artefact_id: str) -> str:
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def artefact_link(
     artefact_id: str,
     entity_type: str,
@@ -314,6 +323,7 @@ async def artefact_link(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def artefact_unlink(
     artefact_id: str,
     entity_type: str,
@@ -331,6 +341,7 @@ async def artefact_unlink(
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def artefact_history(
     artefact_id: str,
     page: int = 1,
@@ -348,6 +359,7 @@ async def artefact_history(
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def artefact_revert(
     artefact_id: str,
     history_id: str,

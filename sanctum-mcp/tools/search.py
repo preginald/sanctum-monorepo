@@ -3,10 +3,12 @@
 import json
 from app import mcp
 from cost_tiers import LIGHT_READ
+from telemetry import with_telemetry
 import client
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def search(
     query: str,
     entity_type: str | None = None,
