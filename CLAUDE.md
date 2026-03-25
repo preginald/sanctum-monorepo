@@ -175,6 +175,21 @@ The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
 - **Never force push to main.**
 - **Rollback rule:** If a merge to `main` breaks production, immediately `git revert` the commit rather than attempting a forward fix.
 
+## Cost-Aware Routing
+
+The `/deliver` pipeline routes each phase to the cheapest model that can handle it:
+
+| Phase | Agent | Model | Rationale |
+|---|---|---|---|
+| Recon | `sanctum-recon` | sonnet | Light/standard reads only |
+| Propose | `sanctum-reviewer` | opus | Complex reasoning required |
+| Implement | `sanctum-implementer` | opus | Code generation |
+| Verify | `sanctum-qa` | sonnet | Structured verification |
+| Review | `sanctum-reviewer` | opus | Defensive code review |
+| Document | `sanctum-writer` | sonnet | Documentation updates |
+
+**Override:** The Operator can force opus for recon by delegating to `sanctum-reviewer` instead of `sanctum-recon` when the ticket involves complex cross-system dependencies or security-sensitive analysis.
+
 ## Session Efficiency
 
 - **Keep sessions focused.** One ticket or task per session where possible. Use `/clear` between unrelated tasks to keep context lean.
