@@ -203,6 +203,10 @@ class OAuthMiddleware:
         path = scope.get("path", "")
         method = scope.get("method", "GET")
 
+        # --- Health endpoint (always accessible, no auth) ---
+        if path == "/health" and method == "GET":
+            return await self._handle_health(scope, receive, send)
+
         # --- OAuth endpoints (always accessible) ---
         if path == "/.well-known/oauth-authorization-server" and method == "GET":
             return await self._handle_metadata(scope, receive, send)
@@ -243,6 +247,12 @@ class OAuthMiddleware:
             return
 
         return await self.app(scope, receive, send)
+
+    # ─── Health Check ─────────────────────────
+
+    async def _handle_health(self, scope, receive, send):
+        status, headers, body = _json_response(200, {"status": "ok"})
+        await self._send_response(send, status, headers, body)
 
     # ─── RFC 8414 Metadata ────────────────────
 
