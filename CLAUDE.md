@@ -55,7 +55,7 @@ Configured via `.pre-commit-config.yaml`: trailing whitespace, large file checks
 
 ### 3. Delivery Protocol (MANDATORY)
 
-Applies to all templated ticket types (feature, bug, task, refactor). Relaxed for exempt types (hotfix, alert, support, access, maintenance, test).
+Applies to all templated ticket types (feature, bug, task, refactor). Relaxed for exempt types (hotfix, alert, support, access, maintenance, test) — though all 10 types now have enforced description templates (#927).
 
 **Before starting a ticket:**
 1. Read the full ticket description via MCP (`ticket_show`)

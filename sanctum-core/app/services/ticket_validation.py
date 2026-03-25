@@ -1,7 +1,7 @@
 """
 Ticket validation — enforces template conformity and status lifecycle.
 
-Description validation: required section headings per ticket type (DOC-013–016).
+Description validation: required section headings per ticket type (DOC-013–016, DOC-057–062).
 Status transitions: derived from SYS-005 at runtime via governance provider.
 Type/priority validation: derived from SYS-005 controlled vocabularies.
 See SYS-002 for the enforcement philosophy.
@@ -114,9 +114,31 @@ TEMPLATE_REQUIREMENTS = {
         "headings": ["## Objective", "## Motivation", "## Acceptance Criteria"],
         "article": "DOC-015",
     },
+    "hotfix": {
+        "headings": ["## Bug", "## Fix", "## Acceptance Criteria"],
+        "article": "DOC-057",
+    },
+    "support": {
+        "headings": ["## Issue", "## Investigation", "## Response", "## Acceptance Criteria"],
+        "article": "DOC-058",
+    },
+    "alert": {
+        "headings": ["## Alert", "## Triage", "## Action", "## Acceptance Criteria"],
+        "article": "DOC-059",
+    },
+    "access": {
+        "headings": ["## Request", "## Justification", "## Acceptance Criteria"],
+        "article": "DOC-060",
+    },
+    "maintenance": {
+        "headings": ["## Objective", "## Procedure", "## Rollback", "## Acceptance Criteria"],
+        "article": "DOC-061",
+    },
+    "test": {
+        "headings": ["## Objective", "## Test Plan", "## Expected Results", "## Acceptance Criteria"],
+        "article": "DOC-062",
+    },
 }
-
-EXEMPT_TYPES = {"support", "access", "maintenance", "alert", "hotfix", "test"}
 
 # Fields that indicate substantive work (trigger auto-transition from 'new')
 SUBSTANTIVE_FIELDS = {"description", "priority", "milestone_id", "assigned_tech_id"}
@@ -156,12 +178,9 @@ def validate_ticket_description(ticket_type: str, description: str | None) -> No
     """Validate description against the template for the given ticket type.
 
     Returns None if valid. Raises HTTPException(422) with structured error if not.
-    Skips validation for exempt types or when description is None/empty.
+    Skips validation when description is None/empty or ticket type has no template.
     """
     if not description:
-        return
-
-    if ticket_type in EXEMPT_TYPES:
         return
 
     requirements = TEMPLATE_REQUIREMENTS.get(ticket_type)
