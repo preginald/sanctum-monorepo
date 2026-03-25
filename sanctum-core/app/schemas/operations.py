@@ -173,6 +173,7 @@ class TicketResponse(TicketCreate):
     resolution_comment_id: Optional[UUID] = None
     no_billable: bool = False
     no_billable_reason: Optional[str] = None
+    previous_status: Optional[str] = None
     available_transitions: List[str] = []
 
     # Milestone completion advisory (populated when resolving the last open ticket)
