@@ -177,6 +177,11 @@ def get_transitions_for_type(
             # Default to first status after 'new' in the flow
             if len(forward) > 1:
                 transitions.append(forward[1])
+        # If pending is part of the forward flow, also offer the next forward status
+        if "pending" in forward:
+            pend_idx = forward.index("pending")
+            if pend_idx + 1 < len(forward):
+                transitions.append(forward[pend_idx + 1])
     else:
         # Forward: next status in the flow
         if current_status in forward:
