@@ -318,5 +318,89 @@ def update_account_audit_data(
         "assets_created": result['draft_assets_count']
     }
 
+# ============================================================================
+# SERVICE MANAGEMENT ROUTER (#643)
+# ============================================================================
+
+import re
+
+# Only these services can be restarted via POST /restart
+RESTART_ALLOWED_SERVICES = {"sanctum-mcp"}
+
+# Service name validation: alphanumeric + hyphens only (prevents command injection)
+_SERVICE_NAME_RE = re.compile(r"^sanctum-[a-z0-9-]+$")
+
+service_router = APIRouter(prefix="/admin/services", tags=["Admin - Services"])
+
+
+@service_router.get("/{service_name}/status")
+def get_service_status(
+    service_name: str,
+    current_user: models.User = Depends(get_current_admin),
+):
+    """Return systemd status for a sanctum-* service (read-only)."""
+    if not _SERVICE_NAME_RE.match(service_name):
+        raise HTTPException(status_code=400, detail="Invalid service name")
+
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", service_name],
+            capture_output=True, text=True, timeout=10,
+        )
+        status = result.stdout.strip() or "unknown"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to query service: {e}")
+
+    return {"service": service_name, "status": status}
+
+
+@service_router.post("/{service_name}/restart")
+def restart_service(
+    service_name: str,
+    current_user: models.User = Depends(get_current_admin),
+):
+    """Restart a whitelisted systemd service. Requires admin auth."""
+    if not _SERVICE_NAME_RE.match(service_name):
+        raise HTTPException(status_code=400, detail="Invalid service name")
+
+    if service_name not in RESTART_ALLOWED_SERVICES:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Service '{service_name}' is not in the restart whitelist",
+        )
+
+    # Restart the service via sudo
+    try:
+        restart_result = subprocess.run(
+            ["sudo", "systemctl", "restart", service_name],
+            capture_output=True, text=True, timeout=30,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Restart command failed: {e}")
+
+    if restart_result.returncode != 0:
+        error_output = restart_result.stderr.strip() or restart_result.stdout.strip()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Restart failed (exit {restart_result.returncode}): {error_output}",
+        )
+
+    # Check post-restart status
+    try:
+        status_result = subprocess.run(
+            ["systemctl", "is-active", service_name],
+            capture_output=True, text=True, timeout=10,
+        )
+        new_status = status_result.stdout.strip() or "unknown"
+    except Exception:
+        new_status = "unknown"
+
+    return {
+        "service": service_name,
+        "status": new_status,
+        "restarted_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
 # Export both routers (for backward compatibility, keep 'router' as user_router)
 router = user_router
