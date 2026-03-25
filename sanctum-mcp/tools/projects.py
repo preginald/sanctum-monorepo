@@ -3,6 +3,7 @@
 import json
 from app import mcp
 from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
+from telemetry import with_telemetry
 import client
 
 RESOLVED_STATUSES = {"resolved"}
@@ -10,6 +11,7 @@ DS_HQ = "dbc2c7b9-d8c2-493f-a6ed-527f7d191068"
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def project_list(
     account_id: str | None = None,
 ) -> str:
@@ -38,6 +40,7 @@ async def project_list(
 
 
 @mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
 async def project_show(project_id: str, expand: str | None = None) -> str:
     """Show details for a project by UUID.
 
@@ -53,6 +56,7 @@ async def project_show(project_id: str, expand: str | None = None) -> str:
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def project_create(
     name: str,
     account_id: str = DS_HQ,
@@ -93,6 +97,7 @@ async def project_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def project_update(
     project_id: str,
     name: str | None = None,
@@ -135,6 +140,7 @@ async def project_update(
 
 
 @mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
 async def project_overview(
     project_id: str,
     status: str = "open",
@@ -193,6 +199,7 @@ async def project_overview(
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def rate_card_list(
     account_id: str | None = None,
     tier: str | None = None,
@@ -217,6 +224,7 @@ async def rate_card_list(
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def rate_card_create(
     tier: str,
     hourly_rate: str,
@@ -239,6 +247,7 @@ async def rate_card_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def rate_card_update(
     card_id: str,
     hourly_rate: str | None = None,
@@ -261,6 +270,7 @@ async def rate_card_update(
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def rate_card_lookup(
     account_id: str,
     tier: str,

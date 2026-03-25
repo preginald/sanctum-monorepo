@@ -3,10 +3,12 @@
 import json
 from app import mcp
 from cost_tiers import DESTRUCTIVE, HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ
+from telemetry import with_telemetry
 import client
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def invoice_show(invoice_id: str) -> str:
     """Show details for an invoice.
 
@@ -18,6 +20,7 @@ async def invoice_show(invoice_id: str) -> str:
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def invoice_create(
     account_id: str,
     description: str | None = None,
@@ -42,6 +45,7 @@ async def invoice_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def invoice_update(
     invoice_id: str,
     status: str | None = None,
@@ -68,6 +72,7 @@ async def invoice_update(
 
 
 @mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
 async def invoice_delete(invoice_id: str) -> str:
     """Delete an invoice.
 

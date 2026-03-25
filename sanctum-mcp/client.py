@@ -10,6 +10,7 @@ Authenticates to the core API using the SANCTUM_API_TOKEN env var.
 import asyncio
 import logging
 import os
+import time
 
 import httpx
 from dotenv import load_dotenv
@@ -42,15 +43,30 @@ async def _get_client() -> httpx.AsyncClient:
 
 async def _request(method: str, path: str, **kwargs) -> httpx.Response:
     """Execute an HTTP request with retry on transient errors."""
+    from telemetry import CALL_METRICS, _IN_TELEMETRY_POST
+
     client = await _get_client()
     kwargs.setdefault("headers", {})
     kwargs["headers"]["Authorization"] = f"Bearer {API_TOKEN}"
     kwargs["headers"]["Content-Type"] = "application/json"
     last_exc: Exception | None = None
+    start = time.monotonic()
     for attempt in range(_MAX_RETRIES):
         try:
             r = await client.request(method, path, **kwargs)
             if r.status_code not in _RETRY_STATUSES:
+                # Record metrics unless this is a telemetry POST (recursion guard)
+                if not _IN_TELEMETRY_POST.get(False):
+                    try:
+                        metrics = CALL_METRICS.get()
+                        metrics.append({
+                            "response_bytes": len(r.content),
+                            "latency_ms": int((time.monotonic() - start) * 1000),
+                            "status_code": r.status_code,
+                            "attempt": attempt + 1,
+                        })
+                    except LookupError:
+                        pass  # No CALL_METRICS context — not inside a tool call
                 return r
             last_exc = httpx.HTTPStatusError(
                 f"{r.status_code}", request=r.request, response=r

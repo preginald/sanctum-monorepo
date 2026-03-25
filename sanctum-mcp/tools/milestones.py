@@ -4,6 +4,7 @@ import json
 import re
 from app import mcp
 from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
+from telemetry import with_telemetry
 import client
 
 
@@ -29,6 +30,7 @@ def _compute_health_check(milestone: dict) -> dict:
 
 
 @mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
 async def milestone_list(project_id: str) -> str:
     """List milestones for a project.
 
@@ -53,6 +55,7 @@ async def milestone_list(project_id: str) -> str:
 
 
 @mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
 async def milestone_show(milestone_id: str, quiet: bool = False, expand: str | None = None) -> str:
     """Show details for a milestone.
 
@@ -73,6 +76,7 @@ async def milestone_show(milestone_id: str, quiet: bool = False, expand: str | N
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
 async def milestone_create(
     project_id: str,
     name: str,
@@ -101,6 +105,7 @@ async def milestone_create(
 
 
 @mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
 async def milestone_update(
     milestone_id: str,
     name: str | None = None,
