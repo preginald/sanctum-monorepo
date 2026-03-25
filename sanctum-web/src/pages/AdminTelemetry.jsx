@@ -269,6 +269,7 @@ export default function AdminTelemetry() {
         )}
 
         {/* Pagination */}
+        {calls.length > 0 && (
         <div className="flex items-center justify-between mt-4">
           <span className="text-xs text-slate-500">
             Showing {logOffset + 1}&ndash;{logOffset + calls.length}
@@ -290,6 +291,7 @@ export default function AdminTelemetry() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </Layout>
   );
