@@ -80,6 +80,7 @@ import NotificationCenter from './pages/NotificationCenter';
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
 import AdminServices from './pages/AdminServices';
+import AdminTelemetry from './pages/AdminTelemetry';
 
 import AssetLifecycle from './pages/AssetLifecycle';
 import AssetDetail from './pages/AssetDetail';
@@ -195,6 +196,7 @@ function App() {
                               {/* DIAGNOSTICS */}
                               <Route path="/admin/health" element={<Diagnostics />} />
                               <Route path="/admin/services" element={<AdminServices />} />
+                              <Route path="/admin/telemetry" element={<AdminTelemetry />} />
                               <Route path="/system/health" element={<SystemHealth />} />
 
                           </Routes>

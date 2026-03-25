@@ -202,6 +202,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                         <NavItem icon={<Users size={20} className="text-purple-400" />} label="Staff Roster" path="/admin/users" />
                         <NavItem icon={<Zap size={20} className="text-yellow-400" />} label="The Weaver" path="/admin/automations" />
                         <NavItem icon={<Terminal size={20} className="text-sanctum-blue" />} label="The Ingest" path="/admin/ingest" />
+                        <NavItem icon={<Activity size={20} className="text-cyan-400" />} label="MCP Telemetry" path="/admin/telemetry" />
                         <NavItem icon={<PieChart size={20} className="text-green-400" />} label="The Oracle" path="/analytics" />
                     </>
                 )}
