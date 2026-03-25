@@ -290,7 +290,7 @@ class OAuthMiddleware:
             "token_endpoint": f"{MCP_SERVER_URL}/token",
             "registration_endpoint": f"{MCP_SERVER_URL}/register",
             "response_types_supported": ["code"],
-            "grant_types_supported": ["authorization_code", "client_credentials"],
+            "grant_types_supported": ["authorization_code", "client_credentials", "refresh_token"],
             "token_endpoint_auth_methods_supported": ["client_secret_post"],
             "code_challenge_methods_supported": ["S256", "plain"],
         }
@@ -534,7 +534,7 @@ class OAuthMiddleware:
             "client_secret": new_client_secret,
             "client_name": client_name,
             "redirect_uris": redirect_uris,
-            "grant_types": ["authorization_code", "client_credentials"],
+            "grant_types": ["authorization_code", "client_credentials", "refresh_token"],
             "token_endpoint_auth_method": "client_secret_post",
         }
         status, headers, resp_body = _json_response(201, response)
