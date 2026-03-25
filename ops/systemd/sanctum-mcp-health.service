@@ -1,0 +1,13 @@
+[Unit]
+Description=Sanctum MCP Health Check (restarts MCP if unresponsive)
+After=network.target
+
+[Service]
+Type=oneshot
+# Only restart if the service is supposed to be running (skip if intentionally stopped)
+ExecStart=/bin/bash -c '\
+  if ! systemctl is-active --quiet sanctum-mcp; then exit 0; fi; \
+  if ! curl -sf --max-time 5 http://localhost:8100/health > /dev/null 2>&1; then \
+    echo "MCP health check failed, restarting sanctum-mcp"; \
+    systemctl restart sanctum-mcp; \
+  fi'

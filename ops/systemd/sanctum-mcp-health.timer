@@ -1,0 +1,10 @@
+[Unit]
+Description=Sanctum MCP Health Check Timer (every 30s)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Unit=sanctum-mcp-health.service
+
+[Install]
+WantedBy=timers.target

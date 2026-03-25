@@ -2586,6 +2586,71 @@ artefact_unlink() {
 }
 
 # ─────────────────────────────────────────────
+# ADMIN FUNCTIONS (#643)
+# ─────────────────────────────────────────────
+
+admin_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum admin — Service Management${NC}"
+    echo ""
+    echo "Usage: sanctum admin <command> <service_name> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  status  <service>   Show systemd status for a service"
+    echo "  restart <service>   Restart a whitelisted service"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum admin status  sanctum-mcp"
+    echo "  sanctum admin restart sanctum-mcp"
+    echo ""
+    exit 0
+}
+
+admin_status() {
+    local SERVICE="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$SERVICE" ] && echo -e "${RED}✗ Service name is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) admin_usage ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    RESULT=$(api_get "/admin/services/${SERVICE}/status")
+    echo "$RESULT" | jq '.'
+}
+
+admin_restart() {
+    local SERVICE="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$SERVICE" ] && echo -e "${RED}✗ Service name is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) admin_usage ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — admin restart"
+    ensure_auth
+    confirm_prod "About to restart service: ${SERVICE}"
+
+    RESULT=$(api_post "/admin/services/${SERVICE}/restart" "{}")
+    echo "$RESULT" | jq '.'
+}
+
+# ─────────────────────────────────────────────
 # DISPATCH
 # ─────────────────────────────────────────────
 DOMAIN="${1:-}"
@@ -2707,9 +2772,22 @@ case "$DOMAIN" in
                 ;;
         esac
         ;;
+    admin)
+        shift 2 || true
+        case "$COMMAND" in
+            -h|--help) admin_usage ;;
+            status)  admin_status "$@" ;;
+            restart) admin_restart "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown admin command: ${COMMAND}${NC}"
+                echo "  Valid commands: status, restart"
+                exit 1
+                ;;
+        esac
+        ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, milestone, invoice, article, artefact, context, search"
+        echo "  Valid domains: ticket, milestone, invoice, article, artefact, context, search, admin"
         exit 1
         ;;
 esac
