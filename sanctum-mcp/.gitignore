@@ -3,3 +3,4 @@ venv/
 __pycache__/
 *.pyc
 registered_clients.json
+refresh_tokens.json
