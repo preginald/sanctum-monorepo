@@ -45,7 +45,7 @@ _IN_TELEMETRY_POST: contextvars.ContextVar[bool] = contextvars.ContextVar(
 _BATCH_SIZE = 10
 _FLUSH_INTERVAL = 30  # seconds
 _buffer: list[dict] = []
-_buffer_lock = asyncio.Lock() if asyncio.get_event_loop().is_running() else None
+_buffer_lock: asyncio.Lock | None = None
 _flush_task: asyncio.Task | None = None
 
 API_BASE = os.getenv("SANCTUM_API_BASE", "https://core.digitalsanctum.com.au/api")

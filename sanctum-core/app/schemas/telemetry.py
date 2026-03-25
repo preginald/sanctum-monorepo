@@ -20,7 +20,7 @@ class McpToolCallCreate(BaseModel):
 
 
 class McpToolCallBatchCreate(BaseModel):
-    records: list[McpToolCallCreate]
+    records: list[McpToolCallCreate] = Field(..., max_length=500)
 
 
 class McpToolCallRead(BaseModel):

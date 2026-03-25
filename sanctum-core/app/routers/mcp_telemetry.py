@@ -97,7 +97,7 @@ def get_stats(
     }.get(group_by, models.McpToolCall.tool_name)
 
     q = db.query(
-        group_col.label("tool_name"),
+        group_col.label("group_key"),
         func.count().label("call_count"),
         func.avg(models.McpToolCall.latency_ms).label("avg_latency_ms"),
         func.percentile_cont(0.95).within_group(
@@ -120,7 +120,7 @@ def get_stats(
     for r in rows:
         error_rate = (r.error_count / r.call_count * 100) if r.call_count else 0.0
         results.append(McpToolCallStats(
-            tool_name=r.tool_name,
+            tool_name=r.group_key,
             call_count=r.call_count,
             avg_latency_ms=round(float(r.avg_latency_ms or 0), 1),
             p95_latency_ms=round(float(r.p95_latency_ms or 0), 1) if r.p95_latency_ms else None,
