@@ -2,7 +2,7 @@ import api from '../../lib/api';
 import React, { useMemo, useState } from 'react';
 import {  StatusBadge, PriorityBadge } from './TicketBadges';
 import SanctumMarkdown from '../ui/SanctumMarkdown';
-import {  TICKET_STATUSES, TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
+import { TICKET_PRIORITIES, TICKET_TYPES } from '../../lib/constants';
 import {  handleSmartWrap } from '../../lib/textUtils';
 import SearchableSelect from '../ui/SearchableSelect';
 import { Search as LucideSearchIcon,  User, Briefcase, X, Plus, ShieldCheck } from 'lucide-react';
@@ -245,7 +245,7 @@ if (!isEditing) {
   return (
     <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl space-y-6 animate-in fade-in duration-200">
         <div className="grid grid-cols-4 gap-6">
-            <div><label className="block text-xs uppercase opacity-50 mb-1">Status</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}>{TICKET_STATUSES.map(s => <option key={s} value={s}>{capitalize(s)}</option>)}</select></div>
+            <div><label className="block text-xs uppercase opacity-50 mb-1">Status</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.status} onChange={e => setFormData({...formData, status: e.target.value})}><option value={formData.status}>{capitalize(formData.status)}</option>{(ticket.available_transitions || []).filter(s => s !== formData.status).map(s => <option key={s} value={s}>{capitalize(s)}</option>)}</select></div>
             <div><label className="block text-xs uppercase opacity-50 mb-1">Priority</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.priority} onChange={e => setFormData({...formData, priority: e.target.value})}>{TICKET_PRIORITIES.map(p => <option key={p} value={p}>{capitalize(p)}</option>)}</select></div>
             <div><label className="block text-xs uppercase opacity-50 mb-1">Type</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.ticket_type} onChange={e => setFormData({...formData, ticket_type: e.target.value})}>{TICKET_TYPES.map(t => <option key={t} value={t}>{capitalize(t)}</option>)}</select></div>
             <div><label className="block text-xs uppercase opacity-50 mb-1 text-purple-400">Agent</label><select className="w-full p-2 rounded bg-black/40 border border-slate-600 text-white text-sm" value={formData.assigned_tech_id || ""} onChange={e => setFormData({...formData, assigned_tech_id: e.target.value || null})}><option value="">-- Unassigned --</option>{techs?.map(u => <option key={u.id} value={u.id}>{u.full_name}</option>)}</select></div>

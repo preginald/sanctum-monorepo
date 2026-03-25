@@ -10,11 +10,16 @@ export const priorityStyles = {
 };
 
 export const ticketStatusStyles = {
-  new:      "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-slate-500/20 text-slate-400 border-slate-500/30",
-  open:     "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
-  pending:  "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-amber-500/20 text-amber-400 border-amber-500/30",
-  qa:       "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-purple-500/20 text-purple-400 border-purple-500/30",
-  resolved: "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-green-500/20 text-green-400 border-green-500/30",
+  new:            "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-slate-500/20 text-slate-400 border-slate-500/30",
+  recon:          "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-violet-500/20 text-violet-400 border-violet-500/30",
+  proposal:       "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-fuchsia-500/20 text-fuchsia-400 border-fuchsia-500/30",
+  implementation: "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
+  verification:   "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-purple-500/20 text-purple-400 border-purple-500/30",
+  review:         "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  open:           "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
+  pending:        "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-amber-500/20 text-amber-400 border-amber-500/30",
+  qa:             "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-purple-500/20 text-purple-400 border-purple-500/30",
+  resolved:       "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-green-500/20 text-green-400 border-green-500/30",
 };
 
 export const ticketTypeStyles = {

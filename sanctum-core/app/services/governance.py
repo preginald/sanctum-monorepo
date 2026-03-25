@@ -101,13 +101,114 @@ FALLBACK_TICKET_TYPES = [
 FALLBACK_PRIORITIES = ["low", "normal", "high", "critical"]
 
 FALLBACK_TICKET_TRANSITIONS = {
-    "new":      ["open", "pending"],
-    "open":     ["qa", "resolved", "pending"],
-    "pending":  ["open", "resolved"],
-    "qa":       ["resolved"],
-    "resolved": ["closed"],
-    "closed":   [],
+    "new":            ["open", "recon", "implementation"],
+    "recon":          ["proposal", "pending"],
+    "proposal":       ["implementation", "recon", "pending"],
+    "implementation": ["verification", "proposal", "pending"],
+    "open":           ["pending", "resolved", "verification"],
+    "verification":   ["review", "resolved", "implementation", "pending"],
+    "review":         ["resolved", "verification", "implementation", "pending"],
+    "pending":        ["open"],
+    "qa":             ["resolved"],
+    "resolved":       [],
 }
+
+# ---------------------------------------------------------------------------
+# Per-type status flows (code-level constant — SYS-005 serves as documentation)
+# ---------------------------------------------------------------------------
+TICKET_STATUS_FLOWS = {
+    # Templated types: full delivery pipeline
+    "feature":  {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
+    "bug":      {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
+    "task":     {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
+    "refactor": {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
+    # Short-pipeline types
+    "hotfix":      {"forward": ["new", "implementation", "verification", "resolved"],
+                    "backward": {"verification": ["implementation"]}},
+    "maintenance": {"forward": ["new", "implementation", "verification", "resolved"],
+                    "backward": {"verification": ["implementation"]}},
+    "test":        {"forward": ["new", "implementation", "verification", "resolved"],
+                    "backward": {"verification": ["implementation"]}},
+    # Simple types
+    "support": {"forward": ["new", "open", "pending", "resolved"],
+                "backward": {"pending": ["open"]}},
+    "access":  {"forward": ["new", "open", "resolved"],
+                "backward": {}},
+    "alert":   {"forward": ["new", "open", "resolved"],
+                "backward": {}},
+}
+
+
+def get_transitions_for_type(
+    ticket_type: str,
+    current_status: str,
+    previous_status: str | None = None,
+) -> list[str]:
+    """Compute valid next statuses for a given ticket type and current status.
+
+    Rules:
+    1. Next forward status in the type's flow
+    2. Backward transitions from the flow definition
+    3. 'pending' as universal hold (unless already pending or resolved)
+    4. When pending, resume to previous_status (or first-after-new default)
+    5. 'new' as universal reopen target (from any non-new status)
+    """
+    flow = TICKET_STATUS_FLOWS.get(ticket_type)
+    if not flow:
+        # Unknown type — fall back to type-agnostic transitions
+        transitions = list(FALLBACK_TICKET_TRANSITIONS.get(current_status, []))
+        if current_status != "new":
+            transitions.append("new")
+        return transitions
+
+    forward = flow["forward"]
+    backward = flow["backward"]
+    transitions: list[str] = []
+
+    if current_status == "pending":
+        # Resume from pending: go to previous_status or default
+        if previous_status and previous_status in forward:
+            transitions.append(previous_status)
+        else:
+            # Default to first status after 'new' in the flow
+            if len(forward) > 1:
+                transitions.append(forward[1])
+        # If pending is part of the forward flow, also offer the next forward status
+        if "pending" in forward:
+            pend_idx = forward.index("pending")
+            if pend_idx + 1 < len(forward):
+                transitions.append(forward[pend_idx + 1])
+    else:
+        # Forward: next status in the flow
+        if current_status in forward:
+            idx = forward.index(current_status)
+            if idx + 1 < len(forward):
+                transitions.append(forward[idx + 1])
+
+        # Backward transitions
+        if current_status in backward:
+            transitions.extend(backward[current_status])
+
+        # Pending as universal hold (not from resolved, not if already pending)
+        if current_status != "resolved":
+            transitions.append("pending")
+
+    # Universal reopen: any non-new status can go back to new
+    if current_status != "new":
+        transitions.append("new")
+
+    # Deduplicate while preserving order
+    seen = set()
+    result = []
+    for t in transitions:
+        if t not in seen:
+            seen.add(t)
+            result.append(t)
+    return result
 
 FALLBACK_MILESTONE_STATUSES = ["pending", "active", "completed"]
 

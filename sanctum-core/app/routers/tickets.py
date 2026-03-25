@@ -198,7 +198,11 @@ def update_ticket(
 
     # Status transition validation
     if not ticket_update.skip_validation and 'status' in update_data and update_data['status'] != ticket.status:
-        validate_ticket_transition(ticket.status, update_data['status'], db)
+        validate_ticket_transition(
+            ticket.status, update_data['status'], db,
+            ticket_type=ticket.ticket_type,
+            previous_status=ticket.previous_status,
+        )
 
     # Resolution comment enforcement
     if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':
@@ -284,11 +288,21 @@ def update_ticket(
         else:
             ticket.contacts = []
 
-    # 2. STATUS CHECK
+    # 2. PENDING HOLD/RESUME
+    if 'status' in update_data:
+        new_status = update_data['status']
+        # Save previous status when entering pending
+        if new_status == 'pending' and old_status != 'pending':
+            ticket.previous_status = old_status
+        # Clear previous_status when leaving pending
+        if old_status == 'pending' and new_status != 'pending':
+            ticket.previous_status = None
+
+    # 3. STATUS CHECK
     if 'status' in update_data and update_data['status'] == 'resolved' and ticket.status != 'resolved':
         if 'closed_at' not in update_data: ticket.closed_at = func.now()
 
-    # 3. GENERIC FIELDS
+    # 4. GENERIC FIELDS
     for key, value in update_data.items(): setattr(ticket, key, value)
 
     # 4. CASCADE: ticket status change → milestone → project
