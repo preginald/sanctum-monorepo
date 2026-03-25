@@ -28,6 +28,7 @@ MCP_CLIENT_ID = os.getenv("MCP_CLIENT_ID", "")
 MCP_CLIENT_SECRET = os.getenv("MCP_CLIENT_SECRET", "")
 MCP_JWT_SECRET = os.getenv("MCP_JWT_SECRET", os.getenv("MCP_CLIENT_SECRET", ""))
 MCP_TOKEN_EXPIRY = int(os.getenv("MCP_TOKEN_EXPIRY", "3600"))
+MCP_REFRESH_EXPIRY = int(os.getenv("MCP_REFRESH_EXPIRY", "2592000"))  # 30 days
 MCP_AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED", "true").lower() == "true"
 MCP_AUTH_USERNAME = os.getenv("MCP_AUTH_USERNAME", "admin")
 MCP_AUTH_PASSWORD = os.getenv("MCP_AUTH_PASSWORD", "")
@@ -37,6 +38,7 @@ _auth_codes = {}  # code -> {client_id, redirect_uri, code_challenge, expires_at
 
 # Registered clients persisted to disk so they survive server restarts
 _CLIENTS_FILE = Path(__file__).parent / "registered_clients.json"
+_REFRESH_FILE = Path(__file__).parent / "refresh_tokens.json"
 
 
 def _load_registered_clients() -> dict:
@@ -54,6 +56,22 @@ def _save_registered_clients() -> None:
 
 _registered_clients = _load_registered_clients()
 
+
+def _load_refresh_tokens() -> dict:
+    if _REFRESH_FILE.exists():
+        try:
+            return json.loads(_REFRESH_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            return {}
+    return {}
+
+
+def _save_refresh_tokens() -> None:
+    _REFRESH_FILE.write_text(json.dumps(_refresh_tokens, indent=2))
+
+
+_refresh_tokens = _load_refresh_tokens()  # token -> {sub, client_id, issued_at, expires_at}
+
 ALLOWED_CALLBACKS = [
     "https://claude.ai/api/mcp/auth_callback",
     "https://claude.com/api/mcp/auth_callback",
@@ -64,7 +82,7 @@ ALLOWED_CALLBACKS = [
 # TOKEN HELPERS
 # ─────────────────────────────────────────────
 
-def _create_token(sub: str = "") -> dict:
+def _create_token(sub: str = "", client_id: str = "") -> dict:
     now = int(time.time())
     payload = {
         "sub": sub or MCP_CLIENT_ID,
@@ -72,11 +90,20 @@ def _create_token(sub: str = "") -> dict:
         "exp": now + MCP_TOKEN_EXPIRY,
         "scope": "mcp",
     }
-    token = jwt.encode(payload, MCP_JWT_SECRET, algorithm="HS256")
+    access_token = jwt.encode(payload, MCP_JWT_SECRET, algorithm="HS256")
+    refresh_token = secrets.token_urlsafe(48)
+    _refresh_tokens[refresh_token] = {
+        "sub": sub or MCP_CLIENT_ID,
+        "client_id": client_id or sub or MCP_CLIENT_ID,
+        "issued_at": now,
+        "expires_at": now + MCP_REFRESH_EXPIRY,
+    }
+    _save_refresh_tokens()
     return {
-        "access_token": token,
+        "access_token": access_token,
         "token_type": "bearer",
         "expires_in": MCP_TOKEN_EXPIRY,
+        "refresh_token": refresh_token,
     }
 
 
@@ -412,7 +439,8 @@ class OAuthMiddleware:
                 return
 
         # Issue token
-        token_response = _create_token(sub=client_id)
+        effective_client_id = client_id or code_data["client_id"]
+        token_response = _create_token(sub=effective_client_id, client_id=effective_client_id)
         status, headers, body = _json_response(200, token_response)
         await self._send_response(send, status, headers, body)
 
@@ -435,7 +463,7 @@ class OAuthMiddleware:
             await self._send_response(send, status, headers, body)
             return
 
-        token_response = _create_token(sub=client_id)
+        token_response = _create_token(sub=client_id, client_id=client_id)
         status, headers, body = _json_response(200, token_response)
         await self._send_response(send, status, headers, body)
 
