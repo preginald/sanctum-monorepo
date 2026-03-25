@@ -314,6 +314,13 @@ class OAuthMiddleware:
             await self._send_response(send, status, headers, body)
             return
 
+        if not self._is_redirect_allowed(client_id, redirect_uri):
+            status, headers, body = _json_response(
+                400, {"error": "invalid_request", "error_description": "redirect_uri not allowed"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
+
         html = _login_page(client_id, redirect_uri, state, code_challenge, code_challenge_method)
         status, headers, body = _html_response(200, html)
         await self._send_response(send, status, headers, body)
@@ -331,6 +338,14 @@ class OAuthMiddleware:
         state = params.get("state", [""])[0]
         code_challenge = params.get("code_challenge", [""])[0]
         code_challenge_method = params.get("code_challenge_method", ["S256"])[0]
+
+        # Validate redirect_uri against allow list
+        if not self._is_redirect_allowed(client_id, redirect_uri):
+            status, headers, body = _json_response(
+                400, {"error": "invalid_request", "error_description": "redirect_uri not allowed"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
 
         # Validate credentials
         if not MCP_AUTH_PASSWORD:
@@ -541,6 +556,21 @@ class OAuthMiddleware:
         await self._send_response(send, status, headers, resp_body)
 
     # ─── Helpers ──────────────────────────────
+
+    def _is_redirect_allowed(self, client_id: str, redirect_uri: str) -> bool:
+        """Check redirect_uri against ALLOWED_CALLBACKS and registered client URIs."""
+        parsed = urlparse(redirect_uri)
+        base_uri = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+        if base_uri in ALLOWED_CALLBACKS:
+            return True
+        # Also accept URIs registered by dynamic clients (e.g. Claude Code localhost)
+        client_data = _registered_clients.get(client_id, {})
+        if redirect_uri in client_data.get("redirect_uris", []):
+            return True
+        # Allow localhost callbacks for dev (dynamic registration uses ephemeral ports)
+        if parsed.hostname in ("localhost", "127.0.0.1"):
+            return True
+        return False
 
     async def _read_body(self, receive) -> bytes:
         body = b""
