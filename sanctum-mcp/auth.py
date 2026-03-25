@@ -380,6 +380,7 @@ class OAuthMiddleware:
             code = params.get("code", [""])[0]
             code_verifier = params.get("code_verifier", [""])[0]
             redirect_uri = params.get("redirect_uri", [""])[0]
+            refresh_token = params.get("refresh_token", [""])[0]
         elif "application/json" in content_type:
             try:
                 data = json.loads(body)
@@ -393,6 +394,7 @@ class OAuthMiddleware:
             code = data.get("code", "")
             code_verifier = data.get("code_verifier", "")
             redirect_uri = data.get("redirect_uri", "")
+            refresh_token = data.get("refresh_token", "")
         else:
             status, headers, resp_body = _json_response(400, {"error": "invalid_request"})
             await self._send_response(send, status, headers, resp_body)
@@ -402,6 +404,8 @@ class OAuthMiddleware:
             await self._token_authorization_code(send, client_id, client_secret, code, code_verifier, redirect_uri)
         elif grant_type == "client_credentials":
             await self._token_client_credentials(send, client_id, client_secret)
+        elif grant_type == "refresh_token":
+            await self._token_refresh(send, client_id, refresh_token)
         else:
             status, headers, resp_body = _json_response(400, {"error": "unsupported_grant_type"})
             await self._send_response(send, status, headers, resp_body)
@@ -464,6 +468,39 @@ class OAuthMiddleware:
             return
 
         token_response = _create_token(sub=client_id, client_id=client_id)
+        status, headers, body = _json_response(200, token_response)
+        await self._send_response(send, status, headers, body)
+
+    async def _token_refresh(self, send, client_id, refresh_token):
+        # Lazy cleanup: evict expired refresh tokens to prevent memory leak
+        now = time.time()
+        expired = [k for k, v in _refresh_tokens.items() if v["expires_at"] < now]
+        for k in expired:
+            del _refresh_tokens[k]
+        if expired:
+            _save_refresh_tokens()
+
+        # Validate refresh token
+        token_data = _refresh_tokens.pop(refresh_token, None)
+        if not token_data:
+            status, headers, body = _json_response(
+                400, {"error": "invalid_grant", "error_description": "Invalid or expired refresh token"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
+
+        if token_data["expires_at"] < now:
+            _save_refresh_tokens()
+            status, headers, body = _json_response(
+                400, {"error": "invalid_grant", "error_description": "Refresh token expired"}
+            )
+            await self._send_response(send, status, headers, body)
+            return
+
+        # Issue new access + refresh token pair (single-use rotation)
+        effective_sub = token_data["sub"]
+        effective_client = token_data.get("client_id", client_id or effective_sub)
+        token_response = _create_token(sub=effective_sub, client_id=effective_client)
         status, headers, body = _json_response(200, token_response)
         await self._send_response(send, status, headers, body)
 
