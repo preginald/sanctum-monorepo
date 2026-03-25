@@ -9,6 +9,7 @@ Known limitation: unstructured artefacts (zero markdown headings) bypass the
 guard because they cannot be surgically fetched via section-level reads.
 """
 
+import json
 import logging
 import os
 
@@ -61,8 +62,6 @@ async def guard_fetch(
         return None
 
     # Fetch section headings via the lightweight sections endpoint.
-    import json
-
     if entity_type == "article":
         sections_path = f"/articles/{entity_id}/sections"
         read_tool = "article_read_section"
