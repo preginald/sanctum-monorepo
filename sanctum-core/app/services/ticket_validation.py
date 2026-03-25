@@ -11,13 +11,25 @@ import re
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from .governance import get_ticket_transitions, get_allowed_ticket_types, get_allowed_priorities
+from .governance import get_ticket_transitions, get_allowed_ticket_types, get_allowed_priorities, get_transitions_for_type
 
 logger = logging.getLogger(__name__)
 
 
-def get_available_transitions(status: str, db: Session) -> list[str]:
-    """Return allowed target statuses. Any status can transition to 'new' (reopen)."""
+def get_available_transitions(
+    status: str,
+    db: Session,
+    ticket_type: str | None = None,
+    previous_status: str | None = None,
+) -> list[str]:
+    """Return allowed target statuses.
+
+    When ticket_type is provided, uses per-type flow definitions.
+    Falls back to type-agnostic transitions when ticket_type is None.
+    """
+    if ticket_type:
+        return get_transitions_for_type(ticket_type, status, previous_status)
+    # Legacy fallback: type-agnostic
     transitions_map = get_ticket_transitions(db)
     transitions = list(transitions_map.get(status, []))
     if status != "new":
@@ -25,20 +37,29 @@ def get_available_transitions(status: str, db: Session) -> list[str]:
     return transitions
 
 
-def validate_ticket_transition(current: str, requested: str, db: Session) -> None:
-    """Validate a status transition. Raises HTTPException(422) if invalid."""
+def validate_ticket_transition(
+    current: str,
+    requested: str,
+    db: Session,
+    ticket_type: str | None = None,
+    previous_status: str | None = None,
+) -> None:
+    """Validate a status transition. Raises HTTPException(422) if invalid.
+
+    When ticket_type is provided, validates against per-type flow definitions.
+    """
     if requested == "new":
         return  # Reopening is always allowed
-    transitions_map = get_ticket_transitions(db)
-    allowed = transitions_map.get(current, [])
+    allowed = get_available_transitions(current, db, ticket_type=ticket_type, previous_status=previous_status)
     if requested not in allowed:
+        type_label = f" {ticket_type}" if ticket_type else ""
         raise HTTPException(
             status_code=422,
             detail={
-                "detail": f"Invalid status transition: {current} → {requested}",
+                "detail": f"Cannot transition{type_label} ticket from '{current}' to '{requested}'. Valid transitions: {allowed}",
                 "current": current,
                 "requested": requested,
-                "allowed": get_available_transitions(current, db),
+                "allowed": allowed,
                 "reference": "SYS-005",
                 "help": "See SYS-005 for the ticket status lifecycle.",
             },
@@ -101,16 +122,33 @@ EXEMPT_TYPES = {"support", "access", "maintenance", "alert", "hotfix", "test"}
 SUBSTANTIVE_FIELDS = {"description", "priority", "milestone_id", "assigned_tech_id"}
 
 
+# Type categories for auto-transition target from 'new'
+_TEMPLATED_TYPES = {"feature", "bug", "task", "refactor"}
+_SHORT_PIPELINE_TYPES = {"hotfix", "maintenance", "test"}
+_SIMPLE_TYPES = {"support", "access", "alert"}
+
+
 def auto_transition_from_new(ticket, db: Session) -> bool:
-    """Auto-transition a ticket from 'new' to 'open' if it is currently 'new'.
+    """Auto-transition a ticket from 'new' based on its type.
+
+    Templated types (feature/bug/task/refactor): new -> recon
+    Short-pipeline types (hotfix/maintenance/test): new -> implementation
+    Simple types (support/access/alert): new -> open
 
     Returns True if the transition was applied.
     """
     if ticket.status != "new":
         return False
-    ticket.status = "open"
+    ticket_type = getattr(ticket, "ticket_type", "support") or "support"
+    if ticket_type in _TEMPLATED_TYPES:
+        target = "recon"
+    elif ticket_type in _SHORT_PIPELINE_TYPES:
+        target = "implementation"
+    else:
+        target = "open"
+    ticket.status = target
     db.flush()
-    logger.info("Auto-transitioned ticket #%s from new → open", ticket.id)
+    logger.info("Auto-transitioned ticket #%s from new -> %s (type=%s)", ticket.id, target, ticket_type)
     return True
 
 
