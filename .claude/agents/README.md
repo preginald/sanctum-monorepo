@@ -83,6 +83,25 @@ scripts/dev/mcp-server.sh stop
 | `sanctum-qa` | sonnet | ~1.5-2x | Structured verification, test execution |
 | `sanctum-writer` | sonnet | ~1.5-2x | Documentation, article updates |
 
+## MCP Tool Cost-Tier Routing
+
+Every MCP tool carries a `costTier` annotation (`light`, `standard`, `heavy`, `destructive`) plus MCP spec hints (`readOnlyHint`, `destructiveHint`, `idempotentHint`). These inform which model class should handle each tool call.
+
+| Tier | Count | MCP Hints | Suitable Model | Examples |
+|---|---|---|---|---|
+| `light` | 19 | readOnly, idempotent | Haiku-class | `*_list`, `*_show`, `search`, `*_sections` |
+| `standard` | 6 | readOnly, idempotent | Sonnet-class | `article_show`, `artefact_show`, `*_history`, `*_read_section` |
+| `heavy` | 23 | non-readOnly, non-idempotent | Opus-class | `*_create`, `*_update`, `*_comment`, `*_link`, `*_relate` |
+| `destructive` | 9 | destructive | Opus-class + confirmation | `*_delete`, `*_unlink`, `*_revert`, `*_unrelate` |
+
+Annotations are defined in `sanctum-mcp/cost_tiers.py` and applied to every `@mcp.tool()` decorator across all tool modules.
+
+**Routing guidance:**
+- Light-tier tools are safe to delegate to cheaper, faster models (Haiku) for bulk reads and lookups.
+- Standard-tier tools return larger content and benefit from Sonnet-class reasoning for synthesis.
+- Heavy and destructive tools require Opus-class models to ensure correct intent and side-effect awareness.
+- Destructive tools should always include a confirmation step in the calling workflow.
+
 ## Standard Orchestration Flow
 
 ### Full Ticket Delivery (reviewer -> implementer -> qa)
