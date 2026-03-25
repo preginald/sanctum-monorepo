@@ -79,6 +79,7 @@ import NotificationCenter from './pages/NotificationCenter';
 // --- ADMIN MODULES ---
 import SystemHealth from './pages/SystemHealth';
 import AdminUserList from './pages/AdminUserList';
+import AdminServices from './pages/AdminServices';
 
 import AssetLifecycle from './pages/AssetLifecycle';
 import AssetDetail from './pages/AssetDetail';
@@ -193,6 +194,7 @@ function App() {
 
                               {/* DIAGNOSTICS */}
                               <Route path="/admin/health" element={<Diagnostics />} />
+                              <Route path="/admin/services" element={<AdminServices />} />
                               <Route path="/system/health" element={<SystemHealth />} />
 
                           </Routes>
