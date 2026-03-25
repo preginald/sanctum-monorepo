@@ -205,7 +205,7 @@ async def ticket_update(
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         milestone_id: UUID of the milestone.
         resolution_comment_id: UUID of the comment to link as resolution.
-        no_billable: Skip time entry gate for this ticket (default false).
+        no_billable: Mark ticket as non-billable, bypassing the billable item enforcement gate (default false).
         no_billable_reason: Required justification when no_billable is true.
         skip_validation: Set true to bypass description template validation.
     """
@@ -273,7 +273,7 @@ async def ticket_resolve(
         ticket_id: The ticket number.
         body: Resolution text in markdown (creates a new comment).
         comment_id: UUID of an existing comment to use as the resolution.
-        no_billable: Skip time entry gate for this ticket (default false).
+        no_billable: Mark ticket as non-billable, bypassing the billable item enforcement gate (default false).
         no_billable_reason: Required justification when no_billable is true.
         skip_validation: Bypass all resolve-time validation gates (default false).
     """
