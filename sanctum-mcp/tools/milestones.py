@@ -3,6 +3,7 @@
 import json
 import re
 from app import mcp
+from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
 import client
 
 
@@ -27,7 +28,7 @@ def _compute_health_check(milestone: dict) -> dict:
     return result
 
 
-@mcp.tool()
+@mcp.tool(annotations=LIGHT_READ)
 async def milestone_list(project_id: str) -> str:
     """List milestones for a project.
 
@@ -51,7 +52,7 @@ async def milestone_list(project_id: str) -> str:
     return json.dumps(summary, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=STANDARD_READ)
 async def milestone_show(milestone_id: str, quiet: bool = False, expand: str | None = None) -> str:
     """Show details for a milestone.
 
@@ -71,7 +72,7 @@ async def milestone_show(milestone_id: str, quiet: bool = False, expand: str | N
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_WRITE)
 async def milestone_create(
     project_id: str,
     name: str,
@@ -99,7 +100,7 @@ async def milestone_create(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool()
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
 async def milestone_update(
     milestone_id: str,
     name: str | None = None,
