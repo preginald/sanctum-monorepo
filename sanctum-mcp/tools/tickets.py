@@ -148,7 +148,7 @@ async def ticket_create(
 
     ticket_create requires project_id (UUID). Use search to find project/milestone UUIDs.
 
-    Description is validated against the template for the ticket type (feature=DOC-016, bug=DOC-013, task=DOC-014, refactor=DOC-015). Types without templates (support, access, hotfix, etc.) are exempt.
+    Description is validated against the template for the ticket type. All 10 types require template-conforming descriptions: feature=DOC-016, bug=DOC-013, task=DOC-014, refactor=DOC-015, hotfix=DOC-057, support=DOC-058, alert=DOC-059, access=DOC-060, maintenance=DOC-061, test=DOC-062.
 
     Args:
         subject: Ticket subject line.
@@ -157,7 +157,7 @@ async def ticket_create(
         milestone_id: UUID of the milestone (optional).
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         priority: One of: low, normal, high, critical.
-        description: Ticket description in markdown. Must conform to type template (see DOC-013–016).
+        description: Ticket description in markdown. Must conform to type template (see DOC-013-016, DOC-057-062).
         skip_validation: Set true to bypass description template validation.
         quiet: Set true to suppress guidance messages (useful for batch operations).
     """
