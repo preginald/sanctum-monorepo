@@ -1,11 +1,11 @@
-"""Unit tests for the billable item enforcement gate (#941).
+"""Unit tests for the billable item enforcement gate (#941, #999).
 
 Tests the gate logic from tickets.py update_ticket endpoint:
 - Resolve blocked when no time entries AND no materials (expect 422)
 - Resolve succeeds with time entry only
 - Resolve succeeds with material only
 - Resolve succeeds with both
-- no_billable=true bypasses the gate
+- no_billable=true does NOT bypass the gate (#999)
 - skip_validation=true bypasses the gate
 - Already-resolved tickets not affected
 """
@@ -21,8 +21,6 @@ def check_billable_item_gate(
     current_status: str,
     time_entries: list,
     materials: list,
-    no_billable_update: bool | None = None,
-    no_billable_existing: bool = False,
 ):
     """
     Reproduce the billable item gate logic from tickets.py lines 216-231.
@@ -32,14 +30,11 @@ def check_billable_item_gate(
     update_data = {}
     if update_status is not None:
         update_data['status'] = update_status
-    if no_billable_update is not None:
-        update_data['no_billable'] = no_billable_update
 
     if not skip_validation and update_data.get('status') == 'resolved' and current_status != 'resolved':
         has_time_entries = len(time_entries) > 0
         has_materials = len(materials) > 0
-        is_no_billable = update_data.get('no_billable') or no_billable_existing
-        if not has_time_entries and not has_materials and not is_no_billable:
+        if not has_time_entries and not has_materials:
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -47,7 +42,7 @@ def check_billable_item_gate(
                     "error_code": "billable_item_required",
                     "time_entry_count": 0,
                     "material_count": 0,
-                    "help": "Log time entries or add materials/products to this ticket before resolving. Set no_billable=true with a reason to bypass. See BUS-001 D7 and SYS-002.",
+                    "help": "Log time entries or add materials/products to this ticket before resolving. Use skip_validation=true for admin bypass. See BUS-001 D7 and SYS-002.",
                 },
             )
 
@@ -80,7 +75,7 @@ class TestBillableItemGateBlocks:
                 time_entries=[],
                 materials=[],
             )
-        assert "no_billable=true" in exc_info.value.detail["help"]
+        assert "skip_validation=true" in exc_info.value.detail["help"]
         assert "SYS-002" in exc_info.value.detail["help"]
 
 
@@ -116,28 +111,44 @@ class TestBillableItemGatePasses:
         )
 
 
-class TestBillableItemGateBypass:
-    """Gate should be bypassed by no_billable and skip_validation."""
+class TestNoBillableDoesNotBypassGate:
+    """no_billable flag should NOT bypass the billable item gate (#999)."""
 
-    def test_no_billable_flag_in_update_bypasses_gate(self):
+    def test_no_billable_without_billable_items_returns_422(self):
+        """no_billable=true with no time entries or materials should still block."""
+        with pytest.raises(HTTPException) as exc_info:
+            check_billable_item_gate(
+                skip_validation=False,
+                update_status='resolved',
+                current_status='open',
+                time_entries=[],
+                materials=[],
+            )
+        assert exc_info.value.status_code == 422
+
+    def test_no_billable_with_time_entries_succeeds(self):
+        """no_billable=true with time entries should pass the gate."""
+        check_billable_item_gate(
+            skip_validation=False,
+            update_status='resolved',
+            current_status='open',
+            time_entries=["entry1"],
+            materials=[],
+        )
+
+    def test_no_billable_with_materials_succeeds(self):
+        """no_billable=true with materials should pass the gate."""
         check_billable_item_gate(
             skip_validation=False,
             update_status='resolved',
             current_status='open',
             time_entries=[],
-            materials=[],
-            no_billable_update=True,
+            materials=["material1"],
         )
 
-    def test_no_billable_flag_on_ticket_bypasses_gate(self):
-        check_billable_item_gate(
-            skip_validation=False,
-            update_status='resolved',
-            current_status='open',
-            time_entries=[],
-            materials=[],
-            no_billable_existing=True,
-        )
+
+class TestBillableItemGateAdminBypass:
+    """Gate should only be bypassed by skip_validation."""
 
     def test_skip_validation_bypasses_gate(self):
         check_billable_item_gate(
