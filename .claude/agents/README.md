@@ -4,6 +4,7 @@
 
 | Agent | Identity | Role | Model | MCP Server |
 |---|---|---|---|---|
+| `sanctum-recon` | The Architect (Recon) | Ticket reconnaissance and codebase scanning | sonnet | `sanctum-architect` |
 | `sanctum-reviewer` | The Architect | Planning, review, verification, KB governance | opus | `sanctum-architect` |
 | `sanctum-implementer` | The Surgeon | Code editing, tests, git, deployment | opus | `sanctum-surgeon` |
 | `sanctum-qa` | The Sentinel | AC verification, regression testing, smoke tests | sonnet | `sanctum-sentinel` |
@@ -78,6 +79,7 @@ scripts/dev/mcp-server.sh stop
 
 | Agent | Model | Est. Multiplier | Notes |
 |---|---|---|---|
+| `sanctum-recon` | sonnet | ~1x | Read-only recon, minimal reasoning |
 | `sanctum-reviewer` | opus | ~2-3x | Complex reasoning, full ticket analysis |
 | `sanctum-implementer` | opus | ~2-3x | Code generation, surgical edits |
 | `sanctum-qa` | sonnet | ~1.5-2x | Structured verification, test execution |
@@ -85,26 +87,31 @@ scripts/dev/mcp-server.sh stop
 
 ## Standard Orchestration Flow
 
-### Full Ticket Delivery (reviewer -> implementer -> qa)
+### Full Ticket Delivery (recon -> propose -> implement -> verify -> review)
 
 ```
 Parent Session (The Operator)
   |
-  |-- 1. sanctum-reviewer (The Architect): "Read ticket #NNN, check linked
-  |       articles and artefacts. Post a proposed solution as a ticket comment."
+  |-- 1. sanctum-recon (sonnet): "Read ticket #NNN, scan linked articles/artefacts,
+  |       grep codebase for affected files. Post recon summary."
+  |
+  |-- 2. sanctum-reviewer (opus): "Read ticket #NNN and recon comment. Formulate
+  |       proposal. Post proposal and review verdict."
   |
   |-- [Pete reviews and approves proposal]
   |
-  |-- 2. sanctum-implementer (The Surgeon): "Read the approved proposal comment
+  |-- 3. sanctum-implementer (opus): "Read the approved proposal comment
   |       on ticket #NNN. Implement the solution. Commit and push to feature
   |       branch. Post an implementation comment with files changed and commit hash."
   |
-  |-- 3. sanctum-qa (The Sentinel): "Read ticket #NNN. Verify every acceptance
+  |-- 4. sanctum-qa (sonnet): "Read ticket #NNN. Verify every acceptance
   |       criterion against the implementation. Run tests. Post a verification
   |       report comment."
   |
-  |-- 4. [If QA passes] Parent resolves ticket
-  |-- 4. [If QA fails] Loop back to step 2 with QA findings
+  |-- 5. sanctum-reviewer (opus): "Read ticket #NNN. Review code diff. Post verdict."
+  |
+  |-- 6. [If approved] Parent resolves ticket
+  |-- 6. [If changes requested] Loop back to step 3
 ```
 
 ### KB Update After Delivery
@@ -154,6 +161,7 @@ Annotations are set via `ToolAnnotations` on each `@mcp.tool()` decorator. They 
 
 | Scenario | Agent | Identity |
 |---|---|---|
+| Scan a ticket and codebase for recon | `sanctum-recon` | The Architect (Recon) |
 | Read a ticket and propose a solution | `sanctum-reviewer` | The Architect |
 | Review a PR or diff for issues | `sanctum-reviewer` | The Architect |
 | Check if a ticket follows template conventions | `sanctum-reviewer` | The Architect |
