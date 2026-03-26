@@ -215,7 +215,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                     ⚠️ SESSION CRITICAL - SAVE WORK IMMEDIATELY
                 </div>
             )}
-            <div className="px-8 pt-5 pb-0 max-w-[1920px] mx-auto">
+            <div className="px-5 pt-5 pb-0 max-w-[1920px] mx-auto">
                 <div className="mb-4 animate-in fade-in slide-in-from-bottom-2 duration-500">
                     <div className="flex flex-col xl:flex-row items-start xl:items-center justify-between gap-2">
                         <div className="flex items-center gap-3 min-w-0 w-full xl:w-auto">
