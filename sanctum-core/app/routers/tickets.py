@@ -12,9 +12,40 @@ from ..services.ticket_validation import validate_ticket_description, validate_t
 from ..services.ticket_query import base_ticket_query, enrich_ticket_response
 from ..services.milestone_validation import validate_milestone_sealed, check_milestone_completion_advisory
 from ..services.cascade import cascade_from_ticket
-from ..services.expand import ExpandConfig, get_expand_config, expanded_response
+from ..services.expand import ExpandConfig, get_expand_config, expanded_response, _get_optional_user
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
+
+
+def _record_transition(
+    db: Session,
+    ticket_id: int,
+    from_status: str | None,
+    to_status: str,
+    changed_by: str = "system",
+) -> None:
+    """Record a status transition with computed duration."""
+    now = datetime.now(timezone.utc)
+
+    prev = db.query(models.TicketStatusTransition).filter(
+        models.TicketStatusTransition.ticket_id == ticket_id,
+    ).order_by(models.TicketStatusTransition.changed_at.desc()).first()
+
+    duration = None
+    if prev:
+        duration = int((now - prev.changed_at).total_seconds())
+
+    transition = models.TicketStatusTransition(
+        ticket_id=ticket_id,
+        from_status=from_status,
+        to_status=to_status,
+        changed_at=now,
+        changed_by=changed_by,
+        duration_seconds=duration,
+    )
+    db.add(transition)
+    db.flush()
 
 @router.get("")
 def get_tickets(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
@@ -74,6 +105,8 @@ def create_ticket(
         new_ticket.contacts = db.query(models.Contact).filter(models.Contact.id.in_(ticket.contact_ids)).all()
 
     db.add(new_ticket)
+    db.flush()  # get ticket.id for transition recording
+    _record_transition(db, new_ticket.id, None, "new", changed_by=current_user.full_name or "system")
     db.commit()
     db.refresh(new_ticket)
     new_ticket.account = db.query(models.Account).filter(models.Account.id == target_account_id).first()
@@ -169,16 +202,29 @@ def get_ticket_by_id(ticket_id: int, resolve_embeds: bool = False, expand: Expan
     response_data.time_entry_count = len(response_data.time_entries)
     response_data.material_count = len(response_data.materials)
     response_data.related_ticket_count = len(response_data.related_tickets)
+    response_data.transition_count = len(response_data.transitions)
 
     result = jsonable_encoder(response_data)
     return expanded_response(result, expand, "ticket")
+
+@router.get("/{ticket_id}/transitions", response_model=List[schemas.TicketStatusTransitionResponse])
+def get_ticket_transitions(ticket_id: int, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    transitions = db.query(models.TicketStatusTransition).filter(
+        models.TicketStatusTransition.ticket_id == ticket_id,
+    ).order_by(models.TicketStatusTransition.changed_at.asc()).all()
+    return transitions
 
 @router.put("/{ticket_id}", response_model=schemas.TicketResponse)
 def update_ticket(
     ticket_id: int,
     ticket_update: schemas.TicketUpdate,
     background_tasks: BackgroundTasks,
-    resolve_embeds: bool = False, db: Session = Depends(get_db)
+    resolve_embeds: bool = False,
+    current_user: Optional[models.User] = Depends(_get_optional_user),
+    db: Session = Depends(get_db),
 ):
     ticket = base_ticket_query(db).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
@@ -274,10 +320,15 @@ def update_ticket(
         if new_milestone_id and new_milestone_id != ticket.milestone_id:
             validate_milestone_sealed(new_milestone_id, db)
 
+    # Resolve changed_by from soft-auth
+    changed_by = (current_user.full_name if current_user else None) or "system"
+
     # Auto-transition from 'new' → 'open' on substantive field changes (#774)
     if ticket.status == 'new' and 'status' not in update_data:
         if SUBSTANTIVE_FIELDS & set(update_data.keys()):
-            auto_transition_from_new(ticket, db)
+            applied, auto_from, auto_to = auto_transition_from_new(ticket, db)
+            if applied:
+                _record_transition(db, ticket.id, auto_from, auto_to, changed_by=changed_by)
 
     was_resolved = ticket.status == 'resolved'
     old_status = ticket.status
@@ -311,6 +362,10 @@ def update_ticket(
     # 4. CASCADE: ticket status change → milestone → project
     if ticket.status != old_status and ticket.milestone_id:
         cascade_from_ticket(ticket, db)
+
+    # Record explicit status transition (skip if auto_transition already recorded it)
+    if ticket.status != old_status and 'status' in update_data:
+        _record_transition(db, ticket.id, old_status, ticket.status, changed_by=changed_by)
 
     db.commit()
 
