@@ -447,7 +447,7 @@ export default function InvoiceDetail() {
               </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
               <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
                   <h3 className="text-sm font-bold uppercase tracking-widest opacity-70 mb-4 flex items-center gap-2">
                       <Mail size={16} /> Delivery History
