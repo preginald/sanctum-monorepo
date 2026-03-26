@@ -415,7 +415,7 @@ Client: Digital Sanctum HQ`;
         </div>
 
         {/* RIGHT — SIDEBAR */}
-        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start">
+        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
 
           {/* METADATA STRIP */}
           <MetadataStrip

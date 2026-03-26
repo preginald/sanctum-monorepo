@@ -480,7 +480,7 @@ export default function TicketDetail() {
 
 
         </div>
-        <div className="xl:col-span-2 xl:sticky xl:top-20 xl:self-start">
+        <div className="xl:col-span-2 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-10rem)] xl:overflow-y-auto">
             {/* METADATA STRIP */}
             <MetadataStrip
               className="mb-4"
