@@ -40,7 +40,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -68,7 +68,39 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         db.commit()
         return api_token.user
 
-    # JWT path (existing)
+    # JWT path — detect algorithm from token header
+    try:
+        headers = jwt.get_unverified_headers(token)
+        alg = headers.get("alg", "HS256")
+    except JWTError:
+        raise credentials_exception
+
+    if alg == "RS256":
+        # SSO token from Sanctum Auth — validate via JWKS
+        from .oidc import get_oidc_config, validate_id_token
+
+        config = get_oidc_config()
+        if not config:
+            raise credentials_exception
+
+        try:
+            claims = await validate_id_token(token, config)
+        except Exception:
+            raise credentials_exception
+
+        sub = claims.get("sub")
+        user = None
+        if sub:
+            user = db.query(models.User).filter(models.User.id == sub).first()
+        if not user:
+            email = claims.get("email")
+            if email:
+                user = db.query(models.User).filter(models.User.email == email).first()
+        if user is None:
+            raise credentials_exception
+        return user
+
+    # HS256 path (existing Core JWT)
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
