@@ -150,17 +150,17 @@ _SHORT_PIPELINE_TYPES = {"hotfix", "maintenance", "test"}
 _SIMPLE_TYPES = {"support", "access", "alert"}
 
 
-def auto_transition_from_new(ticket, db: Session) -> bool:
+def auto_transition_from_new(ticket, db: Session) -> tuple[bool, str | None, str | None]:
     """Auto-transition a ticket from 'new' based on its type.
 
     Templated types (feature/bug/task/refactor): new -> recon
     Short-pipeline types (hotfix/maintenance/test): new -> implementation
     Simple types (support/access/alert): new -> open
 
-    Returns True if the transition was applied.
+    Returns (applied, from_status, to_status).
     """
     if ticket.status != "new":
-        return False
+        return False, None, None
     ticket_type = getattr(ticket, "ticket_type", "support") or "support"
     if ticket_type in _TEMPLATED_TYPES:
         target = "recon"
@@ -171,7 +171,7 @@ def auto_transition_from_new(ticket, db: Session) -> bool:
     ticket.status = target
     db.flush()
     logger.info("Auto-transitioned ticket #%s from new -> %s (type=%s)", ticket.id, target, ticket_type)
-    return True
+    return True, "new", target
 
 
 def validate_ticket_description(ticket_type: str, description: str | None) -> None:
