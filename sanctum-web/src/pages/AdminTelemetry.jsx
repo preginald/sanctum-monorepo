@@ -87,24 +87,40 @@ export default function AdminTelemetry() {
 
   // Fetch stats
   useEffect(() => {
-    setStatsLoading(true);
-    api.get('/mcp/telemetry/stats', { params: { window: timeWindow, group_by: groupBy } })
-      .then(r => setStats(r.data))
-      .catch(() => setStats([]))
-      .finally(() => setStatsLoading(false));
+    let cancelled = false;
+    (async () => {
+      setStatsLoading(true);
+      try {
+        const r = await api.get('/mcp/telemetry/stats', { params: { window: timeWindow, group_by: groupBy } });
+        if (!cancelled) setStats(r.data);
+      } catch {
+        if (!cancelled) setStats([]);
+      } finally {
+        if (!cancelled) setStatsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [timeWindow, groupBy, refreshKey]);
 
   // Fetch calls
   useEffect(() => {
-    setCallsLoading(true);
-    const params = { window: timeWindow, limit: LIMIT, offset: logOffset };
-    if (logTool) params.tool_name = logTool;
-    if (logPersona) params.agent_persona = logPersona;
-    if (logSession) params.session_id = logSession;
-    api.get('/mcp/telemetry/calls', { params })
-      .then(r => setCalls(r.data))
-      .catch(() => setCalls([]))
-      .finally(() => setCallsLoading(false));
+    let cancelled = false;
+    (async () => {
+      setCallsLoading(true);
+      try {
+        const p = { window: timeWindow, limit: LIMIT, offset: logOffset };
+        if (logTool) p.tool_name = logTool;
+        if (logPersona) p.agent_persona = logPersona;
+        if (logSession) p.session_id = logSession;
+        const r = await api.get('/mcp/telemetry/calls', { params: p });
+        if (!cancelled) setCalls(r.data);
+      } catch {
+        if (!cancelled) setCalls([]);
+      } finally {
+        if (!cancelled) setCallsLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [timeWindow, logTool, logPersona, logSession, logOffset, refreshKey]);
 
   // Param setters
