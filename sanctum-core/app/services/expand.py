@@ -65,7 +65,7 @@ def _default_expand_all(consumer_type: str) -> bool:
     return consumer_type == "human"
 
 
-def _get_optional_user(
+async def _get_optional_user(
     request: Request,
     db: Session = Depends(get_db),
 ) -> Optional[models.User]:
@@ -77,7 +77,7 @@ def _get_optional_user(
     if not token:
         return None
     try:
-        return get_current_user(token=token, db=db)
+        return await get_current_user(token=token, db=db)
     except HTTPException:
         return None
 
