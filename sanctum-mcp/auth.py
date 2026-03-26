@@ -278,8 +278,58 @@ class OAuthMiddleware:
     # ─── Health Check ─────────────────────────
 
     async def _handle_health(self, scope, receive, send):
-        status, headers, body = _json_response(200, {"status": "ok"})
+        import health
+        from client import _client, _MAX_CONN, _MAX_KEEPALIVE
+
+        # Pool metrics
+        active = 0
+        try:
+            if _client and not _client.is_closed:
+                pool = _client._transport._pool
+                active = sum(1 for c in pool.connections if not c.is_idle())
+        except (AttributeError, TypeError):
+            pass
+
+        # SSE session count — lazy discovery of session manager
+        sse_sessions = -1
+        if not health._session_manager and not health._session_manager_searched:
+            health._session_manager_searched = True
+            health._session_manager = self._find_session_manager(self.app)
+        if health._session_manager is not None:
+            try:
+                sse_sessions = len(health._session_manager._server_instances)
+            except (AttributeError, TypeError):
+                sse_sessions = -1
+
+        payload = {
+            "status": "ok",
+            "pool": {
+                "max_connections": _MAX_CONN,
+                "max_keepalive": _MAX_KEEPALIVE,
+                "active_connections": active,
+            },
+            "sse_sessions": sse_sessions,
+            "uptime_seconds": int(time.time() - health._start_time),
+        }
+        status, headers, body = _json_response(200, payload)
         await self._send_response(send, status, headers, body)
+
+    @staticmethod
+    def _find_session_manager(app):
+        """Walk Starlette routes to find the StreamableHTTPSessionManager."""
+        routes = getattr(app, "routes", [])
+        for route in routes:
+            endpoint = getattr(route, "app", None) or getattr(route, "endpoint", None)
+            sm = getattr(endpoint, "session_manager", None)
+            if sm is not None:
+                return sm
+            # Wrapped in auth middleware — check .app attribute
+            inner = getattr(endpoint, "app", None)
+            if inner:
+                sm = getattr(inner, "session_manager", None)
+                if sm is not None:
+                    return sm
+        return None
 
     # ─── RFC 8414 Metadata ────────────────────
 
