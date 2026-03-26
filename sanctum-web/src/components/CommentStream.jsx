@@ -73,18 +73,18 @@ export default function CommentStream({ resourceType, resourceId, onPromote, hig
     <div className="flex flex-col h-full bg-slate-900 border border-slate-700 rounded-xl overflow-hidden">
 
       {/* HEADER */}
-      <div className="px-6 py-4 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
-        <h3 className="font-bold text-sm uppercase tracking-widest text-slate-400 flex items-center gap-2">
-            <MessageSquare size={16} /> Activity Stream
+      <div className="px-4 py-2 border-b border-slate-700 bg-slate-800/50 flex justify-between items-center">
+        <h3 className="font-bold text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <MessageSquare size={14} /> Activity Stream
         </h3>
       </div>
 
       {/* INPUT AREA (At Top) */}
-      <div className="p-4 bg-slate-800/30 border-b border-slate-700">
-        <form onSubmit={handleSubmit} className="space-y-2">
+      <div className="p-3 bg-slate-800/30 border-b border-slate-700">
+        <form onSubmit={handleSubmit} className="space-y-1.5">
             <textarea
-                className="w-full bg-black/40 border border-slate-600 rounded-lg p-3 text-sm text-white focus:outline-none focus:border-sanctum-gold transition-colors resize-none custom-scrollbar"
-                rows="3"
+                className="w-full bg-black/40 border border-slate-600 rounded-lg p-2 text-sm text-white focus:outline-none focus:border-sanctum-gold transition-colors resize-none custom-scrollbar"
+                rows="2"
                 placeholder={`Log ${visibility} activity... (Markdown supported)`}
                 value={newBody}
                 onChange={handleBodyChange}

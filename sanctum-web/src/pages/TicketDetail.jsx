@@ -391,7 +391,7 @@ export default function TicketDetail() {
 
 
 
-        <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5 xl:h-[calc(100vh-12rem)]'}`}>
+        <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5 xl:h-[calc(100vh-9rem)]'}`}>
         <div className="xl:col-span-3 space-y-6 min-w-0 xl:overflow-y-auto scrollbar-thin">
           <TicketOverview
             ticket={ticket} isEditing={isEditing} formData={formData} setFormData={setFormData} contacts={contacts} accountProjects={accountProjects} techs={techs}
