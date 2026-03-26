@@ -280,6 +280,7 @@ class TicketTimeEntry(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id"))
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
     product_id = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=True)
+    cached_rate = Column(Numeric(8, 2), nullable=True)
     start_time = Column(TIMESTAMP(timezone=True), nullable=False)
     end_time = Column(TIMESTAMP(timezone=True), nullable=False)
     description = Column(String, nullable=True)
@@ -305,9 +306,13 @@ class TicketTimeEntry(Base):
     def service_name(self): return self.product.name if self.product else "General Labor"
     @property
     def calculated_value(self):
-        if not self.product: return Decimal("0.00")
+        if self.product:
+            rate = self.product.unit_price
+        elif self.cached_rate:
+            rate = self.cached_rate
+        else:
+            return Decimal("0.00")
         hours = Decimal(self.duration_minutes) / Decimal("60")
-        rate = self.product.unit_price
         if not isinstance(rate, Decimal): rate = Decimal(str(rate))
         total = hours * rate
         return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)

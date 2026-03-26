@@ -387,8 +387,27 @@ def create_time_entry(ticket_id: int, entry: schemas.TimeEntryCreate, current_us
                 "help": "Adjust start_time or end_time so the entry is at least 15 minutes. See BUS-001 D4.",
             },
         )
+    # Look up cached_rate from rate card when no product_id is provided
+    cached_rate = None
+    if not entry.product_id:
+        tier = "internal" if ticket.no_billable else "project_delivery"
+        target_date = entry.start_time.date() if entry.start_time else None
+        if target_date:
+            card = db.query(models.RateCard).filter(
+                models.RateCard.account_id == ticket.account_id,
+                models.RateCard.tier == tier,
+                models.RateCard.effective_from <= target_date,
+            ).order_by(models.RateCard.effective_from.desc()).first()
+            if not card:
+                card = db.query(models.RateCard).filter(
+                    models.RateCard.account_id == None,
+                    models.RateCard.tier == tier,
+                    models.RateCard.effective_from <= target_date,
+                ).order_by(models.RateCard.effective_from.desc()).first()
+            if card:
+                cached_rate = card.hourly_rate
     new_entry = models.TicketTimeEntry(
-        ticket_id=ticket_id, user_id=current_user.id, start_time=entry.start_time, end_time=entry.end_time, description=entry.description, product_id=entry.product_id
+        ticket_id=ticket_id, user_id=current_user.id, start_time=entry.start_time, end_time=entry.end_time, description=entry.description, product_id=entry.product_id, cached_rate=cached_rate
     )
     db.add(new_entry)
     db.commit()
@@ -417,7 +436,9 @@ def update_time_entry(entry_id: str, update: schemas.TimeEntryUpdate, db: Sessio
                 },
             )
     if update.description is not None: entry.description = update.description
-    if update.product_id: entry.product_id = update.product_id
+    if update.product_id:
+        entry.product_id = update.product_id
+        entry.cached_rate = None  # Clear cached_rate when product is assigned
     db.commit()
     db.refresh(entry)
     return entry
