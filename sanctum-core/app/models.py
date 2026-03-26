@@ -264,6 +264,12 @@ class Ticket(Base):
         secondaryjoin="Ticket.id == ticket_relations.c.related_id",
         overlaps="related_tickets"
     )
+    status_transitions = relationship(
+        "TicketStatusTransition",
+        back_populates="ticket",
+        order_by="TicketStatusTransition.changed_at",
+        cascade="all, delete-orphan",
+    )
 
     @property
     def total_hours(self):
@@ -339,6 +345,22 @@ class TicketMaterial(Base):
         if not isinstance(rate, Decimal): rate = Decimal(str(rate))
         total = qty * rate
         return total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+class TicketStatusTransition(Base):
+    __tablename__ = "ticket_status_transitions"
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=False)
+    from_status = Column(String, nullable=True)
+    to_status = Column(String, nullable=False)
+    changed_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    changed_by = Column(String, nullable=False, server_default=text("'system'"))
+    duration_seconds = Column(Integer, nullable=True)
+
+    ticket = relationship("Ticket", back_populates="status_transitions")
+
+    __table_args__ = (
+        Index("ix_ticket_status_transitions_ticket_changed", "ticket_id", "changed_at"),
+    )
 
 class Product(Base):
     __tablename__ = "products"
