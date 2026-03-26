@@ -457,7 +457,8 @@ def duplicate_time_entry(entry_id: str, current_user: models.User = Depends(auth
     if not original: raise HTTPException(status_code=404, detail="Entry not found")
     new_entry = models.TicketTimeEntry(
         ticket_id=original.ticket_id, user_id=current_user.id, product_id=original.product_id,
-        start_time=original.start_time, end_time=original.end_time, description=original.description
+        start_time=original.start_time, end_time=original.end_time, description=original.description,
+        cached_rate=original.cached_rate
     )
     db.add(new_entry)
     db.commit()

@@ -308,7 +308,7 @@ class TicketTimeEntry(Base):
     def calculated_value(self):
         if self.product:
             rate = self.product.unit_price
-        elif self.cached_rate:
+        elif self.cached_rate is not None:
             rate = self.cached_rate
         else:
             return Decimal("0.00")
