@@ -184,7 +184,7 @@ export default function AssetDetail() {
         </div>
 
         {/* RIGHT — SIDEBAR */}
-        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
+        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto scrollbar-thin">
 
           {/* CLIENT CARD */}
           <div className="bg-slate-900 border border-slate-700 rounded-xl p-5">

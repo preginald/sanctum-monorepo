@@ -341,7 +341,7 @@ export default function ClientDetail() {
               />
           </div>
 
-          <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
+          <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto scrollbar-thin">
               <ArtefactCard entityType="account" entityId={id} artefacts={account.artefacts || []} onUpdate={fetchAll} />
               <KnowledgePack accountId={id} />
               <HumanSection

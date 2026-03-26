@@ -164,7 +164,7 @@ export default function DealDetail() {
         </div>
 
         {/* RIGHT: Comment Stream */}
-        <div className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
+        <div className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto scrollbar-thin">
           <CommentStream resourceType="deal" resourceId={deal.id} />
         </div>
       </div>
