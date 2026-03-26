@@ -114,7 +114,7 @@ def create_time_entry(base_url, token, ticket_id, start_time, end_time, descript
         "description": description,
     }
     return api_request(
-        base_url, token, "POST", f"/tickets/{ticket_id}/time-entries", body
+        base_url, token, "POST", f"/tickets/{ticket_id}/time_entries", body
     )
 
 
@@ -159,7 +159,7 @@ def filter_backfill_candidates(tickets):
             continue
         if not t.get("no_billable"):
             continue
-        if t.get("time_entry_count") not in (None, 0):
+        if (t.get("total_hours") or 0) > 0:
             continue
         project_id = t.get("project_id")
         if project_id not in TARGET_PROJECTS:
