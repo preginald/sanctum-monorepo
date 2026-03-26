@@ -490,7 +490,10 @@ def create_portal_comment(
     ticket, contact = verify_ticket_access(ticket_id, current_user, db, impersonate)
 
     # Auto-transition ticket from 'new' → 'open' when commenting (#774)
-    auto_transition_from_new(ticket, db)
+    applied, auto_from, auto_to = auto_transition_from_new(ticket, db)
+    if applied:
+        from .tickets import _record_transition
+        _record_transition(db, ticket.id, auto_from, auto_to, changed_by=current_user.full_name or "system")
 
     new_comment = Comment(
         ticket_id=ticket.id,
