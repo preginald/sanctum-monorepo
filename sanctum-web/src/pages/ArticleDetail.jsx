@@ -304,9 +304,9 @@ Client: Digital Sanctum HQ`;
       </div>
       {/* HEADER SENTINEL */}
       <div ref={headerSentinelRef} className="h-0 w-full" />
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 lg:h-[calc(100vh-9rem)] gap-6">
         {/* LEFT — MAIN CONTENT */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 lg:overflow-y-auto scrollbar-thin">
 
         {/* TABS */}
         <div className="flex gap-6 mb-8 border-b border-slate-800 pb-0">
@@ -415,7 +415,7 @@ Client: Digital Sanctum HQ`;
         </div>
 
         {/* RIGHT — SIDEBAR */}
-        <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto scrollbar-thin">
+        <div className="space-y-6 lg:overflow-y-auto scrollbar-thin">
 
           {/* METADATA STRIP */}
           <MetadataStrip
