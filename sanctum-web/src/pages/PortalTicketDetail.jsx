@@ -235,7 +235,7 @@ const PortalTicketDetail = () => {
           </div>
 
           {/* RIGHT COLUMN: Sidebar (Invoices & Assets) */}
-          <div className="space-y-6">
+          <div className="space-y-6 lg:sticky lg:top-8 lg:self-start lg:max-h-[calc(100vh-4rem)] lg:overflow-y-auto">
 
             {/* INVOICES CARD */}
             <div className={`rounded-xl border ${theme.card} overflow-hidden`}>

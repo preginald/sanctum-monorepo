@@ -240,7 +240,7 @@ export default function CampaignDetail() {
               </div>
 
               {/* LAUNCH PAD */}
-              <div>
+              <div className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto">
                   <Card title="Launch Control" className="border-red-500/30">
                       <div className="text-center space-y-4">
                           <div className="p-4 bg-red-500/10 rounded-full inline-block">
