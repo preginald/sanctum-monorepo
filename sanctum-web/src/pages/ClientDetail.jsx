@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
 import useAuthStore from '../store/authStore';
-import { Loader2, Edit2, Activity, Ticket, Mail, Hash, ClipboardList, Eye } from 'lucide-react';
+import { Loader2, Edit2, Mail, ClipboardList, Eye } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 import { recordVisit } from '../lib/history';
 
@@ -20,13 +20,7 @@ import AssetList from '../components/clients/AssetList';
 import AssetModal from '../components/clients/AssetModal';
 import ArtefactCard from '../components/ArtefactCard';
 import KnowledgePack from '../components/KnowledgePack';
-
-// BADGES
-const Badge = ({ children, color }) => (
-    <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${color}`}>
-        {children}
-    </span>
-);
+import MetadataStrip from '../components/ui/MetadataStrip';
 
 export default function ClientDetail() {
   const { id } = useParams();
@@ -184,11 +178,6 @@ export default function ClientDetail() {
       catch(e) { addToast("Failed to revoke", "danger"); }
   };
 
-  const statusColor = (s) => {
-    const map = { active: 'bg-green-500/20 text-green-400', prospect: 'bg-blue-500/20 text-blue-400', churned: 'bg-red-500/20 text-red-400', lead: 'bg-purple-500/20 text-purple-400' };
-    return map[s] || 'bg-white/10 text-slate-300';
-  };
-
   if (loading || !account) return <Layout title="Loading..."><Loader2 className="animate-spin"/></Layout>;
 
   return (
@@ -199,12 +188,12 @@ export default function ClientDetail() {
       onRefresh={fetchAll}
       onCopyMeta={() => `${account.name}\nType: ${account.type}\nStatus: ${account.status}\nBrand: ${account.brand_affinity}`}
       actions={isEditingAccount ? (
-        <div className="flex gap-2">
+        <>
           <button onClick={() => setIsEditingAccount(false)} className="px-4 py-2 rounded bg-slate-700 hover:bg-slate-600 text-sm">Cancel</button>
           <button onClick={saveAccount} disabled={isSaving} className="flex items-center gap-2 px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm">{isSaving && <Loader2 className="animate-spin" size={16}/>} Save</button>
-        </div>
+        </>
       ) : (
-        <div className="flex gap-2">
+        <>
           <button onClick={() => navigate(`/clients/${id}/discovery`)} className="flex items-center gap-2 px-4 py-2 rounded bg-purple-600/20 text-purple-400 hover:bg-purple-600/30 border border-purple-500/30 text-sm font-bold transition-colors">
             <ClipboardList size={16} /> Discovery
           </button>
@@ -212,7 +201,7 @@ export default function ClientDetail() {
             <Eye size={16} /> View as Client
           </button>
           <button onClick={() => setIsEditingAccount(true)} className="flex items-center gap-2 px-4 py-2 rounded bg-white/10 hover:bg-white/20 text-sm font-bold"><Edit2 size={16} /> Edit Profile</button>
-        </div>
+        </>
       )}
     >
       <RenewalModal
@@ -298,17 +287,11 @@ export default function ClientDetail() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
-                      <h4 className="text-xs text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Mail size={12}/> Billing Email</h4>
-                      <p className="font-mono text-white text-sm">{account.billing_email || "N/A"}</p>
-                  </div>
-                  <div className="p-4 bg-slate-900 border border-slate-700 rounded-xl">
-                      <h4 className="text-xs text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-2"><Hash size={12}/> System ID</h4>
-                      <p className="font-mono text-white text-xs">{account.id}</p>
-                  </div>
+              <div className="p-5 bg-slate-900 border border-slate-700 rounded-xl">
+                  <h4 className="text-xs opacity-50 uppercase tracking-widest mb-1 flex items-center gap-2"><Mail size={12}/> Billing Email</h4>
+                  <p className="font-mono text-white text-sm">{account.billing_email || "N/A"}</p>
               </div>
 
               <FinancialSection
@@ -353,6 +336,22 @@ export default function ClientDetail() {
                   onDeleteContact={(cid) => confirmAction("Remove Contact?", "This action is permanent.", () => deleteContact(cid))}
                   onAddUser={() => { setForms({...forms, user: { email: '', full_name: '', password: '' }}); setActiveModal('user'); }}
                   onRevokeUser={(uid) => confirmAction("Revoke Access?", "User will no longer be able to login.", () => revokeUser(uid))}
+              />
+              <MetadataStrip
+                storageKey="ds_metadata_expanded_client"
+                collapsed={<>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-white/10 text-slate-300">{account.type}</span>
+                  <span className="opacity-40">·</span>
+                  <span className="opacity-50">{new Date(account.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                </>}
+                dates={[
+                  { label: 'Created', value: account.created_at },
+                  { label: 'Updated', value: account.updated_at },
+                ]}
+                rows={[
+                  { label: 'Type', value: account.type },
+                ]}
+                id={account.id}
               />
           </div>
       </div>
