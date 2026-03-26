@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import api from '../lib/api';
-import { AlertCircle, Loader2, Shield, Lock, ArrowLeft, Mail } from 'lucide-react';
+import { AlertCircle, Loader2, Shield, Lock, ArrowLeft, Mail, LogIn } from 'lucide-react';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -17,15 +17,21 @@ export default function Login() {
   const [successMsg, setSuccessMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [ssoLoading, setSsoLoading] = useState(false);
+
   const login = useAuthStore((state) => state.login);
+  const loginWithSSO = useAuthStore((state) => state.loginWithSSO);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // CHECK FOR SESSION EXPIRATION FLAG
+  // CHECK FOR SESSION EXPIRATION FLAG AND SSO ERROR
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('expired') === 'true') {
       setSessionError(true);
+    }
+    if (params.get('error') === 'sso_failed') {
+      setError('SSO login failed. Please try again or use password login.');
     }
   }, [location]);
 
@@ -123,9 +129,39 @@ export default function Login() {
             </div>
         )}
 
+        {/* --- SSO BUTTON (shown on login view) --- */}
+        {view === 'login' && (
+            <div className="mb-6 animate-in fade-in slide-in-from-left-4">
+              <button
+                type="button"
+                onClick={async () => {
+                  setSsoLoading(true);
+                  setError('');
+                  try {
+                    await loginWithSSO();
+                  } catch (err) {
+                    setError('Unable to initiate SSO. Please try password login.');
+                    setSsoLoading(false);
+                  }
+                }}
+                disabled={ssoLoading || loading}
+                className="w-full bg-sanctum-gold hover:bg-yellow-500 text-slate-900 font-bold py-3 rounded-lg shadow-lg transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex justify-center items-center gap-2"
+              >
+                {ssoLoading ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}
+                Sign in with SSO
+              </button>
+
+              <div className="flex items-center gap-3 mt-4">
+                <div className="flex-1 border-t border-slate-700"></div>
+                <span className="text-xs text-slate-500 uppercase">or</span>
+                <div className="flex-1 border-t border-slate-700"></div>
+              </div>
+            </div>
+        )}
+
         {/* --- VIEW 1: LOGIN FORM --- */}
         {view === 'login' && (
-            <form onSubmit={handleLogin} className="space-y-6 animate-in fade-in slide-in-from-left-4">
+            <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>

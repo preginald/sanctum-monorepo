@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { jwtDecode } from "jwt-decode";
 import api from '../lib/api';
+import { generatePKCE, generateState } from '../lib/pkce';
 
 // --- PERSISTENCE LOGIC ---
 let storedToken = localStorage.getItem('sanctum_token');
@@ -70,7 +71,74 @@ const useAuthStore = create((set) => ({
     }
   },
 
+  loginWithSSO: async () => {
+    // Fetch SSO config from backend
+    const { data: config } = await api.get('/auth/sso/config');
+
+    // Generate PKCE pair and state
+    const { verifier, challenge } = await generatePKCE();
+    const state = generateState();
+
+    // Store in sessionStorage for the callback
+    sessionStorage.setItem('sanctum_sso', JSON.stringify({ verifier, state }));
+
+    // Redirect to Sanctum Auth
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: config.client_id,
+      redirect_uri: config.redirect_uri,
+      scope: config.scopes,
+      state,
+      code_challenge: challenge,
+      code_challenge_method: 'S256',
+    });
+
+    window.location.href = `${config.authorize_url}?${params.toString()}`;
+  },
+
+  handleSSOCallback: async (code, state) => {
+    // Retrieve PKCE verifier and validate state
+    const stored = JSON.parse(sessionStorage.getItem('sanctum_sso') || 'null');
+    if (!stored || stored.state !== state) {
+      throw new Error('Invalid SSO state — possible CSRF');
+    }
+    sessionStorage.removeItem('sanctum_sso');
+
+    // Fetch SSO config to get redirect_uri
+    const { data: config } = await api.get('/auth/sso/config');
+
+    // Exchange code for Core JWT
+    const response = await api.post('/auth/sso/callback', {
+      code,
+      code_verifier: stored.verifier,
+      redirect_uri: config.redirect_uri,
+    });
+
+    const { access_token, refresh_token } = response.data;
+    const decodedUser = jwtDecode(access_token);
+
+    localStorage.setItem('sanctum_token', access_token);
+    if (refresh_token) {
+      localStorage.setItem('sanctum_sso_refresh', refresh_token);
+    }
+
+    set({
+      token: access_token,
+      user: decodedUser,
+      isAuthenticated: true,
+    });
+
+    return decodedUser;
+  },
+
   logout: () => {
+    // Revoke SSO refresh token if present
+    const ssoRefresh = localStorage.getItem('sanctum_sso_refresh');
+    if (ssoRefresh) {
+      api.post('/auth/sso/logout', { refresh_token: ssoRefresh }).catch(() => {});
+      localStorage.removeItem('sanctum_sso_refresh');
+    }
+
     localStorage.removeItem('sanctum_token');
     set({ token: null, user: null, isAuthenticated: false });
   }
