@@ -209,7 +209,7 @@ export default function Layout({ children, title, subtitle, badge, badges, backP
                 <div className="h-20"></div>
             </nav>
         </aside>
-        <main className="flex-1 overflow-auto relative w-full">
+        <main className="flex-1 overflow-auto relative w-full scrollbar-thin">
             {showExpiryWarning && (
                 <div className="sticky top-0 left-0 w-full bg-red-600 text-white text-center text-xs font-bold py-2 z-20 animate-pulse shadow-lg">
                     ⚠️ SESSION CRITICAL - SAVE WORK IMMEDIATELY
