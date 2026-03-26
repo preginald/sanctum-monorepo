@@ -23,8 +23,21 @@ API_BASE = os.getenv("SANCTUM_API_BASE", "https://core.digitalsanctum.com.au/api
 API_TOKEN = os.getenv("SANCTUM_API_TOKEN", "")
 
 _TIMEOUT = httpx.Timeout(30, connect=10)
-_MAX_CONN = max(1, int(os.getenv("MCP_MAX_CONNECTIONS", "100")))
-_MAX_KEEPALIVE = max(1, int(os.getenv("MCP_MAX_KEEPALIVE", "50")))
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.getenv(name, "")
+    if not raw:
+        return default
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        log.warning("Invalid %s=%r, falling back to %d", name, raw, default)
+        return default
+
+
+_MAX_CONN = _env_int("MCP_MAX_CONNECTIONS", 100)
+_MAX_KEEPALIVE = _env_int("MCP_MAX_KEEPALIVE", 50)
 _LIMITS = httpx.Limits(max_connections=_MAX_CONN, max_keepalive_connections=_MAX_KEEPALIVE)
 _MAX_RETRIES = 3
 _RETRY_STATUSES = {502, 503, 504}
