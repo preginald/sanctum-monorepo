@@ -98,6 +98,15 @@ class TicketMaterialResponse(SanctumBase):
     invoice_id: Optional[UUID] = None
     invoice_status: Optional[str] = None # NEW
 
+class TicketStatusTransitionResponse(SanctumBase):
+    id: UUID
+    ticket_id: int
+    from_status: Optional[str] = None
+    to_status: str
+    changed_at: datetime
+    changed_by: str
+    duration_seconds: Optional[int] = None
+
 class TicketCreate(SanctumBase):
     account_id: UUID
     contact_ids: List[UUID] = []
@@ -160,6 +169,7 @@ class TicketResponse(TicketCreate):
     artefacts: List[ArtefactLite] = []
     related_tickets: List[TicketRelationResponse] = []
     comments: List[CommentResponse] = []
+    transitions: List[TicketStatusTransitionResponse] = []
 
     # Expand contract count fields (SYS-032)
     comment_count: Optional[int] = None
@@ -168,6 +178,7 @@ class TicketResponse(TicketCreate):
     time_entry_count: Optional[int] = None
     material_count: Optional[int] = None
     related_ticket_count: Optional[int] = None
+    transition_count: Optional[int] = None
 
     total_hours: float = 0.0
     resolution_comment_id: Optional[UUID] = None

@@ -30,7 +30,7 @@ EXPANDABLE_FIELDS: dict[str, set[str]] = {
     "ticket": {
         "comments", "articles", "artefacts",
         "time_entries", "materials", "related_tickets",
-        "description", "resolution",
+        "description", "resolution", "transitions",
     },
 }
 

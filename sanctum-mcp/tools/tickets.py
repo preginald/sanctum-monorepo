@@ -101,7 +101,7 @@ async def ticket_show(ticket_id: int, quiet: bool = False, expand: str | None = 
     Args:
         ticket_id: The ticket number.
         quiet: Set true to suppress delivery hints (useful for batch operations). Also sets expand=none if expand is not explicitly provided.
-        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets,description,resolution), 'all', or 'none'. Overrides quiet when both are provided.
+        expand: Comma-separated fields to expand (comments,articles,artefacts,time_entries,materials,related_tickets,transitions,description,resolution), 'all', or 'none'. Overrides quiet when both are provided.
     """
     # Determine the expand param to send to the API
     api_expand = expand

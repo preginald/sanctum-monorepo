@@ -28,7 +28,10 @@ def create_comment(comment: schemas.CommentCreate, current_user: models.User = D
     if comment.ticket_id:
         ticket = db.query(models.Ticket).filter(models.Ticket.id == comment.ticket_id).first()
         if ticket:
-            auto_transition_from_new(ticket, db)
+            applied, auto_from, auto_to = auto_transition_from_new(ticket, db)
+            if applied:
+                from .tickets import _record_transition
+                _record_transition(db, ticket.id, auto_from, auto_to, changed_by=current_user.full_name or "system")
 
     new_comment = models.Comment(
         author_id=current_user.id, body=comment.body, visibility=comment.visibility,

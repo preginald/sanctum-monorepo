@@ -23,6 +23,7 @@ TICKET_RESPONSE_OPTIONS = (
     joinedload(models.Ticket.materials).joinedload(models.TicketMaterial.invoice),
     joinedload(models.Ticket.articles),
     joinedload(models.Ticket.assets),
+    joinedload(models.Ticket.status_transitions),
 )
 
 
@@ -77,6 +78,9 @@ def enrich_ticket_response(ticket, db: Session) -> dict:
     t_dict['articles'] = ticket.articles
     t_dict['assets'] = ticket.assets
     t_dict['total_hours'] = ticket.total_hours
+
+    # Status transitions (ORM: status_transitions -> schema: transitions)
+    t_dict['transitions'] = ticket.status_transitions
 
     # Related invoices (via InvoiceItem join)
     linked_items = db.query(models.InvoiceItem).options(
