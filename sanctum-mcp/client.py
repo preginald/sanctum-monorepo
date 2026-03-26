@@ -23,7 +23,9 @@ API_BASE = os.getenv("SANCTUM_API_BASE", "https://core.digitalsanctum.com.au/api
 API_TOKEN = os.getenv("SANCTUM_API_TOKEN", "")
 
 _TIMEOUT = httpx.Timeout(30, connect=10)
-_LIMITS = httpx.Limits(max_connections=20, max_keepalive_connections=10)
+_MAX_CONN = max(1, int(os.getenv("MCP_MAX_CONNECTIONS", "100")))
+_MAX_KEEPALIVE = max(1, int(os.getenv("MCP_MAX_KEEPALIVE", "50")))
+_LIMITS = httpx.Limits(max_connections=_MAX_CONN, max_keepalive_connections=_MAX_KEEPALIVE)
 _MAX_RETRIES = 3
 _RETRY_STATUSES = {502, 503, 504}
 
@@ -33,6 +35,7 @@ _client: httpx.AsyncClient | None = None
 async def _get_client() -> httpx.AsyncClient:
     global _client
     if _client is None or _client.is_closed:
+        log.info("HTTP pool: max_connections=%d, max_keepalive=%d", _MAX_CONN, _MAX_KEEPALIVE)
         _client = httpx.AsyncClient(
             base_url=API_BASE,
             timeout=_TIMEOUT,
