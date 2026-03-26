@@ -391,8 +391,8 @@ export default function TicketDetail() {
 
 
 
-        <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5'}`}>
-        <div className="xl:col-span-3 space-y-6 min-w-0">
+        <div className={`grid gap-8 ${layoutMode === 'stacked' ? 'grid-cols-1' : 'grid-cols-1 xl:grid-cols-5 xl:h-[calc(100vh-12rem)]'}`}>
+        <div className="xl:col-span-3 space-y-6 min-w-0 xl:overflow-y-auto scrollbar-thin">
           <TicketOverview
             ticket={ticket} isEditing={isEditing} formData={formData} setFormData={setFormData} contacts={contacts} accountProjects={accountProjects} techs={techs}
             onLinkContact={handleLinkContact} onUnlinkContact={handleUnlinkContact} onUpdateTech={handleUpdateTech} showQuickTech={showQuickTech} setShowQuickTech={setShowQuickTech}
@@ -480,7 +480,7 @@ export default function TicketDetail() {
 
 
         </div>
-        <div className="xl:col-span-2 xl:sticky xl:top-20 xl:self-start xl:max-h-[calc(100vh-10rem)] xl:overflow-y-auto scrollbar-thin">
+        <div className="xl:col-span-2 xl:overflow-y-auto scrollbar-thin">
             {/* METADATA STRIP */}
             <MetadataStrip
               className="mb-4"
