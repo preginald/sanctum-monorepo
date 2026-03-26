@@ -251,6 +251,8 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
     # 1. Fetch Ticket
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     if not ticket: raise HTTPException(status_code=404, detail="Ticket not found")
+    if ticket.no_billable:
+        raise HTTPException(status_code=400, detail="Cannot generate invoice for a no_billable ticket.")
 
     # 2. Fetch UNBILLED Items Only (Stateful Generation)
     unbilled_time = db.query(models.TicketTimeEntry).options(joinedload(models.TicketTimeEntry.product)).filter(

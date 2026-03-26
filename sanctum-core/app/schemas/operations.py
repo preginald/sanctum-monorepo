@@ -70,6 +70,7 @@ class TimeEntryResponse(SanctumBase):
     duration_minutes: int
     description: Optional[str] = None
     product_id: Optional[UUID] = None
+    cached_rate: Optional[Decimal] = None
     service_name: Optional[str] = None
     calculated_value: Decimal = Decimal("0.00")
     created_at: datetime
