@@ -7,10 +7,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import timedelta, datetime, timezone
+from pydantic import BaseModel
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.auth_service import auth_service
 from ..services.email_service import email_service # <--- NEW IMPORT
+from ..oidc import get_oidc_config, exchange_code_for_tokens, validate_id_token, revoke_token
 
 router = APIRouter(tags=["Authentication"])
 
@@ -211,3 +213,104 @@ def verify_invite_token(token: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     return {"email": user.email, "full_name": user.full_name}
+
+
+# --- SSO ENDPOINTS ---
+
+class SSOCallbackRequest(BaseModel):
+    code: str
+    code_verifier: str
+    redirect_uri: str
+
+
+class SSOLogoutRequest(BaseModel):
+    refresh_token: str
+
+
+@router.get("/auth/sso/config")
+async def sso_config():
+    """Return OIDC config needed by the frontend to initiate SSO login."""
+    config = get_oidc_config()
+    if not config:
+        raise HTTPException(status_code=404, detail="SSO not configured")
+    return {
+        "authorize_url": config.authorize_url,
+        "client_id": config.client_id,
+        "redirect_uri": config.redirect_uri,
+        "scopes": config.scopes,
+    }
+
+
+@router.post("/auth/sso/callback")
+async def sso_callback(payload: SSOCallbackRequest, db: Session = Depends(get_db)):
+    """Exchange an authorization code for tokens and issue a Core JWT."""
+    config = get_oidc_config()
+    if not config:
+        raise HTTPException(status_code=500, detail="SSO not configured")
+
+    # 1. Exchange code for tokens
+    try:
+        token_response = await exchange_code_for_tokens(
+            code=payload.code,
+            code_verifier=payload.code_verifier,
+            redirect_uri=payload.redirect_uri,
+            config=config,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    # 2. Validate ID token
+    id_token = token_response.get("id_token")
+    if not id_token:
+        raise HTTPException(status_code=401, detail="No ID token in response")
+
+    try:
+        claims = await validate_id_token(id_token, config)
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Invalid ID token: {e}")
+
+    # 3. Map SSO user to local user
+    sub = claims.get("sub")
+    email = claims.get("email")
+
+    user = None
+    if sub:
+        user = db.query(models.User).filter(models.User.id == sub).first()
+    if not user and email:
+        user = db.query(models.User).filter(models.User.email == email).first()
+
+    if not user:
+        raise HTTPException(status_code=401, detail="No matching local user")
+
+    if not user.is_active:
+        raise HTTPException(status_code=401, detail="User account is inactive")
+
+    # 4. Issue Core's own HS256 JWT
+    access_token_expires = timedelta(minutes=auth.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token_payload = {
+        "sub": user.email,
+        "scope": user.access_scope,
+        "role": user.role,
+        "id": str(user.id),
+        "account_id": str(user.account_id) if user.account_id else None,
+    }
+    access_token = auth.create_access_token(
+        data=token_payload, expires_delta=access_token_expires
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "refresh_token": token_response.get("refresh_token"),
+    }
+
+
+@router.post("/auth/sso/logout")
+async def sso_logout(payload: SSOLogoutRequest):
+    """Revoke the SSO refresh token at Sanctum Auth."""
+    config = get_oidc_config()
+    if not config:
+        raise HTTPException(status_code=500, detail="SSO not configured")
+
+    await revoke_token(payload.refresh_token, config)
+    return {"status": "ok"}
