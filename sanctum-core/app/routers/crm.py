@@ -1,14 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy import func
 from typing import List, Optional
-import os # <--- ADD THIS
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import email_service
-from .auth import invite_user
 from ..services.auth_service import auth_service
+from ..services.portal_provisioning import provision_portal_user
 
 
 router = APIRouter(tags=["CRM"])
@@ -238,7 +237,7 @@ def archive_product(product_id: str, current_user: models.User = Depends(auth.ge
 
 # --- CONTACTS ---
 @router.post("/contacts", response_model=schemas.ContactResponse)
-def create_contact(contact: schemas.ContactCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+def create_contact(contact: schemas.ContactCreate, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     contact_data = contact.model_dump()
     enable_portal = contact_data.pop('enable_portal_access', False)
 
@@ -251,48 +250,63 @@ def create_contact(contact: schemas.ContactCreate, current_user: models.User = D
         if existing_contact:
             raise HTTPException(status_code=400, detail="A contact with this email already exists for this client.")
 
-    # 2. Create Contact
+    # 2. Set portal_access BEFORE db.add() so the column is correct from creation
+    if enable_portal:
+        contact_data['portal_access'] = True
+
+    # 3. Create Contact
     new_contact = models.Contact(**contact_data)
     db.add(new_contact)
     db.commit()
     db.refresh(new_contact)
 
-    # 3. Convergence Logic (Delegated)
-    if enable_portal and new_contact.email:
-        # Check if user exists
-        existing_user = db.query(models.User).filter(models.User.email == new_contact.email).first()
+    # 4. Convergence Logic (Delegated to shared service)
+    provisioning_result = None
+    if enable_portal:
+        provisioning_result = provision_portal_user(db, new_contact, background_tasks)
 
-        if not existing_user:
-            # Create Shadow User
-            import secrets
-            random_pw = secrets.token_urlsafe(32)
-            hashed_pw = auth.get_password_hash(random_pw)
+    # Attach provisioning result to response (transient, not persisted)
+    response = new_contact
+    if provisioning_result:
+        response.provisioning_result = provisioning_result
 
-            existing_user = models.User(
-                email=new_contact.email,
-                password_hash=hashed_pw,
-                full_name=f"{new_contact.first_name} {new_contact.last_name}",
-                role="client",
-                access_scope="restricted",
-                account_id=new_contact.account_id
-            )
-            db.add(existing_user)
-            db.commit()
-            db.refresh(existing_user)
-
-        # TRIGGER INVITE VIA SERVICE
-        auth_service.invite_user(db, existing_user)
-
-    return new_contact
+    return response
 
 @router.put("/contacts/{contact_id}", response_model=schemas.ContactResponse)
-def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, db: Session = Depends(get_db)):
+def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
     if not contact: raise HTTPException(status_code=404, detail="Contact not found")
+
     update_data = contact_update.model_dump(exclude_unset=True)
-    for key, value in update_data.items(): setattr(contact, key, value)
-    db.commit()
-    db.refresh(contact)
+    enable_portal = update_data.pop('enable_portal_access', None)
+
+    # Apply field updates
+    for key, value in update_data.items():
+        setattr(contact, key, value)
+
+    # Provisioning: detect false-to-true transition
+    provisioning_result = None
+    if enable_portal is True and not contact.portal_access:
+        contact.portal_access = True
+        provisioning_result = provision_portal_user(db, contact, background_tasks)
+        if provisioning_result.get("status") == "error":
+            # Rollback portal_access so contact isn't stuck in a bad state
+            db.rollback()
+            db.refresh(contact)
+        else:
+            db.commit()
+            db.refresh(contact)
+    elif enable_portal is False:
+        contact.portal_access = False
+        db.commit()
+        db.refresh(contact)
+    else:
+        db.commit()
+        db.refresh(contact)
+
+    if provisioning_result:
+        contact.provisioning_result = provisioning_result
+
     return contact
 
 @router.delete("/contacts/{contact_id}")

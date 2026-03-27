@@ -93,6 +93,7 @@ class Contact(Base):
     email = Column(String)
     phone = Column(String)
     is_primary_contact = Column(Boolean, default=False)
+    portal_access = Column(Boolean, default=False, nullable=False)
     persona = Column(String)
     reports_to_id = Column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
 
