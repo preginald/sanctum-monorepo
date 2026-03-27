@@ -389,6 +389,7 @@ class AuditTemplate(Base):
     description = Column(Text, nullable=True)
     category = Column(String, default='security')  # NEW: 'security', 'infrastructure', 'digital_presence', etc.
     category_structure = Column(JSON, default=[])
+    scan_mode = Column(String(20), default="manual")  # "manual" or "automated"
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), onupdate=func.now())

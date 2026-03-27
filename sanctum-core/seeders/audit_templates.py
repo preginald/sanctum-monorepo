@@ -355,6 +355,20 @@ USER_EXPERIENCE = {
 # MASTER TEMPLATE LIST
 # ============================================================================
 
+# ============================================================================
+# CATEGORY 7: WEBSITE HEALTH (AUTOMATED)
+# ============================================================================
+
+WEBSITE_HEALTH_SCAN = {
+    "name": "Website Health Scan",
+    "framework": "Sanctum Audit",
+    "description": "Automated website health scan via Sanctum Audit API. Scores across SEO, security, performance, accessibility, and more.",
+    "category": "website",
+    "scan_mode": "automated",
+    "category_structure": [],  # No questionnaire controls
+    "is_active": True,
+}
+
 DEFAULT_TEMPLATES = [
     ESSENTIAL_8_TEMPLATE,
     NIST_CSF_LITE,
@@ -362,7 +376,8 @@ DEFAULT_TEMPLATES = [
     DIGITAL_PRESENCE,
     OPERATIONAL_EFFICIENCY,
     BUSINESS_CONTINUITY,
-    USER_EXPERIENCE
+    USER_EXPERIENCE,
+    WEBSITE_HEALTH_SCAN,
 ]
 
 def seed():
