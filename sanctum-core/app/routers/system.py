@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text, func
 from .. import models, schemas, auth
@@ -10,6 +11,19 @@ import os
 from datetime import datetime
 
 router = APIRouter(tags=["System"])
+
+
+@router.get("/api/health")
+def api_health_check(db: Session = Depends(get_db)):
+    """Lightweight health check with DB connectivity verification. Unauthenticated."""
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ok"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "error", "detail": str(e)},
+        )
 
 @router.get("/system/health")
 def run_system_diagnostics(db: Session = Depends(get_db)):
