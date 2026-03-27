@@ -236,7 +236,7 @@ export default function AuditDetail() {
         navigate(`/audit/${auditId}`, { replace: true });
       }
 
-      const res = await api.post(`/sentinel/audits/${auditId}/scan`);
+      await api.post(`/sentinel/audits/${auditId}/scan`);
       setAudit(prev => ({ ...prev, scan_status: 'running' }));
       addToast('Scan initiated', 'success');
     } catch (e) {
@@ -248,11 +248,6 @@ export default function AuditDetail() {
   };
 
   const isAutomated = selectedTemplate?.scan_mode === 'automated';
-
-  const auditStatusColor = (s) => {
-    const map = { draft: 'bg-yellow-500/20 text-yellow-400', finalized: 'bg-green-500/20 text-green-400', 'in_progress': 'bg-blue-500/20 text-blue-400' };
-    return map[s] || 'bg-white/10 text-slate-300';
-  };
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -321,14 +316,21 @@ export default function AuditDetail() {
             </div>
           )}
           {isAutomated ? (
-            <button
-              onClick={runScan}
-              disabled={scanning}
-              className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
-            >
-              {scanning ? <Loader2 className="animate-spin" size={16} /> : audit?.scan_status === 'failed' ? <RefreshCw size={16} /> : <Play size={16} />}
-              {scanning ? 'Scanning...' : audit?.scan_status === 'failed' ? 'Retry Scan' : 'Run Scan'}
-            </button>
+            !audit?.account_website ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+                <AlertCircle size={16} />
+                This account has no website URL on record. Add a website URL to the account before running a scan.
+              </div>
+            ) : (
+              <button
+                onClick={runScan}
+                disabled={scanning}
+                className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              >
+                {scanning ? <Loader2 className="animate-spin" size={16} /> : audit?.scan_status === 'failed' ? <RefreshCw size={16} /> : <Play size={16} />}
+                {scanning ? 'Scanning...' : audit?.scan_status === 'failed' ? 'Retry Scan' : 'Run Scan'}
+              </button>
+            )
           ) : (
             audit?.status !== 'finalized' && (
               <button onClick={saveAudit} disabled={saving || !selectedTemplate} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50">
@@ -532,7 +534,7 @@ export default function AuditDetail() {
                     {/* CONTROLS */}
                     {isExpanded && (
                       <div className="border-t border-slate-800">
-                        {category.controls.map((control, ctrlIdx) => {
+                        {category.controls.map((control) => {
                           const response = responses[control.id] || {};
                           const status = response.status || '';
 

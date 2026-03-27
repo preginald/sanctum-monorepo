@@ -50,6 +50,7 @@ class AuditDetailResponse(BaseModel):
     status: str
     deal_id: Optional[UUID]
     template_name: Optional[str]
+    account_website: Optional[str] = None
     scan_mode: Optional[str] = None
     scan_status: Optional[str] = None
     responses: Optional[Dict[str, Dict[str, str]]]
@@ -277,6 +278,7 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
         "id": audit.id,
         "account_id": audit.account_id,
         "account_name": account.name if account else None,
+        "account_website": account.website if account else None,
         "template_id": audit.template_id,
         "security_score": audit.security_score,
         "status": audit.status,
