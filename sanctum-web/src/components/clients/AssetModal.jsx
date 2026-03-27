@@ -48,7 +48,7 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
 
   // Helper to determine icon
   const getIcon = () => {
-      if (['domain', 'hosting web', 'hosting email'].includes(form.asset_type)) return <Globe size={20} className="text-purple-400" />;
+      if (['domain', 'website', 'hosting web', 'hosting email'].includes(form.asset_type)) return <Globe size={20} className="text-purple-400" />;
       if (['iphone', 'android phone'].includes(form.asset_type)) return <Smartphone size={20} className="text-green-400" />;
       if (['ipad', 'android tablet'].includes(form.asset_type)) return <Tablet size={20} className="text-green-400" />;
       if (['server', 'network', 'firewall'].includes(form.asset_type)) return <Server size={20} className="text-orange-400" />;

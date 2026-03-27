@@ -71,6 +71,7 @@ export const ASSET_TYPES = [
     "software",
     "license",
     "domain",
+    "website",
     "hosting web",
     "hosting email",
     "saas",

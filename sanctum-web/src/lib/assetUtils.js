@@ -82,6 +82,13 @@ export const SPEC_FIELDS = {
         { key: 'admin_url', label: 'Login URL', placeholder: 'https://admin.microsoft.com' },
         { key: 'plan', label: 'Plan Level', placeholder: 'Business Premium' }
     ],
+    'website': [
+        { key: 'platform', label: 'Platform', type: 'select',
+          options: ['wordpress', 'wix', 'squarespace', '11ty', 'shopify', 'static', 'custom'] },
+        { key: 'admin_url', label: 'Admin URL', placeholder: 'https://example.com/wp-admin' },
+        { key: 'hosting_provider', label: 'Hosting Provider', placeholder: 'SiteGround' },
+        { key: 'cms_version', label: 'CMS Version', placeholder: '6.4.2' },
+    ],
     'hosting web': [
         { key: 'url', label: 'Website URL', placeholder: 'https://client.com' },
         { key: 'server_ip', label: 'Server IP', placeholder: '203.0.113.1' },
@@ -99,6 +106,7 @@ export const getAssetPlaceholder = (type) => {
     switch (type) {
         // Digital
         case 'domain': return 'e.g. digitalsanctum.com.au';
+        case 'website': return 'e.g. https://example.com';
         case 'hosting web': return 'e.g. Corporate Website';
         case 'hosting email': return 'e.g. Google Workspace / M365';
         case 'saas': return 'e.g. Xero / Salesforce';
