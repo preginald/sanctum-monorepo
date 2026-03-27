@@ -17,6 +17,23 @@ from .audit_client import trigger_audit, AuditAPIError
 logger = logging.getLogger(__name__)
 
 
+def _notify_admins(db, title: str, message: str, link: str = None):
+    """Create in-app notifications for all admin users."""
+    admins = db.query(models.User).filter(models.User.role == "admin").all()
+    for admin in admins:
+        db.add(models.Notification(
+            user_id=admin.id,
+            recipient_email=admin.email,
+            title=title,
+            message=message,
+            link=link,
+            status="pending",
+            delivery_channel="in_app",
+            is_read=False,
+        ))
+    db.flush()
+
+
 def handle_template_applied(payload: dict, background_tasks: BackgroundTasks):
     """
     EventBus listener for 'template_applied' events.
@@ -58,12 +75,23 @@ def _process_audit_scan(account_id: str, entity_id: str, template_name: str):
             )
             return
 
-        # Check website URL (AC #7: graceful failure)
+        # Check website URL (AC #7: graceful failure with notification)
         if not account.website:
             logger.warning(
                 f"[AuditSubscriber] Website audit skipped -- "
                 f"no URL on record for {account.name}"
             )
+            _notify_admins(
+                db,
+                title="Website audit skipped",
+                message=(
+                    f"The baseline audit scan was skipped for "
+                    f"{account.name} because no website URL is on record. "
+                    f"Add a URL to the account and retry manually."
+                ),
+                link=f"/accounts/{account_id}",
+            )
+            db.commit()
             return
 
         # Query primary contact (reviewer observation #2: handle missing contact)
@@ -99,11 +127,23 @@ def _process_audit_scan(account_id: str, entity_id: str, template_name: str):
                 business_name=account.name,
             )
         except AuditAPIError as e:
-            # AC #8: project already created, just log the warning
+            # AC #8: project already created, surface warning via notification
             logger.error(
                 f"[AuditSubscriber] Audit API call failed for "
                 f"{account.name}: {e.message}"
             )
+            _notify_admins(
+                db,
+                title="Website audit scan failed",
+                message=(
+                    f"The Sanctum Audit API call failed for "
+                    f"{account.name}: {e.message}. "
+                    f"The project was created successfully. "
+                    f"The scan can be retried manually."
+                ),
+                link=f"/projects/{entity_id}",
+            )
+            db.commit()
             return
 
         # Create artefact with audit report URL

@@ -355,6 +355,19 @@ def apply_template(
     t.times_applied = (t.times_applied or 0) + 1
     db.commit()
 
+    # Pre-check: surface warnings for audit templates (AC #7)
+    warnings = []
+    if t.category == "audit":
+        account = db.query(models.Account).filter(
+            models.Account.id == payload.account_id
+        ).first()
+        if account and not account.website:
+            warnings.append(
+                f"No website URL on record for {account.name}. "
+                f"The baseline audit scan will be skipped. "
+                f"Add a URL to the account and retry manually."
+            )
+
     # Emit template_applied event for subscribers (e.g. audit scan trigger)
     event_bus.emit("template_applied", {
         "template_id": str(t.id),
@@ -372,6 +385,7 @@ def apply_template(
         entity_name=entity_name,
         milestones_created=milestones_created,
         tickets_created=tickets_created,
+        warnings=warnings,
     )
 
 
