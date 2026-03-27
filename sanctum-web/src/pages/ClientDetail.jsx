@@ -21,6 +21,7 @@ import AssetModal from '../components/clients/AssetModal';
 import ArtefactCard from '../components/ArtefactCard';
 import KnowledgePack from '../components/KnowledgePack';
 import MetadataStrip from '../components/ui/MetadataStrip';
+import SSOSection from '../components/clients/SSOSection';
 
 export default function ClientDetail() {
   const { id } = useParams();
@@ -336,6 +337,7 @@ export default function ClientDetail() {
 
           <div className="space-y-6 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-10rem)] lg:overflow-y-auto scrollbar-thin">
               <ArtefactCard entityType="account" entityId={id} artefacts={account.artefacts || []} onUpdate={fetchAll} />
+              <SSOSection account={account} onUpdate={fetchAll} />
               <KnowledgePack accountId={id} />
               <HumanSection
                   contacts={account.contacts || []}
