@@ -79,6 +79,9 @@ class Account(Base):
     # Unique token for this client to run the 'Sanctum Agent' script
     ingest_token = Column(UUID(as_uuid=True), server_default=text("gen_random_uuid()"), unique=True)
 
+    # SSO: Sanctum Auth OIDC client_id for this account
+    oauth_client_id = Column(String(255), nullable=True)
+
     deals = relationship("Deal", back_populates="account")
     tickets = relationship("Ticket", back_populates="account")
     contacts = relationship("Contact", back_populates="account")

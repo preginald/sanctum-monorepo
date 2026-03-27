@@ -22,6 +22,7 @@ class AccountUpdate(SanctumBase):
 class AccountResponse(AccountCreate):
     id: UUID
     ingest_token: Optional[UUID] = None  # Add this here
+    oauth_client_id: Optional[str] = None
     artefacts: List[ArtefactLite] = []
 
     class Config:
