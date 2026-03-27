@@ -76,6 +76,7 @@ def provision_portal_user(
         return {"status": "created", "user_id": str(new_user.id)}
 
     except Exception as e:
+        db.rollback()
         # Emit failure event
         try:
             event_bus.emit(

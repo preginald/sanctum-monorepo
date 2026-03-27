@@ -3,11 +3,9 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.orm.attributes import set_committed_value
 from sqlalchemy import func
 from typing import List, Optional
-import os # <--- ADD THIS
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.email_service import email_service
-from .auth import invite_user
 from ..services.auth_service import auth_service
 from ..services.portal_provisioning import provision_portal_user
 
@@ -290,9 +288,14 @@ def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, backg
     provisioning_result = None
     if enable_portal is True and not contact.portal_access:
         contact.portal_access = True
-        db.commit()
-        db.refresh(contact)
         provisioning_result = provision_portal_user(db, contact, background_tasks)
+        if provisioning_result.get("status") == "error":
+            # Rollback portal_access so contact isn't stuck in a bad state
+            db.rollback()
+            db.refresh(contact)
+        else:
+            db.commit()
+            db.refresh(contact)
     elif enable_portal is False:
         contact.portal_access = False
         db.commit()
