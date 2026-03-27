@@ -50,6 +50,7 @@ class AuditDetailResponse(BaseModel):
     status: str
     deal_id: Optional[UUID]
     template_name: Optional[str]
+    account_name: Optional[str] = None
     account_website: Optional[str] = None
     scan_mode: Optional[str] = None
     scan_status: Optional[str] = None

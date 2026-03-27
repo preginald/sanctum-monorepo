@@ -43,10 +43,16 @@ def trigger_audit(
         "business_name": business_name,
     }
 
+    headers = {}
+    if SANCTUM_AUDIT_API_KEY:
+        headers["Authorization"] = f"Bearer {SANCTUM_AUDIT_API_KEY}"
+
     try:
         with httpx.Client(timeout=httpx.Timeout(30.0, connect=30.0)) as client:
             response = client.post(
-                f"{SANCTUM_AUDIT_BASE_URL}/api/audits", json=payload
+                f"{SANCTUM_AUDIT_BASE_URL}/api/audits",
+                json=payload,
+                headers=headers,
             )
     except httpx.ConnectError as e:
         raise AuditAPIError(f"Connection failed: {e}")

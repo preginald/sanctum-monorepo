@@ -398,7 +398,7 @@ def seed():
                 print(f"   ⏭️  Skipping template (exists): {template_def['name']}")
 
         db.commit()
-        print("✅ Audit Template Seeding Complete (7 templates across 6 categories).")
+        print("✅ Audit Template Seeding Complete (8 templates across 7 categories).")
 
     except Exception as e:
         print(f"❌ Error seeding audit templates: {e}")
