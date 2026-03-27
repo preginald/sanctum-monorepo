@@ -260,7 +260,7 @@ def update_ticket(
             )
 
     # Billable item enforcement (BUS-001 D7, replaces time_entry_required)
-    if not ticket_update.skip_validation and update_data.get('status') == 'resolved' and ticket.status != 'resolved':
+    if update_data.get('status') == 'resolved' and ticket.status != 'resolved':
         has_time_entries = len(ticket.time_entries) > 0
         has_materials = len(ticket.materials) > 0
         if not has_time_entries and not has_materials:
@@ -271,7 +271,7 @@ def update_ticket(
                     "error_code": "billable_item_required",
                     "time_entry_count": 0,
                     "material_count": 0,
-                    "help": "Log time entries or add materials/products to this ticket before resolving. Use skip_validation=true for admin bypass. See BUS-001 D7 and SYS-002.",
+                    "help": "Log time entries or add materials/products to this ticket before resolving. See BUS-001 D7 and SYS-002.",
                 },
             )
 
