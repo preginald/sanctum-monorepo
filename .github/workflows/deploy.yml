@@ -105,6 +105,33 @@ jobs:
             echo "🚀 Deploying Static Assets..."
             cp -r dist/* /var/www/sanctum-core/
 
+            # Version verification (#1106)
+            echo "--- Verifying API version ---"
+            cd ~/DigitalSanctum
+            DEPLOYED_COMMIT=$(git rev-parse HEAD)
+            RUNNING_COMMIT=""
+            for i in 1 2 3 4 5; do
+              RUNNING_COMMIT=$(curl -sf http://127.0.0.1:8000/version 2>/dev/null | jq -r '.commit // empty') || true
+              if [ -n "$RUNNING_COMMIT" ]; then break; fi
+              echo "Attempt $i: API not ready, retrying in 2s..."
+              sleep 2
+            done
+
+            if [ "$RUNNING_COMMIT" != "$DEPLOYED_COMMIT" ]; then
+              echo "Version mismatch: running=$RUNNING_COMMIT deployed=$DEPLOYED_COMMIT"
+              echo "Forcing API restart..."
+              sudo systemctl restart sanctum-api
+              sleep 3
+              RUNNING_COMMIT=$(curl -sf http://127.0.0.1:8000/version | jq -r '.commit // empty') || true
+              if [ "$RUNNING_COMMIT" != "$DEPLOYED_COMMIT" ]; then
+                echo "FATAL: API still serving stale commit after restart"
+                exit 1
+              fi
+              echo "API restarted successfully: $RUNNING_COMMIT"
+            else
+              echo "API version matches: $RUNNING_COMMIT"
+            fi
+
             echo "✅ Deployment Complete."
 
   deploy-test:
@@ -191,5 +218,32 @@ jobs:
             # Deploy static assets
             echo "🚀 Deploying Static Assets..."
             cp -r dist/* /var/www/sanctum-core-test/
+
+            # Version verification (#1106)
+            echo "--- Verifying API version ---"
+            cd ~/DigitalSanctum-test
+            DEPLOYED_COMMIT=$(git rev-parse HEAD)
+            RUNNING_COMMIT=""
+            for i in 1 2 3 4 5; do
+              RUNNING_COMMIT=$(curl -sf http://127.0.0.1:8001/version 2>/dev/null | jq -r '.commit // empty') || true
+              if [ -n "$RUNNING_COMMIT" ]; then break; fi
+              echo "Attempt $i: API not ready, retrying in 2s..."
+              sleep 2
+            done
+
+            if [ "$RUNNING_COMMIT" != "$DEPLOYED_COMMIT" ]; then
+              echo "Version mismatch: running=$RUNNING_COMMIT deployed=$DEPLOYED_COMMIT"
+              echo "Forcing API restart..."
+              sudo systemctl restart sanctum-api-test
+              sleep 3
+              RUNNING_COMMIT=$(curl -sf http://127.0.0.1:8001/version | jq -r '.commit // empty') || true
+              if [ "$RUNNING_COMMIT" != "$DEPLOYED_COMMIT" ]; then
+                echo "FATAL: API still serving stale commit after restart"
+                exit 1
+              fi
+              echo "API restarted successfully: $RUNNING_COMMIT"
+            else
+              echo "API version matches: $RUNNING_COMMIT"
+            fi
 
             echo "✅ Test Deployment Complete."
