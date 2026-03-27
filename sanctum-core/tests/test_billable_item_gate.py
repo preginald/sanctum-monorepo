@@ -1,12 +1,12 @@
-"""Unit tests for the billable item enforcement gate (#941, #999).
+"""Unit tests for the billable item enforcement gate (#941, #999, #1118).
 
-Tests the gate logic from tickets.py update_ticket endpoint:
+Tests the gate logic from tickets.py update_ticket endpoint (lines 262-276):
 - Resolve blocked when no time entries AND no materials (expect 422)
 - Resolve succeeds with time entry only
 - Resolve succeeds with material only
 - Resolve succeeds with both
 - no_billable=true does NOT bypass the gate (#999)
-- skip_validation=true bypasses the gate
+- skip_validation=true does NOT bypass the billable item gate (#1118)
 - Already-resolved tickets not affected
 """
 
@@ -16,14 +16,16 @@ from fastapi import HTTPException
 
 def check_billable_item_gate(
     *,
-    skip_validation: bool,
+    skip_validation: bool = False,
     update_status: str | None,
     current_status: str,
     time_entries: list,
     materials: list,
 ):
     """
-    Reproduce the billable item gate logic from tickets.py lines 216-231.
+    Reproduce the billable item gate logic from tickets.py lines 262-276.
+    skip_validation is accepted but intentionally ignored — the billable item
+    gate cannot be bypassed (#1118).
     Raises HTTPException(422) when the gate blocks resolution.
     Returns None when the gate passes.
     """
@@ -31,7 +33,8 @@ def check_billable_item_gate(
     if update_status is not None:
         update_data['status'] = update_status
 
-    if not skip_validation and update_data.get('status') == 'resolved' and current_status != 'resolved':
+    # skip_validation intentionally NOT checked here — billable item gate is unconditional (#1118)
+    if update_data.get('status') == 'resolved' and current_status != 'resolved':
         has_time_entries = len(time_entries) > 0
         has_materials = len(materials) > 0
         if not has_time_entries and not has_materials:
@@ -42,7 +45,7 @@ def check_billable_item_gate(
                     "error_code": "billable_item_required",
                     "time_entry_count": 0,
                     "material_count": 0,
-                    "help": "Log time entries or add materials/products to this ticket before resolving. Use skip_validation=true for admin bypass. See BUS-001 D7 and SYS-002.",
+                    "help": "Log time entries or add materials/products to this ticket before resolving. See BUS-001 D7 and SYS-002.",
                 },
             )
 
@@ -66,7 +69,8 @@ class TestBillableItemGateBlocks:
         assert detail["material_count"] == 0
         assert "BUS-001" in detail["help"]
 
-    def test_error_includes_bypass_instructions(self):
+    def test_error_does_not_mention_skip_validation_bypass(self):
+        """Help string must NOT suggest skip_validation as a bypass (#1118)."""
         with pytest.raises(HTTPException) as exc_info:
             check_billable_item_gate(
                 skip_validation=False,
@@ -75,7 +79,7 @@ class TestBillableItemGateBlocks:
                 time_entries=[],
                 materials=[],
             )
-        assert "skip_validation=true" in exc_info.value.detail["help"]
+        assert "skip_validation" not in exc_info.value.detail["help"]
         assert "SYS-002" in exc_info.value.detail["help"]
 
 
@@ -148,16 +152,20 @@ class TestNoBillableDoesNotBypassGate:
 
 
 class TestBillableItemGateAdminBypass:
-    """Gate should only be bypassed by skip_validation."""
+    """skip_validation must NOT bypass the billable item gate (#1118)."""
 
-    def test_skip_validation_bypasses_gate(self):
-        check_billable_item_gate(
-            skip_validation=True,
-            update_status='resolved',
-            current_status='open',
-            time_entries=[],
-            materials=[],
-        )
+    def test_skip_validation_does_not_bypass_gate(self):
+        """skip_validation=True should still enforce billable items."""
+        with pytest.raises(HTTPException) as exc_info:
+            check_billable_item_gate(
+                skip_validation=True,
+                update_status='resolved',
+                current_status='open',
+                time_entries=[],
+                materials=[],
+            )
+        assert exc_info.value.status_code == 422
+        assert exc_info.value.detail["error_code"] == "billable_item_required"
 
 
 class TestBillableItemGateScope:
