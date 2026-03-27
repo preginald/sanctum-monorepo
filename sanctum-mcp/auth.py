@@ -293,8 +293,10 @@ class OAuthMiddleware:
         # SSE session count — lazy discovery of session manager
         sse_sessions = -1
         if not health._session_manager and not health._session_manager_searched:
-            health._session_manager_searched = True
-            health._session_manager = self._find_session_manager(self.app)
+            mgr = self._find_session_manager(self.app)
+            if mgr is not None:
+                health._session_manager = mgr
+                health._session_manager_searched = True
         if health._session_manager is not None:
             try:
                 sse_sessions = len(health._session_manager._server_instances)
