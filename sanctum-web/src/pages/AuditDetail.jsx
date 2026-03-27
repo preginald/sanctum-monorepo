@@ -20,6 +20,7 @@ export default function AuditDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
+  const [selectedAssetId, setSelectedAssetId] = useState(null);
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -105,6 +106,14 @@ export default function AuditDetail() {
       // Auto-expand first category
       if (res.data.category_structure && res.data.category_structure.length > 0) {
         setExpandedCategories({ [res.data.category_structure[0].category]: true });
+      }
+
+      // Auto-select website asset
+      const assets = res.data.website_assets || [];
+      if (res.data.scanned_asset_id) {
+        setSelectedAssetId(res.data.scanned_asset_id);
+      } else if (assets.length === 1) {
+        setSelectedAssetId(assets[0].id);
       }
 
       // If scan is running, set scanning state
@@ -236,7 +245,8 @@ export default function AuditDetail() {
         navigate(`/audit/${auditId}`, { replace: true });
       }
 
-      await api.post(`/sentinel/audits/${auditId}/scan`);
+      const scanPayload = selectedAssetId ? { asset_id: selectedAssetId } : {};
+      await api.post(`/sentinel/audits/${auditId}/scan`, scanPayload);
       setAudit(prev => ({ ...prev, scan_status: 'running' }));
       addToast('Scan initiated', 'success');
     } catch (e) {
@@ -316,21 +326,49 @@ export default function AuditDetail() {
             </div>
           )}
           {isAutomated ? (
-            !audit?.account_website ? (
-              <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
-                <AlertCircle size={16} />
-                This account has no website URL on record. Add a website URL to the account before running a scan.
-              </div>
-            ) : (
-              <button
-                onClick={runScan}
-                disabled={scanning}
-                className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
-              >
-                {scanning ? <Loader2 className="animate-spin" size={16} /> : audit?.scan_status === 'failed' ? <RefreshCw size={16} /> : <Play size={16} />}
-                {scanning ? 'Scanning...' : audit?.scan_status === 'failed' ? 'Retry Scan' : 'Run Scan'}
-              </button>
-            )
+            (() => {
+              const websiteAssets = audit?.website_assets || [];
+              const hasAssets = websiteAssets.length > 0;
+              const hasWebsite = !!audit?.account_website;
+              const canScan = hasAssets || hasWebsite;
+
+              if (!canScan) {
+                return (
+                  <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+                    <AlertCircle size={16} />
+                    This account has no website URL on record. Add a website URL to the account before running a scan.
+                  </div>
+                );
+              }
+
+              return (
+                <div className="flex items-center gap-2">
+                  {websiteAssets.length > 1 && (
+                    <select
+                      value={selectedAssetId || ''}
+                      onChange={(e) => setSelectedAssetId(e.target.value || null)}
+                      className="bg-slate-900 border border-slate-600 rounded px-3 h-10 text-sm text-white focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Select website...</option>
+                      {websiteAssets.map(a => (
+                        <option key={a.id} value={a.id}>{a.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {websiteAssets.length === 1 && (
+                    <span className="text-xs text-slate-400 truncate max-w-[200px]">{websiteAssets[0].name}</span>
+                  )}
+                  <button
+                    onClick={runScan}
+                    disabled={scanning || (websiteAssets.length > 1 && !selectedAssetId)}
+                    className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
+                  >
+                    {scanning ? <Loader2 className="animate-spin" size={16} /> : audit?.scan_status === 'failed' ? <RefreshCw size={16} /> : <Play size={16} />}
+                    {scanning ? 'Scanning...' : audit?.scan_status === 'failed' ? 'Retry Scan' : 'Run Scan'}
+                  </button>
+                </div>
+              );
+            })()
           ) : (
             audit?.status !== 'finalized' && (
               <button onClick={saveAudit} disabled={saving || !selectedTemplate} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50">

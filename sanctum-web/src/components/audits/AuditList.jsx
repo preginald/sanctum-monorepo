@@ -36,6 +36,9 @@ export default function AuditList({ audits, onAdd }) {
                 >
                     <div>
                         <span className="font-bold text-white block">{a.template_name || 'Security Audit'}</span>
+                        {a.target_url && (
+                            <span className="text-xs text-slate-500 truncate block max-w-[200px]">{a.target_url}</span>
+                        )}
                         <span className="text-xs opacity-50">{new Date(a.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="flex flex-col items-end justify-center">
