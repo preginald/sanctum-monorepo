@@ -421,6 +421,7 @@ class AuditReport(Base):
     target_url = Column(String, nullable=True)
     scan_status = Column(String, default="idle") # idle, queued, running, completed, failed
     last_scan_at = Column(TIMESTAMP(timezone=True), nullable=True)
+    scanned_asset_id = Column(UUID(as_uuid=True), ForeignKey("assets.id", ondelete="SET NULL"), nullable=True)
 
     security_score = Column(Integer, default=0)
     infrastructure_score = Column(Integer, default=0)
@@ -436,6 +437,7 @@ class AuditReport(Base):
     comments = relationship("Comment", back_populates="audit", order_by="desc(Comment.created_at)")
     template = relationship("AuditTemplate")
     submissions = relationship("AuditSubmission", back_populates="audit_report", cascade="all, delete-orphan")
+    scanned_asset = relationship("Asset", foreign_keys=[scanned_asset_id])
 
 class Invoice(Base):
     __tablename__ = "invoices"
