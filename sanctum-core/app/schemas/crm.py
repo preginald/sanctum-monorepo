@@ -34,6 +34,9 @@ class ContactCreate(SanctumBase):
     persona: Optional[str] = None
     reports_to_id: Optional[UUID] = None
 
+    # The Convergence Flag
+    enable_portal_access: bool = False
+
 class ContactUpdate(SanctumBase):
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -41,13 +44,10 @@ class ContactUpdate(SanctumBase):
     phone: Optional[str] = None
     persona: Optional[str] = None
     reports_to_id: Optional[UUID] = None
+    enable_portal_access: Optional[bool] = None
 
-class ContactResponse(ContactCreate):
+class ContactResponse(SanctumBase):
     id: UUID
-    is_primary_contact: bool
-    # Overwrite account_id to be optional in response if needed, but it's usually present
-
-class ContactCreate(SanctumBase):
     account_id: UUID
     first_name: str
     last_name: str
@@ -55,6 +55,9 @@ class ContactCreate(SanctumBase):
     phone: Optional[str] = None
     persona: Optional[str] = None
     reports_to_id: Optional[UUID] = None
+    is_primary_contact: bool = False
+    portal_access: bool = False
+    provisioning_result: Optional[dict] = None
 
-    # NEW: The Convergence Flag
-    enable_portal_access: bool = False
+    class Config:
+        from_attributes = True
