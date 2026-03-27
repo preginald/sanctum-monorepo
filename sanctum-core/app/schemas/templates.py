@@ -143,6 +143,7 @@ class TemplateApplyResponse(SanctumBase):
     entity_name: str
     milestones_created: int
     tickets_created: int
+    warnings: List[str] = []
 
 
 # ─────────────────────────────────────

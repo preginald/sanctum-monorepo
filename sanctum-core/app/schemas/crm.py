@@ -9,6 +9,7 @@ class AccountCreate(SanctumBase):
     brand_affinity: str
     status: str = 'prospect'
     billing_email: Optional[str] = None
+    website: Optional[str] = None
 
 class AccountUpdate(SanctumBase):
     name: Optional[str] = None
@@ -16,6 +17,7 @@ class AccountUpdate(SanctumBase):
     status: Optional[str] = None
     brand_affinity: Optional[str] = None
     billing_email: Optional[str] = None
+    website: Optional[str] = None
 
 class AccountResponse(AccountCreate):
     id: UUID

@@ -54,6 +54,11 @@ app.include_router(templates.router)
 app.include_router(artefacts.router)
 app.include_router(mcp_telemetry.router)
 
+# EVENT SUBSCRIBERS
+from .services.event_bus import event_bus
+from .services.audit_subscriber import handle_template_applied
+event_bus.subscribe("template_applied", handle_template_applied)
+
 # ROOT HEALTH CHECK
 @app.get("/")
 def read_root():

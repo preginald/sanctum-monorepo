@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
@@ -11,6 +11,7 @@ from ..schemas.templates import (
     TemplateItemCreate, TemplateItemUpdate, TemplateItemResponse,
     TemplateApplicationResponse,
 )
+from ..services.event_bus import event_bus
 import uuid
 
 router = APIRouter(prefix="/templates", tags=["Template Library"])
@@ -312,6 +313,7 @@ def clone_template(
 def apply_template(
     template_id: str,
     payload: TemplateApply,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -353,6 +355,29 @@ def apply_template(
     t.times_applied = (t.times_applied or 0) + 1
     db.commit()
 
+    # Pre-check: surface warnings for audit templates (AC #7)
+    warnings = []
+    if t.category == "audit":
+        account = db.query(models.Account).filter(
+            models.Account.id == payload.account_id
+        ).first()
+        if account and not account.website:
+            warnings.append(
+                f"No website URL on record for {account.name}. "
+                f"The baseline audit scan will be skipped. "
+                f"Add a URL to the account and retry manually."
+            )
+
+    # Emit template_applied event for subscribers (e.g. audit scan trigger)
+    event_bus.emit("template_applied", {
+        "template_id": str(t.id),
+        "template_name": t.name,
+        "template_category": t.category,
+        "entity_type": t.template_type,
+        "entity_id": str(entity_id),
+        "account_id": str(payload.account_id),
+    }, background_tasks)
+
     return TemplateApplyResponse(
         template_id=t.id,
         entity_type=t.template_type,
@@ -360,6 +385,7 @@ def apply_template(
         entity_name=entity_name,
         milestones_created=milestones_created,
         tickets_created=tickets_created,
+        warnings=warnings,
     )
 
 
