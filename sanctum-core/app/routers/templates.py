@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from typing import List, Optional
@@ -11,6 +11,7 @@ from ..schemas.templates import (
     TemplateItemCreate, TemplateItemUpdate, TemplateItemResponse,
     TemplateApplicationResponse,
 )
+from ..services.event_bus import event_bus
 import uuid
 
 router = APIRouter(prefix="/templates", tags=["Template Library"])
@@ -312,6 +313,7 @@ def clone_template(
 def apply_template(
     template_id: str,
     payload: TemplateApply,
+    background_tasks: BackgroundTasks,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -352,6 +354,16 @@ def apply_template(
     db.add(log)
     t.times_applied = (t.times_applied or 0) + 1
     db.commit()
+
+    # Emit template_applied event for subscribers (e.g. audit scan trigger)
+    event_bus.emit("template_applied", {
+        "template_id": str(t.id),
+        "template_name": t.name,
+        "template_category": t.category,
+        "entity_type": t.template_type,
+        "entity_id": str(entity_id),
+        "account_id": str(payload.account_id),
+    }, background_tasks)
 
     return TemplateApplyResponse(
         template_id=t.id,
