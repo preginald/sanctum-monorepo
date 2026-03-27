@@ -72,6 +72,7 @@ class Account(Base):
     brand_affinity = Column(String)
     status = Column(String)
     billing_email = Column(String, nullable=True)
+    website = Column(String, nullable=True)
     audit_data = Column(JSON, default={})
 
     # NEW: Asset Ingest Security
