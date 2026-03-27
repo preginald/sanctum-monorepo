@@ -19,7 +19,7 @@ class TwoFAVerify(SanctumBase):
 
 class UserResponse(SanctumBase):
     id: UUID
-    email: EmailStr
+    email: str
     full_name: Optional[str] = None
     role: str
     access_scope: str
