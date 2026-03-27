@@ -212,7 +212,7 @@ async def ticket_update(
         resolution_comment_id: UUID of the comment to link as resolution.
         no_billable: Mark ticket as non-billable for invoice filtering (default false). Does not bypass the billable item gate.
         no_billable_reason: Required justification when no_billable is true.
-        skip_validation: Set true to bypass all resolve-time validation gates.
+        skip_validation: Set true to bypass resolve-time validation gates (does NOT bypass billable item enforcement).
     """
     payload = {}
     if subject is not None:
@@ -282,7 +282,7 @@ async def ticket_resolve(
         comment_id: UUID of an existing comment to use as the resolution.
         no_billable: Mark ticket as non-billable for invoice filtering (default false). Does not bypass the billable item gate.
         no_billable_reason: Required justification when no_billable is true.
-        skip_validation: Bypass all resolve-time validation gates (default false).
+        skip_validation: Bypass resolve-time validation gates (default false). Does NOT bypass billable item enforcement.
     """
     if not body and not comment_id:
         return json.dumps({"error": "Either body or comment_id is required"})
