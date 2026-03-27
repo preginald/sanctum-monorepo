@@ -75,8 +75,29 @@ def _process_audit_scan(account_id: str, entity_id: str, template_name: str):
             )
             return
 
-        # Check website URL (AC #7: graceful failure with notification)
-        if not account.website:
+        # Prefer website assets over account.website
+        website_assets = db.query(models.Asset).filter(
+            models.Asset.account_id == account_id,
+            models.Asset.asset_type == "website",
+            models.Asset.status == "active",
+        ).all()
+
+        scan_url = None
+        scanned_asset_id = None
+
+        if len(website_assets) == 1:
+            scan_url = website_assets[0].name
+            scanned_asset_id = website_assets[0].id
+        elif len(website_assets) > 1:
+            logger.warning(
+                f"[AuditSubscriber] Multiple website assets for {account.name}, "
+                f"using account.website fallback"
+            )
+            scan_url = account.website
+        else:
+            scan_url = account.website
+
+        if not scan_url:
             logger.warning(
                 f"[AuditSubscriber] Website audit skipped -- "
                 f"no URL on record for {account.name}"
@@ -121,7 +142,7 @@ def _process_audit_scan(account_id: str, entity_id: str, template_name: str):
         # Call Sanctum Audit API
         try:
             result = trigger_audit(
-                url=account.website,
+                url=scan_url,
                 name=contact_name,
                 email=contact_email,
                 business_name=account.name,

@@ -245,6 +245,7 @@ class AuditResponse(SanctumBase):
     template_id: Optional[UUID] = None
     template_name: Optional[str] = None
     scan_status: Optional[str] = None
+    target_url: Optional[str] = None
     security_score: Optional[int] = 0
     infrastructure_score: Optional[int] = 0
     status: str

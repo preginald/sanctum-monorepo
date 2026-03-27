@@ -157,6 +157,20 @@ def process_questionnaire_submission(
         ))
         draft_assets_created.append(f"Password Mgmt: {payload.password_management}")
 
+    # Website asset (from Account.website if set)
+    if account.website:
+        existing_website = db.query(models.Asset).filter(
+            models.Asset.account_id == account.id,
+            models.Asset.asset_type == 'website',
+            models.Asset.name == account.website,
+        ).first()
+        if not existing_website:
+            db.add(models.Asset(
+                account_id=account.id, name=account.website,
+                asset_type='website', status='draft', notes=note_suffix
+            ))
+            draft_assets_created.append(f"Website: {account.website}")
+
     # Ticket Logic
     ticket = None
     if create_tickets:

@@ -38,9 +38,17 @@ class TemplateListResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class ScanRequest(BaseModel):
+    asset_id: Optional[UUID] = None
+
 class AuditSubmissionRequest(BaseModel):
     template_id: UUID
     responses: Dict[str, Dict[str, str]]  # {control_id: {status: "pass/fail/partial/na", notes: "..."}}
+
+class WebsiteAssetBrief(BaseModel):
+    id: UUID
+    name: str
+    specs: Optional[Dict] = None
 
 class AuditDetailResponse(BaseModel):
     id: UUID
@@ -54,6 +62,8 @@ class AuditDetailResponse(BaseModel):
     account_website: Optional[str] = None
     scan_mode: Optional[str] = None
     scan_status: Optional[str] = None
+    scanned_asset_id: Optional[UUID] = None
+    website_assets: List[WebsiteAssetBrief] = []
     responses: Optional[Dict[str, Dict[str, str]]]
     category_structure: Optional[List[Dict]]
 
@@ -115,11 +125,13 @@ def get_scan_status(audit_id: UUID, db: Session = Depends(database.get_db)):
 def trigger_website_scan(
     audit_id: UUID,
     background_tasks: BackgroundTasks,
+    payload: Optional[ScanRequest] = None,
     db: Session = Depends(database.get_db),
 ):
     """
     Trigger an automated website health scan via Sanctum Audit API.
     Only valid for audits linked to a template with scan_mode == 'automated'.
+    Optionally accepts asset_id to target a specific website asset.
     """
     audit = db.query(models.AuditReport).filter(
         models.AuditReport.id == audit_id
@@ -137,27 +149,50 @@ def trigger_website_scan(
             detail="This audit does not use an automated scan template"
         )
 
-    # Look up account and check website exists
+    # Look up account
     account = db.query(models.Account).filter(
         models.Account.id == audit.account_id
     ).first()
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    if not account.website:
+
+    # Resolve target URL: prefer asset_id, fall back to account.website
+    scan_url = None
+    scanned_asset_id = None
+
+    if payload and payload.asset_id:
+        asset = db.query(models.Asset).filter(
+            models.Asset.id == payload.asset_id,
+            models.Asset.asset_type == "website",
+            models.Asset.account_id == audit.account_id,
+        ).first()
+        if not asset:
+            raise HTTPException(
+                status_code=400,
+                detail="Website asset not found or does not belong to this account"
+            )
+        scan_url = asset.name
+        scanned_asset_id = asset.id
+    else:
+        scan_url = account.website
+
+    if not scan_url:
         raise HTTPException(
             status_code=400,
             detail="Account has no website URL configured"
         )
 
-    # Set scan_status to running
+    # Set scan_status and target info
     audit.scan_status = "running"
+    audit.target_url = scan_url
+    audit.scanned_asset_id = scanned_asset_id
     db.commit()
 
     # Run scan in background
     background_tasks.add_task(
         _run_website_scan,
         audit_id=str(audit.id),
-        url=account.website,
+        url=scan_url,
         name=account.name or "",
         email=account.billing_email or "",
         business_name=account.name or "",
@@ -275,6 +310,12 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
 
     account = db.query(models.Account).filter(models.Account.id == audit.account_id).first()
 
+    # Query website assets for this account
+    website_assets = db.query(models.Asset).filter(
+        models.Asset.account_id == audit.account_id,
+        models.Asset.asset_type == "website",
+    ).all()
+
     return {
         "id": audit.id,
         "account_id": audit.account_id,
@@ -287,6 +328,11 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
         "template_name": template_name,
         "scan_mode": scan_mode,
         "scan_status": audit.scan_status,
+        "scanned_asset_id": audit.scanned_asset_id,
+        "website_assets": [
+            {"id": a.id, "name": a.name, "specs": a.specs}
+            for a in website_assets
+        ],
         "category_structure": category_structure,
         "responses": responses
     }
