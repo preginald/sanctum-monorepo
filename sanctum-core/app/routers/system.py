@@ -13,7 +13,7 @@ from datetime import datetime
 router = APIRouter(tags=["System"])
 
 
-@router.get("/api/health")
+@router.get("/health")
 def api_health_check(db: Session = Depends(get_db)):
     """Lightweight health check with DB connectivity verification. Unauthenticated."""
     try:
