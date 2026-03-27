@@ -180,7 +180,7 @@ export default function SanctumMarkdown({ content, className="" }) {
                 components={MarkdownComponents}
                 remarkPlugins={[remarkGfm]}
                 // REF: Security - Added rehype-sanitize
-                rehypePlugins={[rehypeRaw, rehypeSlug, [rehypeSanitize, customSchema]]}
+                rehypePlugins={[rehypeRaw, [rehypeSanitize, customSchema], rehypeSlug]}
             >
                 {safeContent}
             </ReactMarkdown>
