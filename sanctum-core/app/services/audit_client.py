@@ -7,6 +7,7 @@ Uses synchronous httpx since callers run in background tasks.
 
 import os
 import logging
+import time
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 SANCTUM_AUDIT_BASE_URL = os.getenv(
     "SANCTUM_AUDIT_BASE_URL", "https://audit.digitalsanctum.com.au"
 )
+SANCTUM_AUDIT_API_KEY = os.getenv("SANCTUM_AUDIT_API_KEY", "")
 
 
 class AuditAPIError(Exception):
@@ -77,3 +79,50 @@ def trigger_audit(
         "report_url": report_url,
         "status": data.get("status"),
     }
+
+
+def fetch_audit_result(audit_id: str) -> dict:
+    """Fetch audit result from GET /api/audits/:id. Returns full response dict."""
+    headers = {}
+    if SANCTUM_AUDIT_API_KEY:
+        headers["Authorization"] = f"Bearer {SANCTUM_AUDIT_API_KEY}"
+
+    try:
+        with httpx.Client(timeout=httpx.Timeout(30.0)) as client:
+            response = client.get(
+                f"{SANCTUM_AUDIT_BASE_URL}/api/audits/{audit_id}",
+                headers=headers,
+            )
+    except httpx.ConnectError as e:
+        raise AuditAPIError(f"Connection failed: {e}")
+    except httpx.TimeoutException as e:
+        raise AuditAPIError(f"Request timed out: {e}")
+    except httpx.HTTPError as e:
+        raise AuditAPIError(f"HTTP error: {e}")
+
+    if response.status_code != 200:
+        raise AuditAPIError(
+            f"Fetch failed: {response.status_code}",
+            status_code=response.status_code,
+        )
+
+    return response.json()
+
+
+def poll_audit_until_complete(
+    audit_id: str, interval: int = 5, timeout: int = 120
+) -> dict:
+    """Poll GET /api/audits/:id until status is 'complete' or 'error'. Returns result dict."""
+    elapsed = 0
+    while elapsed < timeout:
+        result = fetch_audit_result(audit_id)
+        status = result.get("status")
+        if status == "complete":
+            return result
+        if status == "error":
+            raise AuditAPIError(
+                f"Audit scan failed: {result.get('error', 'unknown')}"
+            )
+        time.sleep(interval)
+        elapsed += interval
+    raise AuditAPIError(f"Audit scan timed out after {timeout}s")
