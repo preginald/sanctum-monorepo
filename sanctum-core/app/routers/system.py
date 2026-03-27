@@ -80,6 +80,24 @@ def run_system_diagnostics(db: Session = Depends(get_db)):
     report["execution_time_ms"] = round((time.time() - start_time) * 1000, 2)
     return report
 
+@router.get("/version")
+def get_version():
+    """Return the running git commit SHA. No auth, no DB dependency."""
+    try:
+        cwd = os.path.dirname(os.path.abspath(__file__))
+        git_root = os.path.dirname(os.path.dirname(cwd))
+        commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'],
+            cwd=git_root,
+            stderr=subprocess.DEVNULL
+        ).strip().decode('utf-8')
+    except Exception:
+        commit = "UNKNOWN"
+    return {
+        "commit": commit,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
 @router.get("/dashboard/stats", response_model=schemas.DashboardStats)
 def get_dashboard_stats(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     revenue_realized = 0.0
