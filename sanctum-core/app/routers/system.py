@@ -99,10 +99,9 @@ def get_version():
     """Return the running git commit SHA. No auth, no DB dependency."""
     try:
         cwd = os.path.dirname(os.path.abspath(__file__))
-        git_root = os.path.dirname(os.path.dirname(cwd))
         commit = subprocess.check_output(
             ['git', 'rev-parse', 'HEAD'],
-            cwd=git_root,
+            cwd=cwd,
             stderr=subprocess.DEVNULL
         ).strip().decode('utf-8')
     except Exception:
