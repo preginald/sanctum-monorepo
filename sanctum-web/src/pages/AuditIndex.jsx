@@ -25,23 +25,13 @@ const fetchData = async () => {
       api.get('/accounts')
     ]);
 
-    // Fetch template names for each audit
-    const auditsWithTemplates = await Promise.all(
-      auditRes.data.map(async (audit) => {
-        try {
-          const detailRes = await api.get(`/sentinel/audits/${audit.id}`);
-          return {
-            ...audit,
-            template_name: detailRes.data.template_name || 'No Framework',
-            security_score: detailRes.data.security_score || 0
-          };
-        } catch (e) {
-          return { ...audit, template_name: 'No Framework', security_score: 0 };
-        }
-      })
-    );
+    const auditsWithDefaults = auditRes.data.map((audit) => ({
+      ...audit,
+      template_name: audit.template_name || 'No Framework',
+      security_score: audit.security_score || 0,
+    }));
 
-    setAudits(auditsWithTemplates);
+    setAudits(auditsWithDefaults);
 
     const accMap = {};
     accRes.data.forEach(a => accMap[a.id] = a.name);

@@ -391,12 +391,22 @@ def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db))
 # --- AUDITS ---
 @router.get("/audits", response_model=List[schemas.AuditResponse])
 def get_audits(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    query = db.query(models.AuditReport)
+    query = db.query(models.AuditReport, models.AuditTemplate.name.label("template_name")).outerjoin(
+        models.AuditTemplate, models.AuditReport.template_id == models.AuditTemplate.id
+    )
     if current_user.role == 'client': query = query.filter(models.AuditReport.account_id == current_user.account_id)
-    elif current_user.access_scope == 'nt_only': query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['nt', 'both']))
-    elif current_user.access_scope == 'ds_only': query = query.join(models.Account).filter(models.Account.brand_affinity.in_(['ds', 'both']))
+    elif current_user.access_scope == 'nt_only': query = query.join(models.Account, models.AuditReport.account_id == models.Account.id).filter(models.Account.brand_affinity.in_(['nt', 'both']))
+    elif current_user.access_scope == 'ds_only': query = query.join(models.Account, models.AuditReport.account_id == models.Account.id).filter(models.Account.brand_affinity.in_(['ds', 'both']))
     if account_id: query = query.filter(models.AuditReport.account_id == account_id)
-    return query.all()
+    results = query.all()
+    enriched = []
+    for row in results:
+        audit = row[0] if isinstance(row, tuple) else row.AuditReport
+        tpl_name = row[1] if isinstance(row, tuple) else row.template_name
+        resp = schemas.AuditResponse.model_validate(audit)
+        resp.template_name = tpl_name
+        enriched.append(resp)
+    return enriched
 
 @router.get("/audits/{audit_id}", response_model=schemas.AuditResponse)
 def get_audit_detail(audit_id: str, db: Session = Depends(get_db)):
@@ -407,7 +417,13 @@ def get_audit_detail(audit_id: str, db: Session = Depends(get_db)):
 @router.post("/audits", response_model=schemas.AuditResponse)
 def create_audit_draft(audit: schemas.AuditCreate, db: Session = Depends(get_db)):
     content_payload = {"items": [item.model_dump() for item in audit.items]}
-    new_audit = models.AuditReport(account_id=audit.account_id, deal_id=audit.deal_id, content=content_payload, status="draft")
+    new_audit = models.AuditReport(
+        account_id=audit.account_id,
+        deal_id=audit.deal_id,
+        template_id=audit.template_id,
+        content=content_payload,
+        status="draft",
+    )
     db.add(new_audit)
     db.commit()
     db.refresh(new_audit)

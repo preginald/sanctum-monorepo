@@ -35,7 +35,7 @@ export default function AuditList({ audits, onAdd }) {
                     className="flex justify-between p-3 bg-black/20 rounded border border-white/5 hover:border-white/20 cursor-pointer transition-colors group"
                 >
                     <div>
-                        <span className="font-bold text-white block">Security Audit</span>
+                        <span className="font-bold text-white block">{a.template_name || 'Security Audit'}</span>
                         <span className="text-xs opacity-50">{new Date(a.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="flex flex-col items-end justify-center">

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import Layout from '../components/Layout';
 import api from '../lib/api';
-import { Loader2, Save, Shield, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, MinusCircle } from 'lucide-react';
+import { Loader2, Save, Shield, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, MinusCircle, Play, RefreshCw } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
 
 export default function AuditDetail() {
@@ -19,6 +19,8 @@ export default function AuditDetail() {
   const [expandedCategories, setExpandedCategories] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const pollRef = useRef(null);
 
   useEffect(() => {
     fetchTemplates();
@@ -27,7 +29,35 @@ export default function AuditDetail() {
     } else {
       initNewAudit();
     }
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
   }, [id, accountId]);
+
+  // Poll scan status while running
+  useEffect(() => {
+    if (audit?.scan_status === 'running' && id && id !== 'new') {
+      pollRef.current = setInterval(async () => {
+        try {
+          const res = await api.get(`/sentinel/status/${id}`);
+          if (res.data.scan_status !== 'running') {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+            setScanning(false);
+            fetchAudit(); // Refresh full audit data
+          }
+        } catch (e) {
+          console.error('Poll failed:', e);
+        }
+      }, 3000);
+      return () => {
+        if (pollRef.current) {
+          clearInterval(pollRef.current);
+          pollRef.current = null;
+        }
+      };
+    }
+  }, [audit?.scan_status, id]);
 
   const initNewAudit = async () => {
     setAudit({ account_id: accountId, status: 'draft', security_score: 0 });
@@ -43,47 +73,52 @@ export default function AuditDetail() {
     }
   };
 
-const fetchAudit = async () => {
-  setLoading(true);
-  try {
-    const res = await api.get(`/sentinel/audits/${id}`);
-    setAudit(res.data);
+  const fetchAudit = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get(`/sentinel/audits/${id}`);
+      setAudit(res.data);
 
-    // Wait for templates to load if they haven't yet
-    let templatesList = templates;
-    if (templates.length === 0) {
-      const templatesRes = await api.get('/sentinel/templates');
-      templatesList = templatesRes.data;
-      setTemplates(templatesRes.data);
-    }
-
-    if (res.data.template_id) {
-      const template = templatesList.find(t => t.id === res.data.template_id);
-      if (template) {
-        // Use the category_structure from the audit response (it's already hydrated)
-        setSelectedTemplate({
-          ...template,
-          category_structure: res.data.category_structure
-        });
+      // Wait for templates to load if they haven't yet
+      let templatesList = templates;
+      if (templates.length === 0) {
+        const templatesRes = await api.get('/sentinel/templates');
+        templatesList = templatesRes.data;
+        setTemplates(templatesRes.data);
       }
-    }
 
-    if (res.data.responses) {
-      setResponses(res.data.responses);
-    }
+      if (res.data.template_id) {
+        const template = templatesList.find(t => t.id === res.data.template_id);
+        if (template) {
+          // Use the category_structure from the audit response (it's already hydrated)
+          setSelectedTemplate({
+            ...template,
+            category_structure: res.data.category_structure
+          });
+        }
+      }
 
-    // Auto-expand first category
-    if (res.data.category_structure && res.data.category_structure.length > 0) {
-      setExpandedCategories({ [res.data.category_structure[0].category]: true });
-    }
+      if (res.data.responses) {
+        setResponses(res.data.responses);
+      }
 
-  } catch (e) {
-    console.error(e);
-    addToast('Failed to load audit', 'danger');
-  } finally {
-    setLoading(false);
-  }
-};
+      // Auto-expand first category
+      if (res.data.category_structure && res.data.category_structure.length > 0) {
+        setExpandedCategories({ [res.data.category_structure[0].category]: true });
+      }
+
+      // If scan is running, set scanning state
+      if (res.data.scan_status === 'running') {
+        setScanning(true);
+      }
+
+    } catch (e) {
+      console.error(e);
+      addToast('Failed to load audit', 'danger');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleTemplateChange = (templateId) => {
     const template = templates.find(t => t.id === templateId);
@@ -113,34 +148,34 @@ const fetchAudit = async () => {
     }));
   };
 
-const calculateScore = () => {
-  if (!selectedTemplate || !selectedTemplate.category_structure) return 0;
+  const calculateScore = () => {
+    if (!selectedTemplate || !selectedTemplate.category_structure) return 0;
 
-  let totalWeight = 0;
-  let earnedWeight = 0;
+    let totalWeight = 0;
+    let earnedWeight = 0;
 
-  selectedTemplate.category_structure.forEach(category => {
-    if (!category.controls) return;
+    selectedTemplate.category_structure.forEach(category => {
+      if (!category.controls) return;
 
-    category.controls.forEach(control => {
-      const weight = control.weight || 1;
-      const response = responses[control.id];
-      const status = response?.status || 'fail';
+      category.controls.forEach(control => {
+        const weight = control.weight || 1;
+        const response = responses[control.id];
+        const status = response?.status || 'fail';
 
-      if (status !== 'na') {
-        totalWeight += weight;
+        if (status !== 'na') {
+          totalWeight += weight;
 
-        if (status === 'pass') {
-          earnedWeight += weight;
-        } else if (status === 'partial') {
-          earnedWeight += weight * 0.5;
+          if (status === 'pass') {
+            earnedWeight += weight;
+          } else if (status === 'partial') {
+            earnedWeight += weight * 0.5;
+          }
         }
-      }
+      });
     });
-  });
 
-  return totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
-};
+    return totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 0;
+  };
 
   const saveAudit = async () => {
     if (!selectedTemplate) {
@@ -163,6 +198,7 @@ const calculateScore = () => {
         // Create new audit first
         const createRes = await api.post('/audits', {
           account_id: accountId,
+          template_id: selectedTemplate.id,
           status: 'draft'
         });
 
@@ -179,10 +215,39 @@ const calculateScore = () => {
     }
   };
 
-  const auditStatusColor = (s) => {
-    const map = { draft: 'bg-yellow-500/20 text-yellow-400', finalized: 'bg-green-500/20 text-green-400', 'in_progress': 'bg-blue-500/20 text-blue-400' };
-    return map[s] || 'bg-white/10 text-slate-300';
+  const runScan = async () => {
+    if (!selectedTemplate) {
+      addToast('Please select a template first', 'warning');
+      return;
+    }
+
+    setScanning(true);
+    try {
+      let auditId = id;
+
+      // If new audit, create it first
+      if (!id || id === 'new') {
+        const createRes = await api.post('/audits', {
+          account_id: accountId,
+          template_id: selectedTemplate.id,
+          status: 'draft'
+        });
+        auditId = createRes.data.id;
+        navigate(`/audit/${auditId}`, { replace: true });
+      }
+
+      await api.post(`/sentinel/audits/${auditId}/scan`);
+      setAudit(prev => ({ ...prev, scan_status: 'running' }));
+      addToast('Scan initiated', 'success');
+    } catch (e) {
+      console.error(e);
+      const msg = e.response?.data?.detail || 'Failed to start scan';
+      addToast(msg, 'danger');
+      setScanning(false);
+    }
   };
+
+  const isAutomated = selectedTemplate?.scan_mode === 'automated';
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -200,6 +265,23 @@ const calculateScore = () => {
     return 'text-red-500';
   };
 
+  const getScanStatusBadge = () => {
+    const status = audit?.scan_status;
+    if (!status || status === 'idle') return null;
+    const map = {
+      running: { bg: 'bg-blue-500/20 text-blue-400', label: 'Scanning...' },
+      completed: { bg: 'bg-green-500/20 text-green-400', label: 'Completed' },
+      failed: { bg: 'bg-red-500/20 text-red-400', label: 'Failed' },
+    };
+    const style = map[status] || { bg: 'bg-white/10 text-slate-300', label: status };
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-bold uppercase ${style.bg}`}>
+        {status === 'running' && <Loader2 className="animate-spin" size={12} />}
+        {style.label}
+      </span>
+    );
+  };
+
   if (loading) {
     return (
       <Layout title="Loading...">
@@ -210,12 +292,12 @@ const calculateScore = () => {
     );
   }
 
-  const currentScore = calculateScore();
+  const currentScore = isAutomated ? (audit?.security_score || 0) : calculateScore();
   const categoryStructure = audit?.category_structure || selectedTemplate?.category_structure || [];
 
   return (
     <Layout
-      title={audit?.status === 'finalized' ? 'Compliance Audit' : id && id !== 'new' ? 'Draft Assessment' : 'New Assessment'}
+      title={isAutomated ? 'Website Health Scan' : audit?.status === 'finalized' ? 'Compliance Audit' : id && id !== 'new' ? 'Draft Assessment' : 'New Assessment'}
       breadcrumb={[
         { label: audit?.account_name, path: audit?.account_id ? `/clients/${audit.account_id}` : '/clients' },
         { label: 'Audits', path: '/audits' },
@@ -233,11 +315,29 @@ const calculateScore = () => {
               </span>
             </div>
           )}
-          {audit?.status !== 'finalized' && (
-            <button onClick={saveAudit} disabled={saving || !selectedTemplate} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50">
-              {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-              Save Assessment
-            </button>
+          {isAutomated ? (
+            !audit?.account_website ? (
+              <div className="flex items-center gap-2 px-4 py-2 bg-red-500/10 border border-red-500/30 rounded text-red-400 text-sm">
+                <AlertCircle size={16} />
+                This account has no website URL on record. Add a website URL to the account before running a scan.
+              </div>
+            ) : (
+              <button
+                onClick={runScan}
+                disabled={scanning}
+                className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              >
+                {scanning ? <Loader2 className="animate-spin" size={16} /> : audit?.scan_status === 'failed' ? <RefreshCw size={16} /> : <Play size={16} />}
+                {scanning ? 'Scanning...' : audit?.scan_status === 'failed' ? 'Retry Scan' : 'Run Scan'}
+              </button>
+            )
+          ) : (
+            audit?.status !== 'finalized' && (
+              <button onClick={saveAudit} disabled={saving || !selectedTemplate} className="flex items-center gap-2 px-4 py-2 bg-sanctum-gold text-slate-900 hover:bg-yellow-500 rounded font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50">
+                {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+                Save Assessment
+              </button>
+            )
           )}
         </div>
       }
@@ -271,8 +371,33 @@ const calculateScore = () => {
             </div>
           )}
 
-          {/* STATS */}
-          {selectedTemplate && (
+          {/* SCAN STATUS (automated only) */}
+          {isAutomated && audit?.scan_status && audit.scan_status !== 'idle' && (
+            <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
+              <h3 className="font-bold text-sm uppercase text-slate-400 mb-4">Scan Status</h3>
+              <div className="space-y-3">
+                {getScanStatusBadge()}
+                {audit.scan_status === 'failed' && audit.content?.scan_error && (
+                  <p className="text-xs text-red-400 mt-2">
+                    {audit.content.scan_error}
+                  </p>
+                )}
+                {audit.scan_status === 'completed' && audit.content?.report_url && (
+                  <a
+                    href={audit.content.report_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-400 hover:text-blue-300 underline block mt-2"
+                  >
+                    View Full Report
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* STATS (manual templates only) */}
+          {selectedTemplate && !isAutomated && (
             <div className="p-6 bg-slate-900 border border-slate-700 rounded-xl">
               <h3 className="font-bold text-sm uppercase text-slate-400 mb-4">Compliance Status</h3>
               <div className="space-y-2 text-sm">
@@ -317,7 +442,7 @@ const calculateScore = () => {
           )}
         </div>
 
-        {/* MAIN: COMPLIANCE CHECKLIST */}
+        {/* MAIN CONTENT */}
         <div className="lg:col-span-3">
           {!selectedTemplate ? (
             <div className="bg-slate-900 border border-slate-700 rounded-xl p-12 text-center">
@@ -326,7 +451,63 @@ const calculateScore = () => {
                 Select an audit framework to begin the assessment
               </p>
             </div>
+          ) : isAutomated ? (
+            /* AUTOMATED SCAN VIEW */
+            <div className="bg-slate-900 border border-slate-700 rounded-xl p-8">
+              <div className="text-center space-y-6">
+                <Shield className="mx-auto text-sanctum-gold" size={64} />
+                <div>
+                  <h2 className="text-xl font-bold mb-2">Website Health Scan</h2>
+                  <p className="text-slate-400 text-sm max-w-md mx-auto">
+                    Automated scan powered by Sanctum Audit API. Scores across SEO, security, performance, accessibility, and more.
+                  </p>
+                </div>
+
+                {!audit?.scan_status || audit.scan_status === 'idle' ? (
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Click "Run Scan" to start the automated website health analysis.
+                    </p>
+                  </div>
+                ) : audit.scan_status === 'running' ? (
+                  <div className="space-y-4">
+                    <Loader2 className="animate-spin mx-auto text-blue-400" size={32} />
+                    <p className="text-sm text-blue-400">
+                      Scan in progress... This may take up to 2 minutes.
+                    </p>
+                  </div>
+                ) : audit.scan_status === 'completed' ? (
+                  <div className="space-y-4">
+                    <div className={`text-6xl font-bold ${getScoreColor(audit.security_score)}`}>
+                      {audit.security_score}<span className="text-2xl">/100</span>
+                    </div>
+                    <p className="text-sm text-green-400">Scan completed successfully</p>
+                    {audit.content?.report_url && (
+                      <a
+                        href={audit.content.report_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-4 py-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors text-sm font-bold"
+                      >
+                        View Detailed Report
+                      </a>
+                    )}
+                  </div>
+                ) : audit.scan_status === 'failed' ? (
+                  <div className="space-y-4">
+                    <AlertCircle className="mx-auto text-red-400" size={32} />
+                    <p className="text-sm text-red-400">
+                      Scan failed. {audit.content?.scan_error || 'Unknown error.'}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      Click "Retry Scan" to try again.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            </div>
           ) : (
+            /* MANUAL QUESTIONNAIRE VIEW */
             <div className="space-y-4">
               {categoryStructure.map((category, catIdx) => {
                 const isExpanded = expandedCategories[category.category];
@@ -353,7 +534,7 @@ const calculateScore = () => {
                     {/* CONTROLS */}
                     {isExpanded && (
                       <div className="border-t border-slate-800">
-                        {category.controls.map((control, ctrlIdx) => {
+                        {category.controls.map((control) => {
                           const response = responses[control.id] || {};
                           const status = response.status || '';
 

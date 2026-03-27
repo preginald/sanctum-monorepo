@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -7,8 +7,11 @@ from typing import Optional, Dict, List
 from datetime import datetime
 
 import json
+import logging
 import os
 from ..models import Deal, DealItem, Product
+
+logger = logging.getLogger(__name__)
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), '../../config/control_product_mappings.json')
 
@@ -30,6 +33,7 @@ class TemplateListResponse(BaseModel):
     framework: str
     description: Optional[str]
     category_structure: Optional[List[Dict]]
+    scan_mode: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -46,6 +50,10 @@ class AuditDetailResponse(BaseModel):
     status: str
     deal_id: Optional[UUID]
     template_name: Optional[str]
+    account_name: Optional[str] = None
+    account_website: Optional[str] = None
+    scan_mode: Optional[str] = None
+    scan_status: Optional[str] = None
     responses: Optional[Dict[str, Dict[str, str]]]
     category_structure: Optional[List[Dict]]
 
@@ -103,6 +111,133 @@ def get_scan_status(audit_id: UUID, db: Session = Depends(database.get_db)):
         "last_scan_at": audit.last_scan_at
     }
 
+@router.post("/audits/{audit_id}/scan")
+def trigger_website_scan(
+    audit_id: UUID,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(database.get_db),
+):
+    """
+    Trigger an automated website health scan via Sanctum Audit API.
+    Only valid for audits linked to a template with scan_mode == 'automated'.
+    """
+    audit = db.query(models.AuditReport).filter(
+        models.AuditReport.id == audit_id
+    ).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    # Validate template is automated
+    template = db.query(models.AuditTemplate).filter(
+        models.AuditTemplate.id == audit.template_id
+    ).first()
+    if not template or template.scan_mode != "automated":
+        raise HTTPException(
+            status_code=400,
+            detail="This audit does not use an automated scan template"
+        )
+
+    # Look up account and check website exists
+    account = db.query(models.Account).filter(
+        models.Account.id == audit.account_id
+    ).first()
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if not account.website:
+        raise HTTPException(
+            status_code=400,
+            detail="Account has no website URL configured"
+        )
+
+    # Set scan_status to running
+    audit.scan_status = "running"
+    db.commit()
+
+    # Run scan in background
+    background_tasks.add_task(
+        _run_website_scan,
+        audit_id=str(audit.id),
+        url=account.website,
+        name=account.name or "",
+        email=account.billing_email or "",
+        business_name=account.name or "",
+    )
+
+    return {"status": "running", "message": "Scan initiated"}
+
+
+def _run_website_scan(
+    audit_id: str, url: str, name: str, email: str, business_name: str
+):
+    """Background task: trigger Sanctum Audit API, poll for result, update report."""
+    from ..services.audit_client import (
+        trigger_audit,
+        poll_audit_until_complete,
+        AuditAPIError,
+    )
+
+    db = database.SessionLocal()
+    try:
+        audit = db.query(models.AuditReport).filter(
+            models.AuditReport.id == audit_id
+        ).first()
+        if not audit:
+            logger.error("Audit %s not found in background task", audit_id)
+            return
+
+        # Step 1: trigger the audit
+        trigger_result = trigger_audit(
+            url=url, name=name, email=email, business_name=business_name
+        )
+        sanctum_audit_id = trigger_result["id"]
+        logger.info(
+            "Sanctum Audit triggered: %s for audit %s",
+            sanctum_audit_id, audit_id,
+        )
+
+        # Step 2: poll until complete
+        result = poll_audit_until_complete(str(sanctum_audit_id))
+
+        # Step 3: write results
+        audit.security_score = result.get("overall_score", 0)
+        audit.scan_status = "completed"
+        audit.last_scan_at = datetime.utcnow()
+        audit.content = {
+            **(audit.content or {}),
+            "sanctum_audit_id": str(sanctum_audit_id),
+            "report_url": trigger_result.get("report_url", ""),
+        }
+        db.commit()
+        logger.info("Audit %s scan completed, score=%s", audit_id, audit.security_score)
+
+    except AuditAPIError as e:
+        logger.error("Audit %s scan failed: %s", audit_id, e.message)
+        audit = db.query(models.AuditReport).filter(
+            models.AuditReport.id == audit_id
+        ).first()
+        if audit:
+            audit.scan_status = "failed"
+            audit.content = {
+                **(audit.content or {}),
+                "scan_error": str(e.message),
+            }
+            db.commit()
+    except Exception as e:
+        logger.exception("Unexpected error in scan task for audit %s", audit_id)
+        audit = db.query(models.AuditReport).filter(
+            models.AuditReport.id == audit_id
+        ).first()
+        if audit:
+            audit.scan_status = "failed"
+            audit.content = {
+                **(audit.content or {}),
+                "scan_error": str(e),
+            }
+            db.commit()
+    finally:
+        db.close()
+
+
 @router.get("/audits/{audit_id}", response_model=AuditDetailResponse)
 def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
     """
@@ -123,6 +258,7 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
     # Get template details
     template_name = None
     category_structure = None
+    scan_mode = None
     responses = None
 
     if audit.template_id:
@@ -132,6 +268,7 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
         if template:
             template_name = template.name
             category_structure = template.category_structure
+            scan_mode = template.scan_mode
 
     if submission:
         responses = submission.responses
@@ -142,11 +279,14 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
         "id": audit.id,
         "account_id": audit.account_id,
         "account_name": account.name if account else None,
+        "account_website": account.website if account else None,
         "template_id": audit.template_id,
         "security_score": audit.security_score,
         "status": audit.status,
         "deal_id": audit.deal_id,
         "template_name": template_name,
+        "scan_mode": scan_mode,
+        "scan_status": audit.scan_status,
         "category_structure": category_structure,
         "responses": responses
     }

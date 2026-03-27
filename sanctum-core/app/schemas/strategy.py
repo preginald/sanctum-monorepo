@@ -233,6 +233,7 @@ class AuditItem(SanctumBase):
 class AuditCreate(SanctumBase):
     account_id: UUID
     deal_id: Optional[UUID] = None
+    template_id: Optional[UUID] = None
     items: List[AuditItem] = []
 
 class AuditUpdate(SanctumBase):
@@ -241,6 +242,9 @@ class AuditUpdate(SanctumBase):
 class AuditResponse(SanctumBase):
     id: UUID
     account_id: UUID
+    template_id: Optional[UUID] = None
+    template_name: Optional[str] = None
+    scan_status: Optional[str] = None
     security_score: Optional[int] = 0
     infrastructure_score: Optional[int] = 0
     status: str
