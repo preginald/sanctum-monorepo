@@ -113,9 +113,19 @@ export default function ClientDetail() {
               const payload = { ...forms.contact, account_id: id };
               if (payload.reports_to_id === '') payload.reports_to_id = null;
 
-              if (forms.contact.id) await api.put(`/contacts/${forms.contact.id}`, payload);
-              else await api.post('/contacts', payload);
-              addToast(forms.contact.id ? "Contact updated" : "Contact added", "success");
+              let res;
+              if (forms.contact.id) res = await api.put(`/contacts/${forms.contact.id}`, payload);
+              else res = await api.post('/contacts', payload);
+
+              // Surface provisioning result
+              const pr = res?.data?.provisioning_result;
+              if (pr?.status === 'created') {
+                  addToast("Contact saved. Portal user provisioned and invite sent.", "success");
+              } else if (pr?.status === 'error') {
+                  addToast(`Contact saved but provisioning failed: ${pr.error}`, "danger");
+              } else {
+                  addToast(forms.contact.id ? "Contact updated" : "Contact added", "success");
+              }
           } else if (activeModal === 'project') {
               await api.post('/projects', { ...forms.project, account_id: id });
               addToast("Project initialized", "success");
@@ -332,7 +342,7 @@ export default function ClientDetail() {
                   users={users}
                   isEditing={isEditingAccount}
                   onAddContact={() => { setForms({...forms, contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' }}); setActiveModal('contact'); }}
-                  onEditContact={(c) => { setForms({...forms, contact: c}); setActiveModal('contact'); }}
+                  onEditContact={(c) => { setForms({...forms, contact: {...c, enable_portal_access: c.portal_access || false}}); setActiveModal('contact'); }}
                   onDeleteContact={(cid) => confirmAction("Remove Contact?", "This action is permanent.", () => deleteContact(cid))}
                   onAddUser={() => { setForms({...forms, user: { email: '', full_name: '', password: '' }}); setActiveModal('user'); }}
                   onRevokeUser={(uid) => confirmAction("Revoke Access?", "User will no longer be able to login.", () => revokeUser(uid))}
