@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from uuid import UUID
-from .. import models, database
+from .. import models, database, auth
 from typing import Optional, Dict, List
 from datetime import datetime
 
@@ -77,7 +77,7 @@ class DeepScanRequest(BaseModel):
     target_url: str
 
 @router.get("/templates", response_model=List[TemplateListResponse])
-def list_audit_templates(db: Session = Depends(database.get_db)):
+def list_audit_templates(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     """
     Returns all active audit templates (Essential 8, NIST CSF, etc.)
     """
@@ -88,7 +88,7 @@ def list_audit_templates(db: Session = Depends(database.get_db)):
     return templates
 
 @router.post("/scan")
-def queue_sentinel_scan(payload: DeepScanRequest, db: Session = Depends(database.get_db)):
+def queue_sentinel_scan(payload: DeepScanRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     """
     Queues a background deep scan for the Sentinel Engine.
     The worker will pick this up and perform SSL, DNS, SEO, and Tech checks.
@@ -110,7 +110,7 @@ def queue_sentinel_scan(payload: DeepScanRequest, db: Session = Depends(database
     return {"status": "queued", "message": f"Scan initiated for {payload.target_url}"}
 
 @router.get("/status/{audit_id}")
-def get_scan_status(audit_id: UUID, db: Session = Depends(database.get_db)):
+def get_scan_status(audit_id: UUID, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     audit = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
     if not audit:
         raise HTTPException(status_code=404, detail="Audit not found")
@@ -127,6 +127,7 @@ def trigger_website_scan(
     background_tasks: BackgroundTasks,
     payload: Optional[ScanRequest] = None,
     db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """
     Trigger an automated website health scan via Sanctum Audit API.
@@ -274,7 +275,7 @@ def _run_website_scan(
 
 
 @router.get("/audits/{audit_id}", response_model=AuditDetailResponse)
-def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
+def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     """
     Returns audit report with template structure and submitted responses.
     """
@@ -341,13 +342,12 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db)):
 def submit_audit_responses(
     audit_id: UUID,
     payload: AuditSubmissionRequest,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """
     Submits or updates audit responses and recalculates security score.
     """
-    from ..auth import get_current_user
-
     audit = db.query(models.AuditReport).filter(
         models.AuditReport.id == audit_id
     ).first()
@@ -424,7 +424,8 @@ def submit_audit_responses(
 @router.post("/audits/{audit_id}/generate-deal")
 def generate_remediation_deal(
     audit_id: UUID,
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """
     Auto-generate a Deal with DealItems for failed audit controls.
