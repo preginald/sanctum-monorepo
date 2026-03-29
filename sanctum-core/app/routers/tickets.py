@@ -569,6 +569,26 @@ def unlink_article_from_ticket(ticket_id: int, article_id: str, db: Session = De
         db.commit()
     return {"status": "unlinked"}
 
+@router.post("/{ticket_id}/assets/{asset_id}")
+def link_asset_to_ticket(ticket_id: int, asset_id: str, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
+    if asset not in ticket.assets:
+        ticket.assets.append(asset)
+        db.commit()
+    return {"status": "linked"}
+
+@router.delete("/{ticket_id}/assets/{asset_id}")
+def unlink_asset_from_ticket(ticket_id: int, asset_id: str, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
+    if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
+    if asset in ticket.assets:
+        ticket.assets.remove(asset)
+        db.commit()
+    return {"status": "unlinked"}
+
 @router.post("/{ticket_id}/relations")
 def link_ticket_relation(ticket_id: int, body: schemas.TicketRelationCreate, db: Session = Depends(get_db)):
     related_id = body.related_id
