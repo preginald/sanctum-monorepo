@@ -195,6 +195,7 @@ async def ticket_update(
     ticket_type: str | None = None,
     milestone_id: str | None = None,
     resolution_comment_id: str | None = None,
+    contact_ids: list[str] | None = None,
     no_billable: bool = False,
     no_billable_reason: str | None = None,
     skip_validation: bool = False,
@@ -210,6 +211,7 @@ async def ticket_update(
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         milestone_id: UUID of the milestone.
         resolution_comment_id: UUID of the comment to link as resolution.
+        contact_ids: List of contact UUIDs to associate with the ticket. Replaces all existing contacts (pass [] to clear). Omit or pass null for no change.
         no_billable: Mark ticket as non-billable for invoice filtering (default false). Does not bypass the billable item gate.
         no_billable_reason: Required justification when no_billable is true.
         skip_validation: Set true to bypass resolve-time validation gates (does NOT bypass billable item enforcement).
@@ -229,6 +231,8 @@ async def ticket_update(
         payload["milestone_id"] = milestone_id
     if resolution_comment_id is not None:
         payload["resolution_comment_id"] = resolution_comment_id
+    if contact_ids is not None:
+        payload["contact_ids"] = contact_ids
     if no_billable:
         payload["no_billable"] = True
         payload["no_billable_reason"] = no_billable_reason
