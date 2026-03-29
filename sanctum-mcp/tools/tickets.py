@@ -393,6 +393,32 @@ async def ticket_unrelate_ticket(ticket_id: int, related_ticket_id: int) -> str:
     return json.dumps(result, indent=2)
 
 
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
+async def ticket_relate_asset(ticket_id: int, asset_id: str) -> str:
+    """Link an asset to a ticket.
+
+    Args:
+        ticket_id: The ticket number.
+        asset_id: UUID of the asset.
+    """
+    result = await client.post(f"/tickets/{ticket_id}/assets/{asset_id}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
+async def ticket_unrelate_asset(ticket_id: int, asset_id: str) -> str:
+    """Remove an asset link from a ticket.
+
+    Args:
+        ticket_id: The ticket number.
+        asset_id: UUID of the asset to unlink.
+    """
+    result = await client.delete(f"/tickets/{ticket_id}/assets/{asset_id}")
+    return json.dumps(result, indent=2)
+
+
 @mcp.tool(annotations=DESTRUCTIVE)
 @with_telemetry("destructive")
 async def ticket_delete(ticket_id: int) -> str:
