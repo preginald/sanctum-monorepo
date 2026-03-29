@@ -574,6 +574,8 @@ def link_asset_to_ticket(ticket_id: int, asset_id: str, db: Session = Depends(ge
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
     asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
     if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
+    if ticket.account_id != asset.account_id:
+        raise HTTPException(status_code=400, detail="Asset belongs to a different account")
     if asset not in ticket.assets:
         ticket.assets.append(asset)
         db.commit()
@@ -615,26 +617,4 @@ def unlink_ticket_relation(ticket_id: int, related_id: int, db: Session = Depend
         "DELETE FROM ticket_relations WHERE (ticket_id = :a AND related_id = :b) OR (ticket_id = :b AND related_id = :a)"
     ), {"a": ticket_id, "b": related_id})
     db.commit()
-    return {"status": "unlinked"}
-
-@router.post("/{ticket_id}/assets/{asset_id}")
-def link_asset_to_ticket(ticket_id: int, asset_id: str, db: Session = Depends(get_db)):
-    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
-    if ticket.account_id != asset.account_id:
-        raise HTTPException(status_code=400, detail="Asset belongs to different account")
-    if asset not in ticket.assets:
-        ticket.assets.append(asset)
-        db.commit()
-    return {"status": "linked"}
-
-@router.delete("/{ticket_id}/assets/{asset_id}")
-def unlink_asset_from_ticket(ticket_id: int, asset_id: str, db: Session = Depends(get_db)):
-    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
-    if asset in ticket.assets:
-        ticket.assets.remove(asset)
-        db.commit()
     return {"status": "unlinked"}
