@@ -10,7 +10,16 @@ Sanctum Core is a full-stack ERP/MSP/CRM platform for Digital Sanctum, a managed
 - **Frontend:** React 19 / Vite (`sanctum-web/`), deployed to core.digitalsanctum.com.au
 - **CLI:** `sanctum.sh` (`scripts/dev/sanctum.sh`), symlinked as `sanctum`
 - **Monorepo:** `github.com/preginald/sanctum-monorepo`
-- **Production:** 159.223.82.75, user `preginald`, auto-deploys on push to `main`
+- **Production:** 159.223.82.75, auto-deploys on push to `main`
+
+## Production SSH Access
+
+Read SOP-109 via MCP (`article_show` with slug `SOP-109`, section `## SSH Access Model`) for the full SSH access model. Key points:
+
+- **Automated/AI operations:** Use `sanctum-agent` (scoped sudo, deploy key). SSH alias: `sanctum-agent`.
+- **Human/admin operations:** Use `preginald` via `sanctum-prod` (full sudo).
+- **Never use `preginald` for automated deploys or AI-initiated SSH sessions.**
+- GitHub Actions secrets (`USERNAME`, `SSH_KEY`) point to `sanctum-agent`.
 
 ## Common Commands
 
