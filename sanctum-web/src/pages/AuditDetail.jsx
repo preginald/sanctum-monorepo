@@ -67,7 +67,7 @@ export default function AuditDetail() {
 
     if (accountId) {
       try {
-        const res = await api.get(`/crm/accounts/${accountId}`);
+        const res = await api.get(`/accounts/${accountId}`);
         const websiteAssets = (res.data.assets || [])
           .filter(a => a.asset_type === 'website')
           .map(a => ({ id: a.id, name: a.name, specs: a.specs }));
