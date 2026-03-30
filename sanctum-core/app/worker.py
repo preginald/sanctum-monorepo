@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import sys
 import os
 from datetime import datetime, timezone
@@ -11,9 +12,11 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.database import SessionLocal
 from app.models import Notification, User, UserNotificationPreference, AuditReport
-from app.services.email_service import email_service
+from app.services.notify_client import send as notify_send
 from app.services.sentinel_engine import SentinelEngine
 from app.services.renewal_engine import renewal_engine
+
+logger = logging.getLogger(__name__)
 
 def process_digest_queue():
     db = SessionLocal()
@@ -92,12 +95,12 @@ def process_digest_queue():
                     "message": n.message,
                 })
 
-            success = email_service.send_template(
-                to_email=user.email,
-                subject=f"Sanctum Digest ({len(notes)} update{'s' if len(notes) != 1 else ''})",
-                template_name="digest.html",
-                context={
-                    "user_name": user.full_name,
+            success = notify_send(
+                to=user.email,
+                template="core-digest",
+                data={
+                    "subject": f"Sanctum Digest ({len(notes)} update{'s' if len(notes) != 1 else ''})",
+                    "user_name": user.full_name or user.email,
                     "total_updates": len(notes),
                     "ticket_updates": ticket_updates,
                     "other_updates": other_updates,
@@ -111,7 +114,7 @@ def process_digest_queue():
                     n.sent_at = datetime.now(timezone.utc)
                 print("   -> Sent.")
             else:
-                print("   -> FAILED.")
+                logger.warning("Digest dispatch failed for %s", user.email)
 
         db.commit()
     except Exception as e:
