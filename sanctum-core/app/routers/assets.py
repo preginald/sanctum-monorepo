@@ -11,10 +11,12 @@ from ..services.billing_service import billing_service
 router = APIRouter(prefix="/assets", tags=["Assets"])
 
 @router.get("", response_model=List[schemas.AssetResponse])
-def get_assets(account_id: Optional[UUID] = None, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+def get_assets(account_id: Optional[UUID] = None, asset_type: Optional[str] = None, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     query = db.query(models.Asset)
     if account_id:
         query = query.filter(models.Asset.account_id == account_id)
+    if asset_type:
+        query = query.filter(models.Asset.asset_type == asset_type)
 
     # Scope Security
     if current_user.role == 'client':
