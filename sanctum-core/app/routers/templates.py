@@ -333,10 +333,9 @@ def apply_template(
     t = _get_or_404(template_id, db)
 
     if t.template_type == "project":
-        entity_id, milestones_created, tickets_created = _apply_project(
+        entity_id, entity_name, milestones_created, tickets_created = _apply_project(
             t, payload, current_user, db
         )
-        entity_name = t.name if payload.project_id else (payload.project_name or t.name)
     else:
         raise HTTPException(
             status_code=400,
@@ -478,7 +477,7 @@ def _apply_project(
             )
 
     db.flush()
-    return project.id, milestones_created, tickets_created
+    return project.id, project.name, milestones_created, tickets_created
 
 
 # ─────────────────────────────────────────────────────────────────────────────
