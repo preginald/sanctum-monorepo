@@ -82,6 +82,17 @@ def run_system_diagnostics(db: Session = Depends(get_db)):
         report["database"]["latency_ms"] = -1
         add_check("Database Ping", "error", str(e))
 
+    # Notify Service
+    try:
+        from ..services.notify_client import health_check as notify_health
+        notify_result = notify_health()
+        latency = notify_result.get("latency_ms", 0)
+        status = "ok" if notify_result["status"] == "ok" else "error"
+        if latency > 500: status = "warning"
+        add_check("Notify Service", status, notify_result.get("message", "Connected"), latency)
+    except Exception as e:
+        add_check("Notify Service", "error", str(e))
+
     # Schema Integrity
     required_tables = [(models.User, "Users"), (models.Ticket, "Tickets"), (models.Invoice, "Invoices"), (models.Article, "Wiki")]
     for model, name in required_tables:
