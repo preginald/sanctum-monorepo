@@ -43,6 +43,7 @@ with nested item dicts — validation happens server-side.
 - template_update modifies template metadata (name, description, category, tags, icon, is_active). \
 template_type is immutable after creation.
 - template_apply scaffolds milestones and tickets from a template. Pass project_id to apply \
-to an existing project, or omit to create a new one. Only template_type="project" is supported.
+to an existing project, or omit to create a new one. Only template_type="project" is supported. \
+Pass variables (dict) to substitute {key} placeholders in milestone names, ticket subjects, and descriptions.
 """,
 )

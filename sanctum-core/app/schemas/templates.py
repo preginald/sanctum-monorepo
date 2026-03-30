@@ -135,6 +135,7 @@ class TemplateApply(SanctumBase):
     project_id: Optional[uuid.UUID] = None     # apply to existing project (skip creation)
     project_name: Optional[str] = None         # override template name as project name
     project_description: Optional[str] = None
+    variables: Optional[Dict[str, str]] = None # placeholder substitution (e.g. {service_name} -> "Foo")
 
 
 class TemplateApplyResponse(SanctumBase):

@@ -54,6 +54,7 @@ async def template_apply(
     project_id: str | None = None,
     project_name: str | None = None,
     project_description: str | None = None,
+    variables: dict[str, str] | None = None,
 ) -> str:
     """Apply a project template, scaffolding milestones and tickets.
 
@@ -68,6 +69,7 @@ async def template_apply(
         project_id: UUID of an existing project. Omit to create a new one.
         project_name: Name for the new project (ignored when project_id set).
         project_description: Description for the new project (ignored when project_id set).
+        variables: Optional dict of placeholder substitutions (e.g. {"service_name": "Foo"}).
     """
     payload = {"account_id": account_id}
     if project_id:
@@ -76,6 +78,8 @@ async def template_apply(
         payload["project_name"] = project_name
     if project_description:
         payload["project_description"] = project_description
+    if variables:
+        payload["variables"] = variables
     result = await client.post(f"/templates/{template_id}/apply", json=payload)
     return json.dumps(result, indent=2)
 

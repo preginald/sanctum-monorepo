@@ -388,6 +388,15 @@ def apply_template(
     )
 
 
+def _substitute(text: str | None, variables: dict[str, str]) -> str | None:
+    """Replace {key} placeholders in text with variable values."""
+    if text is None:
+        return None
+    for key, value in variables.items():
+        text = text.replace(f"{{{key}}}", value)
+    return text
+
+
 def _apply_project(
     template: models.Template,
     payload: TemplateApply,
@@ -426,11 +435,13 @@ def _apply_project(
     # Pass 1: Create milestones + tickets, build lookup map
     ticket_map = {}  # (section_seq, item_seq) -> ticket_id
 
+    variables = payload.variables or {}
+
     for section in sorted(template.sections, key=lambda s: s.sequence):
         milestone = models.Milestone(
             project_id=project.id,
-            name=section.name,
-            description=section.description,
+            name=_substitute(section.name, variables) if variables else section.name,
+            description=_substitute(section.description, variables) if variables else section.description,
             sequence=max_seq + section.sequence,
             status="pending",
         )
@@ -442,8 +453,8 @@ def _apply_project(
             ticket = models.Ticket(
                 account_id=payload.account_id,
                 milestone_id=milestone.id,
-                subject=item.subject,
-                description=item.description,
+                subject=_substitute(item.subject, variables) if variables else item.subject,
+                description=_substitute(item.description, variables) if variables else item.description,
                 ticket_type=item.item_type,
                 priority=item.priority,
                 status="new",
