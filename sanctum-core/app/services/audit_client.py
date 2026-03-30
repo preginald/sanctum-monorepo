@@ -88,7 +88,15 @@ def trigger_audit(
 
 
 def fetch_audit_result(audit_id: str) -> dict:
-    """Fetch audit result from GET /api/audits/:id. Returns full response dict."""
+    """
+    Fetch audit result from GET /api/audits/:id.
+
+    Returns the full JSON response dict.  Key fields (per DOC-067):
+      - id, url, status ("pending" | "complete" | "error")
+      - overall_score (int 0-100) — mapped to AuditReport.security_score
+      - categories (dict of category scores)
+      - report_url, created_at, completed_at
+    """
     headers = {}
     if SANCTUM_AUDIT_API_KEY:
         headers["Authorization"] = f"Bearer {SANCTUM_AUDIT_API_KEY}"

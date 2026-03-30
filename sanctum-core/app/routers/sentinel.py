@@ -236,6 +236,7 @@ def _run_website_scan(
         result = poll_audit_until_complete(str(sanctum_audit_id))
 
         # Step 3: write results
+        # overall_score: int 0-100 from Audit API response (DOC-067)
         audit.security_score = result.get("overall_score", 0)
         audit.scan_status = "completed"
         audit.last_scan_at = datetime.utcnow()
