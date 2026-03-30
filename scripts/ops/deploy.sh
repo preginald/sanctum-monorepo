@@ -18,6 +18,7 @@ DRY_RUN=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=true; shift ;;
+        --agent) REMOTE="sanctum-agent"; shift ;;
         *) echo "Unknown option: $1"; exit 1 ;;
     esac
 done
