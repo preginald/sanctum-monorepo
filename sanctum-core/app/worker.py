@@ -2,6 +2,7 @@ import asyncio
 import sys
 import os
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from sqlalchemy.orm.attributes import flag_modified # Ensure this is at the top of the file
 
 # 1. SETUP PATHS
@@ -19,10 +20,14 @@ def process_digest_queue():
     print(f"[{datetime.now()}] 📡 Signal Worker: Scanning Queue...")
 
     try:
-        pending_notes = db.query(Notification).join(User).join(UserNotificationPreference)\
+        from sqlalchemy import or_
+        pending_notes = db.query(Notification).join(User).outerjoin(UserNotificationPreference)\
             .filter(
                 Notification.status == 'pending',
-                UserNotificationPreference.email_frequency != 'realtime'
+                or_(
+                    UserNotificationPreference.email_frequency == None,  # No prefs row = daily default
+                    UserNotificationPreference.email_frequency != 'realtime'
+                )
             ).all()
 
         if not pending_notes:
@@ -37,9 +42,23 @@ def process_digest_queue():
 
         print(f"Found {len(pending_notes)} items for {len(user_batches)} users.")
 
+        now_syd = datetime.now(ZoneInfo("Australia/Sydney"))
+
         for user_id, notes in user_batches.items():
             user = db.query(User).get(user_id)
             if not user or not user.email: continue
+
+            # Determine user's frequency (no prefs row = daily)
+            user_prefs = db.query(UserNotificationPreference).filter(
+                UserNotificationPreference.user_id == user_id
+            ).first()
+            frequency = user_prefs.email_frequency if user_prefs else 'daily'
+
+            # Delivery-window gating
+            if frequency == 'hourly' and now_syd.minute >= 15:
+                continue  # Only send in the :00-:14 window
+            elif frequency == 'daily' and now_syd.hour != 8:
+                continue  # Only send at 08:00 AEST/AEDT
 
             print(f"📦 Batching {len(notes)} items for {user.email}...")
 
