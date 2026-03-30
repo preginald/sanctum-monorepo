@@ -1,9 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
+import os
 from .. import models, schemas, auth
 from ..database import get_db
 from ..services.ticket_validation import auto_transition_from_new
+from ..services.notification_service import notification_service
 
 router = APIRouter(tags=["Comments"])
 
@@ -41,6 +43,31 @@ def create_comment(comment: schemas.CommentCreate, current_user: models.User = D
     db.commit()
     db.refresh(new_comment)
     new_comment.author_name = current_user.full_name or current_user.email
+
+    # Notify assigned tech of new comment (via Notify API)
+    if comment.ticket_id and comment.visibility == 'public':
+        ticket = db.query(models.Ticket).filter(models.Ticket.id == comment.ticket_id).first()
+        if ticket and ticket.assigned_tech_id and str(ticket.assigned_tech_id) != str(current_user.id):
+            tech = db.query(models.User).filter(models.User.id == ticket.assigned_tech_id).first()
+            if tech:
+                frontend_url = os.getenv("FRONTEND_URL", "https://core.digitalsanctum.com.au")
+                notification_service.enqueue(
+                    db,
+                    recipients=[{ 'type': 'user', 'user_id': str(tech.id), 'email': tech.email }],
+                    subject=f"New Comment: #{ticket.id}",
+                    message=f"New comment on ticket #{ticket.id} ({ticket.subject})",
+                    link=f"/tickets/{ticket.id}",
+                    priority=ticket.priority,
+                    event_type="ticket_comment",
+                    template_data={
+                        "ticket_id": ticket.id,
+                        "subject_line": ticket.subject,
+                        "comment_author": current_user.full_name or current_user.email,
+                        "comment_body": comment.body[:500] if comment.body else "",
+                        "url": f"{frontend_url}/tickets/{ticket.id}",
+                    },
+                )
+
     return new_comment
 
 @router.delete("/comments/{comment_id}")

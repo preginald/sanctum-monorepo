@@ -14,6 +14,7 @@ from ..services.milestone_validation import validate_milestone_sealed, check_mil
 from ..services.cascade import cascade_from_ticket
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response, _get_optional_user
 from datetime import datetime, timezone
+import os
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -118,13 +119,28 @@ def create_ticket(
     if new_ticket.assigned_tech_id:
         tech = db.query(models.User).filter(models.User.id == new_ticket.assigned_tech_id).first()
         if tech:
+            frontend_url = os.getenv("FRONTEND_URL", "https://core.digitalsanctum.com.au")
+            project_name = "N/A"
+            if new_ticket.milestone_id:
+                ms = db.query(models.Milestone).filter(models.Milestone.id == new_ticket.milestone_id).first()
+                if ms and ms.project:
+                    project_name = ms.project.name
             notification_service.enqueue(
                 db,
                 recipients=[{"type": "user", "user_id": str(tech.id), "email": tech.email}],
                 subject=f"New Assignment: #{new_ticket.id}",
                 message=f"You have been assigned to: {new_ticket.subject} ({new_ticket.account_name})",
                 link=f"/tickets/{new_ticket.id}",
-                priority=new_ticket.priority
+                priority=new_ticket.priority,
+                event_type="ticket_assigned",
+                template_data={
+                    "ticket_id": new_ticket.id,
+                    "subject_line": new_ticket.subject,
+                    "priority": new_ticket.priority,
+                    "assigned_to": tech.full_name or tech.email,
+                    "project_name": project_name,
+                    "url": f"{frontend_url}/tickets/{new_ticket.id}",
+                },
             )
 
     return new_ticket
@@ -376,6 +392,10 @@ def update_ticket(
     if ticket.assigned_tech_id and ticket.assigned_tech_id != old_tech_id:
         tech = db.query(models.User).filter(models.User.id == ticket.assigned_tech_id).first()
         if tech:
+            frontend_url = os.getenv("FRONTEND_URL", "https://core.digitalsanctum.com.au")
+            project_name = "N/A"
+            if ticket.milestone and ticket.milestone.project:
+                project_name = ticket.milestone.project.name
             notification_service.enqueue(
                 db,
                 recipients=[{ 'type': 'user', 'user_id': tech.id, 'email': tech.email }],
@@ -383,7 +403,39 @@ def update_ticket(
                 message=f"You have been assigned to ticket: {ticket.subject}",
                 link=f"/tickets/{ticket.id}",
                 priority=ticket.priority,
-                event_payload={ 'event_type': 'ticket_assigned', 'ticket_id': ticket.id }
+                event_payload={ 'event_type': 'ticket_assigned', 'ticket_id': ticket.id },
+                event_type="ticket_assigned",
+                template_data={
+                    "ticket_id": ticket.id,
+                    "subject_line": ticket.subject,
+                    "priority": ticket.priority,
+                    "assigned_to": tech.full_name or tech.email,
+                    "project_name": project_name,
+                    "url": f"{frontend_url}/tickets/{ticket.id}",
+                },
+            )
+
+    # 4b. NOTIFY: STATUS CHANGE (via Notify API)
+    if ticket.status != old_status and ticket.assigned_tech_id:
+        tech = db.query(models.User).filter(models.User.id == ticket.assigned_tech_id).first()
+        if tech:
+            frontend_url = os.getenv("FRONTEND_URL", "https://core.digitalsanctum.com.au")
+            notification_service.enqueue(
+                db,
+                recipients=[{ 'type': 'user', 'user_id': tech.id, 'email': tech.email }],
+                subject=f"Status Change: #{ticket.id} {old_status} -> {ticket.status}",
+                message=f"Ticket #{ticket.id} ({ticket.subject}) status changed from {old_status} to {ticket.status}",
+                link=f"/tickets/{ticket.id}",
+                priority=ticket.priority,
+                event_type="ticket_status_change",
+                template_data={
+                    "ticket_id": ticket.id,
+                    "subject_line": ticket.subject,
+                    "from_status": old_status,
+                    "to_status": ticket.status,
+                    "changed_by": changed_by,
+                    "url": f"{frontend_url}/tickets/{ticket.id}",
+                },
             )
 
     # 5. NOTIFY: RESOLUTION
