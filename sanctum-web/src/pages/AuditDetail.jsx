@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import api from '../lib/api';
 import { Loader2, Save, Shield, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, MinusCircle, Play, RefreshCw } from 'lucide-react';
 import { useToast } from '../context/ToastContext';
+import ScanResultsPanel from '../components/sentinel/ScanResultsPanel';
 
 export default function AuditDetail() {
   const { id } = useParams();
@@ -21,6 +22,9 @@ export default function AuditDetail() {
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [selectedAssetId, setSelectedAssetId] = useState(null);
+  const [scanResults, setScanResults] = useState(null);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  const [resultsError, setResultsError] = useState(null);
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -97,6 +101,19 @@ export default function AuditDetail() {
     }
   };
 
+  const fetchScanResults = async (auditId) => {
+    setResultsLoading(true);
+    setResultsError(null);
+    try {
+      const res = await api.get(`/sentinel/audits/${auditId || id}/results`);
+      setScanResults(res.data);
+    } catch (e) {
+      setResultsError(e.response?.data?.detail || 'Failed to load scan results');
+    } finally {
+      setResultsLoading(false);
+    }
+  };
+
   const fetchAudit = async () => {
     setLoading(true);
     try {
@@ -142,6 +159,11 @@ export default function AuditDetail() {
       // If scan is running, set scanning state
       if (res.data.scan_status === 'running') {
         setScanning(true);
+      }
+
+      // Fetch rich results when scan is completed
+      if (res.data.scan_status === 'completed') {
+        fetchScanResults(id);
       }
 
     } catch (e) {
@@ -538,21 +560,33 @@ export default function AuditDetail() {
                     </p>
                   </div>
                 ) : audit.scan_status === 'completed' ? (
-                  <div className="space-y-4">
-                    <div className={`text-6xl font-bold ${getScoreColor(audit.security_score)}`}>
-                      {audit.security_score}<span className="text-2xl">/100</span>
+                  <div className="space-y-6">
+                    <div className="text-center">
+                      <div className={`text-6xl font-bold ${getScoreColor(audit.security_score)}`}>
+                        {audit.security_score}<span className="text-2xl">/100</span>
+                      </div>
+                      <p className="text-sm text-green-400 mt-2">Scan completed successfully</p>
+                      {audit.content?.report_url && (
+                        <a
+                          href={audit.content.report_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block mt-2 text-xs text-blue-400 hover:text-blue-300 underline"
+                        >
+                          View on Sanctum Audit
+                        </a>
+                      )}
                     </div>
-                    <p className="text-sm text-green-400">Scan completed successfully</p>
-                    {audit.content?.report_url && (
-                      <a
-                        href={audit.content.report_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block px-4 py-2 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors text-sm font-bold"
-                      >
-                        View Detailed Report
-                      </a>
-                    )}
+
+                    {resultsLoading ? (
+                      <div className="flex justify-center py-8">
+                        <Loader2 className="animate-spin text-sanctum-gold" size={32} />
+                      </div>
+                    ) : resultsError ? (
+                      <div className="text-center text-red-400 text-sm py-4">{resultsError}</div>
+                    ) : scanResults ? (
+                      <ScanResultsPanel results={scanResults} />
+                    ) : null}
                   </div>
                 ) : audit.scan_status === 'failed' ? (
                   <div className="space-y-4">
