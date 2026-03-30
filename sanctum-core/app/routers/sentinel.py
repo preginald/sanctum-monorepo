@@ -66,6 +66,7 @@ class AuditDetailResponse(BaseModel):
     website_assets: List[WebsiteAssetBrief] = []
     responses: Optional[Dict[str, Dict[str, str]]]
     category_structure: Optional[List[Dict]]
+    content: Optional[Dict] = None
 
     class Config:
         from_attributes = True
@@ -335,8 +336,44 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db), cur
             for a in website_assets
         ],
         "category_structure": category_structure,
-        "responses": responses
+        "responses": responses,
+        "content": audit.content,
     }
+
+@router.get("/audits/{audit_id}/results")
+async def get_audit_results(
+    audit_id: UUID,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """Proxy to Sanctum Audit API — returns full scan results."""
+    import asyncio
+    from ..services.audit_client import fetch_audit_result, AuditAPIError
+
+    audit = db.query(models.AuditReport).filter(
+        models.AuditReport.id == audit_id
+    ).first()
+    if not audit:
+        raise HTTPException(status_code=404, detail="Audit not found")
+
+    content = audit.content or {}
+    sanctum_audit_id = content.get("sanctum_audit_id")
+    if not sanctum_audit_id:
+        raise HTTPException(
+            status_code=404,
+            detail="No scan results available — scan has not completed"
+        )
+
+    try:
+        result = await asyncio.to_thread(fetch_audit_result, sanctum_audit_id)
+    except AuditAPIError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch results from Audit API: {e.message}"
+        )
+
+    return result
+
 
 @router.post("/audits/{audit_id}/submit")
 def submit_audit_responses(
