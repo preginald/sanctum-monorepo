@@ -1,12 +1,16 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 import json
+import logging
 from ..models import Notification, User, UserNotificationPreference
 from .email_service import email_service
+from . import notify_client
+
+logger = logging.getLogger(__name__)
 
 class NotificationDispatcher:
 
-    def enqueue(self, db: Session, recipients: list[dict], subject: str, message: str, link: str = None, event_payload: dict = {}, priority: str = 'normal'):
+    def enqueue(self, db: Session, recipients: list[dict], subject: str, message: str, link: str = None, event_payload: dict = {}, priority: str = 'normal', event_type: str = None, template_data: dict = None):
         """
         The Entry Point.
         1. Creates DB records for ALL recipients (User or External).
@@ -24,6 +28,7 @@ class NotificationDispatcher:
                 link=link,
                 priority=priority,
                 event_payload=event_payload,
+                event_type=event_type,
                 status='pending', # Default start state
                 delivery_channel='email', # Default for now
                 is_read=False
@@ -53,7 +58,28 @@ class NotificationDispatcher:
 
             # 3. Execution
             if should_send_now:
-                self._send_immediate(db, note)
+                template_slug = notify_client.EVENT_TYPE_TO_TEMPLATE.get(event_type) if event_type else None
+
+                if template_slug and template_data:
+                    # Dispatch via Sanctum Notify API
+                    result = notify_client.send(
+                        to=note.recipient_email,
+                        template=template_slug,
+                        data=template_data,
+                    )
+                    if result:
+                        note.status = 'sent'
+                        note.sent_at = datetime.now(timezone.utc)
+                    else:
+                        note.status = 'failed'
+                        logger.warning(
+                            "Notify dispatch failed for notification %s (template=%s)",
+                            note.id, template_slug,
+                        )
+                else:
+                    # Fallback: legacy inline HTML via email_service
+                    self._send_immediate(db, note)
+
                 dispatched_count += 1
 
         db.commit()
@@ -61,7 +87,9 @@ class NotificationDispatcher:
 
     def _send_immediate(self, db: Session, note: Notification):
         """
-        Performs the SMTP call and updates status.
+        DEPRECATED: Use notify_client.send() for new notification types.
+        Retained for unmapped event types and backward compatibility.
+        Performs the email call via email_service and updates status.
         """
         try:
             html_content = self._render_html(note.title, note.message, note.link, note.priority)
@@ -84,7 +112,8 @@ class NotificationDispatcher:
 
     def _render_html(self, title: str, message: str, link: str = None, priority: str = 'normal') -> str:
         """
-        Unified HTML Generator.
+        DEPRECATED: Notify templates replace inline HTML for mapped event types.
+        Retained for unmapped event types and backward compatibility.
         """
         style_container = "font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;"
         style_header = "background-color: #0f172a; color: #fff; padding: 15px; border-radius: 6px 6px 0 0; text-align: center;"
