@@ -61,8 +61,31 @@ export default function AuditDetail() {
   }, [audit?.scan_status, id]);
 
   const initNewAudit = async () => {
-    setAudit({ account_id: accountId, status: 'draft', security_score: 0 });
+    const initialAudit = { account_id: accountId, status: 'draft', security_score: 0 };
+    setAudit(initialAudit);
     setLoading(false);
+
+    if (accountId) {
+      try {
+        const res = await api.get(`/crm/accounts/${accountId}`);
+        const websiteAssets = (res.data.assets || [])
+          .filter(a => a.asset_type === 'website')
+          .map(a => ({ id: a.id, name: a.name, specs: a.specs }));
+
+        setAudit(prev => ({
+          ...prev,
+          account_name: res.data.name,
+          account_website: res.data.website || null,
+          website_assets: websiteAssets,
+        }));
+
+        if (websiteAssets.length === 1) {
+          setSelectedAssetId(websiteAssets[0].id);
+        }
+      } catch (e) {
+        console.error('Failed to fetch account details for new audit:', e);
+      }
+    }
   };
 
   const fetchTemplates = async () => {
