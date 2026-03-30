@@ -149,7 +149,7 @@ export const getVendorPlaceholder = (type) => {
 
 // 5. LIFECYCLE DETECTION
 export const isLifecycleAsset = (type) => {
-    return ['domain', 'hosting web', 'hosting email', 'license', 'software', 'saas', 'security software'].includes(type);
+    return ['domain', 'website', 'hosting web', 'hosting email', 'license', 'software', 'saas', 'security software'].includes(type);
 };
 
 // 6. ICON HELPER (Optional, requires Lucide imports in component, so usually kept in component or separate UI util)

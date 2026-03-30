@@ -122,12 +122,25 @@ export default function AssetModal({ isOpen, onClose, onSubmit, loading, form, s
                             {activeSpecs.map((field) => (
                                 <div key={field.key} className={['role', 'admin_url', 'url', 'management_url'].includes(field.key) ? 'col-span-2' : ''}>
                                     <label className="text-xs text-slate-400 block mb-1">{field.label}</label>
-                                    <input
-                                        className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 outline-none transition-colors"
-                                        value={form.specs?.[field.key] || ''}
-                                        onChange={(e) => handleSpecChange(field.key, e.target.value)}
-                                        placeholder={field.placeholder}
-                                    />
+                                    {field.type === 'select' && field.options ? (
+                                        <select
+                                            className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 outline-none transition-colors capitalize"
+                                            value={form.specs?.[field.key] || ''}
+                                            onChange={(e) => handleSpecChange(field.key, e.target.value)}
+                                        >
+                                            <option value="">Select {field.label.toLowerCase()}...</option>
+                                            {field.options.map(opt => (
+                                                <option key={opt} value={opt} className="capitalize">{opt}</option>
+                                            ))}
+                                        </select>
+                                    ) : (
+                                        <input
+                                            className="w-full p-2 bg-slate-900 border border-slate-700 rounded text-white text-sm focus:border-blue-500 outline-none transition-colors"
+                                            value={form.specs?.[field.key] || ''}
+                                            onChange={(e) => handleSpecChange(field.key, e.target.value)}
+                                            placeholder={field.placeholder}
+                                        />
+                                    )}
                                 </div>
                             ))}
                         </div>
