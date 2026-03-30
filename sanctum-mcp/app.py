@@ -36,7 +36,12 @@ Milestones:
 - milestone_list and milestone_create require project_id (UUID).
 
 Templates:
-- template_list returns available project templates (active by default).
+- template_list returns available templates (active by default). Filter by template_type or category.
+- template_show returns a single template with its full section/item tree.
+- template_create creates a template with nested sections and items. Sections is a list of dicts \
+with nested item dicts — validation happens server-side.
+- template_update modifies template metadata (name, description, category, tags, icon, is_active). \
+template_type is immutable after creation.
 - template_apply scaffolds milestones and tickets from a template. Pass project_id to apply \
 to an existing project, or omit to create a new one. Only template_type="project" is supported.
 """,
