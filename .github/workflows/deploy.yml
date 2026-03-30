@@ -21,7 +21,7 @@ jobs:
 
             # 2. PULL LATEST CODE
             echo "📥 Pulling latest code..."
-            cd ~/DigitalSanctum
+            cd /home/preginald/DigitalSanctum
             OLD_COMMIT=$(git rev-parse HEAD)
             git fetch origin main
             git reset --hard origin/main
@@ -69,20 +69,21 @@ jobs:
                 echo "⏭️ Skipping sanctum-mcp restart (no sanctum-mcp/ changes)"
             fi
 
-            # 3.7 SYNC APACHE CONFIGS (#715)
+            # 3.7 SYNC APACHE CONFIGS (#715, #1151)
             echo "🔧 Checking Apache configs..."
-            cd ~/DigitalSanctum
+            cd /home/preginald/DigitalSanctum
             set +e
             APACHE_CHANGED=false
             for conf in ops/apache/*.conf; do
               fname=$(basename "$conf")
               if ! diff -q "$conf" "/etc/apache2/sites-available/$fname" > /dev/null 2>&1; then
-                echo "  → Updating $fname"
-                sudo cp "$conf" "/etc/apache2/sites-available/$fname"
                 APACHE_CHANGED=true
+                break
               fi
             done
             if [ "$APACHE_CHANGED" = true ]; then
+              echo "  → Syncing Apache configs via wrapper script..."
+              sudo /usr/local/bin/sanctum-sync-apache /home/preginald/DigitalSanctum/ops/apache
               echo "  → Validating Apache config..."
               if sudo apache2ctl configtest 2>&1; then
                 sudo systemctl reload apache2
@@ -97,7 +98,7 @@ jobs:
 
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
-            cd ~/DigitalSanctum/sanctum-web
+            cd /home/preginald/DigitalSanctum/sanctum-web
             npm install
             npm run build
 
@@ -107,7 +108,7 @@ jobs:
 
             # Version verification (#1106)
             echo "--- Verifying API version ---"
-            cd ~/DigitalSanctum
+            cd /home/preginald/DigitalSanctum
             DEPLOYED_COMMIT=$(git rev-parse HEAD)
             RUNNING_COMMIT=""
             for i in 1 2 3 4 5; do
@@ -150,7 +151,7 @@ jobs:
 
             # 2. PULL LATEST CODE
             echo "📥 Pulling latest test code..."
-            cd ~/DigitalSanctum-test
+            cd /home/preginald/DigitalSanctum-test
             OLD_COMMIT=$(git rev-parse HEAD)
             git fetch origin test
             git reset --hard origin/test
@@ -183,20 +184,21 @@ jobs:
                 echo "⏭️ Skipping sanctum-api-test restart (no sanctum-core/ changes)"
             fi
 
-            # 3.7 SYNC APACHE CONFIGS
+            # 3.7 SYNC APACHE CONFIGS (#1151)
             echo "🔧 Checking Apache configs..."
-            cd ~/DigitalSanctum-test
+            cd /home/preginald/DigitalSanctum-test
             set +e
             APACHE_CHANGED=false
             for conf in ops/apache/*.conf; do
               fname=$(basename "$conf")
               if ! diff -q "$conf" "/etc/apache2/sites-available/$fname" > /dev/null 2>&1; then
-                echo "  → Updating $fname"
-                sudo cp "$conf" "/etc/apache2/sites-available/$fname"
                 APACHE_CHANGED=true
+                break
               fi
             done
             if [ "$APACHE_CHANGED" = true ]; then
+              echo "  → Syncing Apache configs via wrapper script..."
+              sudo /usr/local/bin/sanctum-sync-apache /home/preginald/DigitalSanctum-test/ops/apache
               echo "  → Validating Apache config..."
               if sudo apache2ctl configtest 2>&1; then
                 sudo systemctl reload apache2
@@ -211,7 +213,7 @@ jobs:
 
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
-            cd ~/DigitalSanctum-test/sanctum-web
+            cd /home/preginald/DigitalSanctum-test/sanctum-web
             npm install
             npm run build
 
@@ -221,7 +223,7 @@ jobs:
 
             # Version verification (#1106)
             echo "--- Verifying API version ---"
-            cd ~/DigitalSanctum-test
+            cd /home/preginald/DigitalSanctum-test
             DEPLOYED_COMMIT=$(git rev-parse HEAD)
             RUNNING_COMMIT=""
             for i in 1 2 3 4 5; do
