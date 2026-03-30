@@ -24,7 +24,7 @@ def get_accounts(current_user: models.User = Depends(auth.get_current_active_use
 @router.get("/accounts/{account_id}", response_model=schemas.AccountDetail)
 def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     account = db.query(models.Account)\
-        .options(joinedload(models.Account.contacts), joinedload(models.Account.deals), joinedload(models.Account.projects), joinedload(models.Account.invoices), joinedload(models.Account.tickets).joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user))\
+        .options(joinedload(models.Account.contacts), joinedload(models.Account.deals), joinedload(models.Account.projects), joinedload(models.Account.invoices), joinedload(models.Account.tickets).joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user), joinedload(models.Account.assets))\
         .filter(models.Account.id == account_id).first()
     if not account: raise HTTPException(status_code=404, detail="Account not found")
     account.projects = [p for p in account.projects if not p.is_deleted]
