@@ -48,8 +48,8 @@ class NotificationDispatcher:
                 prefs = db.query(UserNotificationPreference).filter(UserNotificationPreference.user_id == r['user_id']).first()
 
                 if not prefs:
-                    user = db.query(User).get(r['user_id'])
-                    should_send_now = user.role in ('admin', 'technician') if user else False
+                    # No prefs row = model default is 'daily'; queue for digest
+                    should_send_now = False
                 elif priority == 'critical' and prefs.force_critical:
                     should_send_now = True
                 elif prefs.email_frequency == 'realtime':

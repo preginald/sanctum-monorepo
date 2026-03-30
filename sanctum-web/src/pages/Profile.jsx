@@ -20,7 +20,7 @@ export default function Profile() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Notification Prefs State
-  const [prefs, setPrefs] = useState({ email_frequency: 'realtime', force_critical: true });
+  const [prefs, setPrefs] = useState({ email_frequency: 'daily', force_critical: true });
   const [savingPrefs, setSavingPrefs] = useState(false);
 
   // API Tokens (The Keymaster)

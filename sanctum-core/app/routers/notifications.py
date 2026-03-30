@@ -59,7 +59,7 @@ def get_preferences(
     prefs = current_user.notification_preferences
     if not prefs:
         # Return defaults if no record exists
-        return {"email_frequency": "realtime", "force_critical": True}
+        return {"email_frequency": "daily", "force_critical": True}
     return prefs
 
 @router.put("/preferences", response_model=schemas.PreferenceResponse)
