@@ -34,5 +34,10 @@ Search:
 
 Milestones:
 - milestone_list and milestone_create require project_id (UUID).
+
+Templates:
+- template_list returns available project templates (active by default).
+- template_apply scaffolds milestones and tickets from a template. Pass project_id to apply \
+to an existing project, or omit to create a new one. Only template_type="project" is supported.
 """,
 )
