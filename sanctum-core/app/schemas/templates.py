@@ -132,6 +132,7 @@ class TemplateImport(SanctumBase):
 
 class TemplateApply(SanctumBase):
     account_id: uuid.UUID
+    project_id: Optional[uuid.UUID] = None     # apply to existing project (skip creation)
     project_name: Optional[str] = None         # override template name as project name
     project_description: Optional[str] = None
 

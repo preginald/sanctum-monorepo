@@ -336,7 +336,7 @@ def apply_template(
         entity_id, milestones_created, tickets_created = _apply_project(
             t, payload, current_user, db
         )
-        entity_name = payload.project_name or t.name
+        entity_name = t.name if payload.project_id else (payload.project_name or t.name)
     else:
         raise HTTPException(
             status_code=400,
@@ -396,14 +396,31 @@ def _apply_project(
     db: Session,
 ):
     """Create a Project + Milestones + Tickets from a project template."""
-    project = models.Project(
-        account_id=payload.account_id,
-        name=payload.project_name or template.name,
-        description=payload.project_description or template.description,
-        status="planning",
-    )
-    db.add(project)
-    db.flush()
+    if payload.project_id:
+        project = db.query(models.Project).filter(
+            models.Project.id == payload.project_id
+        ).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if project.account_id != payload.account_id:
+            raise HTTPException(
+                status_code=400,
+                detail="account_id does not match the project's account",
+            )
+        # Offset milestone sequences to avoid collisions with existing milestones
+        max_seq = db.query(func.max(models.Milestone.sequence)).filter(
+            models.Milestone.project_id == project.id
+        ).scalar() or 0
+    else:
+        project = models.Project(
+            account_id=payload.account_id,
+            name=payload.project_name or template.name,
+            description=payload.project_description or template.description,
+            status="planning",
+        )
+        db.add(project)
+        db.flush()
+        max_seq = 0
 
     milestones_created = 0
     tickets_created = 0
@@ -415,7 +432,7 @@ def _apply_project(
             project_id=project.id,
             name=section.name,
             description=section.description,
-            sequence=section.sequence,
+            sequence=max_seq + section.sequence,
             status="pending",
         )
         db.add(milestone)
