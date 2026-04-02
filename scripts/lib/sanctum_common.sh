@@ -20,10 +20,12 @@ resolve_env() {
     case $_SANCTUM_ENV in
         local)
             API_BASE="http://localhost:8000"
+            COMPOSE_API_BASE="http://localhost:8002"
             PROFILE="${SANCTUM_PROFILE:-default}"
             ;;
         prod)
             API_BASE="https://core.digitalsanctum.com.au/api"
+            COMPOSE_API_BASE="https://compose.digitalsanctum.com.au"
             PROFILE="${SANCTUM_PROFILE:-prod}"
             ;;
         *)
@@ -139,6 +141,29 @@ api_delete() {
 }
 
 # ─────────────────────────────────────────────
+# Compose API helpers — authenticated HTTP methods using COMPOSE_API_BASE
+# Usage: compose_api_get "/api/v1/compositions"
+#        compose_api_post "/api/v1/compositions" '{"name":"Test"}'
+# ─────────────────────────────────────────────
+compose_api_get() {
+    curl -s -H "Authorization: Bearer $_SANCTUM_AUTH_TOKEN" -H "Content-Type: application/json" "${COMPOSE_API_BASE}$1"
+}
+
+compose_api_post() {
+    curl -s -X POST -H "Authorization: Bearer $_SANCTUM_AUTH_TOKEN" -H "Content-Type: application/json" -d "$2" "${COMPOSE_API_BASE}$1"
+}
+
+compose_api_put() {
+    curl -s -X PUT -H "Authorization: Bearer $_SANCTUM_AUTH_TOKEN" -H "Content-Type: application/json" -d "$2" "${COMPOSE_API_BASE}$1"
+}
+
+compose_api_delete() {
+    local HTTP_CODE
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE -H "Authorization: Bearer $_SANCTUM_AUTH_TOKEN" -H "Content-Type: application/json" "${COMPOSE_API_BASE}$1")
+    echo "$HTTP_CODE"
+}
+
+# ─────────────────────────────────────────────
 # resolve_project — Fuzzy match project name → ID + account_id
 # Usage: resolve_project "Sanctum Core"
 # Sets: PROJECT_ID, ACCOUNT_ID, PROJECT_DISPLAY
@@ -229,11 +254,12 @@ resolve_account() {
 # ─────────────────────────────────────────────
 print_env_banner() {
     local label="$1"
+    local api_url="${2:-$API_BASE}"
     echo -e "${BLUE}=== ${label} ===${NC}"
     if [ "$_SANCTUM_ENV" = "prod" ]; then
-        echo -e "${RED}  ██ PRODUCTION ██  ${API_BASE}${NC}"
+        echo -e "${RED}  ██ PRODUCTION ██  ${api_url}${NC}"
     else
-        echo -e "${GRAY}  env: local — ${API_BASE}${NC}"
+        echo -e "${GRAY}  env: local — ${api_url}${NC}"
     fi
     echo ""
 }

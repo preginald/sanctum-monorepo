@@ -39,6 +39,7 @@ usage() {
     echo "  invoice    Manage invoices (create, update, delete, show)"
     echo "  article    Manage knowledge base articles (create, update, show)"
     echo "  artefact   Manage artefacts (create, update, show, delete, link, unlink)"
+    echo "  compose    Manage compositions (list, show, create, update, delete)"
     echo "  context    Session context loader (batch article reader)"
     echo "  search     Omnisearch — cross-entity fuzzy search"
     echo ""
@@ -2651,6 +2652,214 @@ admin_restart() {
 }
 
 # ─────────────────────────────────────────────
+# COMPOSE (Sanctum Compose — compositions)
+# ─────────────────────────────────────────────
+compose_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh compose — Manage Compositions${NC}"
+    echo ""
+    echo "Usage: sanctum.sh compose <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  list     List compositions"
+    echo "  show     Show a composition by ID"
+    echo "  create   Create a new composition from a JSON file"
+    echo "  update   Update an existing composition from a JSON file"
+    echo "  delete   Soft-delete a composition"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  list:    [--limit <n>], [--offset <n>], [-e|--env local|prod]"
+    echo "  show:    <uuid>, [-e|--env]"
+    echo "  create:  -f|--file <json_path>, [-e|--env]"
+    echo "  update:  <uuid>, -f|--file <json_path>, [-e|--env]"
+    echo "  delete:  <uuid>, [-e|--env]"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh compose list -e local"
+    echo "  sanctum.sh compose show 8b4a2c3d-..."
+    echo "  sanctum.sh compose create -f composition.json"
+    echo "  sanctum.sh compose update 8b4a2c3d-... -f updated.json"
+    echo "  sanctum.sh compose delete 8b4a2c3d-..."
+    echo ""
+    exit 0
+}
+
+compose_list() {
+    local LIMIT=50 OFFSET=0 ENV="prod"
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) compose_usage; exit 0 ;;
+            --limit)   LIMIT="$2"; shift 2 ;;
+            --offset)  OFFSET="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — compose list" "$COMPOSE_API_BASE"
+    ensure_auth
+
+    RESULT=$(compose_api_get "/api/v1/compositions?limit=${LIMIT}&offset=${OFFSET}")
+
+    echo ""
+    echo -e "${BLUE}Compositions${NC}"
+    echo ""
+    echo "$RESULT" | jq -r '.items[] | "  \(.id)  \(.name)  (\(.primitives | length) primitives)"'
+    TOTAL=$(echo "$RESULT" | jq -r '.total')
+    echo ""
+    echo -e "${GRAY}  Total: ${TOTAL} | Showing: ${LIMIT} from offset ${OFFSET}${NC}"
+    echo ""
+}
+
+compose_show() {
+    local ID="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$ID" ] && echo -e "${RED}✗ Composition UUID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) compose_usage; exit 0 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — compose show" "$COMPOSE_API_BASE"
+    ensure_auth
+
+    RESULT=$(compose_api_get "/api/v1/compositions/${ID}")
+
+    ERROR=$(echo "$RESULT" | jq -r '.detail // empty')
+    if [ -n "$ERROR" ]; then
+        echo -e "${RED}✗ ${ERROR}${NC}"
+        exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "  Name:        ${BLUE}$(echo "$RESULT" | jq -r '.name')${NC}"
+    echo -e "  ID:          ${GRAY}$(echo "$RESULT" | jq -r '.id')${NC}"
+    echo -e "  Description: $(echo "$RESULT" | jq -r '.description // "—"')"
+    echo -e "  Entity:      $(echo "$RESULT" | jq -r '(.entity_type // "—") + " / " + (.entity_id // "—")')"
+    echo -e "  Created:     $(echo "$RESULT" | jq -r '.created_at')"
+    echo -e "  Updated:     $(echo "$RESULT" | jq -r '.updated_at')"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo -e "${YELLOW}Primitives:${NC}"
+    echo "$RESULT" | jq -r '.primitives[] | "  [\(.type)] \(.label // .name // "—") — \(.items | length) items"'
+    echo ""
+}
+
+compose_create() {
+    local FILE="" ENV="prod"
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) compose_usage; exit 0 ;;
+            -f|--file) FILE="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$FILE" ] && echo -e "${RED}✗ -f/--file is required${NC}" && exit 1
+    [ ! -f "$FILE" ] && echo -e "${RED}✗ File not found: ${FILE}${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — compose create" "$COMPOSE_API_BASE"
+    ensure_auth
+    confirm_prod "About to create composition"
+
+    PAYLOAD=$(cat "$FILE")
+    RESULT=$(compose_api_post "/api/v1/compositions" "$PAYLOAD")
+    COMP_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+    if [ -z "$COMP_ID" ]; then
+        echo -e "${RED}✗ Failed to create composition${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}========================================${NC}"
+    echo -e "${GREEN}✓ Composition Created${NC}"
+    echo -e "${GREEN}========================================${NC}"
+    echo ""
+    echo -e "  Name:  ${BLUE}$(echo "$RESULT" | jq -r '.name')${NC}"
+    echo -e "  ID:    ${GRAY}${COMP_ID}${NC}"
+    echo ""
+}
+
+compose_update() {
+    local ID="$1"; shift || true
+    local FILE="" ENV="prod"
+
+    [ -z "$ID" ] && echo -e "${RED}✗ Composition UUID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) compose_usage; exit 0 ;;
+            -f|--file) FILE="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$FILE" ] && echo -e "${RED}✗ -f/--file is required${NC}" && exit 1
+    [ ! -f "$FILE" ] && echo -e "${RED}✗ File not found: ${FILE}${NC}" && exit 1
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — compose update" "$COMPOSE_API_BASE"
+    ensure_auth
+    confirm_prod "About to update composition: ${ID}"
+
+    PAYLOAD=$(cat "$FILE")
+    RESULT=$(compose_api_put "/api/v1/compositions/${ID}" "$PAYLOAD")
+    UPDATED_ID=$(echo "$RESULT" | jq -r '.id // empty')
+
+    if [ -z "$UPDATED_ID" ]; then
+        echo -e "${RED}✗ Failed to update composition${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo ""
+    echo -e "${GREEN}✓ Composition updated: ${ID}${NC}"
+    echo ""
+}
+
+compose_delete() {
+    local ID="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$ID" ] && echo -e "${RED}✗ Composition UUID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) compose_usage; exit 0 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; echo "  Run with --help for valid options"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — compose delete" "$COMPOSE_API_BASE"
+    ensure_auth
+    confirm_prod "About to delete composition: ${ID}"
+
+    HTTP_CODE=$(compose_api_delete "/api/v1/compositions/${ID}")
+
+    if [ "$HTTP_CODE" = "204" ]; then
+        echo ""
+        echo -e "${GREEN}✓ Composition deleted: ${ID}${NC}"
+        echo ""
+    else
+        echo -e "${RED}✗ Failed to delete composition (HTTP ${HTTP_CODE})${NC}"
+        exit 1
+    fi
+}
+
+# ─────────────────────────────────────────────
 # DISPATCH
 # ─────────────────────────────────────────────
 DOMAIN="${1:-}"
@@ -2772,6 +2981,22 @@ case "$DOMAIN" in
                 ;;
         esac
         ;;
+    compose)
+        shift 2 || true
+        case "$COMMAND" in
+            -h|--help) compose_usage ;;
+            list)    compose_list "$@" ;;
+            show)    compose_show "$@" ;;
+            create)  compose_create "$@" ;;
+            update)  compose_update "$@" ;;
+            delete)  compose_delete "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown compose command: ${COMMAND}${NC}"
+                echo "  Valid commands: list, show, create, update, delete"
+                exit 1
+                ;;
+        esac
+        ;;
     admin)
         shift 2 || true
         case "$COMMAND" in
@@ -2787,7 +3012,7 @@ case "$DOMAIN" in
         ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, milestone, invoice, article, artefact, context, search, admin"
+        echo "  Valid domains: ticket, milestone, invoice, article, artefact, compose, context, search, admin"
         exit 1
         ;;
 esac
