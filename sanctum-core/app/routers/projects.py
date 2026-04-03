@@ -131,8 +131,13 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
 def create_project(project: schemas.ProjectCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
     data = project.model_dump()
-    if data.get('status'):
+    # Strip None for fields that have model defaults (status defaults to 'planning')
+    if data.get('status') is None:
+        data.pop('status', None)
+    else:
         validate_project_status(data['status'], db)
+    if data.get('template_id') is None:
+        data.pop('template_id', None)
     discount_amount = _validate_discount(data.get('market_value'), data.get('quoted_price'), data.get('discount_reason'))
     if discount_amount is not None:
         data['discount_amount'] = discount_amount
