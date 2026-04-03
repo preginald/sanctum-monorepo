@@ -54,20 +54,20 @@ def validate_project_transition(
             },
         )
 
-    # Conditional: planning → active requires at least one milestone
+    # Conditional: planning → active requires template_id or at least one milestone
     if current == "planning" and requested == "active":
         milestone_count = db.query(models.Milestone).filter(
             models.Milestone.project_id == project.id,
         ).count()
-        if milestone_count == 0:
+        if project.template_id is None and milestone_count == 0:
             raise HTTPException(
                 status_code=422,
                 detail={
-                    "detail": "Project requires at least one milestone before activation.",
-                    "current": current,
-                    "requested": requested,
-                    "condition": "milestone_required",
-                    "help": "Add a milestone to the project before setting status to active. See SYS-030.",
+                    "detail": "template_id_required: apply a project template before activating this project",
+                    "error_code": "template_id_required",
+                    "project_id": str(project.id),
+                    "project_name": project.name,
+                    "help": "Use template_apply to scaffold the project, then transition to active. See SYS-030.",
                 },
             )
 

@@ -218,13 +218,14 @@ FALLBACK_MILESTONE_TRANSITIONS = {
     "completed": ["active"],
 }
 
-FALLBACK_PROJECT_STATUSES = ["planning", "active", "completed", "on_hold"]
+FALLBACK_PROJECT_STATUSES = ["capture", "planning", "active", "completed", "on_hold"]
 
 FALLBACK_PROJECT_TRANSITIONS = {
+    "capture":    ["planning", "on_hold"],
     "planning":   ["active", "on_hold"],
     "active":     ["completed", "on_hold"],
     "completed":  ["active"],
-    "on_hold":    ["planning", "active"],
+    "on_hold":    ["planning", "active", "capture"],
 }
 
 

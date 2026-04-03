@@ -8,7 +8,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
-from ..services.project_validation import validate_project_transition, get_available_transitions as get_project_transitions
+from ..services.project_validation import validate_project_transition, validate_project_status, get_available_transitions as get_project_transitions
 from ..services.cascade import cascade_from_milestone
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 from decimal import Decimal, ROUND_HALF_UP
@@ -41,12 +41,15 @@ def _validate_discount(market_value, quoted_price, discount_reason):
 # --- PROJECTS ---
 @router.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    query = db.query(models.Project).join(models.Account).filter(models.Project.is_deleted == False)
+    query = db.query(models.Project).join(models.Account).options(
+        joinedload(models.Project.template),
+    ).filter(models.Project.is_deleted == False)
     if current_user.role == 'client': query = query.filter(models.Project.account_id == current_user.account_id)
     if account_id: query = query.filter(models.Project.account_id == account_id)
     projects = query.all()
     for p in projects:
         p.account_name = p.account.name
+        p.template_name = p.template.name if p.template else None
         p.available_transitions = get_project_transitions(p.status, db)
     return projects
 
@@ -57,14 +60,17 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
         project = db.query(models.Project).options(
             joinedload(models.Project.milestones).selectinload(models.Milestone.tickets),
             joinedload(models.Project.account),
+            joinedload(models.Project.template),
         ).filter(models.Project.id == project_id).first()
     else:
         project = db.query(models.Project).options(
             joinedload(models.Project.account),
+            joinedload(models.Project.template),
         ).filter(models.Project.id == project_id).first()
 
     if not project: raise HTTPException(status_code=404, detail="Project not found")
     project.account_name = project.account.name
+    project.template_name = project.template.name if project.template else None
 
     # Annotate tickets with time entry cost aggregates (only when milestones expanded)
     if expand.should_expand("milestones"):
@@ -125,6 +131,8 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
 def create_project(project: schemas.ProjectCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
     data = project.model_dump()
+    if data.get('status'):
+        validate_project_status(data['status'], db)
     discount_amount = _validate_discount(data.get('market_value'), data.get('quoted_price'), data.get('discount_reason'))
     if discount_amount is not None:
         data['discount_amount'] = discount_amount
@@ -136,6 +144,7 @@ def create_project(project: schemas.ProjectCreate, current_user: models.User = D
     db.refresh(new_project)
     new_project.account = db.query(models.Account).filter(models.Account.id == project.account_id).first()
     new_project.account_name = new_project.account.name
+    new_project.template_name = new_project.template.name if new_project.template_id and new_project.template else None
     new_project.available_transitions = get_project_transitions(new_project.status, db)
     return new_project
 
@@ -161,6 +170,7 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
     db.commit()
     db.refresh(proj)
     proj.account_name = proj.account.name
+    proj.template_name = proj.template.name if proj.template else None
     proj.available_transitions = get_project_transitions(proj.status, db)
     return proj
 

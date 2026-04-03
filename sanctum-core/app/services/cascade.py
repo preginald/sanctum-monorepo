@@ -56,7 +56,7 @@ def compute_project_status(project, db: Session) -> str | None:
     Returns the computed status, or None if the project should not change.
     Returns None if the project is on_hold (cascading suppressed).
     """
-    if project.status == "on_hold":
+    if project.status in ("on_hold", "capture"):
         return None
 
     milestones = db.query(models.Milestone.status).filter(
