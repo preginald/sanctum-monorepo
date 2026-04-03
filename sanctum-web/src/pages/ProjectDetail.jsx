@@ -349,6 +349,7 @@ export default function ProjectDetail() {
             </>}
             badges={[
               { label: project.status, className: projectStatusStyles[project.status] || 'bg-white/10 text-slate-300' },
+              ...(project.template_name ? [{ label: `TPL: ${project.template_name}`, className: 'px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-white/10 text-slate-300 border-white/20' }] : []),
             ]}
             dates={[
               { label: 'Started', value: project.start_date },
