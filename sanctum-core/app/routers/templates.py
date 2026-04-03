@@ -415,6 +415,7 @@ def _apply_project(
                 status_code=400,
                 detail="account_id does not match the project's account",
             )
+        project.template_id = template.id
         # Offset milestone sequences to avoid collisions with existing milestones
         max_seq = db.query(func.max(models.Milestone.sequence)).filter(
             models.Milestone.project_id == project.id
@@ -428,6 +429,7 @@ def _apply_project(
         )
         db.add(project)
         db.flush()
+        project.template_id = template.id
         max_seq = 0
 
     milestones_created = 0

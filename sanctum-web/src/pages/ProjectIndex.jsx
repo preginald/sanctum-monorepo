@@ -15,6 +15,7 @@ import Select from '../components/ui/Select';
 import Loading from '../components/ui/Loading';
 
 const PROJECT_COLS = {
+    'capture': { id: 'capture', label: 'Capture', color: 'border-purple-500' },
     'planning': { id: 'planning', label: 'Planning', color: 'border-slate-500' },
     'active': { id: 'active', label: 'Active', color: 'border-green-500' },
     'on_hold': { id: 'on_hold', label: 'On Hold', color: 'border-yellow-500' },

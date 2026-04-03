@@ -187,12 +187,14 @@ class Project(Base):
     discount_amount = Column(Numeric(12, 2), nullable=True)
     discount_reason = Column(Text, nullable=True)
     pricing_model = Column(String, nullable=True)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id"), nullable=True)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
     account = relationship("Account", back_populates="projects")
     deal = relationship("Deal")
     milestones = relationship("Milestone", back_populates="project", cascade="all, delete-orphan")
+    template = relationship("Template", foreign_keys=[template_id])
 
 class Milestone(Base):
     __tablename__ = "milestones"

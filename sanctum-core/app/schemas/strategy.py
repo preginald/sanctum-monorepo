@@ -170,6 +170,8 @@ class ProjectCreate(SanctumBase):
     discount_amount: Optional[Decimal] = None
     discount_reason: Optional[str] = None
     pricing_model: Optional[str] = None
+    status: Optional[str] = None
+    template_id: Optional[UUID] = None
 
 class ProjectUpdate(SanctumBase):
     name: Optional[str] = None
@@ -182,12 +184,14 @@ class ProjectUpdate(SanctumBase):
     discount_amount: Optional[Decimal] = None
     discount_reason: Optional[str] = None
     pricing_model: Optional[str] = None
+    template_id: Optional[UUID] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class ProjectResponse(ProjectCreate):
     id: UUID
     account_name: Optional[str] = None
     status: str
+    template_name: Optional[str] = None
     milestones: List[MilestoneResponse] = []
     artefacts: List[ArtefactLite] = []
     # Expand contract count fields (SYS-032)

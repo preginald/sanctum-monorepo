@@ -78,6 +78,7 @@ export const milestoneStatusStyles = {
   completed: "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
 };
 export const projectStatusStyles = {
+  capture:   "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-purple-500/20 text-purple-400 border-purple-500/30",
   planning:  "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
   active:    "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-green-500/20 text-green-400 border-green-500/30",
   completed: "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-slate-500/20 text-slate-400 border-slate-500/30",
