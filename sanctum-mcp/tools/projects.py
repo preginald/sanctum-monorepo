@@ -61,6 +61,7 @@ async def project_create(
     name: str,
     account_id: str = DS_HQ,
     description: str | None = None,
+    status: str = "capture",
     due_date: str | None = None,
     budget: str | None = None,
     market_value: str | None = None,
@@ -75,6 +76,7 @@ async def project_create(
         name: Project name.
         account_id: UUID of the account (defaults to Digital Sanctum HQ).
         description: Optional project description.
+        status: Project status. Default "capture". One of: capture, planning, active, completed, on_hold.
         due_date: Optional due date in YYYY-MM-DD format.
         budget: Optional budget as decimal string (e.g. "5000.00").
         market_value: Agency-rate benchmark as decimal string (e.g. "10000.00").
@@ -83,7 +85,7 @@ async def project_create(
         discount_reason: Required when discount_amount > 0 (e.g. "launch support").
         pricing_model: One of: fixed_price, time_and_materials.
     """
-    payload = {"account_id": account_id, "name": name}
+    payload = {"account_id": account_id, "name": name, "status": status}
     for key, val in {
         "description": description, "due_date": due_date, "budget": budget,
         "market_value": market_value, "quoted_price": quoted_price,
@@ -116,7 +118,7 @@ async def project_update(
     Args:
         project_id: UUID of the project.
         name: New project name.
-        status: One of: active, completed, on_hold, archived.
+        status: One of: capture, planning, active, completed, on_hold, archived.
         description: New description.
         budget: Budget as decimal string (e.g. "5000.00").
         due_date: Due date in YYYY-MM-DD format.
