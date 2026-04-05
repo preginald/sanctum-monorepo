@@ -1,28 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { Zap, TrendingUp, AlertTriangle } from 'lucide-react';
 import DigestSection from './DigestSection';
-import DigestProjectCard from './DigestProjectCard';
-import { dueDateAscComparator } from '../../../utils/iceScoring';
-import { quickWinSort, roiSort, staleSort } from '../../../utils/projectMetrics';
+import { InFlightCard, BacklogCard, CompletedCard } from './DigestProjectCard';
+import { buildClientLandscape, scoreFundamentals, dueDateAscComparator } from '../../../utils/projectMetrics';
 
 const COMPLETED_INITIAL = 3;
 const COMPLETED_MAX = 10;
 
-const SORT_STRATEGIES = [
-  { key: 'quickwins', label: 'Quick Wins', icon: Zap, description: 'Closest to done — finish these to free capacity' },
-  { key: 'roi', label: 'Highest ROI', icon: TrendingUp, description: 'Most revenue per unit of effort' },
-  { key: 'stale', label: 'At Risk', icon: AlertTriangle, description: 'Stalled or unplanned — needs attention' },
-];
-
-const SORT_FNS = {
-  quickwins: quickWinSort,
-  roi: roiSort,
-  stale: staleSort,
-};
-
 export default function ProjectDigestView({ projects, onNavigate }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
-  const [sortStrategy, setSortStrategy] = useState('quickwins');
+
+  const landscape = useMemo(() => buildClientLandscape(projects), [projects]);
 
   const { inFlight, backlog, completed } = useMemo(() => {
     const inFlight = projects
@@ -31,7 +18,14 @@ export default function ProjectDigestView({ projects, onNavigate }) {
 
     const backlog = projects
       .filter(p => p.status === 'capture' || p.status === 'planning')
-      .sort(SORT_FNS[sortStrategy]);
+      .map(p => ({
+        ...p,
+        _analysis: scoreFundamentals(p, landscape[p.account_name]),
+      }))
+      .sort((a, b) => {
+        if (b._analysis.total !== a._analysis.total) return b._analysis.total - a._analysis.total;
+        return a.name.localeCompare(b.name);
+      });
 
     const completed = projects
       .filter(p => p.status === 'completed')
@@ -44,48 +38,31 @@ export default function ProjectDigestView({ projects, onNavigate }) {
       .slice(0, COMPLETED_MAX);
 
     return { inFlight, backlog, completed };
-  }, [projects, sortStrategy]);
+  }, [projects, landscape]);
 
   const visibleCompleted = showAllCompleted ? completed : completed.slice(0, COMPLETED_INITIAL);
-  const activeStrategy = SORT_STRATEGIES.find(s => s.key === sortStrategy);
 
   return (
     <div className="max-w-4xl">
       {inFlight.length > 0 && (
         <DigestSection title="In Flight" accent="inflight" count={inFlight.length}>
           {inFlight.map(p => (
-            <DigestProjectCard key={p.id} project={p} onNavigate={onNavigate} />
+            <InFlightCard key={p.id} project={p} onNavigate={onNavigate} />
           ))}
         </DigestSection>
       )}
 
       {backlog.length > 0 && (
         <DigestSection title="Captured / Backlog" accent="backlog" count={backlog.length}>
-          <div className="mb-4">
-            <div className="flex items-center gap-1 mb-2">
-              {SORT_STRATEGIES.map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  onClick={() => setSortStrategy(key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    sortStrategy === key
-                      ? 'bg-slate-700 text-white border border-slate-600'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                  }`}
-                >
-                  <Icon size={12} />
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="text-xs text-slate-500 italic">{activeStrategy.description}</p>
-          </div>
+          <p className="text-xs text-slate-500 italic mb-4">
+            Ranked by fundamental analysis — client revenue weight, engagement, project scale, and conversion track record
+          </p>
           {backlog.map(p => (
-            <DigestProjectCard
+            <BacklogCard
               key={p.id}
               project={p}
               onNavigate={onNavigate}
-              strategy={sortStrategy}
+              analysis={p._analysis}
             />
           ))}
         </DigestSection>
@@ -94,7 +71,7 @@ export default function ProjectDigestView({ projects, onNavigate }) {
       {completed.length > 0 && (
         <DigestSection title="Recently Completed" accent="completed" count={completed.length}>
           {visibleCompleted.map(p => (
-            <DigestProjectCard key={p.id} project={p} onNavigate={onNavigate} />
+            <CompletedCard key={p.id} project={p} onNavigate={onNavigate} />
           ))}
           {completed.length > COMPLETED_INITIAL && (
             <button
