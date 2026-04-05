@@ -99,7 +99,7 @@ class MilestoneCreate(SanctumBase):
     due_date: Optional[date] = None
     status: str = "pending"
     billable_amount: Decimal = Decimal("0.00")
-    sequence: int = Field(default=1, ge=1)
+    sequence: int = Field(default=1, ge=0)
     description: Optional[str] = None
     start_date: Optional[date] = None
 
@@ -108,7 +108,7 @@ class MilestoneUpdate(SanctumBase):
     status: Optional[str] = None
     billable_amount: Optional[Decimal] = None
     due_date: Optional[date] = None
-    sequence: Optional[int] = Field(default=None, ge=1)
+    sequence: Optional[int] = Field(default=None, ge=0)
     invoice_id: Optional[UUID] = None
     description: Optional[str] = None
     start_date: Optional[date] = None
