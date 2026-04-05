@@ -1,42 +1,28 @@
 import React, { useState, useMemo } from 'react';
-import { ArrowDownAZ, DollarSign, Milestone, Calendar } from 'lucide-react';
+import { Zap, TrendingUp, AlertTriangle } from 'lucide-react';
 import DigestSection from './DigestSection';
 import DigestProjectCard from './DigestProjectCard';
 import { dueDateAscComparator } from '../../../utils/iceScoring';
+import { quickWinSort, roiSort, staleSort } from '../../../utils/projectMetrics';
 
 const COMPLETED_INITIAL = 3;
 const COMPLETED_MAX = 10;
 
 const SORT_STRATEGIES = [
-  { key: 'value', label: 'By Value', icon: DollarSign, highlight: 'value' },
-  { key: 'momentum', label: 'By Momentum', icon: Milestone, highlight: 'momentum' },
-  { key: 'deadline', label: 'By Deadline', icon: Calendar, highlight: 'deadline' },
+  { key: 'quickwins', label: 'Quick Wins', icon: Zap, description: 'Closest to done — finish these to free capacity' },
+  { key: 'roi', label: 'Highest ROI', icon: TrendingUp, description: 'Most revenue per unit of effort' },
+  { key: 'stale', label: 'At Risk', icon: AlertTriangle, description: 'Stalled or unplanned — needs attention' },
 ];
 
 const SORT_FNS = {
-  value: (a, b) => {
-    const va = Number(a.quoted_price || a.budget) || 0;
-    const vb = Number(b.quoted_price || b.budget) || 0;
-    if (vb !== va) return vb - va;
-    return a.name.localeCompare(b.name);
-  },
-  momentum: (a, b) => {
-    const ma = a.milestone_count || 0;
-    const mb = b.milestone_count || 0;
-    if (mb !== ma) return mb - ma;
-    return a.name.localeCompare(b.name);
-  },
-  deadline: (a, b) => {
-    if (!a.due_date && !b.due_date) return a.name.localeCompare(b.name);
-    if (!a.due_date) return 1;
-    if (!b.due_date) return -1;
-    return a.due_date.localeCompare(b.due_date);
-  },
+  quickwins: quickWinSort,
+  roi: roiSort,
+  stale: staleSort,
 };
 
 export default function ProjectDigestView({ projects, onNavigate }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
-  const [sortStrategy, setSortStrategy] = useState('value');
+  const [sortStrategy, setSortStrategy] = useState('quickwins');
 
   const { inFlight, backlog, completed } = useMemo(() => {
     const inFlight = projects
@@ -75,28 +61,31 @@ export default function ProjectDigestView({ projects, onNavigate }) {
 
       {backlog.length > 0 && (
         <DigestSection title="Captured / Backlog" accent="backlog" count={backlog.length}>
-          <div className="flex items-center gap-1 mb-4">
-            {SORT_STRATEGIES.map(({ key, label, icon: Icon }) => (
-              <button
-                key={key}
-                onClick={() => setSortStrategy(key)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  sortStrategy === key
-                    ? 'bg-slate-700 text-white border border-slate-600'
-                    : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
-                }`}
-              >
-                <Icon size={12} />
-                {label}
-              </button>
-            ))}
+          <div className="mb-4">
+            <div className="flex items-center gap-1 mb-2">
+              {SORT_STRATEGIES.map(({ key, label, icon: Icon }) => (
+                <button
+                  key={key}
+                  onClick={() => setSortStrategy(key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    sortStrategy === key
+                      ? 'bg-slate-700 text-white border border-slate-600'
+                      : 'text-slate-500 hover:text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  <Icon size={12} />
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-slate-500 italic">{activeStrategy.description}</p>
           </div>
           {backlog.map(p => (
             <DigestProjectCard
               key={p.id}
               project={p}
               onNavigate={onNavigate}
-              highlight={activeStrategy.highlight}
+              strategy={sortStrategy}
             />
           ))}
         </DigestSection>

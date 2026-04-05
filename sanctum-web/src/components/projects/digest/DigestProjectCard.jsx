@@ -1,5 +1,6 @@
 import React from 'react';
-import { Calendar, DollarSign, Milestone, Hash } from 'lucide-react';
+import { Calendar, TrendingUp, Zap, AlertTriangle } from 'lucide-react';
+import { computeMetrics } from '../../../utils/projectMetrics';
 
 function formatCurrency(value) {
   const n = Number(value);
@@ -7,8 +8,21 @@ function formatCurrency(value) {
   return `$${n.toLocaleString()}`;
 }
 
-export default function DigestProjectCard({ project, onNavigate, highlight }) {
-  const price = project.quoted_price || project.budget;
+function CompletionBar({ pct }) {
+  const color = pct >= 75 ? 'bg-green-500' : pct >= 40 ? 'bg-amber-500' : 'bg-slate-600';
+  return (
+    <div className="flex items-center gap-2 min-w-[100px]">
+      <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
+        <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-xs font-mono text-slate-400 w-8 text-right">{pct}%</span>
+    </div>
+  );
+}
+
+export default function DigestProjectCard({ project, onNavigate, strategy }) {
+  const m = computeMetrics(project);
+  const price = formatCurrency(m.revenue);
 
   return (
     <div
@@ -22,35 +36,68 @@ export default function DigestProjectCard({ project, onNavigate, highlight }) {
           </h3>
           <p className="text-sm text-slate-400 mt-0.5">{project.account_name}</p>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          {highlight === 'value' && formatCurrency(price) && (
-            <span className="flex items-center gap-1 text-sm font-semibold text-green-400">
-              <DollarSign size={14} />
-              {formatCurrency(price)}
+        {price && (
+          <span className="text-xs text-slate-500 font-mono shrink-0">{price}</span>
+        )}
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-slate-700 flex items-center gap-4 flex-wrap">
+        {strategy === 'quickwins' && (
+          <>
+            <CompletionBar pct={m.completionPct} />
+            <span className="text-xs text-slate-400">
+              {m.remainingTickets} ticket{m.remainingTickets !== 1 ? 's' : ''} left
             </span>
-          )}
-          {highlight === 'momentum' && (
-            <span className="flex items-center gap-1 text-sm font-semibold text-blue-400">
-              <Milestone size={14} />
-              {project.milestone_count || 0} milestones
+          </>
+        )}
+
+        {strategy === 'roi' && (
+          <>
+            {m.roi > 0 ? (
+              <span className="flex items-center gap-1 text-sm font-semibold text-green-400">
+                <TrendingUp size={14} />
+                {formatCurrency(m.roi)}/milestone
+              </span>
+            ) : (
+              <span className="text-xs text-slate-500 italic">No milestones planned</span>
+            )}
+            <span className="text-xs text-slate-400">
+              {m.milestoneCount} milestone{m.milestoneCount !== 1 ? 's' : ''}
             </span>
-          )}
-          {highlight === 'deadline' && project.due_date && (
-            <span className="flex items-center gap-1 text-sm font-semibold text-amber-400">
-              <Calendar size={14} />
-              {project.due_date}
-            </span>
-          )}
-          {highlight === 'deadline' && !project.due_date && (
-            <span className="text-xs text-slate-600 italic">No deadline</span>
-          )}
-          {!highlight && project.due_date && (
-            <span className="flex items-center gap-1 text-xs text-slate-500 font-mono">
-              <Calendar size={12} />
-              {project.due_date}
-            </span>
-          )}
-        </div>
+          </>
+        )}
+
+        {strategy === 'stale' && (
+          <>
+            {!m.hasPlannedWork ? (
+              <span className="flex items-center gap-1 text-sm font-semibold text-red-400">
+                <AlertTriangle size={14} />
+                No milestones — idea only
+              </span>
+            ) : m.completionPct === 0 && m.totalTickets > 0 ? (
+              <span className="flex items-center gap-1 text-sm font-semibold text-amber-400">
+                <AlertTriangle size={14} />
+                Planned but not started ({m.totalTickets} tickets)
+              </span>
+            ) : (
+              <>
+                <CompletionBar pct={m.completionPct} />
+                <span className="text-xs text-slate-400">{m.remainingTickets} remaining</span>
+              </>
+            )}
+          </>
+        )}
+
+        {!strategy && m.totalTickets > 0 && (
+          <CompletionBar pct={m.completionPct} />
+        )}
+
+        {project.due_date && (
+          <span className="flex items-center gap-1 text-xs text-slate-500 font-mono ml-auto">
+            <Calendar size={12} />
+            {project.due_date}
+          </span>
+        )}
       </div>
     </div>
   );

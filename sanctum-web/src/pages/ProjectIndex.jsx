@@ -117,7 +117,7 @@ export default function ProjectIndex() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
 
-  useEffect(() => { fetchData(); }, [token, refreshKey]);
+  useEffect(() => { fetchData(); }, [token, refreshKey, viewMode]);
 
   // Handle View Toggle & Save
   const handleViewChange = (mode) => {
@@ -127,8 +127,9 @@ export default function ProjectIndex() {
 
   const fetchData = async () => {
     try {
+        const expand = viewMode === 'digest' ? '?expand=milestones' : '';
         const [pRes, cRes] = await Promise.all([
-            api.get('/projects'),
+            api.get(`/projects${expand}`),
             api.get('/accounts')
         ]);
         setProjects(pRes.data);
