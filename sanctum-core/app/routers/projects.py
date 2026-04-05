@@ -12,7 +12,7 @@ from ..services.project_validation import validate_project_transition, validate_
 from ..services.governance import get_project_transitions as get_project_transition_map
 from ..services.cascade import cascade_from_milestone
 from ..services.milestone_sequencing import shift_sequences_for_insert, shift_sequences_for_move
-from ..services.expand import ExpandConfig, get_expand_config, expanded_response
+from ..services.expand import ExpandConfig, get_expand_config, get_expand_config_lean, expanded_response
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -41,12 +41,16 @@ def _validate_discount(market_value, quoted_price, discount_reason):
 
 
 # --- PROJECTS ---
-@router.get("/projects", response_model=List[schemas.ProjectListResponse])
-def get_projects(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    query = db.query(models.Project).options(
+@router.get("/projects", response_model=None)
+def get_projects(account_id: Optional[str] = None, expand: ExpandConfig = Depends(get_expand_config_lean), current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    load_milestones = expand.should_expand("milestones")
+    opts = [
         joinedload(models.Project.account),
         joinedload(models.Project.template),
-    ).filter(models.Project.is_deleted == False)
+    ]
+    if load_milestones:
+        opts.append(selectinload(models.Project.milestones).selectinload(models.Milestone.tickets))
+    query = db.query(models.Project).options(*opts).filter(models.Project.is_deleted == False)
     if current_user.role == 'client':
         query = query.filter(models.Project.account_id == current_user.account_id)
     if account_id:
@@ -57,7 +61,11 @@ def get_projects(account_id: Optional[str] = None, current_user: models.User = D
         p.account_name = p.account.name if p.account else "Unknown Account"
         p.template_name = p.template.name if p.template else None
         p.available_transitions = transitions_map.get(p.status, [])
-    return projects
+    if load_milestones:
+        schema = schemas.ProjectResponse
+    else:
+        schema = schemas.ProjectListResponse
+    return [schema.model_validate(p).model_dump() for p in projects]
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
