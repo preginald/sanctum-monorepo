@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProjectDigestView from './ProjectDigestView';
 
@@ -21,7 +21,6 @@ describe('ProjectDigestView', () => {
   const mockNavigate = vi.fn();
 
   beforeEach(() => {
-    localStorage.clear();
     mockNavigate.mockClear();
   });
 
@@ -44,8 +43,6 @@ describe('ProjectDigestView', () => {
   it('sorts In Flight by due_date ascending with nulls last', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
-    const cards = screen.getAllByText(/Acme Corp|Beta Inc|Gamma Ltd/);
-    // API Integration (2026-03-15) should appear before Website Rebuild (2026-06-01)
     const names = screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent);
     const apiIdx = names.indexOf('API Integration');
     const websiteIdx = names.indexOf('Website Rebuild');
@@ -53,6 +50,18 @@ describe('ProjectDigestView', () => {
 
     expect(apiIdx).toBeLessThan(websiteIdx);
     expect(websiteIdx).toBeLessThan(noDeadlineIdx);
+  });
+
+  it('sorts backlog projects alphabetically', () => {
+    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+
+    const names = screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent);
+    const analyticsIdx = names.indexOf('Analytics Dashboard');
+    const emailIdx = names.indexOf('Email Migration');
+    const mobileIdx = names.indexOf('Mobile App');
+
+    expect(analyticsIdx).toBeLessThan(emailIdx);
+    expect(emailIdx).toBeLessThan(mobileIdx);
   });
 
   it('groups capture and planning projects into Captured / Backlog', () => {
@@ -66,7 +75,6 @@ describe('ProjectDigestView', () => {
   it('shows only 3 completed projects initially with "Show more" toggle', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
-    // 4 completed projects, but only 3 visible initially
     expect(screen.getByText('Old Project B')).toBeInTheDocument();
     expect(screen.getByText(/Show 1 more/)).toBeInTheDocument();
   });
@@ -88,50 +96,15 @@ describe('ProjectDigestView', () => {
     expect(mockNavigate).toHaveBeenCalledWith('active-1');
   });
 
-  it('shows ICE score editor on backlog cards after expanding', async () => {
-    const user = userEvent.setup();
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-
-    // ICE editors are collapsed by default — no comboboxes visible
-    expect(screen.queryAllByRole('combobox').length).toBe(0);
-
-    // Click the chevron on the first backlog card to expand the editor
-    const chevrons = screen.getAllByTitle('Score this project');
-    expect(chevrons.length).toBe(3); // 3 backlog projects
-    await user.click(chevrons[0]);
-
-    const selects = screen.getAllByRole('combobox');
-    expect(selects.length).toBe(3); // 3 dimensions for 1 expanded card
-  });
-
-  it('persists ICE scores to localStorage', async () => {
-    const user = userEvent.setup();
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-
-    // Expand the first backlog card's ICE editor
-    const chevrons = screen.getAllByTitle('Score this project');
-    await user.click(chevrons[0]);
-
-    const selects = screen.getAllByRole('combobox');
-    await user.selectOptions(selects[0], '4');
-
-    const stored = JSON.parse(localStorage.getItem('sanctum:projects:iceScores'));
-    expect(stored).toBeTruthy();
-    // At least one project should have an impact score of 4
-    const hasScore = Object.values(stored).some(s => s.impact === 4);
-    expect(hasScore).toBe(true);
-  });
-
   it('renders empty state when no projects', () => {
     render(<ProjectDigestView projects={[]} onNavigate={mockNavigate} />);
     expect(screen.getByText('No projects to display.')).toBeInTheDocument();
   });
 
-  it('displays project names and account names matching API data exactly (visible items)', async () => {
+  it('displays project names and account names matching API data exactly', async () => {
     const user = userEvent.setup();
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
-    // Expand completed section to see all items
     const showMore = screen.queryByText(/Show \d+ more/);
     if (showMore) await user.click(showMore);
 
