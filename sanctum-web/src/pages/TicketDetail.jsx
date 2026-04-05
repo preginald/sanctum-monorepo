@@ -99,7 +99,7 @@ export default function TicketDetail() {
 
   useEffect(() => {
       if (ticket?.account_id) {
-          api.get(`/projects?account_id=${ticket.account_id}`).then(res => setAccountProjects(res.data));
+          api.get(`/projects?account_id=${ticket.account_id}&expand=milestones`).then(res => setAccountProjects(res.data));
           fetchContacts(ticket.account_id);
           api.get(`/assets?account_id=${ticket.account_id}`).then(res => setClientAssets(res.data));
       }
