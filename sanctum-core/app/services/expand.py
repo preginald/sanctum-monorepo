@@ -132,6 +132,32 @@ def get_expand_config(
     return _parse_expand(expand, consumer_type)
 
 
+def _parse_expand_lean(expand: Optional[str]) -> ExpandConfig:
+    """Parse expand param with lean defaults (no expansion unless explicit)."""
+    if expand is None:
+        return ExpandConfig(expand_all=False, consumer_type="lean", raw_param=None)
+    raw = expand.strip().lower()
+    if raw == "all":
+        return ExpandConfig(expand_all=True, consumer_type="lean", raw_param=expand)
+    if raw == "none" or raw == "":
+        return ExpandConfig(fields=set(), expand_all=False, consumer_type="lean", raw_param=expand)
+    fields = {f.strip() for f in raw.split(",") if f.strip()}
+    return ExpandConfig(fields=fields, expand_all=False, consumer_type="lean", raw_param=expand)
+
+
+def get_expand_config_lean(
+    expand: Optional[str] = Query(
+        None,
+        description=(
+            "Comma-separated fields to expand, 'all' for everything, "
+            "'none' for lean response. Defaults to no expansion (lean)."
+        ),
+    ),
+) -> ExpandConfig:
+    """Lean expand dependency for list endpoints — no expansion by default."""
+    return _parse_expand_lean(expand)
+
+
 def filter_response(
     data: dict,
     expand: ExpandConfig,
