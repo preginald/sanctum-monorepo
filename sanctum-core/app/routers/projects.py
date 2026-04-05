@@ -8,7 +8,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
-from ..services.project_validation import validate_project_transition, validate_project_status
+from ..services.project_validation import validate_project_transition, validate_project_status, get_available_transitions as get_project_transitions
 from ..services.governance import get_project_transitions as get_project_transition_map
 from ..services.cascade import cascade_from_milestone
 from ..services.milestone_sequencing import shift_sequences_for_insert, shift_sequences_for_move
@@ -43,39 +43,21 @@ def _validate_discount(market_value, quoted_price, discount_reason):
 # --- PROJECTS ---
 @router.get("/projects", response_model=List[schemas.ProjectResponse])
 def get_projects(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    try:
-        print(f"[DEBUG] get_projects start - User: {current_user.email}, Role: {current_user.role}")
-        # Optimized: Use joinedload for account to avoid N+1 and fetch transitions once outside loop
-        query = db.query(models.Project).options(
-            joinedload(models.Project.account),
-            joinedload(models.Project.template),
-        ).filter(models.Project.is_deleted == False)
-
-        if current_user.role == 'client':
-            print(f"[DEBUG] Filtering by client account: {current_user.account_id}")
-            query = query.filter(models.Project.account_id == current_user.account_id)
-        if account_id:
-            print(f"[DEBUG] Filtering by account_id: {account_id}")
-            query = query.filter(models.Project.account_id == account_id)
-
-        projects = query.all()
-        print(f"[DEBUG] Found {len(projects)} projects")
-
-        transitions_map = get_project_transition_map(db)
-        print(f"[DEBUG] Transitions map loaded: {list(transitions_map.keys())}")
-
-        for p in projects:
-            p.account_name = p.account.name if p.account else "Unknown Account"
-            p.template_name = p.template.name if p.template else None
-            p.available_transitions = transitions_map.get(p.status, [])
-
-        print(f"[DEBUG] Returning {len(projects)} projects")
-        return projects
-    except Exception as e:
-        import traceback
-        print(f"[ERROR] get_projects failed: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
+    query = db.query(models.Project).options(
+        joinedload(models.Project.account),
+        joinedload(models.Project.template),
+    ).filter(models.Project.is_deleted == False)
+    if current_user.role == 'client':
+        query = query.filter(models.Project.account_id == current_user.account_id)
+    if account_id:
+        query = query.filter(models.Project.account_id == account_id)
+    projects = query.all()
+    transitions_map = get_project_transition_map(db)
+    for p in projects:
+        p.account_name = p.account.name if p.account else "Unknown Account"
+        p.template_name = p.template.name if p.template else None
+        p.available_transitions = transitions_map.get(p.status, [])
+    return projects
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
