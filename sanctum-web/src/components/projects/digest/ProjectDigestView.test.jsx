@@ -88,19 +88,30 @@ describe('ProjectDigestView', () => {
     expect(mockNavigate).toHaveBeenCalledWith('active-1');
   });
 
-  it('shows ICE score editor on backlog cards', () => {
+  it('shows ICE score editor on backlog cards after expanding', async () => {
+    const user = userEvent.setup();
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
-    // ICE editors should be present for capture/planning projects (3 dropdowns per card x 3 cards = 9 selects)
+    // ICE editors are collapsed by default — no comboboxes visible
+    expect(screen.queryAllByRole('combobox').length).toBe(0);
+
+    // Click the chevron on the first backlog card to expand the editor
+    const chevrons = screen.getAllByTitle('Score this project');
+    expect(chevrons.length).toBe(3); // 3 backlog projects
+    await user.click(chevrons[0]);
+
     const selects = screen.getAllByRole('combobox');
-    expect(selects.length).toBe(9); // 3 dimensions x 3 backlog projects
+    expect(selects.length).toBe(3); // 3 dimensions for 1 expanded card
   });
 
   it('persists ICE scores to localStorage', async () => {
     const user = userEvent.setup();
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
-    // Find the first ICE select (Impact for the first backlog project)
+    // Expand the first backlog card's ICE editor
+    const chevrons = screen.getAllByTitle('Score this project');
+    await user.click(chevrons[0]);
+
     const selects = screen.getAllByRole('combobox');
     await user.selectOptions(selects[0], '4');
 
