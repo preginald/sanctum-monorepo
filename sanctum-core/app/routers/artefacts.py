@@ -7,6 +7,7 @@ from typing import List, Optional
 import re
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.artefact_validation import validate_session_handover_authorship
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 
 router = APIRouter(tags=["Artefacts"])
@@ -107,6 +108,7 @@ def create_artefact(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
+    validate_session_handover_authorship(artefact.category, current_user.id)
     data = artefact.model_dump()
     # Map schema 'metadata' to model attribute 'artefact_metadata'
     if 'metadata' in data:
