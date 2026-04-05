@@ -16,6 +16,7 @@ import { projectStatusStyles } from '../lib/statusStyles';
 
 export default function ProjectDetail() {
   const { id } = useParams();
+  const formatDate = (val) => val ? new Date(val).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -344,8 +345,16 @@ export default function ProjectDetail() {
               </span>
               <span className="opacity-40">·</span>
               <span className="opacity-50">
-                {new Date(project.created_at).toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {formatDate(project.created_at)}
               </span>
+              {project.start_date && <>
+                <span className="opacity-40">·</span>
+                <span className="opacity-50">Started {formatDate(project.start_date)}</span>
+              </>}
+              {project.due_date && <>
+                <span className="opacity-40">·</span>
+                <span className="opacity-50 text-amber-400">Due {formatDate(project.due_date)}</span>
+              </>}
             </>}
             badges={[
               { label: project.status, className: projectStatusStyles[project.status] || 'bg-white/10 text-slate-300' },
