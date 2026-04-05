@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
-import { Plus, Briefcase, Calendar, LayoutList, Kanban as KanbanIcon } from 'lucide-react';
+import { Plus, Briefcase, Calendar, LayoutList, Kanban as KanbanIcon, Newspaper } from 'lucide-react';
+import ProjectDigestView from '../components/projects/digest/ProjectDigestView';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
@@ -180,7 +181,8 @@ export default function ProjectIndex() {
       onViewToggle={handleViewChange}
       viewToggleOptions={[
         { value: 'list', icon: <LayoutList size={14} /> },
-        { value: 'board', icon: <KanbanIcon size={14} /> }
+        { value: 'board', icon: <KanbanIcon size={14} /> },
+        { value: 'digest', icon: <Newspaper size={14} /> }
       ]}
     >
       <div className="flex justify-end items-center mb-6">
@@ -189,16 +191,23 @@ export default function ProjectIndex() {
         </Button>
       </div>
 
-      {viewMode === 'list' ? (
+      {viewMode === 'list' && (
           <ProjectListView
             projects={projects}
             onNavigate={(id) => navigate(`/projects/${id}`)}
           />
-      ) : (
+      )}
+      {viewMode === 'board' && (
           <ProjectBoardView
             projects={projects}
             onNavigate={(id) => navigate(`/projects/${id}`)}
             onDragEnd={onDragEnd}
+          />
+      )}
+      {viewMode === 'digest' && (
+          <ProjectDigestView
+            projects={projects}
+            onNavigate={(id) => navigate(`/projects/${id}`)}
           />
       )}
 
