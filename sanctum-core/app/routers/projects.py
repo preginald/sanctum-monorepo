@@ -41,7 +41,7 @@ def _validate_discount(market_value, quoted_price, discount_reason):
 
 
 # --- PROJECTS ---
-@router.get("/projects", response_model=List[schemas.ProjectResponse])
+@router.get("/projects", response_model=List[schemas.ProjectListResponse])
 def get_projects(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     query = db.query(models.Project).options(
         joinedload(models.Project.account),

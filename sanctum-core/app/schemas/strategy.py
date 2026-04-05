@@ -203,6 +203,17 @@ class ProjectResponse(ProjectCreate):
     available_transitions: List[str] = []
     created_at: Optional[datetime] = None
 
+class ProjectListResponse(ProjectCreate):
+    """Lightweight project response for list endpoints — excludes milestones/artefacts to avoid N+1 queries."""
+    id: UUID
+    account_name: Optional[str] = None
+    status: str
+    template_name: Optional[str] = None
+    milestone_count: Optional[int] = None
+    artefact_count: Optional[int] = None
+    available_transitions: List[str] = []
+    created_at: Optional[datetime] = None
+
 VALID_RATE_TIERS = {"project_delivery", "reactive", "consulting", "internal"}
 
 # --- RATE CARDS ---

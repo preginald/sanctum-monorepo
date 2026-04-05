@@ -19,7 +19,7 @@ from .strategy import (
     CampaignCreate, CampaignUpdate, CampaignResponse,
     DealCreate, DealUpdate, DealResponse,
     MilestoneReorderRequest, MilestoneCreate, MilestoneUpdate, MilestoneResponse, TicketBrief,
-    ProjectCreate, ProjectUpdate, ProjectResponse,
+    ProjectCreate, ProjectUpdate, ProjectResponse, ProjectListResponse,
     AuditCreate, AuditUpdate, AuditResponse, AuditItem,
     RateCardCreate, RateCardUpdate, RateCardResponse
 )
