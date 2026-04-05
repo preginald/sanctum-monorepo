@@ -10,6 +10,7 @@ from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
 from ..services.project_validation import validate_project_transition, validate_project_status, get_available_transitions as get_project_transitions
 from ..services.cascade import cascade_from_milestone
+from ..services.milestone_sequencing import shift_sequences_for_insert, shift_sequences_for_move
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 from decimal import Decimal, ROUND_HALF_UP
 import os
@@ -161,6 +162,9 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
     # Project status transition validation
     if 'status' in update_data and update_data['status'] != proj.status and not update.skip_validation:
         validate_project_transition(proj.status, update_data['status'], proj, db)
+        # Auto-set start_date on activation if not already set (SYS-030)
+        if update_data['status'] == 'active' and not proj.start_date:
+            proj.start_date = date.today()
     # Merge existing values with update for discount validation
     effective_mv = update_data.get('market_value', proj.market_value)
     effective_qp = update_data.get('quoted_price', proj.quoted_price)
@@ -199,6 +203,7 @@ def list_milestones(project_id: str, db: Session = Depends(get_db)):
 @router.post("/projects/{project_id}/milestones", response_model=schemas.MilestoneResponse)
 def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Session = Depends(get_db)):
     validate_milestone_status(milestone.status, db)
+    shift_sequences_for_insert(project_id, milestone.sequence, db)
     new_milestone = models.Milestone(**milestone.model_dump(), project_id=project_id)
     db.add(new_milestone)
     db.flush()
@@ -224,7 +229,9 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
     if update.name: ms.name = update.name
     if update.billable_amount is not None: ms.billable_amount = update.billable_amount
     if update.due_date: ms.due_date = update.due_date
-    if update.sequence is not None: ms.sequence = update.sequence
+    if update.sequence is not None and update.sequence != ms.sequence:
+        shift_sequences_for_move(ms.project_id, ms.id, ms.sequence, update.sequence, db)
+        ms.sequence = update.sequence
     if update.description is not None: ms.description = update.description
     if update.invoice_id is not None: ms.invoice_id = update.invoice_id
     # Cascade milestone status change to project

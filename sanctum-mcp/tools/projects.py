@@ -61,6 +61,8 @@ async def project_create(
     name: str,
     account_id: str = DS_HQ,
     description: str | None = None,
+    start_date: str | None = None,
+    start_date: str | None = None,
     status: str = "capture",
     due_date: str | None = None,
     budget: str | None = None,
@@ -87,7 +89,7 @@ async def project_create(
     """
     payload = {"account_id": account_id, "name": name, "status": status}
     for key, val in {
-        "description": description, "due_date": due_date, "budget": budget,
+        "description": description, "start_date": start_date, "start_date": start_date, "due_date": due_date, "budget": budget,
         "market_value": market_value, "quoted_price": quoted_price,
         "discount_amount": discount_amount, "discount_reason": discount_reason,
         "pricing_model": pricing_model,
@@ -105,6 +107,8 @@ async def project_update(
     name: str | None = None,
     status: str | None = None,
     description: str | None = None,
+    start_date: str | None = None,
+    start_date: str | None = None,
     budget: str | None = None,
     due_date: str | None = None,
     market_value: str | None = None,
@@ -130,7 +134,7 @@ async def project_update(
     """
     payload = {}
     for key, val in {
-        "name": name, "status": status, "description": description,
+        "name": name, "status": status, "description": description, "start_date": start_date, "start_date": start_date,
         "budget": budget, "due_date": due_date, "market_value": market_value,
         "quoted_price": quoted_price, "discount_amount": discount_amount,
         "discount_reason": discount_reason, "pricing_model": pricing_model,

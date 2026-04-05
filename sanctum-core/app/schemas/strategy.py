@@ -43,7 +43,7 @@ class CampaignResponse(CampaignCreate):
     status: str
     subject_template: Optional[str] = None
     body_template: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
     target_count: int = 0
     sent_count: int = 0
     deal_count: int = 0
@@ -99,17 +99,19 @@ class MilestoneCreate(SanctumBase):
     due_date: Optional[date] = None
     status: str = "pending"
     billable_amount: Decimal = Decimal("0.00")
-    sequence: int = 1
+    sequence: int = Field(default=1, ge=1)
     description: Optional[str] = None
+    start_date: Optional[date] = None
 
 class MilestoneUpdate(SanctumBase):
     name: Optional[str] = None
     status: Optional[str] = None
     billable_amount: Optional[Decimal] = None
     due_date: Optional[date] = None
-    sequence: Optional[int] = None
+    sequence: Optional[int] = Field(default=None, ge=1)
     invoice_id: Optional[UUID] = None
     description: Optional[str] = None
+    start_date: Optional[date] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketBrief(SanctumBase):
@@ -119,8 +121,8 @@ class TicketBrief(SanctumBase):
     priority: str
     ticket_type: str
     milestone_id: Optional[UUID] = None
-    created_at: Optional[datetime] = None
     description: Optional[str] = None
+    start_date: Optional[date] = None
     has_articles: bool = False
     related_tickets: List[TicketRelationResponse] = []
     total_hours: float = 0.0
@@ -147,7 +149,6 @@ class MilestoneResponse(MilestoneCreate):
     id: UUID
     project_id: UUID
     invoice_id: Optional[UUID] = None
-    created_at: Optional[datetime] = None
     project_name: Optional[str] = None
     account_id: Optional[UUID] = None
     account_name: Optional[str] = None
@@ -156,12 +157,14 @@ class MilestoneResponse(MilestoneCreate):
     # Expand contract count fields (SYS-032)
     ticket_count: Optional[int] = None
     available_transitions: List[str] = []
+    created_at: Optional[datetime] = None
 
 class ProjectCreate(SanctumBase):
     account_id: UUID
     deal_id: Optional[UUID] = None
     name: str
     description: Optional[str] = None
+    start_date: Optional[date] = None
     start_date: Optional[date] = None
     due_date: Optional[date] = None
     budget: Decimal = Decimal("0.00")
@@ -176,6 +179,7 @@ class ProjectCreate(SanctumBase):
 class ProjectUpdate(SanctumBase):
     name: Optional[str] = None
     description: Optional[str] = None
+    start_date: Optional[date] = None
     status: Optional[str] = None
     budget: Optional[Decimal] = None
     due_date: Optional[date] = None
@@ -198,6 +202,7 @@ class ProjectResponse(ProjectCreate):
     milestone_count: Optional[int] = None
     artefact_count: Optional[int] = None
     available_transitions: List[str] = []
+    created_at: Optional[datetime] = None
 
 VALID_RATE_TIERS = {"project_delivery", "reactive", "consulting", "internal"}
 
@@ -224,7 +229,6 @@ class RateCardResponse(SanctumBase):
     tier: str
     hourly_rate: Decimal
     effective_from: date
-    created_at: datetime
     account_name: Optional[str] = None
 
 # --- AUDITS ---
@@ -255,6 +259,5 @@ class AuditResponse(SanctumBase):
     status: str
     report_pdf_path: Optional[str]
     content: dict
-    created_at: datetime
     updated_at: Optional[datetime] = None
     finalized_at: Optional[datetime] = None
