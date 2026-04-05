@@ -180,6 +180,10 @@ async def artefact_create(
         file_size: File size in bytes (optional).
         superseded_by: UUID of the artefact that supersedes this one (optional).
         quiet: Set true to suppress guidance messages (useful for batch operations).
+
+    Note: category='session_handover' is restricted — only orchestrating agents
+    and human operators may author session handovers. Service accounts like
+    The Scribe will receive a 422 error. See SOP-038.
     """
     payload = {
         "name": name,
