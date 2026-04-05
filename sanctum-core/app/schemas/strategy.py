@@ -165,7 +165,6 @@ class ProjectCreate(SanctumBase):
     name: str
     description: Optional[str] = None
     start_date: Optional[date] = None
-    start_date: Optional[date] = None
     due_date: Optional[date] = None
     budget: Decimal = Decimal("0.00")
     market_value: Optional[Decimal] = None
