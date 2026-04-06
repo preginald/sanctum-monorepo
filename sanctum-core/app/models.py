@@ -188,6 +188,7 @@ class Project(Base):
     discount_reason = Column(Text, nullable=True)
     pricing_model = Column(String, nullable=True)
     template_id = Column(UUID(as_uuid=True), ForeignKey("templates.id"), nullable=True)
+    leverage_data = Column(JSONB, nullable=True)
     is_deleted = Column(Boolean, default=False)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
