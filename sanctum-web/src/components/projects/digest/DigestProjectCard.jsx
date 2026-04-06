@@ -142,11 +142,11 @@ export function BacklogRow({ project, analysis, onNavigate }) {
       onClick={() => onNavigate(project.id)}
       className="flex items-center justify-between bg-slate-800 border border-slate-700/50 px-4 py-1.5 hover:border-slate-600 transition-all cursor-pointer"
     >
-      <div className="flex items-center gap-4 flex-1">
-        <span className="w-24 text-slate-200 font-medium truncate">{project.name}</span>
-        <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4 flex-1 min-w-0">
+        <span className="min-w-[200px] max-w-[320px] text-slate-200 font-medium truncate shrink">{project.name}</span>
+        <div className="flex items-center gap-2 shrink-0">
           <span className={`${scoreColor(score)} font-bold text-xs w-12`}>{score}/125</span>
-          <div className="w-20 bg-slate-700 h-1 rounded-full overflow-hidden">
+          <div className="w-24 bg-slate-700 h-1 rounded-full overflow-hidden">
             <div className={`${barColor(score)} h-full`} style={{ width: `${pct}%` }} />
           </div>
         </div>
