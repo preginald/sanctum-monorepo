@@ -52,63 +52,56 @@ export function buildClientLandscape(allProjects) {
 /**
  * Score a backlog project using fundamental analysis.
  *
- * Factors (each 0–25, total 0–100):
+ * Factors 1–4 (each 0–25, subtotal 0–100):
+ *   1. Client Revenue Weight
+ *   2. Client Engagement
+ *   3. Project Revenue Scale
+ *   4. Conversion Signal
  *
- * 1. Client Revenue Weight — how much of your active revenue comes from
- *    this client? High concentration = high priority to keep them engaged.
+ * Factor 5 (0–25, from leverage_data): Strategic Leverage
  *
- * 2. Client Engagement — clients with active projects are engaged and
- *    likely to convert backlog items. Clients with zero active projects
- *    may be drifting — their backlog items are either urgent (re-engage)
- *    or stale (deprioritise). We treat it as urgent.
- *
- * 3. Project Revenue Scale — the direct revenue potential of this project.
- *
- * 4. Conversion Signal — does this client have a track record of completing
- *    projects? High completed count = they follow through.
+ * Combined total: 0–125
  */
 export function scoreFundamentals(project, clientData) {
   const c = clientData || { portfolioShare: 0, activeCount: 0, captureCount: 1, totalRevenue: 0, completedCount: 0 };
   const revenue = Number(project.quoted_price || project.budget) || 0;
 
   // Factor 1: Client revenue weight (0–25)
-  // portfolioShare is 0–100%, map to 0–25
   const revenueWeight = Math.min(25, Math.round(c.portfolioShare * 0.25));
 
   // Factor 2: Client engagement (0–25)
-  // Active projects signal engagement. Zero active = re-engagement urgency.
   let engagement;
   if (c.activeCount === 0 && c.completedCount > 0) {
-    // Was active, now idle — re-engagement opportunity
     engagement = 20;
   } else if (c.activeCount === 0) {
-    // Never active — low signal
     engagement = 5;
   } else {
-    // Active — scale by count, cap at 25
     engagement = Math.min(25, c.activeCount * 8);
   }
 
   // Factor 3: Project revenue scale (0–25)
-  // Logarithmic scale: $1k=5, $5k=15, $10k=20, $20k+=25
   let revenueScale = 0;
   if (revenue > 0) {
     revenueScale = Math.min(25, Math.round(Math.log10(revenue) * 7));
   }
 
   // Factor 4: Conversion signal (0–25)
-  // Completed projects prove the client follows through
   const conversion = Math.min(25, c.completedCount * 5);
 
-  const total = revenueWeight + engagement + revenueScale + conversion;
+  // Factor 5: Strategic leverage (0–25, from leverage_data)
+  const leverage = Math.min(25, project.leverage_data?.score || 0);
+
+  const total = revenueWeight + engagement + revenueScale + conversion + leverage;
 
   return {
     total,
+    maxScore: 125,
     factors: {
-      revenueWeight: { score: revenueWeight, label: 'Client revenue weight' },
-      engagement: { score: engagement, label: 'Client engagement' },
-      revenueScale: { score: revenueScale, label: 'Project revenue' },
-      conversion: { score: conversion, label: 'Conversion track record' },
+      revenueWeight: { score: revenueWeight, label: 'Rev Weight', abbrev: 'RW' },
+      engagement: { score: engagement, label: 'Engagement', abbrev: 'E' },
+      revenueScale: { score: revenueScale, label: 'Rev Scale', abbrev: 'RS' },
+      conversion: { score: conversion, label: 'Conversion', abbrev: 'C' },
+      leverage: { score: leverage, label: 'Leverage', abbrev: 'L' },
     },
   };
 }

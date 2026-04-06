@@ -1,22 +1,26 @@
 import React from 'react';
 
 const ACCENT_COLORS = {
-  inflight: 'border-green-500',
-  backlog: 'border-purple-500',
-  completed: 'border-blue-500',
+  recommended: 'border-indigo-500',
+  inflight: 'border-indigo-500/60',
+  backlog: 'border-indigo-500/60',
+  completed: 'border-slate-600/40',
 };
 
-export default function DigestSection({ title, accent = 'inflight', count, children }) {
+export default function DigestSection({ title, accent = 'inflight', muted = false, children }) {
   const borderColor = ACCENT_COLORS[accent] || 'border-slate-500';
 
   return (
-    <section className="mb-8">
-      <div className={`border-l-4 ${borderColor} pl-3 mb-4`}>
-        <h2 className="text-lg font-semibold text-white">
+    <section className="mb-6">
+      <header className="mb-3">
+        <h2
+          className={`text-sm font-extrabold uppercase tracking-[0.1em] border-l-[3px] ${borderColor} pl-3 ${
+            muted ? 'text-slate-500 text-xs opacity-60' : 'text-white'
+          }`}
+        >
           {title}
-          {count != null && <span className="ml-2 text-sm text-slate-500 font-normal">({count})</span>}
         </h2>
-      </div>
+      </header>
       {children}
     </section>
   );
