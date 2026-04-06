@@ -55,13 +55,15 @@ describe('scoreFundamentals', () => {
     expect(beta.total).toBeGreaterThan(newco.total);
   });
 
-  it('returns four scoring factors', () => {
+  it('returns five scoring factors including leverage', () => {
     const result = scoreFundamentals(ALL_PROJECTS[2], landscape['Acme']);
-    expect(Object.keys(result.factors)).toHaveLength(4);
+    expect(Object.keys(result.factors)).toHaveLength(5);
     expect(result.factors.revenueWeight).toBeDefined();
     expect(result.factors.engagement).toBeDefined();
     expect(result.factors.revenueScale).toBeDefined();
     expect(result.factors.conversion).toBeDefined();
+    expect(result.factors.leverage).toBeDefined();
+    expect(result.maxScore).toBe(125);
   });
 
   it('caps each factor at 25', () => {
@@ -70,6 +72,18 @@ describe('scoreFundamentals', () => {
       expect(f.score).toBeLessThanOrEqual(25);
       expect(f.score).toBeGreaterThanOrEqual(0);
     });
+  });
+
+  it('includes Factor 5 leverage from leverage_data', () => {
+    const enrichedProject = {
+      ...ALL_PROJECTS[2],
+      leverage_data: { score: 22, types: ['ecosystem_accelerator'] },
+    };
+    const result = scoreFundamentals(enrichedProject, landscape['Acme']);
+    expect(result.factors.leverage.score).toBe(22);
+
+    const base = scoreFundamentals(ALL_PROJECTS[2], landscape['Acme']);
+    expect(result.total).toBe(base.total + 22);
   });
 });
 

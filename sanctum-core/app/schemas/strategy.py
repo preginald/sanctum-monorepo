@@ -174,6 +174,7 @@ class ProjectCreate(SanctumBase):
     pricing_model: Optional[str] = None
     status: Optional[str] = None
     template_id: Optional[UUID] = None
+    leverage_data: Optional[dict] = None
 
 class ProjectUpdate(SanctumBase):
     name: Optional[str] = None
@@ -188,6 +189,7 @@ class ProjectUpdate(SanctumBase):
     discount_reason: Optional[str] = None
     pricing_model: Optional[str] = None
     template_id: Optional[UUID] = None
+    leverage_data: Optional[dict] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class ProjectResponse(ProjectCreate):
