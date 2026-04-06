@@ -114,6 +114,7 @@ async def project_update(
     discount_amount: str | None = None,
     discount_reason: str | None = None,
     pricing_model: str | None = None,
+    leverage_data: str | None = None,
 ) -> str:
     """Update a project. Only provided fields are changed.
 
@@ -129,6 +130,7 @@ async def project_update(
         discount_amount: Discount as decimal string (market_value - quoted_price).
         discount_reason: Required when discount_amount > 0 (e.g. "launch support").
         pricing_model: One of: fixed_price, time_and_materials.
+        leverage_data: JSON string with Factor 5 leverage scoring, e.g. '{"score": 25, "types": ["ecosystem_accelerator"], "scored_at": "2026-04-06"}'.
     """
     payload = {}
     for key, val in {
@@ -139,6 +141,8 @@ async def project_update(
     }.items():
         if val is not None:
             payload[key] = val
+    if leverage_data is not None:
+        payload["leverage_data"] = json.loads(leverage_data)
     result = await client.put(f"/projects/{project_id}", json=payload)
     return json.dumps(result, indent=2)
 
