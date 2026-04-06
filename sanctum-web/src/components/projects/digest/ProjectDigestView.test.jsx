@@ -64,12 +64,11 @@ describe('ProjectDigestView', () => {
     expect(screen.getByText('Recommended Parallel Set')).toBeInTheDocument();
     expect(screen.getByText('In Flight')).toBeInTheDocument();
     expect(screen.getByText('Backlog')).toBeInTheDocument();
-    expect(screen.getByText('Archive')).toBeInTheDocument();
+    expect(screen.getByText('Recently Completed')).toBeInTheDocument();
   });
 
-  it('shows top 3 enriched projects in Recommended Parallel Set', () => {
+  it('shows top 3 enriched projects in Recommended Parallel Set hero cards', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    // All 3 projects with leverage_data should appear as hero cards
     expect(screen.getByText('Mobile App')).toBeInTheDocument();
     expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Portal Redesign')).toBeInTheDocument();
@@ -77,17 +76,16 @@ describe('ProjectDigestView', () => {
 
   it('displays combined scores out of 125 on hero cards', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    // Scores include F5 leverage. Check /125 labels are present
     const scoreLabels = screen.getAllByText('/125');
     expect(scoreLabels.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('shows leverage type pills on enriched projects', () => {
+  it('shows leverage type pills with bordered styling on hero cards', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    expect(screen.getAllByText('Ecosystem').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Dual QoL').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Capability').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Access').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ECOSYSTEM').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('DUAL QOL').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('CAPABILITY').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('ACCESS').length).toBeGreaterThan(0);
   });
 
   it('shows CTA when no projects have leverage data', () => {
@@ -96,48 +94,42 @@ describe('ProjectDigestView', () => {
     expect(screen.getByText(/Run enrichment to generate recommendations/i)).toBeInTheDocument();
   });
 
-  it('In Flight uses compact table rows sorted by due_date ascending', () => {
+  it('In Flight uses table rows sorted by due_date ascending with percentage labels', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    // Both active projects should be in the table
     const rows = screen.getAllByRole('row');
-    // First data row (after header) should be API Integration (2026-03-15, earlier date)
+    // First data row should be API Integration (earlier due_date)
     const cells = rows[1].querySelectorAll('td');
     expect(cells[0].textContent).toBe('API Integration');
+    // Check percentage labels exist
+    expect(screen.getByText('67%')).toBeInTheDocument();
+    expect(screen.getByText('0%')).toBeInTheDocument();
   });
 
-  it('shows progress and remaining tickets in In Flight table', () => {
+  it('In Flight shows remaining tickets as plain numbers', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    expect(screen.getAllByText('1 rem.').length).toBe(2);
+    // Both active projects have 1 remaining ticket each
+    const ones = screen.getAllByText('1');
+    expect(ones.length).toBeGreaterThanOrEqual(2);
   });
 
-  it('backlog section shows remaining un-enriched projects with factor pills', () => {
+  it('backlog shows un-enriched projects with factor dots', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    // Email Migration has no leverage_data and is in planning — should be in backlog
     expect(screen.getByText('Email Migration')).toBeInTheDocument();
-    // Factor pills should include Leverage label
-    expect(screen.getAllByText('Leverage').length).toBeGreaterThan(0);
   });
 
-  it('backlog sorted by combined score descending', () => {
+  it('completed section shows green checkmarks and short dates', () => {
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
-    // Email Migration (NewCo, no revenue, no leverage) should be last in backlog
-    // since all enriched projects are in the recommended set
-    const h4s = screen.getAllByRole('heading', { level: 4 });
-    const backlogNames = h4s.map(h => h.textContent);
-    // Email Migration should be present
-    expect(backlogNames).toContain('Email Migration');
+    expect(screen.getByText('Old Project A')).toBeInTheDocument();
+    // Short date format
+    expect(screen.getByText('Jan 15')).toBeInTheDocument();
   });
 
-  it('completed section is muted with expand/collapse', async () => {
+  it('completed section has expand/collapse', async () => {
     const user = userEvent.setup();
     render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
-    // Initially shows 3 of 4 completed
-    expect(screen.getByText('Old Project A')).toBeInTheDocument();
-    expect(screen.getByText('More Archives')).toBeInTheDocument();
-
-    // Expand
-    await user.click(screen.getByText('More Archives'));
+    expect(screen.getByText('Show more')).toBeInTheDocument();
+    await user.click(screen.getByText('Show more'));
     expect(screen.getByText('Old Project D')).toBeInTheDocument();
   });
 

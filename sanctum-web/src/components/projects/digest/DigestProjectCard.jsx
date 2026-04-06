@@ -1,53 +1,39 @@
 import React from 'react';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Sparkles, MoreVertical } from 'lucide-react';
 import { computeMetrics } from '../../../utils/projectMetrics';
 
 // ---------------------------------------------------------------------------
 // Leverage type display config
 // ---------------------------------------------------------------------------
 const LEVERAGE_TYPES = {
-  access_unblocking:        { label: 'Access',     color: 'text-orange-400', bg: 'bg-orange-500/20' },
-  resource_ceiling_removal: { label: 'Ceiling',    color: 'text-red-400',    bg: 'bg-red-500/20' },
-  capability_multiplier:    { label: 'Capability', color: 'text-purple-400', bg: 'bg-purple-500/20' },
-  ecosystem_accelerator:    { label: 'Ecosystem',  color: 'text-blue-400',   bg: 'bg-blue-500/20' },
-  dual_stakeholder_qol:     { label: 'Dual QoL',   color: 'text-green-400',  bg: 'bg-green-500/20' },
+  access_unblocking:        { label: 'ACCESS',     text: 'text-amber-500',  pill: 'bg-amber-900/40 text-amber-400 border border-amber-800/50' },
+  resource_ceiling_removal: { label: 'CEILING',    text: 'text-red-400',    pill: 'bg-red-900/40 text-red-400 border border-red-800/50' },
+  capability_multiplier:    { label: 'CAPABILITY', text: 'text-purple-400', pill: 'bg-purple-900/40 text-purple-400 border border-purple-800/50' },
+  ecosystem_accelerator:    { label: 'ECOSYSTEM',  text: 'text-blue-400',   pill: 'bg-blue-900/40 text-blue-400 border border-blue-800/50' },
+  dual_stakeholder_qol:     { label: 'DUAL QOL',   text: 'text-green-400',  pill: 'bg-green-900/40 text-green-400 border border-green-800/50' },
 };
 
-function LeveragePills({ types }) {
-  if (!types || types.length === 0) return null;
-  return (
-    <div className="flex gap-1.5 flex-wrap">
-      {types.map(type => {
-        const cfg = LEVERAGE_TYPES[type];
-        if (!cfg) return null;
-        return (
-          <span
-            key={type}
-            className={`px-1.5 py-0.5 rounded-sm ${cfg.bg} ${cfg.color} text-[9px] font-bold uppercase tracking-tight`}
-          >
-            {cfg.label}
-          </span>
-        );
-      })}
-    </div>
-  );
+// Short label for leverage types in backlog rows
+const LEVERAGE_SHORT = {
+  access_unblocking:        { label: 'ACCESS', color: 'text-amber-500' },
+  resource_ceiling_removal: { label: 'CEILING', color: 'text-red-400' },
+  capability_multiplier:    { label: 'CAPABILITY', color: 'text-purple-400' },
+  ecosystem_accelerator:    { label: 'ECOSYSTEM', color: 'text-blue-400' },
+  dual_stakeholder_qol:     { label: 'QOL', color: 'text-green-500' },
+};
+
+function formatShortDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function LeverageTypeLabels({ types }) {
-  if (!types || types.length === 0) return null;
-  return (
-    <div className="flex gap-1">
-      {types.map(type => {
-        const cfg = LEVERAGE_TYPES[type];
-        if (!cfg) return null;
-        return (
-          <span key={type} className={`text-[9px] font-black uppercase ${cfg.color}`}>
-            {cfg.label}
-          </span>
-        );
-      })}
-    </div>
-  );
+function formatAccountAbbrev(name) {
+  if (!name) return '';
+  const abbrevs = {
+    'Digital Sanctum HQ': 'DSHQ',
+  };
+  return abbrevs[name] || name.split(' ').map(w => w[0]).join('').toUpperCase();
 }
 
 // ---------------------------------------------------------------------------
@@ -60,61 +46,92 @@ export function HeroCard({ project, analysis, onNavigate }) {
   return (
     <div
       onClick={() => onNavigate(project.id)}
-      className="h-[120px] relative p-4 bg-slate-800/80 rounded border border-indigo-500/20 flex flex-col justify-between hover:border-indigo-400/40 cursor-pointer transition-all"
+      className="bg-slate-800 border border-slate-700 p-3 rounded h-[120px] flex flex-col justify-between hover:border-slate-600 cursor-pointer transition-all"
     >
       <div className="flex justify-between items-start">
-        <span className="text-indigo-300 text-[10px] font-black tracking-widest uppercase">
-          {project._agent || 'Unassigned'}
-        </span>
-        <span className="text-xl font-black text-white leading-none">
-          {score}
-          <span className="text-[10px] font-normal text-slate-400">/125</span>
-        </span>
+        <div>
+          <h4 className="font-bold text-slate-50">{project.name}</h4>
+          <p className="text-[11px] text-slate-400">
+            Agent: {project._agent || 'Unassigned'}
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="text-lg font-bold text-green-500 font-mono">{score}</span>
+          <span className="text-[10px] text-slate-500">/125</span>
+        </div>
       </div>
-      <div>
-        <h3 className="text-base font-bold text-white mb-2 truncate">{project.name}</h3>
-        <LeveragePills types={leverageTypes} />
+      <div className="flex gap-1 flex-wrap">
+        {leverageTypes.map(type => {
+          const cfg = LEVERAGE_TYPES[type];
+          if (!cfg) return null;
+          return (
+            <span key={type} className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${cfg.pill}`}>
+              {cfg.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Section 2: In-flight table row (rendered as <tr>)
+// Section 2: In-flight table row
 // ---------------------------------------------------------------------------
-export function InFlightRow({ project, onNavigate, even }) {
+export function InFlightRow({ project, onNavigate }) {
   const m = computeMetrics(project);
 
   return (
     <tr
       onClick={() => onNavigate(project.id)}
-      className={`h-9 hover:bg-slate-700/20 transition-colors cursor-pointer ${
-        even ? 'bg-slate-800/30' : ''
-      }`}
+      className="hover:bg-slate-800 transition-colors cursor-pointer"
     >
-      <td className="px-4 font-bold text-white text-[13px]">{project.name}</td>
-      <td className="px-4 text-slate-400 text-[13px]">{project.account_name}</td>
-      <td className="px-4">
-        <div className="w-32 h-1 bg-slate-700 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-indigo-400 rounded-full"
-            style={{ width: `${m.completionPct}%` }}
-          />
+      <td className="px-4 py-2.5 font-medium text-slate-200">{project.name}</td>
+      <td className="px-4 py-2.5 text-slate-400">{project.account_name}</td>
+      <td className="px-4 py-2.5">
+        <div className="w-full bg-slate-700 h-1 rounded-full overflow-hidden">
+          <div className="bg-indigo-500 h-full" style={{ width: `${m.completionPct}%` }} />
         </div>
+        <span className="text-[10px] text-indigo-400 mt-1 block">{m.completionPct}%</span>
       </td>
-      <td className="px-4 text-center font-mono text-slate-400 text-[11px]">
-        {m.remainingTickets} rem.
-      </td>
-      <td className="px-4 text-right font-mono text-slate-400 text-[11px]">
-        {project.due_date || '—'}
+      <td className="px-4 py-2.5 text-center text-slate-400">{m.remainingTickets}</td>
+      <td className="px-4 py-2.5 text-right font-medium text-slate-300">
+        {formatShortDate(project.due_date)}
       </td>
     </tr>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Section 3: Backlog row — score, name, factor dots, leverage type, bar
+// Section 3: Backlog row — compact with factor dots
 // ---------------------------------------------------------------------------
+
+function scoreColor(score) {
+  if (score >= 90) return 'text-green-500';
+  return 'text-amber-500';
+}
+
+function barColor(score) {
+  if (score >= 90) return 'bg-green-500';
+  return 'bg-amber-500';
+}
+
+function FactorDots({ analysis }) {
+  if (!analysis) return null;
+  const factors = Object.values(analysis.factors);
+  return (
+    <div className="flex gap-0.5 ml-4">
+      {factors.map(f => (
+        <span
+          key={f.abbrev}
+          className={`w-2 h-2 rounded-full ${f.score > 0 ? 'bg-indigo-500' : 'bg-slate-600'}`}
+          title={f.label}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function BacklogRow({ project, analysis, onNavigate }) {
   const score = analysis?.total || 0;
   const pct = Math.round((score / 125) * 100);
@@ -123,62 +140,52 @@ export function BacklogRow({ project, analysis, onNavigate }) {
   return (
     <div
       onClick={() => onNavigate(project.id)}
-      className="flex items-center gap-4 px-4 py-2 bg-slate-800/60 rounded border border-slate-700/30 hover:border-indigo-500/30 cursor-pointer transition-all"
+      className="flex items-center justify-between bg-slate-800 border border-slate-700/50 px-4 py-1.5 hover:border-slate-600 transition-all cursor-pointer"
     >
-      {/* Score */}
-      <div className="w-16 flex flex-col items-center border-r border-slate-700/50 pr-2 shrink-0">
-        <span className="text-base font-black text-indigo-300">{score}</span>
-        <span className="text-[9px] text-slate-500 font-bold">/ 125</span>
-      </div>
-
-      {/* Name + leverage type labels */}
-      <div className="min-w-[140px] shrink-0">
-        <h4 className="text-xs font-bold text-white truncate">{project.name}</h4>
-        <LeverageTypeLabels types={leverageTypes} />
-      </div>
-
-      {/* Factor pills */}
-      <div className="flex flex-wrap gap-1">
-        {analysis && Object.values(analysis.factors).map(f => (
-          <span
-            key={f.abbrev}
-            className={`px-1.5 py-0 rounded-sm text-[9px] uppercase ${
-              f.abbrev === 'L'
-                ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                : 'bg-slate-700 text-slate-400'
-            }`}
-          >
-            {f.label}
-          </span>
-        ))}
-      </div>
-
-      {/* Progress bar */}
-      <div className="w-32 ml-auto shrink-0">
-        <div className="w-full h-1 bg-slate-700 rounded-full">
-          <div
-            className="h-full bg-indigo-400 rounded-full"
-            style={{ width: `${pct}%` }}
-          />
+      <div className="flex items-center gap-4 flex-1">
+        <span className="w-24 text-slate-200 font-medium truncate">{project.name}</span>
+        <div className="flex items-center gap-2">
+          <span className={`${scoreColor(score)} font-bold text-xs w-12`}>{score}/125</span>
+          <div className="w-20 bg-slate-700 h-1 rounded-full overflow-hidden">
+            <div className={`${barColor(score)} h-full`} style={{ width: `${pct}%` }} />
+          </div>
         </div>
+        <FactorDots analysis={analysis} />
+      </div>
+      <div className="flex items-center gap-3">
+        {leverageTypes.map((type, i) => {
+          const cfg = LEVERAGE_SHORT[type];
+          if (!cfg) return null;
+          return (
+            <span key={type} className={`text-[10px] font-bold ${cfg.color}`}>
+              {i > 0 ? '+ ' : ''}{cfg.label}
+            </span>
+          );
+        })}
+        <MoreVertical size={14} className="text-slate-500" />
       </div>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Section 4: Completed row — muted minimal
+// Section 4: Completed row — muted with checkmark
 // ---------------------------------------------------------------------------
 export function CompletedRow({ project, onNavigate }) {
   return (
     <div
       onClick={() => onNavigate(project.id)}
-      className="flex justify-between items-center py-2 px-4 border-b border-slate-700/20 hover:bg-slate-800/30 cursor-pointer transition-all"
+      className="flex items-center justify-between text-slate-500 text-xs border-b border-slate-800/50 pb-2 hover:text-slate-300 cursor-pointer transition-colors"
     >
-      <span className="text-xs font-medium text-slate-500">{project.name}</span>
-      <div className="flex items-center gap-3">
-        <span className="text-[9px] font-mono text-slate-600">{project.account_name}</span>
-        <CheckCircle size={14} className="text-green-600/50" />
+      <div className="flex items-center gap-2">
+        <CheckCircle size={14} className="text-green-500/50" />
+        <span className="font-medium text-slate-400">{project.name}</span>
+      </div>
+      <div className="flex gap-4">
+        <span className="text-[10px] uppercase font-bold tracking-tighter opacity-50">
+          {formatAccountAbbrev(project.account_name)}
+        </span>
+        <span className="w-16 text-right">{formatShortDate(project.due_date)}</span>
       </div>
     </div>
   );

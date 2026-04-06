@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import DigestSection from './DigestSection';
+import { Sparkles } from 'lucide-react';
 import { HeroCard, InFlightRow, BacklogRow, CompletedRow } from './DigestProjectCard';
-import { buildClientLandscape, scoreFundamentals, computeMetrics, dueDateAscComparator } from '../../../utils/projectMetrics';
+import { buildClientLandscape, scoreFundamentals, dueDateAscComparator } from '../../../utils/projectMetrics';
 
 const COMPLETED_INITIAL = 3;
 const COMPLETED_MAX = 10;
@@ -53,92 +53,97 @@ export default function ProjectDigestView({ projects, onNavigate }) {
   const visibleCompleted = showAllCompleted ? completed : completed.slice(0, COMPLETED_INITIAL);
 
   return (
-    <div className="max-w-[1200px]">
+    <div className="max-w-[1200px] space-y-4">
       {/* Section 1: Recommended Parallel Set */}
-      {recommended.length > 0 ? (
-        <DigestSection title="Recommended Parallel Set" accent="recommended">
+      <section className="border-l-4 border-indigo-500 bg-slate-800/30 p-4 rounded-r-lg">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles size={16} className="text-indigo-400" />
+          <h3 className="font-bold text-[11px] uppercase tracking-[0.05em] text-indigo-400" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            Recommended Parallel Set
+          </h3>
+        </div>
+        {recommended.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {recommended.map(p => (
-              <HeroCard
-                key={p.id}
-                project={p}
-                analysis={p._analysis}
-                onNavigate={onNavigate}
-              />
+              <HeroCard key={p.id} project={p} analysis={p._analysis} onNavigate={onNavigate} />
             ))}
           </div>
-        </DigestSection>
-      ) : (
-        <DigestSection title="Recommended Parallel Set" accent="recommended">
+        ) : (
           <div className="px-4 py-6 bg-slate-800/40 rounded border border-slate-700/30 text-center">
             <p className="text-sm text-slate-500">
               No enriched projects yet. Run enrichment to generate recommendations.
             </p>
           </div>
-        </DigestSection>
-      )}
+        )}
+      </section>
 
       {/* Section 2: In Flight */}
       {inFlight.length > 0 && (
-        <DigestSection title="In Flight" accent="inflight">
-          <div className="overflow-hidden border border-slate-700/30 rounded">
-            <table className="w-full text-left border-collapse">
-              <thead className="bg-slate-800/50">
-                <tr className="h-8">
-                  <th className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Project</th>
-                  <th className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Client</th>
-                  <th className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Progress</th>
-                  <th className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Backlog</th>
-                  <th className="px-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Deadline</th>
+        <section className="bg-slate-800/50 border border-slate-800 rounded-lg overflow-hidden">
+          <div className="px-4 py-2 border-b border-slate-800 bg-slate-800/80">
+            <h3 className="font-bold text-[11px] uppercase tracking-[0.05em] text-slate-400" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              In Flight
+            </h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead className="bg-slate-900/50 text-[10px] uppercase text-slate-500 border-b border-slate-800">
+                <tr>
+                  <th className="px-4 py-2 font-medium">Project</th>
+                  <th className="px-4 py-2 font-medium">Account</th>
+                  <th className="px-4 py-2 font-medium w-48">Progress</th>
+                  <th className="px-4 py-2 font-medium text-center">Remaining</th>
+                  <th className="px-4 py-2 font-medium text-right">Due</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-700/20">
-                {inFlight.map((p, i) => (
-                  <InFlightRow key={p.id} project={p} onNavigate={onNavigate} even={i % 2 === 1} />
+              <tbody className="divide-y divide-slate-800">
+                {inFlight.map(p => (
+                  <InFlightRow key={p.id} project={p} onNavigate={onNavigate} />
                 ))}
               </tbody>
             </table>
           </div>
-        </DigestSection>
+        </section>
       )}
 
       {/* Section 3: Backlog */}
       {backlog.length > 0 && (
-        <DigestSection title="Backlog" accent="backlog">
-          <div className="space-y-1.5">
+        <section className="space-y-1">
+          <div className="px-1 mb-2">
+            <h3 className="font-bold text-[11px] uppercase tracking-[0.05em] text-slate-400" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              Backlog
+            </h3>
+          </div>
+          <div className="space-y-[1px]">
             {backlog.map(p => (
-              <BacklogRow
-                key={p.id}
-                project={p}
-                analysis={p._analysis}
-                onNavigate={onNavigate}
-              />
+              <BacklogRow key={p.id} project={p} analysis={p._analysis} onNavigate={onNavigate} />
             ))}
           </div>
-        </DigestSection>
+        </section>
       )}
 
-      {/* Section 4: Recently Completed (Archive) */}
+      {/* Section 4: Recently Completed */}
       {completed.length > 0 && (
-        <DigestSection title="Archive" accent="completed" muted>
-          <div className="opacity-50 hover:opacity-80 transition-all">
-            <div className="divide-y divide-slate-700/20">
-              {visibleCompleted.map(p => (
-                <CompletedRow key={p.id} project={p} onNavigate={onNavigate} />
-              ))}
-            </div>
-          </div>
-          {completed.length > COMPLETED_INITIAL && (
-            <div className="mt-3 text-center">
+        <section className="bg-slate-900/40 p-4 border border-slate-800 rounded-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-bold text-[11px] uppercase tracking-[0.05em] text-slate-500" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              Recently Completed
+            </h3>
+            {completed.length > COMPLETED_INITIAL && (
               <button
                 onClick={() => setShowAllCompleted(prev => !prev)}
-                className="text-indigo-400 text-[10px] font-bold uppercase tracking-widest hover:underline underline-offset-4"
+                className="text-[10px] text-indigo-400 hover:underline uppercase font-bold tracking-widest"
               >
-                {showAllCompleted ? 'Show fewer' : `More Archives`}
+                {showAllCompleted ? 'Show fewer' : 'Show more'}
               </button>
-            </div>
-          )}
-        </DigestSection>
+            )}
+          </div>
+          <div className="space-y-3">
+            {visibleCompleted.map(p => (
+              <CompletedRow key={p.id} project={p} onNavigate={onNavigate} />
+            ))}
+          </div>
+        </section>
       )}
 
       {projects.length === 0 && (
