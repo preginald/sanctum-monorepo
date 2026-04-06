@@ -142,27 +142,25 @@ export function BacklogRow({ project, analysis, onNavigate }) {
       onClick={() => onNavigate(project.id)}
       className="flex items-center justify-between bg-slate-800 border border-slate-700/50 px-4 py-1.5 hover:border-slate-600 transition-all cursor-pointer"
     >
-      <div className="flex items-center gap-4 flex-1 min-w-0">
-        <span className="min-w-[200px] max-w-[320px] text-slate-200 font-medium truncate shrink">{project.name}</span>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={`${scoreColor(score)} font-bold text-xs w-12`}>{score}/125</span>
-          <div className="w-24 bg-slate-700 h-1 rounded-full overflow-hidden">
-            <div className={`${barColor(score)} h-full`} style={{ width: `${pct}%` }} />
-          </div>
+      <span className="flex-1 min-w-0 text-slate-200 font-medium truncate">{project.name}</span>
+      <div className="flex items-center gap-4 shrink-0">
+        <span className={`${scoreColor(score)} font-bold text-xs w-12`}>{score}/125</span>
+        <div className="w-28 bg-slate-700 h-1 rounded-full overflow-hidden">
+          <div className={`${barColor(score)} h-full`} style={{ width: `${pct}%` }} />
         </div>
         <FactorDots analysis={analysis} />
-      </div>
-      <div className="flex items-center gap-3">
-        {leverageTypes.map((type, i) => {
-          const cfg = LEVERAGE_SHORT[type];
-          if (!cfg) return null;
-          return (
-            <span key={type} className={`text-[10px] font-bold ${cfg.color}`}>
-              {i > 0 ? '+ ' : ''}{cfg.label}
-            </span>
-          );
-        })}
-        <MoreVertical size={14} className="text-slate-500" />
+        <div className="w-24 flex items-center justify-end gap-1">
+          {leverageTypes.map((type, i) => {
+            const cfg = LEVERAGE_SHORT[type];
+            if (!cfg) return null;
+            return (
+              <span key={type} className={`text-[10px] font-bold ${cfg.color}`}>
+                {i > 0 ? '+ ' : ''}{cfg.label}
+              </span>
+            );
+          })}
+        </div>
+        <MoreVertical size={14} className="text-slate-500 shrink-0" />
       </div>
     </div>
   );
