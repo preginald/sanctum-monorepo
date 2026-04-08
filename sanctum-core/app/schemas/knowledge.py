@@ -18,6 +18,7 @@ class CommentResponse(SanctumBase):
     body: str
     visibility: str
     created_at: datetime
+    resolved_body: Optional[str] = None
 
 # --- WIKI ---
 class ArticleCreate(SanctumBase):
