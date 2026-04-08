@@ -242,6 +242,7 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
     if update.name: ms.name = update.name
     if update.billable_amount is not None: ms.billable_amount = update.billable_amount
     if update.due_date: ms.due_date = update.due_date
+    if update.start_date is not None: ms.start_date = update.start_date
     if update.sequence is not None and update.sequence != ms.sequence:
         shift_sequences_for_move(ms.project_id, ms.id, ms.sequence, update.sequence, db)
         ms.sequence = update.sequence

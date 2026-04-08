@@ -203,6 +203,7 @@ class Milestone(Base):
     project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"))
     name = Column(String)
     due_date = Column(Date, nullable=True)
+    start_date = Column(Date, nullable=True)
     status = Column(String, default='pending')
     billable_amount = Column(Numeric(12, 2), default=0.0)
     sequence = Column(Integer, default=1)
