@@ -99,7 +99,7 @@ jobs:
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
             cd /home/preginald/DigitalSanctum/sanctum-web
-            npm install
+            npm install --legacy-peer-deps
             npm run build
 
             # Copy Files (No Sudo needed due to chown)
@@ -214,7 +214,7 @@ jobs:
             # 4. UPDATE FRONTEND
             echo "⚛️ Building Frontend..."
             cd /home/preginald/DigitalSanctum-test/sanctum-web
-            npm install
+            npm install --legacy-peer-deps
             npm run build
 
             # Deploy static assets
