@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Configure a single MCP server entry per consumer context.
+# Configure MCP server entries for all agent identities.
 #
-# Instead of 8 separate entries (one per agent), we register ONE entry
-# per Claude consumer (Code, Chat, etc.) with a shared Bearer token
-# for the auth gate, and an X-Sanctum-Agent header for identity.
+# Registers one entry per agent identity (sanctum-architect, sanctum-operator,
+# etc.), each pointing at the same server with a shared Bearer token for the
+# auth gate and a per-agent X-Sanctum-Agent header for identity.
 #
 # The MCP server's AgentIdentityMiddleware resolves X-Sanctum-Agent to
 # the correct per-agent Core API token via SANCTUM_TOKEN_* env vars.
@@ -62,35 +62,29 @@ SHARED_TOKEN="$(read_token "${AGENTS[operator]}")" || {
     exit 1
 }
 
-# ── Step 3: Remove old per-agent entries ─────────────────────────────
+# ── Step 3: Remove old entries (per-agent and legacy aliases) ────────
 
 echo ""
-echo "Removing old per-agent MCP entries..."
-for name in sanctum-oracle sanctum-operator sanctum-architect sanctum-surgeon sanctum-sentinel sanctum-scribe sanctum-chat sanctum-code; do
+echo "Removing old MCP entries..."
+for name in sanctum-oracle sanctum-operator sanctum-architect sanctum-surgeon sanctum-sentinel sanctum-scribe sanctum-chat sanctum-code sanctum; do
     claude mcp remove "$name" 2>/dev/null && echo "  Removed $name" || true
 done
 
-# Also remove the new consolidated entry if re-running
-claude mcp remove sanctum 2>/dev/null || true
-
-# ── Step 4: Register single entry with identity header ───────────────
-
-# Determine the agent name for this consumer context.
-# Default to sanctum-operator (Code context). Override with $SANCTUM_AGENT.
-AGENT_NAME="${SANCTUM_AGENT:-sanctum-operator}"
+# ── Step 4: Register one entry per agent identity ────────────────────
 
 echo ""
-echo "Registering single MCP entry: sanctum -> $MCP_URL"
+echo "Registering per-agent MCP entries -> $MCP_URL"
 echo "  Auth: shared Bearer token (operator)"
-echo "  Identity: X-Sanctum-Agent: $AGENT_NAME"
+echo ""
 
-claude mcp remove sanctum 2>/dev/null || true
-claude mcp add sanctum "$MCP_URL" -t http \
-    -H "Authorization: Bearer $SHARED_TOKEN" \
-    -H "X-Sanctum-Agent: $AGENT_NAME"
+for agent in architect operator oracle surgeon sentinel scribe; do
+    entry_name="sanctum-$agent"
+    claude mcp add "$entry_name" "$MCP_URL" -t http \
+        -H "Authorization: Bearer $SHARED_TOKEN" \
+        -H "X-Sanctum-Agent: $entry_name"
+    echo "  Registered $entry_name (X-Sanctum-Agent: $entry_name)"
+done
 
 echo ""
-echo "Done. Start the MCP server with: scripts/dev/mcp-server.sh start"
-echo ""
-echo "To register with a different agent identity:"
-echo "  SANCTUM_AGENT=sanctum-surgeon scripts/dev/mcp-setup.sh"
+echo "Done. 6 entries registered (6 x 64 = 384 tool defs vs original 8 x 64 = 512)."
+echo "Start the MCP server with: scripts/dev/mcp-server.sh start"
