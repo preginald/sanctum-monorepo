@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 import time
+from contextvars import ContextVar
 
 import httpx
 from dotenv import load_dotenv
@@ -21,6 +22,7 @@ log = logging.getLogger(__name__)
 
 API_BASE = os.getenv("SANCTUM_API_BASE", "https://core.digitalsanctum.com.au/api")
 API_TOKEN = os.getenv("SANCTUM_API_TOKEN", "")
+CURRENT_API_TOKEN: ContextVar[str] = ContextVar("current_api_token", default=API_TOKEN)
 
 _TIMEOUT = httpx.Timeout(30, connect=10)
 
@@ -63,7 +65,7 @@ async def _request(method: str, path: str, **kwargs) -> httpx.Response:
 
     client = await _get_client()
     kwargs.setdefault("headers", {})
-    kwargs["headers"]["Authorization"] = f"Bearer {API_TOKEN}"
+    kwargs["headers"]["Authorization"] = f"Bearer {CURRENT_API_TOKEN.get()}"
     kwargs["headers"]["Content-Type"] = "application/json"
     last_exc: Exception | None = None
     start = time.monotonic()

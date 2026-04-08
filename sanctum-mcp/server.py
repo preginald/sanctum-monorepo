@@ -8,6 +8,7 @@ load_dotenv()
 from app import mcp  # noqa: E402
 from starlette.middleware import Middleware  # noqa: E402
 from auth import OAuthMiddleware  # noqa: E402
+from middleware.agent_identity import AgentIdentityMiddleware  # noqa: E402
 
 # Register tool modules (side-effect imports)
 import tools.tickets  # noqa: E402, F401
@@ -34,6 +35,6 @@ if __name__ == "__main__":
         host=host,
         port=port,
         path="/",
-        middleware=[Middleware(OAuthMiddleware)],
+        middleware=[Middleware(OAuthMiddleware), Middleware(AgentIdentityMiddleware)],
         uvicorn_config=uvicorn_opts,
     )
