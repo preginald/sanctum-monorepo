@@ -27,6 +27,9 @@ log = logging.getLogger(__name__)
 # ── Identity ────────────────────────────────────────────────────────────
 
 AGENT_PERSONA = os.getenv("MCP_AGENT_PERSONA", "unknown")
+CURRENT_AGENT_PERSONA: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "current_agent_persona", default=AGENT_PERSONA
+)
 SESSION_ID = str(uuid.uuid4())
 
 # ── Context vars ────────────────────────────────────────────────────────
@@ -163,7 +166,7 @@ def with_telemetry(cost_tier: str = ""):
                 record = {
                     "tool_name": fn.__name__,
                     "cost_tier": cost_tier or None,
-                    "agent_persona": AGENT_PERSONA,
+                    "agent_persona": CURRENT_AGENT_PERSONA.get(),
                     "session_id": SESSION_ID,
                     "latency_ms": elapsed_ms,
                     "response_bytes": total_bytes or None,
