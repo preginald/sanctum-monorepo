@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { DollarSign, Briefcase, Activity, Ticket, AlertCircle } from 'lucide-react';
-import { Card as SanctumCard } from '@preginald/sanctum-ui';
 import api from '../../lib/api';
 import { formatCurrency } from '../../lib/formatters';
 import UpcomingRenewals from './UpcomingRenewals';
@@ -42,16 +41,7 @@ export default function AdminDashboard() {
       </div>
       <UpcomingRenewals />
 
-      {/* sanctum-ui consumer proof — design token integration (#1751) */}
-      <SanctumCard padding="lg" className="border border-surface-high">
-        <h3 className="text-sm font-bold uppercase tracking-widest text-neutral-400 mb-2">
-          Sanctum UI
-        </h3>
-        <p className="text-neutral-300">
-          This card is rendered by <code className="text-primary-400">@preginald/sanctum-ui</code>.
-          Design tokens (<code className="text-primary-400">surface-low</code>, <code className="text-primary-400">primary-400</code>) are supplied by the shared Tailwind preset.
-        </p>
-      </SanctumCard>
+      {/* sanctum-ui integration placeholder — re-enable when package is publishable (#1751) */}
     </div>
   );
 }
