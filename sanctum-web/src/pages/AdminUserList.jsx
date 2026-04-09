@@ -17,7 +17,7 @@ export default function AdminUserList() {
 
   // MODALS
   const [showCreate, setShowCreate] = useState(false);
-  const [newUser, setNewUser] = useState({ email: '', full_name: '', password: '', role: 'tech' });
+  const [newUser, setNewUser] = useState({ email: '', full_name: '', role: 'tech' });
   const [actionLoading, setActionLoading] = useState(false);
 
   const [confirm, setConfirm] = useState({ isOpen: false, title: '', message: '', action: null });
@@ -44,7 +44,7 @@ export default function AdminUserList() {
               addToast("User created", "success");
           }
           setShowCreate(false);
-          setNewUser({ email: '', full_name: '', password: '', role: 'tech' });
+          setNewUser({ email: '', full_name: '', role: 'tech' });
           setEditingId(null);
           fetchUsers();
       } catch(e) {
@@ -54,7 +54,7 @@ export default function AdminUserList() {
 
 
   const handleEdit = (user) => {
-      setNewUser({ email: user.email, full_name: user.full_name, password: '', role: user.role });
+      setNewUser({ email: user.email, full_name: user.full_name, role: user.role });
       setEditingId(user.id);
       setShowCreate(true);
   };
@@ -127,7 +127,6 @@ export default function AdminUserList() {
           <form onSubmit={handleSave} className="space-y-4">
               <div><label className="text-xs opacity-50 block mb-1">Full Name</label><input required className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={newUser.full_name} onChange={e => setNewUser({...newUser, full_name: e.target.value})} /></div>
               <div><label className="text-xs opacity-50 block mb-1">Email</label><input required type="email" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} /></div>
-              <div><label className="text-xs opacity-50 block mb-1">Initial Password</label><input required className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} /></div>
               <div><label className="text-xs opacity-50 block mb-1">Role</label><select className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={newUser.role} onChange={e => setNewUser({...newUser, role: e.target.value})}><option value="tech">Technician</option><option value="admin">Administrator</option></select></div>
               <button disabled={actionLoading} type="submit" className="w-full py-2 bg-sanctum-gold text-slate-900 font-bold rounded flex items-center justify-center gap-2">{actionLoading && <Loader2 className="animate-spin" size={16}/>} Create User</button>
           </form>

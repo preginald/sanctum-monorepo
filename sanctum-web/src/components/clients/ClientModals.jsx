@@ -90,10 +90,6 @@ export default function ClientModals({ activeModal, onClose, onSubmit, loading, 
           <form onSubmit={onSubmit} className="space-y-4">
               <div><label className="text-xs opacity-50 block mb-1">Email (Login)</label><input required type="email" className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={forms.user.email} onChange={e => handleChange('user', 'email', e.target.value)} /></div>
               <div><label className="text-xs opacity-50 block mb-1">Full Name</label><input required className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={forms.user.full_name} onChange={e => handleChange('user', 'full_name', e.target.value)} /></div>
-              <div><label className="text-xs opacity-50 block mb-1">Initial Password</label><input required className="w-full p-2 bg-slate-800 border border-slate-600 rounded text-white" value={forms.user.password} onChange={e => handleChange('user', 'password', e.target.value)} /></div>
-              <div className="p-3 bg-yellow-900/20 border border-yellow-700/50 rounded text-xs text-yellow-500">
-                  User will receive an email notification with credentials.
-              </div>
               <button type="submit" disabled={loading} className="w-full py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded flex justify-center items-center gap-2">{loading && <Loader2 className="animate-spin" size={16}/>} Create User</button>
           </form>
       </Modal>
