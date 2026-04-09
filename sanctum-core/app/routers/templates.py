@@ -439,7 +439,15 @@ def _apply_project(
 
     variables = payload.variables or {}
 
-    for section in sorted(template.sections, key=lambda s: s.sequence):
+    # Pre-materialize section items before the flush loop to prevent
+    # SQLAlchemy session state changes from causing lazy re-loads that
+    # return empty collections for later sections.  See #1831.
+    sections_with_items = [
+        (section, sorted(list(section.items), key=lambda i: i.sequence))
+        for section in sorted(template.sections, key=lambda s: s.sequence)
+    ]
+
+    for section, items in sections_with_items:
         milestone = models.Milestone(
             project_id=project.id,
             name=_substitute(section.name, variables) if variables else section.name,
@@ -451,7 +459,7 @@ def _apply_project(
         db.flush()
         milestones_created += 1
 
-        for item in sorted(section.items, key=lambda i: i.sequence):
+        for item in items:
             ticket = models.Ticket(
                 account_id=payload.account_id,
                 milestone_id=milestone.id,
