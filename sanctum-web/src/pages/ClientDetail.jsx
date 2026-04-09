@@ -46,7 +46,7 @@ export default function ClientDetail() {
       contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' },
       project: { name: '', budget: 0, due_date: '' },
       deal: { title: '', amount: 0, stage: 'Infiltration', probability: 10 },
-      user: { email: '', password: '', full_name: '' }
+      user: { email: '', full_name: '' }
   });
 
   const [showAssetModal, setShowAssetModal] = useState(false);
@@ -346,7 +346,7 @@ export default function ClientDetail() {
                   onAddContact={() => { setForms({...forms, contact: { first_name: '', last_name: '', email: '', phone: '', persona: '', reports_to_id: '' }}); setActiveModal('contact'); }}
                   onEditContact={(c) => { setForms({...forms, contact: {...c, enable_portal_access: c.portal_access || false}}); setActiveModal('contact'); }}
                   onDeleteContact={(cid) => confirmAction("Remove Contact?", "This action is permanent.", () => deleteContact(cid))}
-                  onAddUser={() => { setForms({...forms, user: { email: '', full_name: '', password: '' }}); setActiveModal('user'); }}
+                  onAddUser={() => { setForms({...forms, user: { email: '', full_name: '' }}); setActiveModal('user'); }}
                   onRevokeUser={(uid) => confirmAction("Revoke Access?", "User will no longer be able to login.", () => revokeUser(uid))}
               />
               <MetadataStrip
