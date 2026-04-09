@@ -25,8 +25,13 @@ export default function AuthCallback() {
     }
 
     handleSSOCallback(code, state)
-      .then((user) => {
-        navigate(user?.role === 'client' ? '/portal' : '/', { replace: true });
+      .then(({ user, redirectTo }) => {
+        // Validate redirect target: must be relative path, no protocol
+        if (redirectTo && redirectTo.startsWith('/') && !redirectTo.includes('://')) {
+          navigate(redirectTo, { replace: true });
+        } else {
+          navigate(user?.role === 'client' ? '/portal' : '/', { replace: true });
+        }
       })
       .catch((err) => {
         console.error('SSO callback failed:', err);

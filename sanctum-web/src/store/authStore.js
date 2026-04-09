@@ -27,36 +27,6 @@ const useAuthStore = create((set) => ({
   token: storedToken,
   isAuthenticated: !!storedToken,
 
-  login: async (email, password, otp = null) => {
-    try {
-      // Create FormData
-      const formData = new FormData();
-      formData.append('username', email);
-      formData.append('password', password);
-      if (otp) formData.append('otp', otp);
-
-      const response = await api.post('/token', formData);
-      const { access_token } = response.data;
-
-      const decodedUser = jwtDecode(access_token);
-
-      localStorage.setItem('sanctum_token', access_token);
-
-      set({
-        token: access_token,
-        user: decodedUser,
-        isAuthenticated: true
-      });
-
-      return true;
-
-    } catch (error) {
-      console.error("Login failed:", error);
-      // CRITICAL: We must re-throw the error so Login.jsx can catch "2FA_REQUIRED"
-      throw error;
-    }
-  },
-
   setToken: (access_token) => {
     try {
         const decodedUser = jwtDecode(access_token);
@@ -71,7 +41,7 @@ const useAuthStore = create((set) => ({
     }
   },
 
-  loginWithSSO: async () => {
+  loginWithSSO: async (redirectTo = null) => {
     // Fetch SSO config from backend
     const { data: config } = await api.get('/auth/sso/config');
 
@@ -79,8 +49,10 @@ const useAuthStore = create((set) => ({
     const { verifier, challenge } = await generatePKCE();
     const state = generateState();
 
-    // Store in sessionStorage for the callback
-    sessionStorage.setItem('sanctum_sso', JSON.stringify({ verifier, state }));
+    // Store in sessionStorage for the callback (include redirect target)
+    const ssoData = { verifier, state };
+    if (redirectTo) ssoData.redirectTo = redirectTo;
+    sessionStorage.setItem('sanctum_sso', JSON.stringify(ssoData));
 
     // Redirect to Sanctum Auth
     const params = new URLSearchParams({
@@ -102,6 +74,7 @@ const useAuthStore = create((set) => ({
     if (!stored || stored.state !== state) {
       throw new Error('Invalid SSO state — possible CSRF');
     }
+    const redirectTo = stored.redirectTo || null;
     sessionStorage.removeItem('sanctum_sso');
 
     // Fetch SSO config to get redirect_uri
@@ -128,7 +101,7 @@ const useAuthStore = create((set) => ({
       isAuthenticated: true,
     });
 
-    return decodedUser;
+    return { user: decodedUser, redirectTo };
   },
 
   logout: () => {

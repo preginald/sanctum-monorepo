@@ -6,7 +6,6 @@ import GlobalModalManager from './components/GlobalModalManager';
 
 // --- AUTH PAGES ---
 import Login from './pages/Login';
-import SetPassword from './pages/SetPassword';
 import AuthCallback from './pages/AuthCallback';
 
 // --- PORTAL PAGES ---
@@ -115,7 +114,6 @@ function App() {
 
           {/* === PUBLIC ROUTES === */}
           <Route path="/login" element={<Login />} />
-          <Route path="/set-password" element={<SetPassword />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
 
           {/* === SECURE ZONE === */}

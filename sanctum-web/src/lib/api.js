@@ -30,8 +30,9 @@ api.interceptors.response.use(
 
       // Don't loop if already on login
       if (!currentPath.includes('/login')) {
-        // Redirect with "expired" flag AND "redirect" path
-        window.location.href = `/login?expired=true&redirect=${encodeURIComponent(currentPath)}`;
+        // Store redirect target in sessionStorage for Login to pick up
+        sessionStorage.setItem('sanctum_redirect', currentPath);
+        window.location.href = `/login?expired=true`;
       }
     }
     return Promise.reject(error);
