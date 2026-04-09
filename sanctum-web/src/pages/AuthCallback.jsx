@@ -27,7 +27,7 @@ export default function AuthCallback() {
     handleSSOCallback(code, state)
       .then(({ user, redirectTo }) => {
         // Validate redirect target: must be relative path, no protocol
-        if (redirectTo && redirectTo.startsWith('/') && !redirectTo.includes('://')) {
+        if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//') && !redirectTo.includes('://')) {
           navigate(redirectTo, { replace: true });
         } else {
           navigate(user?.role === 'client' ? '/portal' : '/', { replace: true });

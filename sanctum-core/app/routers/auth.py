@@ -74,7 +74,6 @@ def invite_user(
 class SSOCallbackRequest(BaseModel):
     code: str
     code_verifier: str
-    redirect_uri: str
 
 
 class SSOLogoutRequest(BaseModel):
@@ -107,7 +106,7 @@ async def sso_callback(payload: SSOCallbackRequest, db: Session = Depends(get_db
         token_response = await exchange_code_for_tokens(
             code=payload.code,
             code_verifier=payload.code_verifier,
-            redirect_uri=payload.redirect_uri,
+            redirect_uri=config.redirect_uri,
             config=config,
         )
     except ValueError as e:

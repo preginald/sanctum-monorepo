@@ -77,14 +77,10 @@ const useAuthStore = create((set) => ({
     const redirectTo = stored.redirectTo || null;
     sessionStorage.removeItem('sanctum_sso');
 
-    // Fetch SSO config to get redirect_uri
-    const { data: config } = await api.get('/auth/sso/config');
-
-    // Exchange code for Core JWT
+    // Exchange code for Core JWT (server uses its own redirect_uri from config)
     const response = await api.post('/auth/sso/callback', {
       code,
       code_verifier: stored.verifier,
-      redirect_uri: config.redirect_uri,
     });
 
     const { access_token, refresh_token } = response.data;
