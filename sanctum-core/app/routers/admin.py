@@ -51,10 +51,9 @@ def create_user(
     if db.query(models.User).filter(models.User.email == user_data.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    hashed_pw = auth.get_password_hash(user_data.password)
     new_user = models.User(
         email=user_data.email,
-        password_hash=hashed_pw,
+        password_hash=None,
         full_name=user_data.full_name,
         role=role,
         access_scope=access_scope
@@ -80,20 +79,6 @@ def admin_update_user(
     db.commit()
     db.refresh(user)
     return user
-
-@user_router.put("/{user_id}/reset_password")
-def admin_reset_password(
-    user_id: str,
-    payload: schemas.ClientUserCreate, # Reusing schema for convenience (just need password)
-    current_user: models.User = Depends(get_current_admin),
-    db: Session = Depends(get_db)
-):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user: raise HTTPException(status_code=404, detail="User not found")
-
-    user.password_hash = auth.get_password_hash(payload.password)
-    db.commit()
-    return {"status": "password_reset"}
 
 @user_router.delete("/{user_id}")
 def admin_delete_user(

@@ -4,11 +4,10 @@ Portal user provisioning service.
 Convergence logic: ensure a User exists for a contact and send invite if newly created.
 Extracted from routers/crm.py POST /contacts for shared use by POST and PUT endpoints.
 """
-import secrets
 from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session
 
-from .. import models, auth
+from .. import models
 from .auth_service import auth_service
 from .event_bus import event_bus
 
@@ -42,13 +41,10 @@ def provision_portal_user(
         }
 
     try:
-        # Create shadow user
-        random_pw = secrets.token_urlsafe(32)
-        hashed_pw = auth.get_password_hash(random_pw)
-
+        # Create SSO-only user (no local password)
         new_user = models.User(
             email=contact.email,
-            password_hash=hashed_pw,
+            password_hash=None,
             full_name=f"{contact.first_name} {contact.last_name}",
             role="client",
             access_scope="restricted",

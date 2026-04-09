@@ -2,7 +2,7 @@ from .shared import InvoiceLite, ArticleLite, SearchResult, Page
 from .auth import (
     Token, TokenData, UserResponse, ClientUserCreate,
     TwoFASetupResponse, TwoFAVerify,
-    PasswordSetRequest, InviteRequest
+    InviteRequest
 )
 from .billing import (
     ProductCreate, ProductUpdate, ProductResponse,

@@ -86,8 +86,7 @@ def update_account(account_id: str, account_update: schemas.AccountUpdate, db: S
 def create_client_user(account_id: str, user_data: schemas.ClientUserCreate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
     if db.query(models.User).filter(models.User.email == user_data.email).first(): raise HTTPException(status_code=400, detail="Email already registered")
-    hashed_pw = auth.get_password_hash(user_data.password)
-    new_user = models.User(email=user_data.email, password_hash=hashed_pw, full_name=user_data.full_name, role="client", access_scope="restricted", account_id=account_id)
+    new_user = models.User(email=user_data.email, password_hash=None, full_name=user_data.full_name, role="client", access_scope="restricted", account_id=account_id)
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

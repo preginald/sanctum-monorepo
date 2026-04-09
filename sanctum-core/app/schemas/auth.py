@@ -29,12 +29,8 @@ class UserResponse(SanctumBase):
 
 class ClientUserCreate(SanctumBase):
     email: EmailStr
-    password: str
+    password: Optional[str] = None
     full_name: str
-
-class PasswordSetRequest(SanctumBase):
-    token: str
-    new_password: str
 
 class InviteRequest(SanctumBase):
     email: str # EmailStr
