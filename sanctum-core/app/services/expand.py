@@ -14,6 +14,7 @@ import json
 
 from fastapi import Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
@@ -77,7 +78,8 @@ async def _get_optional_user(
     if not token:
         return None
     try:
-        return await get_current_user(token=token, db=db)
+        credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+        return await get_current_user(credentials=credentials, db=db)
     except HTTPException:
         return None
 
