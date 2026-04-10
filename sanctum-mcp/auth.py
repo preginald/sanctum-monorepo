@@ -27,8 +27,9 @@ MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "https://mcp.digitalsanctum.com.au"
 MCP_CLIENT_ID = os.getenv("MCP_CLIENT_ID", "")
 MCP_CLIENT_SECRET = os.getenv("MCP_CLIENT_SECRET", "")
 MCP_JWT_SECRET = os.getenv("MCP_JWT_SECRET", os.getenv("MCP_CLIENT_SECRET", ""))
-MCP_TOKEN_EXPIRY = int(os.getenv("MCP_TOKEN_EXPIRY", "3600"))
+MCP_TOKEN_EXPIRY = int(os.getenv("MCP_TOKEN_EXPIRY", "86400"))  # 24 hours
 MCP_REFRESH_EXPIRY = int(os.getenv("MCP_REFRESH_EXPIRY", "2592000"))  # 30 days
+MCP_REFRESH_GRACE = int(os.getenv("MCP_REFRESH_GRACE", "120"))  # 2 min replay window
 MCP_AUTH_ENABLED = os.getenv("MCP_AUTH_ENABLED", "true").lower() == "true"
 MCP_AUTH_USERNAME = os.getenv("MCP_AUTH_USERNAME", "admin")
 MCP_AUTH_PASSWORD = os.getenv("MCP_AUTH_PASSWORD", "")
@@ -71,6 +72,9 @@ def _save_refresh_tokens() -> None:
 
 
 _refresh_tokens = _load_refresh_tokens()  # token -> {sub, client_id, issued_at, expires_at}
+
+# Grace period: consumed refresh tokens kept briefly so retries succeed
+_consumed_refresh = {}  # old_token -> {response: dict, expires_at: float}
 
 ALLOWED_CALLBACKS = [
     "https://claude.ai/api/mcp/auth_callback",
@@ -547,6 +551,18 @@ class OAuthMiddleware:
         if expired:
             _save_refresh_tokens()
 
+        # Cleanup expired grace entries
+        grace_expired = [k for k, v in _consumed_refresh.items() if v["expires_at"] < now]
+        for k in grace_expired:
+            del _consumed_refresh[k]
+
+        # Check grace period: replay cached response for recently consumed tokens
+        if refresh_token in _consumed_refresh:
+            cached = _consumed_refresh[refresh_token]
+            status, headers, body = _json_response(200, cached["response"])
+            await self._send_response(send, status, headers, body)
+            return
+
         # Validate refresh token
         token_data = _refresh_tokens.pop(refresh_token, None)
         if not token_data:
@@ -568,6 +584,13 @@ class OAuthMiddleware:
         effective_sub = token_data["sub"]
         effective_client = token_data.get("client_id", client_id or effective_sub)
         token_response = _create_token(sub=effective_sub, client_id=effective_client)
+
+        # Cache the response in grace window so retries get the same tokens
+        _consumed_refresh[refresh_token] = {
+            "response": token_response,
+            "expires_at": now + MCP_REFRESH_GRACE,
+        }
+
         status, headers, body = _json_response(200, token_response)
         await self._send_response(send, status, headers, body)
 
