@@ -1,9 +1,13 @@
 """Sanctum MCP Server — exposes Sanctum Core API as MCP tools for Claude Code."""
 
+import logging
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Configure logging before any module imports so all loggers inherit this level
+logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s: %(message)s")
 
 from app import mcp  # noqa: E402
 from starlette.middleware import Middleware  # noqa: E402

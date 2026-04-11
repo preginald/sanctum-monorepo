@@ -48,17 +48,20 @@ for _alias, _canonical in _ALIASES.items():
         AGENT_TOKEN_MAP[_alias] = AGENT_TOKEN_MAP[_canonical]
 
 _loaded = [k for k in AGENT_TOKEN_MAP if k not in _ALIASES]
-if _loaded:
-    log.info("AgentIdentityMiddleware: loaded tokens for %s", ", ".join(sorted(_loaded)))
-else:
-    log.warning("AgentIdentityMiddleware: no agent tokens configured; all requests use default")
 
-# Log token prefixes at startup so stale-token issues are diagnosable from logs
+# Startup diagnostics use print() because logging handlers aren't configured
+# yet at import time (uvicorn sets them up later)
+if _loaded:
+    print(f"[agent-identity] loaded tokens for: {', '.join(sorted(_loaded))}")
+else:
+    print("[agent-identity] WARNING: no agent tokens configured; all requests use default")
+
 for _name in sorted(_loaded):
     _t = AGENT_TOKEN_MAP[_name]
-    log.info("  %s: %s...%s", _name, _t[:8], _t[-4:])
+    print(f"[agent-identity]   {_name}: {_t[:8]}...{_t[-4:]}")
 _default_token = API_TOKEN
-log.info("  (default): %s...%s", _default_token[:8], _default_token[-4:] if len(_default_token) > 12 else "(empty)")
+_default_hint = f"{_default_token[:8]}...{_default_token[-4:]}" if len(_default_token) > 12 else "(empty)"
+print(f"[agent-identity]   (default): {_default_hint}")
 
 
 # ── ASGI Middleware ────────────────────────────────────────────────────
