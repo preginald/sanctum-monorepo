@@ -98,9 +98,22 @@ async def _request(method: str, path: str, **kwargs) -> httpx.Response:
     raise last_exc  # type: ignore[misc]
 
 
+def _check_upstream(r: httpx.Response, method: str, path: str) -> None:
+    """Log and raise on upstream auth/permission errors with diagnostic detail."""
+    if r.status_code in (401, 403):
+        token = CURRENT_API_TOKEN.get()
+        token_hint = f"{token[:8]}...{token[-4:]}" if len(token) > 12 else "(empty)"
+        body = r.text[:200]
+        log.error(
+            "UPSTREAM %d | %s %s | token=%s | body=%s",
+            r.status_code, method, path, token_hint, body,
+        )
+    r.raise_for_status()
+
+
 async def get(path: str, params: dict | None = None) -> dict | list:
     r = await _request("GET", path, params=params)
-    r.raise_for_status()
+    _check_upstream(r, "GET", path)
     return r.json()
 
 
@@ -108,7 +121,7 @@ async def post(path: str, json: dict | None = None) -> dict:
     r = await _request("POST", path, json=json)
     if r.status_code == 422:
         return {"error": True, "status_code": 422, **r.json()}
-    r.raise_for_status()
+    _check_upstream(r, "POST", path)
     return r.json()
 
 
@@ -116,17 +129,17 @@ async def put(path: str, json: dict | None = None) -> dict:
     r = await _request("PUT", path, json=json)
     if r.status_code == 422:
         return {"error": True, "status_code": 422, **r.json()}
-    r.raise_for_status()
+    _check_upstream(r, "PUT", path)
     return r.json()
 
 
 async def patch(path: str, json: dict | None = None) -> dict:
     r = await _request("PATCH", path, json=json)
-    r.raise_for_status()
+    _check_upstream(r, "PATCH", path)
     return r.json()
 
 
 async def delete(path: str) -> dict:
     r = await _request("DELETE", path)
-    r.raise_for_status()
+    _check_upstream(r, "DELETE", path)
     return r.json()

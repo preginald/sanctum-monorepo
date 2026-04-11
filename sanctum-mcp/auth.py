@@ -7,6 +7,7 @@ Supports:
 - RFC 7591 Dynamic Client Registration
 """
 
+import logging
 import os
 import time
 import json
@@ -18,6 +19,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import jwt
+
+log = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────
 # CONFIG
@@ -111,12 +114,15 @@ def _create_token(sub: str = "", client_id: str = "") -> dict:
     }
 
 
-def _validate_token(token: str) -> bool:
+def _validate_token(token: str) -> tuple[bool, str]:
+    """Validate a JWT and return (valid, reason)."""
     try:
         jwt.decode(token, MCP_JWT_SECRET, algorithms=["HS256"])
-        return True
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
-        return False
+        return True, "ok"
+    except jwt.ExpiredSignatureError:
+        return False, "expired"
+    except jwt.InvalidTokenError as exc:
+        return False, f"invalid ({type(exc).__name__})"
 
 
 def _json_response(status: int, body: dict) -> tuple:
@@ -261,8 +267,10 @@ class OAuthMiddleware:
         # --- Validate bearer token ---
         headers = dict(scope.get("headers", []))
         auth_header = headers.get(b"authorization", b"").decode()
+        client_ip = scope.get("client", ("?", 0))[0]
 
         if not auth_header.startswith("Bearer "):
+            log.warning("AUTH 401 no-token | %s %s | ip=%s", method, path, client_ip)
             status, resp_headers, body = _json_response(
                 401, {"error": "unauthorized", "error_description": "Bearer token required"}
             )
@@ -270,9 +278,15 @@ class OAuthMiddleware:
             return
 
         token = auth_header[7:]
-        if not _validate_token(token):
+        valid, reason = _validate_token(token)
+        if not valid:
+            log.warning(
+                "AUTH 401 %s | %s %s | ip=%s | token=%s...%s",
+                reason, method, path, client_ip,
+                token[:8], token[-4:] if len(token) > 12 else "?",
+            )
             status, resp_headers, body = _json_response(
-                401, {"error": "invalid_token", "error_description": "Token is invalid or expired"}
+                401, {"error": "invalid_token", "error_description": f"Token is {reason}"}
             )
             await self._send_response(send, status, resp_headers, body)
             return

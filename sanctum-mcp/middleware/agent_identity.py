@@ -47,11 +47,18 @@ for _alias, _canonical in _ALIASES.items():
     if _canonical in AGENT_TOKEN_MAP:
         AGENT_TOKEN_MAP[_alias] = AGENT_TOKEN_MAP[_canonical]
 
-_loaded = [k for k in AGENT_TOKEN_MAP]
+_loaded = [k for k in AGENT_TOKEN_MAP if k not in _ALIASES]
 if _loaded:
     log.info("AgentIdentityMiddleware: loaded tokens for %s", ", ".join(sorted(_loaded)))
 else:
-    log.info("AgentIdentityMiddleware: no agent tokens configured; all requests use default")
+    log.warning("AgentIdentityMiddleware: no agent tokens configured; all requests use default")
+
+# Log token prefixes at startup so stale-token issues are diagnosable from logs
+for _name in sorted(_loaded):
+    _t = AGENT_TOKEN_MAP[_name]
+    log.info("  %s: %s...%s", _name, _t[:8], _t[-4:])
+_default_token = API_TOKEN
+log.info("  (default): %s...%s", _default_token[:8], _default_token[-4:] if len(_default_token) > 12 else "(empty)")
 
 
 # ── ASGI Middleware ────────────────────────────────────────────────────
@@ -73,8 +80,17 @@ class AgentIdentityMiddleware:
         token_to_use = AGENT_TOKEN_MAP.get(agent_name, "") if agent_name else ""
         persona = agent_name if agent_name else AGENT_PERSONA
 
+        effective_token = token_to_use or API_TOKEN
+        path = scope.get("path", "?")
+        method = scope.get("method", "?")
+        token_hint = f"{effective_token[:8]}...{effective_token[-4:]}" if len(effective_token) > 12 else "(empty)"
+        source = "agent-header" if token_to_use else "default"
+        if agent_name and not token_to_use:
+            log.warning("AGENT unknown header=%r, falling back to default | %s %s", agent_name, method, path)
+        log.debug("AGENT %s | %s | token=%s | %s %s", persona, source, token_hint, method, path)
+
         # Set ContextVars — reset after the request completes
-        cv_token = CURRENT_API_TOKEN.set(token_to_use or API_TOKEN)
+        cv_token = CURRENT_API_TOKEN.set(effective_token)
         cv_persona = CURRENT_AGENT_PERSONA.set(persona)
         try:
             return await self.app(scope, receive, send)
