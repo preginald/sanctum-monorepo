@@ -11,6 +11,7 @@ import re
 import os
 from ..services.content_engine import resolve_content
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
+from ..services.uuid_resolver import resolve_uuid
 
 router = APIRouter(tags=["Wiki"])
 
@@ -28,15 +29,30 @@ IDENTIFIER_PREFIX_MAP = {
 
 
 def _resolve_article(db: Session, article_id: str):
-    """Resolve an article by UUID, slug, or identifier (e.g. DOC-009)."""
+    """Resolve an article by UUID, UUID prefix (8+ hex), slug, or identifier (e.g. DOC-009)."""
+    # 1. Full UUID
     try:
         uid = UUID(article_id)
         return db.query(models.Article).filter(models.Article.id == uid).first()
     except ValueError:
-        article = db.query(models.Article).filter(models.Article.slug == article_id).first()
-        if not article:
-            article = db.query(models.Article).filter(models.Article.identifier == article_id.upper()).first()
+        pass
+
+    # 2. UUID prefix (8+ hex chars after stripping dashes)
+    clean = article_id.replace("-", "")
+    if len(clean) >= 8 and all(c in "0123456789abcdefABCDEF" for c in clean):
+        try:
+            resolved_id = resolve_uuid(db, models.Article, article_id, deleted_filter=False)
+            return db.query(models.Article).filter(models.Article.id == resolved_id).first()
+        except Exception:
+            pass  # Fall through to slug/identifier
+
+    # 3. Slug
+    article = db.query(models.Article).filter(models.Article.slug == article_id).first()
+    if article:
         return article
+
+    # 4. Identifier (e.g. DOC-009)
+    return db.query(models.Article).filter(models.Article.identifier == article_id.upper()).first()
 
 
 def _generate_identifier(db: Session, category: str) -> str:
@@ -115,14 +131,10 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
 def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: bool = False, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
-    query = db.query(models.Article).options(joinedload(models.Article.author))
-    try:
-        uid = UUID(slug)
-        article = query.filter(models.Article.id == uid).first()
-    except ValueError:
-        article = query.filter(models.Article.slug == slug).first()
-        if not article:
-            article = query.filter(models.Article.identifier == slug.upper()).first()
+    article = _resolve_article(db, slug)
+    if article:
+        # Re-fetch with eager loads
+        article = db.query(models.Article).options(joinedload(models.Article.author)).filter(models.Article.id == article.id).first()
 
     if not article: raise HTTPException(status_code=404, detail="Article not found")
 
@@ -218,7 +230,7 @@ def update_article(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    article = _resolve_article(db, article_id)
     if not article: raise HTTPException(status_code=404, detail="Article not found")
 
     # 1. HISTORY SNAPSHOT
@@ -384,13 +396,13 @@ def revert_article(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
-    article = db.query(models.Article).filter(models.Article.id == article_id).first()
+    article = _resolve_article(db, article_id)
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
 
     history_entry = db.query(models.ArticleHistory).filter(
         models.ArticleHistory.id == history_id,
-        models.ArticleHistory.article_id == article_id
+        models.ArticleHistory.article_id == article.id
     ).first()
     if not history_entry:
         raise HTTPException(status_code=404, detail="History entry not found for this article")
@@ -435,12 +447,9 @@ def revert_article(
 def download_article_pdf(article_id: str, db: Session = Depends(get_db)):
     from ..services.pdf_engine import pdf_engine
 
-    query = db.query(models.Article).options(joinedload(models.Article.author))
-    try:
-        uid = UUID(article_id)
-        article = query.filter(models.Article.id == uid).first()
-    except ValueError:
-        article = query.filter(models.Article.slug == article_id).first()
+    article = _resolve_article(db, article_id)
+    if article:
+        article = db.query(models.Article).options(joinedload(models.Article.author)).filter(models.Article.id == article.id).first()
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
@@ -471,12 +480,9 @@ def email_article(
     from ..services.pdf_engine import pdf_engine
     from ..services.email_service import email_service
 
-    query = db.query(models.Article).options(joinedload(models.Article.author))
-    try:
-        uid = UUID(article_id)
-        article = query.filter(models.Article.id == uid).first()
-    except ValueError:
-        article = query.filter(models.Article.slug == article_id).first()
+    article = _resolve_article(db, article_id)
+    if article:
+        article = db.query(models.Article).options(joinedload(models.Article.author)).filter(models.Article.id == article.id).first()
 
     if not article:
         raise HTTPException(status_code=404, detail="Article not found")
