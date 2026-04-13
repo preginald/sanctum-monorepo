@@ -111,7 +111,7 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
     if expand.should_expand("artefacts"):
         artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
             models.ArtefactLink.linked_entity_type == "project",
-            models.ArtefactLink.linked_entity_id == str(project_id),
+            models.ArtefactLink.linked_entity_id == str(resolved_id),
         ).all()
         ids = [r[0] for r in artefact_ids]
         project.artefacts = db.query(models.Artefact).filter(
@@ -122,12 +122,12 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
 
     # Compute counts before filtering (need full data for accurate counts)
     milestone_count = len(project.milestones) if hasattr(project, 'milestones') and project.milestones else (
-        db.query(func.count(models.Milestone.id)).filter(models.Milestone.project_id == project_id, models.Milestone.is_deleted == False).scalar()
+        db.query(func.count(models.Milestone.id)).filter(models.Milestone.project_id == resolved_id, models.Milestone.is_deleted == False).scalar()
     )
     artefact_count = len(project.artefacts) if hasattr(project, 'artefacts') and project.artefacts else (
         db.query(func.count(models.ArtefactLink.id)).filter(
             models.ArtefactLink.linked_entity_type == "project",
-            models.ArtefactLink.linked_entity_id == str(project_id),
+            models.ArtefactLink.linked_entity_id == str(resolved_id),
         ).scalar()
     )
 
@@ -381,7 +381,7 @@ def get_milestone_detail(milestone_id: str, expand: ExpandConfig = Depends(get_e
     # Attach linked artefacts
     artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
         models.ArtefactLink.linked_entity_type == "milestone",
-        models.ArtefactLink.linked_entity_id == str(milestone_id),
+        models.ArtefactLink.linked_entity_id == str(ms.id),
     ).all()
     art_ids = [r[0] for r in artefact_ids]
     artefact_list = db.query(models.Artefact).filter(

@@ -37,7 +37,7 @@ def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     try:
         artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
             models.ArtefactLink.linked_entity_type == "account",
-            models.ArtefactLink.linked_entity_id == str(account_id),
+            models.ArtefactLink.linked_entity_id == str(account.id),
         ).all()
         if artefact_ids:
             ids = [r[0] for r in artefact_ids]
