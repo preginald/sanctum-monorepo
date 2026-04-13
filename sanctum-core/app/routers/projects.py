@@ -450,7 +450,7 @@ def milestone_artefacts(milestone_id: str, db: Session = Depends(get_db)):
 @router.post("/projects/{project_id}/milestones/reorder")
 def reorder_milestones(project_id: str, payload: schemas.MilestoneReorderRequest, db: Session = Depends(get_db)):
     for item in payload.items:
-        ms = db.query(models.Milestone).filter(models.Milestone.id == item.id, models.Milestone.project_id == project_id).first()
+        ms = db.query(models.Milestone).filter(models.Milestone.id == item.id, models.Milestone.project_id == project_id, models.Milestone.is_deleted == False).first()
         if ms: ms.sequence = item.sequence
     db.commit()
     return {"status": "updated"}

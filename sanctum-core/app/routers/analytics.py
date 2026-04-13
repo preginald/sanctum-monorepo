@@ -90,7 +90,8 @@ def get_pipeline_forecast(db: Session = Depends(get_db), _: models.User = Depend
     milestones = db.query(models.Milestone).filter(
         models.Milestone.invoice_id == None,
         models.Milestone.billable_amount > 0,
-        models.Milestone.status != 'completed'
+        models.Milestone.status != 'completed',
+        models.Milestone.is_deleted == False,
     ).all()
 
     bucket_30 = bucket_60 = bucket_90 = bucket_beyond = 0.0
