@@ -38,23 +38,31 @@ def list_pins(
         if not project:
             continue
 
-        # Ticket summary via aggregation
-        ticket_stats = (
-            db.query(
-                sa_func.count(models.Ticket.id).label("total"),
-                sa_func.sum(
-                    case((models.Ticket.status != "resolved", 1), else_=0)
-                ).label("open"),
-                sa_func.sum(
-                    case((models.Ticket.status == "resolved", 1), else_=0)
-                ).label("resolved"),
+        # Ticket summary via aggregation (tickets link to projects through milestones)
+        project_milestone_ids = [
+            m.id for m in db.query(models.Milestone.id).filter(
+                models.Milestone.project_id == pin.project_id
+            ).all()
+        ]
+        if project_milestone_ids:
+            ticket_stats = (
+                db.query(
+                    sa_func.count(models.Ticket.id).label("total"),
+                    sa_func.sum(
+                        case((models.Ticket.status != "resolved", 1), else_=0)
+                    ).label("open"),
+                    sa_func.sum(
+                        case((models.Ticket.status == "resolved", 1), else_=0)
+                    ).label("resolved"),
+                )
+                .filter(
+                    models.Ticket.milestone_id.in_(project_milestone_ids),
+                    models.Ticket.is_deleted == False,
+                )
+                .first()
             )
-            .filter(
-                models.Ticket.project_id == pin.project_id,
-                models.Ticket.is_deleted == False,
-            )
-            .first()
-        )
+        else:
+            ticket_stats = None
 
         account = db.query(models.Account).filter(models.Account.id == project.account_id).first()
 
@@ -69,9 +77,9 @@ def list_pins(
                 position=pin.position,
                 pinned_at=pin.pinned_at,
                 ticket_summary=schemas.TicketSummary(
-                    total=ticket_stats.total or 0,
-                    open=ticket_stats.open or 0,
-                    resolved=ticket_stats.resolved or 0,
+                    total=(ticket_stats.total or 0) if ticket_stats else 0,
+                    open=(ticket_stats.open or 0) if ticket_stats else 0,
+                    resolved=(ticket_stats.resolved or 0) if ticket_stats else 0,
                 ),
             )
         )
