@@ -26,6 +26,7 @@ def shift_sequences_for_insert(project_id: str, target_sequence: int, db: Sessio
         db.query(models.Milestone)
         .filter(
             models.Milestone.project_id == project_id,
+            models.Milestone.is_deleted == False,
             models.Milestone.sequence >= target_sequence,
         )
         .order_by(models.Milestone.sequence.desc())
@@ -59,6 +60,7 @@ def shift_sequences_for_move(
             db.query(models.Milestone)
             .filter(
                 models.Milestone.project_id == project_id,
+                models.Milestone.is_deleted == False,
                 models.Milestone.id != milestone_id,
                 models.Milestone.sequence >= new_sequence,
                 models.Milestone.sequence < old_sequence,
@@ -74,6 +76,7 @@ def shift_sequences_for_move(
             db.query(models.Milestone)
             .filter(
                 models.Milestone.project_id == project_id,
+                models.Milestone.is_deleted == False,
                 models.Milestone.id != milestone_id,
                 models.Milestone.sequence > old_sequence,
                 models.Milestone.sequence <= new_sequence,

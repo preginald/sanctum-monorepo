@@ -418,7 +418,8 @@ def _apply_project(
         project.template_id = template.id
         # Offset milestone sequences to avoid collisions with existing milestones
         max_seq = db.query(func.max(models.Milestone.sequence)).filter(
-            models.Milestone.project_id == project.id
+            models.Milestone.project_id == project.id,
+            models.Milestone.is_deleted == False,
         ).scalar() or 0
     else:
         project = models.Project(

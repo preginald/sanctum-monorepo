@@ -306,7 +306,7 @@ def global_search(
         ).filter(or_(
             models.Milestone.name.ilike(term),
             func.word_similarity(term_str, models.Milestone.name) > 0.3
-        )).filter(models.Project.is_deleted == False)
+        )).filter(models.Project.is_deleted == False).filter(models.Milestone.is_deleted == False)
         if current_user.role == 'client':
             ms_query = ms_query.filter(models.Project.account_id == current_user.account_id)
         for ms, sim in ms_query.order_by(sim_col.desc()).limit(effective_limit).all():

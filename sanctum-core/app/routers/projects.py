@@ -10,7 +10,8 @@ from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
 from ..services.project_validation import validate_project_transition, validate_project_status, get_available_transitions as get_project_transitions
 from ..services.governance import get_project_transitions as get_project_transition_map
-from ..services.cascade import cascade_from_milestone
+from ..services.cascade import cascade_from_milestone, cascade_from_ticket
+from ..services.delete_validation import validate_project_deletable, validate_milestone_deletable
 from ..services.milestone_sequencing import shift_sequences_for_insert, shift_sequences_for_move
 from ..services.expand import ExpandConfig, get_expand_config, get_expand_config_lean, expanded_response
 from decimal import Decimal, ROUND_HALF_UP
@@ -126,7 +127,7 @@ def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expan
 
     # Compute counts before filtering (need full data for accurate counts)
     milestone_count = len(project.milestones) if hasattr(project, 'milestones') and project.milestones else (
-        db.query(func.count(models.Milestone.id)).filter(models.Milestone.project_id == project_id).scalar()
+        db.query(func.count(models.Milestone.id)).filter(models.Milestone.project_id == project_id, models.Milestone.is_deleted == False).scalar()
     )
     artefact_count = len(project.artefacts) if hasattr(project, 'artefacts') and project.artefacts else (
         db.query(func.count(models.ArtefactLink.id)).filter(
@@ -197,17 +198,47 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
     return proj
 
 @router.delete("/projects/{project_id}")
-def delete_project(project_id: str, db: Session = Depends(get_db)):
+def delete_project(project_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     proj = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not proj: raise HTTPException(status_code=404, detail="Project not found")
+    if not proj:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if proj.is_deleted:
+        raise HTTPException(status_code=410, detail="Project already deleted")
+
+    blockers = validate_project_deletable(proj, db)
+    if blockers["blocking_milestones"] or blockers["blocking_tickets"]:
+        raise HTTPException(status_code=409, detail={
+            "detail": "Cannot delete project — children have started work",
+            "blocking_milestones": blockers["blocking_milestones"],
+            "blocking_tickets": blockers["blocking_tickets"],
+        })
+
+    milestones_deleted = 0
+    tickets_deleted = 0
+    milestones = db.query(models.Milestone).filter(
+        models.Milestone.project_id == proj.id,
+        models.Milestone.is_deleted == False,
+    ).all()
+    for ms in milestones:
+        ms.is_deleted = True
+        milestones_deleted += 1
+        tickets = db.query(models.Ticket).filter(
+            models.Ticket.milestone_id == ms.id,
+            models.Ticket.is_deleted == False,
+        ).all()
+        for t in tickets:
+            t.is_deleted = True
+            tickets_deleted += 1
+
     proj.is_deleted = True
     db.commit()
-    return {"status": "archived"}
+    return {"status": "archived", "milestones_deleted": milestones_deleted, "tickets_deleted": tickets_deleted}
 
 @router.get("/projects/{project_id}/milestones", response_model=List[schemas.MilestoneResponse])
 def list_milestones(project_id: str, db: Session = Depends(get_db)):
     milestones = db.query(models.Milestone).filter(
-        models.Milestone.project_id == project_id
+        models.Milestone.project_id == project_id,
+        models.Milestone.is_deleted == False,
     ).order_by(models.Milestone.sequence.asc()).all()
     for ms in milestones:
         ms.available_transitions = get_milestone_transitions(ms.status, db)
@@ -225,10 +256,40 @@ def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Se
     db.refresh(new_milestone)
     return new_milestone
 
+@router.delete("/milestones/{milestone_id}")
+def delete_milestone(milestone_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
+    if not ms:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    if ms.is_deleted:
+        raise HTTPException(status_code=410, detail="Milestone already deleted")
+
+    ticket_blockers = validate_milestone_deletable(ms, db)
+    if ticket_blockers:
+        raise HTTPException(status_code=409, detail={
+            "detail": "Cannot delete milestone — tickets have started work",
+            "blocking_tickets": ticket_blockers,
+        })
+
+    tickets_deleted = 0
+    tickets = db.query(models.Ticket).filter(
+        models.Ticket.milestone_id == ms.id,
+        models.Ticket.is_deleted == False,
+    ).all()
+    for t in tickets:
+        t.is_deleted = True
+        tickets_deleted += 1
+        cascade_from_ticket(t, db)
+
+    ms.is_deleted = True
+    db.commit()
+    return {"status": "archived", "tickets_deleted": tickets_deleted}
+
 @router.put("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
 def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Session = Depends(get_db)):
     ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
     if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    if ms.is_deleted: raise HTTPException(status_code=410, detail="Milestone already deleted")
 
     # Status transition validation (before applying changes)
     if update.status and update.status != ms.status and not update.skip_validation:
@@ -264,6 +325,7 @@ def get_milestone_detail(milestone_id: str, expand: ExpandConfig = Depends(get_e
         joinedload(models.Milestone.project).joinedload(models.Project.account)
     ).filter(models.Milestone.id == milestone_id).first()
     if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    if ms.is_deleted: raise HTTPException(status_code=410, detail="Milestone already deleted")
     ms.project_name = ms.project.name if ms.project else None
     ms.account_id = ms.project.account_id if ms.project else None
     ms.account_name = ms.project.account.name if ms.project and ms.project.account else None

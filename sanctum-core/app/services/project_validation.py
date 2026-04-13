@@ -58,6 +58,7 @@ def validate_project_transition(
     if current == "planning" and requested == "active":
         milestone_count = db.query(models.Milestone).filter(
             models.Milestone.project_id == project.id,
+            models.Milestone.is_deleted == False,
         ).count()
         if project.template_id is None and milestone_count == 0:
             raise HTTPException(
@@ -75,6 +76,7 @@ def validate_project_transition(
     if current == "active" and requested == "completed":
         incomplete = db.query(models.Milestone).filter(
             models.Milestone.project_id == project.id,
+            models.Milestone.is_deleted == False,
             models.Milestone.status != "completed",
         ).all()
         if incomplete:

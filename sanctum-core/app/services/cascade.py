@@ -61,6 +61,7 @@ def compute_project_status(project, db: Session) -> str | None:
 
     milestones = db.query(models.Milestone.status).filter(
         models.Milestone.project_id == project.id,
+        models.Milestone.is_deleted == False,
     ).all()
 
     if not milestones:
