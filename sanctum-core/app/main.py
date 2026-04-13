@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 # UPDATED IMPORTS: Added 'analytics'
-from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets, analytics, notifications, vendors, ingest, api_tokens, templates, artefacts, mcp_telemetry, sso
+from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets, analytics, notifications, vendors, ingest, api_tokens, templates, artefacts, mcp_telemetry, sso, workbench
 
 app = FastAPI(title="Sanctum Core", version="1.9.1", root_path=os.getenv("ROOT_PATH", ""))
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -54,6 +54,7 @@ app.include_router(templates.router)
 app.include_router(artefacts.router)
 app.include_router(mcp_telemetry.router)
 app.include_router(sso.router)
+app.include_router(workbench.router)
 
 # EVENT SUBSCRIBERS
 from .services.event_bus import event_bus

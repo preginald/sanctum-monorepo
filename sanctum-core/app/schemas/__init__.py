@@ -45,6 +45,11 @@ from .portal import PortalDashboard, AccountDetail, QuestionnaireSubmit
 
 from .sso import SSORegisterRequest, SSORegisterResponse, SSORotateResponse, SSOStatusResponse
 
+from .workbench import (
+    WorkbenchPinCreate, WorkbenchPinResponse, WorkbenchListResponse,
+    WorkbenchReorderRequest, WorkbenchReorderItem, TicketSummary
+)
+
 from .automation import (
     AutomationCreate, AutomationUpdate, AutomationResponse, AutomationLogResponse
 )

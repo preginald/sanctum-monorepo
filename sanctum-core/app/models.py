@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime, Index
+from sqlalchemy import Column, Integer, BigInteger, String, Text, Boolean, TIMESTAMP, ForeignKey, Table, Numeric, Float, Date, func, ARRAY, DateTime, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.types import JSON
@@ -950,6 +950,25 @@ class McpToolCall(Base):
 
 Index('ix_mcp_tool_calls_called_at_tool_name', McpToolCall.called_at, McpToolCall.tool_name)
 Index('ix_mcp_tool_calls_agent_persona', McpToolCall.agent_persona)
+
+
+# Sanctum Workbench — per-operator project pinning (#1917)
+class WorkbenchPin(Base):
+    __tablename__ = "workbench_pins"
+    __table_args__ = (
+        UniqueConstraint("user_id", "project_id", name="uq_workbench_pins_user_project"),
+    )
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    position = Column(Integer, nullable=False, default=0, server_default=text("0"))
+    pinned_at = Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User")
+    project = relationship("Project")
+
+Index('ix_workbench_pins_user', WorkbenchPin.user_id)
+Index('ix_workbench_pins_project', WorkbenchPin.project_id)
 
 
 # TRIGRAM INDEXES (pg_trgm)
