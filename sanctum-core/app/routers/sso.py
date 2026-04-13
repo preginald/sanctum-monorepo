@@ -18,18 +18,16 @@ from ..services.sanctum_auth_client import (
     delete_client,
     SanctumAuthAPIError,
 )
+from ..services.uuid_resolver import get_or_404 as _uuid_get_or_404
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["SSO"])
 
 
-def _get_account_or_404(account_id: UUID, db: Session) -> models.Account:
-    """Load an account by ID or raise 404."""
-    account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    return account
+def _get_account_or_404(account_id: str, db: Session) -> models.Account:
+    """Load an account by UUID or prefix, or raise 404."""
+    return _uuid_get_or_404(db, models.Account, account_id, deleted_filter=False)
 
 
 def _require_operator(current_user: models.User):
@@ -40,7 +38,7 @@ def _require_operator(current_user: models.User):
 
 @router.post("/accounts/{account_id}/sso/register", response_model=schemas.SSORegisterResponse)
 def sso_register(
-    account_id: UUID,
+    account_id: str,
     body: schemas.SSORegisterRequest,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
@@ -87,7 +85,7 @@ def sso_register(
 
 @router.post("/accounts/{account_id}/sso/rotate-secret", response_model=schemas.SSORotateResponse)
 def sso_rotate_secret(
-    account_id: UUID,
+    account_id: str,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
@@ -114,7 +112,7 @@ def sso_rotate_secret(
 
 @router.delete("/accounts/{account_id}/sso")
 def sso_delete(
-    account_id: UUID,
+    account_id: str,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):

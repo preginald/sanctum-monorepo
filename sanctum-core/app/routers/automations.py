@@ -4,6 +4,7 @@ from typing import List
 from uuid import UUID
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.uuid_resolver import get_or_404
 
 router = APIRouter(prefix="/admin/automations", tags=["Automations"])
 
@@ -55,9 +56,8 @@ def create_automation(auto: schemas.AutomationCreate, db: Session = Depends(get_
     return new_auto
 
 @router.put("/{auto_id}", response_model=schemas.AutomationResponse)
-def update_automation(auto_id: UUID, update: schemas.AutomationUpdate, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
-    auto = db.query(models.Automation).filter(models.Automation.id == auto_id).first()
-    if not auto: raise HTTPException(status_code=404, detail="Automation not found")
+def update_automation(auto_id: str, update: schemas.AutomationUpdate, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
+    auto = get_or_404(db, models.Automation, auto_id, deleted_filter=False)
 
     for k, v in update.model_dump(exclude_unset=True).items():
         setattr(auto, k, v)
@@ -67,16 +67,17 @@ def update_automation(auto_id: UUID, update: schemas.AutomationUpdate, db: Sessi
     return auto
 
 @router.delete("/{auto_id}")
-def delete_automation(auto_id: UUID, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
-    auto = db.query(models.Automation).filter(models.Automation.id == auto_id).first()
-    if not auto: raise HTTPException(status_code=404, detail="Automation not found")
+def delete_automation(auto_id: str, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
+    auto = get_or_404(db, models.Automation, auto_id, deleted_filter=False)
     db.delete(auto)
     db.commit()
     return {"status": "deleted"}
 
 @router.get("/{auto_id}/logs", response_model=List[schemas.AutomationLogResponse])
-def get_automation_logs(auto_id: UUID, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
-    logs = db.query(models.AutomationLog).options(joinedload(models.AutomationLog.automation)).filter(models.AutomationLog.automation_id == auto_id).order_by(models.AutomationLog.triggered_at.desc()).limit(50).all()
+def get_automation_logs(auto_id: str, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
+    from ..services.uuid_resolver import resolve_uuid
+    resolved_id = resolve_uuid(db, models.Automation, auto_id, deleted_filter=False)
+    logs = db.query(models.AutomationLog).options(joinedload(models.AutomationLog.automation)).filter(models.AutomationLog.automation_id == resolved_id).order_by(models.AutomationLog.triggered_at.desc()).limit(50).all()
 
     # Consistent enrichment for single view as well
     results = []

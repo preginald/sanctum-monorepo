@@ -9,6 +9,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.artefact_validation import validate_session_handover_authorship
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 
 router = APIRouter(tags=["Artefacts"])
 
@@ -166,13 +167,11 @@ def get_artefact(
     expand: ExpandConfig = Depends(get_expand_config),
     db: Session = Depends(get_db),
 ):
-    artefact = db.query(models.Artefact).options(
+    artefact = get_or_404(db, models.Artefact, artefact_id, options=[
         joinedload(models.Artefact.account),
         joinedload(models.Artefact.creator),
         joinedload(models.Artefact.links),
-    ).filter(models.Artefact.id == artefact_id).first()
-    if not artefact:
-        raise HTTPException(status_code=404, detail="Artefact not found")
+    ])
     artefact.account_name = artefact.account.name if artefact.account else None
     artefact.creator_name = artefact.creator.full_name if artefact.creator else None
     _enrich_links(db, artefact.links)
@@ -192,9 +191,7 @@ def get_artefact_sections(
     """List section headings, or return a single section body if ?section= is provided."""
     from ..services.section_parser import get_headings, get_section as _get_section
 
-    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
-    if not artefact:
-        raise HTTPException(status_code=404, detail="Artefact not found")
+    artefact = get_or_404(db, models.Artefact, artefact_id)
 
     content = artefact.content or ""
     if section:
@@ -220,9 +217,7 @@ def update_artefact(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
-    if not artefact:
-        raise HTTPException(status_code=404, detail="Artefact not found")
+    artefact = get_or_404(db, models.Artefact, artefact_id)
 
     update_data = update.model_dump(exclude_unset=True)
     change_comment = update_data.pop("change_comment", None)
@@ -281,9 +276,7 @@ def delete_artefact(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
-    if not artefact:
-        raise HTTPException(status_code=404, detail="Artefact not found")
+    artefact = get_or_404(db, models.Artefact, artefact_id)
     artefact.is_deleted = True
     db.commit()
     return {"status": "archived"}
@@ -298,8 +291,9 @@ def get_artefact_history(
     page_size: int = 20,
     db: Session = Depends(get_db),
 ):
+    resolved_id = resolve_uuid(db, models.Artefact, artefact_id)
     query = db.query(models.ArtefactHistory).filter(
-        models.ArtefactHistory.artefact_id == artefact_id
+        models.ArtefactHistory.artefact_id == resolved_id
     )
     total = query.count()
     items = query.order_by(models.ArtefactHistory.snapshot_at.desc())\
@@ -320,13 +314,11 @@ def revert_artefact(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
-    if not artefact:
-        raise HTTPException(status_code=404, detail="Artefact not found")
+    artefact = get_or_404(db, models.Artefact, artefact_id)
 
     history_entry = db.query(models.ArtefactHistory).filter(
         models.ArtefactHistory.id == history_id,
-        models.ArtefactHistory.artefact_id == artefact_id,
+        models.ArtefactHistory.artefact_id == artefact.id,
     ).first()
     if not history_entry:
         raise HTTPException(status_code=404, detail="History entry not found for this artefact")
@@ -386,9 +378,7 @@ def link_artefact(
         raise HTTPException(status_code=422, detail="entity_type must be ticket, account, article, project, or milestone")
 
     # Check artefact exists
-    artefact = db.query(models.Artefact).filter(models.Artefact.id == artefact_id).first()
-    if not artefact:
-        raise HTTPException(status_code=404, detail="Artefact not found")
+    artefact = get_or_404(db, models.Artefact, artefact_id)
 
     # Check for existing link
     existing = db.query(models.ArtefactLink).filter(

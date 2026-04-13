@@ -5,6 +5,7 @@ from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db, SessionLocal
 from ..services.email_service import email_service
+from ..services.uuid_resolver import get_or_404
 
 router = APIRouter(tags=["Campaigns"])
 
@@ -26,14 +27,14 @@ def create_campaign(campaign: schemas.CampaignCreate, current_user: models.User 
 
 @router.get("/campaigns/{campaign_id}", response_model=schemas.CampaignResponse)
 def get_campaign_detail(campaign_id: str, db: Session = Depends(get_db)):
-    camp = db.query(models.Campaign).options(joinedload(models.Campaign.targets)).filter(models.Campaign.id == campaign_id).first()
-    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    camp = get_or_404(db, models.Campaign, campaign_id, options=[
+        joinedload(models.Campaign.targets)
+    ], deleted_filter=False)
     return camp
 
 @router.put("/campaigns/{campaign_id}", response_model=schemas.CampaignResponse)
 def update_campaign(campaign_id: str, update: schemas.CampaignUpdate, db: Session = Depends(get_db)):
-    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
-    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    camp = get_or_404(db, models.Campaign, campaign_id, deleted_filter=False)
     update_data = update.model_dump(exclude_unset=True)
     for key, value in update_data.items(): setattr(camp, key, value)
     db.commit()
@@ -42,8 +43,7 @@ def update_campaign(campaign_id: str, update: schemas.CampaignUpdate, db: Sessio
 
 @router.post("/campaigns/{campaign_id}/targets/bulk", response_model=schemas.CampaignTargetAddResult)
 def add_campaign_targets(campaign_id: str, filters: schemas.CampaignTargetFilter, db: Session = Depends(get_db)):
-    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
-    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    camp = get_or_404(db, models.Campaign, campaign_id, deleted_filter=False)
     query = db.query(models.Contact).join(models.Account)
     if filters.account_status: query = query.filter(models.Account.status == filters.account_status)
     if filters.brand_affinity: query = query.filter(models.Account.brand_affinity.in_([filters.brand_affinity, 'both']))
@@ -74,8 +74,7 @@ def get_campaign_targets(campaign_id: str, db: Session = Depends(get_db)):
 
 @router.post("/campaigns/{campaign_id}/test")
 def send_campaign_test(campaign_id: str, target_email: str, db: Session = Depends(get_db)):
-    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
-    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    camp = get_or_404(db, models.Campaign, campaign_id, deleted_filter=False)
     subject = camp.subject_template.replace("{{first_name}}", "TestUser").replace("{{company}}", "TestCorp")
     body = camp.body_template.replace("{{first_name}}", "TestUser").replace("{{company}}", "TestCorp")
     if "\n" in body and "<p>" not in body: body = body.replace("\n", "<br>")
@@ -119,8 +118,7 @@ def process_campaign_background(campaign_id: str):
 
 @router.post("/campaigns/{campaign_id}/launch")
 async def launch_campaign(campaign_id: str, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    camp = db.query(models.Campaign).filter(models.Campaign.id == campaign_id).first()
-    if not camp: raise HTTPException(status_code=404, detail="Campaign not found")
+    camp = get_or_404(db, models.Campaign, campaign_id, deleted_filter=False)
     if camp.status == 'completed': raise HTTPException(status_code=400, detail="Campaign already completed")
     if not camp.subject_template or not camp.body_template: raise HTTPException(status_code=400, detail="Content missing")
     pending_count = db.query(models.CampaignTarget).filter(models.CampaignTarget.campaign_id == campaign_id, models.CampaignTarget.status == 'targeted').count()

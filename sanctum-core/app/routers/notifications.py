@@ -4,6 +4,7 @@ from typing import List
 from .. import models, schemas, auth
 from ..database import get_db
 from ..models import UserNotificationPreference # Ensure this is imported
+from ..services.uuid_resolver import resolve_uuid
 
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
@@ -34,7 +35,8 @@ def get_unread_count(
 
 @router.put("/{note_id}/read")
 def mark_as_read(note_id: str, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    note = db.query(models.Notification).filter(models.Notification.id == note_id, models.Notification.user_id == current_user.id).first()
+    resolved_id = resolve_uuid(db, models.Notification, note_id, deleted_filter=False)
+    note = db.query(models.Notification).filter(models.Notification.id == resolved_id, models.Notification.user_id == current_user.id).first()
     if not note: raise HTTPException(status_code=404, detail="Notification not found")
 
     note.is_read = True
