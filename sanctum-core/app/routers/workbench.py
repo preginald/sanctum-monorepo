@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas, auth
 from ..database import get_db
 
-router = APIRouter(prefix="/api/workbench", tags=["Workbench"])
+router = APIRouter(prefix="/workbench", tags=["Workbench"])
 
 MAX_PINS = 5
 
