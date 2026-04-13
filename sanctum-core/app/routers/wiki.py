@@ -372,8 +372,11 @@ def get_article_history(
     section_heading: str = None,
     db: Session = Depends(get_db)
 ):
+    article = _resolve_article(db, article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
     query = db.query(models.ArticleHistory).options(joinedload(models.ArticleHistory.author))\
-        .filter(models.ArticleHistory.article_id == article_id)
+        .filter(models.ArticleHistory.article_id == article.id)
     if section_heading:
         query = query.filter(models.ArticleHistory.section_heading == section_heading)
     total = query.count()
@@ -543,21 +546,30 @@ def add_article_relation(
     related_id = payload.get("related_id")
     if not related_id:
         raise HTTPException(status_code=422, detail="related_id required")
-    if article_id == related_id:
+
+    # Resolve both IDs to full UUIDs
+    article = _resolve_article(db, article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    related = _resolve_article(db, related_id)
+    if not related:
+        raise HTTPException(status_code=404, detail="Related article not found")
+
+    if article.id == related.id:
         raise HTTPException(status_code=422, detail="An article cannot relate to itself")
     ar = models.article_relations
     from sqlalchemy import or_, and_
     exists = db.execute(
         ar.select().where(
             or_(
-                and_(ar.c.article_id == article_id, ar.c.related_id == related_id),
-                and_(ar.c.article_id == related_id, ar.c.related_id == article_id)
+                and_(ar.c.article_id == article.id, ar.c.related_id == related.id),
+                and_(ar.c.article_id == related.id, ar.c.related_id == article.id)
             )
         )
     ).first()
     if exists:
         return {"status": "already_exists"}
-    db.execute(ar.insert().values(article_id=article_id, related_id=related_id))
+    db.execute(ar.insert().values(article_id=article.id, related_id=related.id))
     db.commit()
     return {"status": "linked"}
 
@@ -571,13 +583,22 @@ def remove_article_relation(
 ):
     if current_user.role == 'client':
         raise HTTPException(status_code=403, detail="Forbidden")
+
+    # Resolve both IDs to full UUIDs
+    article = _resolve_article(db, article_id)
+    if not article:
+        raise HTTPException(status_code=404, detail="Article not found")
+    related = _resolve_article(db, related_id)
+    if not related:
+        raise HTTPException(status_code=404, detail="Related article not found")
+
     ar = models.article_relations
     from sqlalchemy import or_, and_
     db.execute(
         ar.delete().where(
             or_(
-                and_(ar.c.article_id == article_id, ar.c.related_id == related_id),
-                and_(ar.c.article_id == related_id, ar.c.related_id == article_id)
+                and_(ar.c.article_id == article.id, ar.c.related_id == related.id),
+                and_(ar.c.article_id == related.id, ar.c.related_id == article.id)
             )
         )
     )

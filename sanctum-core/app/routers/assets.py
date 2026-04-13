@@ -185,7 +185,7 @@ def get_asset_detail(
     linked_tickets = db.query(models.Ticket).join(
         models.ticket_assets
     ).filter(
-        models.ticket_assets.c.asset_id == asset_id
+        models.ticket_assets.c.asset_id == asset.id
     ).order_by(models.Ticket.created_at.desc()).all()
 
     today = date.today()
