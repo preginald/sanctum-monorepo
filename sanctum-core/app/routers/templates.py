@@ -12,6 +12,7 @@ from ..schemas.templates import (
     TemplateApplicationResponse,
 )
 from ..services.event_bus import event_bus
+from ..services.uuid_resolver import get_or_404 as _resolve_or_404, resolve_uuid
 import uuid
 
 router = APIRouter(prefix="/templates", tags=["Template Library"])
@@ -36,12 +37,9 @@ def _enrich(template: models.Template, db: Session) -> models.Template:
 
 
 def _get_or_404(template_id: str, db: Session) -> models.Template:
-    t = db.query(models.Template).options(
+    return _resolve_or_404(db, models.Template, template_id, options=[
         joinedload(models.Template.sections).joinedload(models.TemplateSection.items)
-    ).filter(models.Template.id == template_id).first()
-    if not t:
-        raise HTTPException(status_code=404, detail="Template not found")
-    return t
+    ], deleted_filter=False)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -603,9 +601,7 @@ def update_item(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    item = db.query(models.TemplateItem).filter(models.TemplateItem.id == item_id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+    item = _resolve_or_404(db, models.TemplateItem, item_id, deleted_filter=False)
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
     db.commit()
@@ -619,9 +615,7 @@ def delete_item(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    item = db.query(models.TemplateItem).filter(models.TemplateItem.id == item_id).first()
-    if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+    item = _resolve_or_404(db, models.TemplateItem, item_id, deleted_filter=False)
     db.delete(item)
     db.commit()
 

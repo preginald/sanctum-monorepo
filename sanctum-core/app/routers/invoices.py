@@ -8,6 +8,7 @@ from ..database import get_db
 from ..services.email_service import email_service
 from ..services.pdf_engine import pdf_engine
 from ..services.billing_service import billing_service
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 
 router = APIRouter(prefix="/invoices", tags=["Invoices"])
 
@@ -338,11 +339,10 @@ def generate_invoice_from_ticket(ticket_id: int, current_user: models.User = Dep
 
 @router.get("/{invoice_id}", response_model=schemas.InvoiceResponse)
 def get_invoice_detail(invoice_id: str, db: Session = Depends(get_db)):
-    inv = db.query(models.Invoice).options(
-            joinedload(models.Invoice.items).joinedload(models.InvoiceItem.ticket).joinedload(models.Ticket.contacts),
-            joinedload(models.Invoice.delivery_logs).joinedload(models.InvoiceDeliveryLog.sender)
-        ).filter(models.Invoice.id == invoice_id).first()
-    if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
+    inv = get_or_404(db, models.Invoice, invoice_id, options=[
+        joinedload(models.Invoice.items).joinedload(models.InvoiceItem.ticket).joinedload(models.Ticket.contacts),
+        joinedload(models.Invoice.delivery_logs).joinedload(models.InvoiceDeliveryLog.sender)
+    ], deleted_filter=False)
     inv.account_name = inv.account.name
     for log in inv.delivery_logs:
         if log.sender: log.sender_name = log.sender.full_name
@@ -358,9 +358,9 @@ def get_invoice_detail(invoice_id: str, db: Session = Depends(get_db)):
 @router.put("/{invoice_id}", response_model=schemas.InvoiceResponse)
 def update_invoice_meta(invoice_id: str, update: schemas.InvoiceUpdate, db: Session = Depends(get_db)):
     # Need to join items and account to regenerate PDF
-    inv = db.query(models.Invoice).options(joinedload(models.Invoice.items), joinedload(models.Invoice.account)).filter(models.Invoice.id == invoice_id).first()
-
-    if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
+    inv = get_or_404(db, models.Invoice, invoice_id, options=[
+        joinedload(models.Invoice.items), joinedload(models.Invoice.account)
+    ], deleted_filter=False)
 
     if update.status: inv.status = update.status
     if update.due_date: inv.due_date = update.due_date
@@ -439,9 +439,7 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Only Admins can delete invoices.")
 
-    inv = db.query(models.Invoice).filter(models.Invoice.id == invoice_id).first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+    inv = get_or_404(db, models.Invoice, invoice_id, deleted_filter=False)
 
     if inv.status not in ('draft', 'void'):
         raise HTTPException(
@@ -472,8 +470,7 @@ def add_invoice_item(invoice_id: str, item: schemas.InvoiceItemCreate, db: Sessi
 
 @router.put("/items/{item_id}", response_model=schemas.InvoiceResponse)
 def update_invoice_item(item_id: str, update: schemas.InvoiceItemUpdate, db: Session = Depends(get_db)):
-    item = db.query(models.InvoiceItem).filter(models.InvoiceItem.id == item_id).first()
-    if not item: raise HTTPException(status_code=404, detail="Item not found")
+    item = get_or_404(db, models.InvoiceItem, item_id, deleted_filter=False)
     if update.description is not None: item.description = update.description
     if update.quantity is not None: item.quantity = update.quantity
     if update.unit_price is not None: item.unit_price = update.unit_price
@@ -485,8 +482,7 @@ def update_invoice_item(item_id: str, update: schemas.InvoiceItemUpdate, db: Ses
 
 @router.delete("/items/{item_id}", response_model=schemas.InvoiceResponse)
 def delete_invoice_item(item_id: str, db: Session = Depends(get_db)):
-    item = db.query(models.InvoiceItem).filter(models.InvoiceItem.id == item_id).first()
-    if not item: raise HTTPException(status_code=404, detail="Item not found")
+    item = get_or_404(db, models.InvoiceItem, item_id, deleted_filter=False)
     pid = item.invoice_id
 
     # Unlock source if linked
@@ -506,10 +502,9 @@ def void_invoice(invoice_id: str, db: Session = Depends(get_db), current_user: m
     if current_user.role != 'admin':
         raise HTTPException(status_code=403, detail="Only Admins can void invoices.")
 
-    inv = db.query(models.Invoice).options(joinedload(models.Invoice.items)).filter(models.Invoice.id == invoice_id).first()
-
-    if not inv:
-        raise HTTPException(status_code=404, detail="Invoice not found")
+    inv = get_or_404(db, models.Invoice, invoice_id, options=[
+        joinedload(models.Invoice.items)
+    ], deleted_filter=False)
 
     if inv.status == 'paid':
         raise HTTPException(status_code=400, detail="Cannot void a Paid invoice.")
@@ -547,8 +542,9 @@ def send_invoice_email(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
     ):
-    inv = db.query(models.Invoice).options(joinedload(models.Invoice.account), joinedload(models.Invoice.items)).filter(models.Invoice.id == invoice_id).first()
-    if not inv: raise HTTPException(status_code=404, detail="Invoice not found")
+    inv = get_or_404(db, models.Invoice, invoice_id, options=[
+        joinedload(models.Invoice.account), joinedload(models.Invoice.items)
+    ], deleted_filter=False)
 
     to_email = request.to_email.strip()
     cc_emails = [email.strip() for email in request.cc_emails if email.strip()]

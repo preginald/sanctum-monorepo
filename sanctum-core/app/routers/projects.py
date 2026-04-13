@@ -14,6 +14,7 @@ from ..services.cascade import cascade_from_milestone, cascade_from_ticket
 from ..services.delete_validation import validate_project_deletable, validate_milestone_deletable
 from ..services.milestone_sequencing import shift_sequences_for_insert, shift_sequences_for_move
 from ..services.expand import ExpandConfig, get_expand_config, get_expand_config_lean, expanded_response
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 from decimal import Decimal, ROUND_HALF_UP
 import os
 
@@ -70,18 +71,12 @@ def get_projects(account_id: Optional[str] = None, expand: ExpandConfig = Depend
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
-    # Skip expensive milestone/ticket joinedload when not expanding
+    # Resolve prefix to full UUID, then do the eager-loaded query
+    resolved_id = resolve_uuid(db, models.Project, project_id)
+    opts = [joinedload(models.Project.account), joinedload(models.Project.template)]
     if expand.should_expand("milestones"):
-        project = db.query(models.Project).options(
-            joinedload(models.Project.milestones).selectinload(models.Milestone.tickets),
-            joinedload(models.Project.account),
-            joinedload(models.Project.template),
-        ).filter(models.Project.id == project_id).first()
-    else:
-        project = db.query(models.Project).options(
-            joinedload(models.Project.account),
-            joinedload(models.Project.template),
-        ).filter(models.Project.id == project_id).first()
+        opts.append(joinedload(models.Project.milestones).selectinload(models.Milestone.tickets))
+    project = db.query(models.Project).options(*opts).filter(models.Project.id == resolved_id).first()
 
     if not project: raise HTTPException(status_code=404, detail="Project not found")
     project.account_name = project.account.name
@@ -170,8 +165,7 @@ def create_project(project: schemas.ProjectCreate, current_user: models.User = D
 
 @router.put("/projects/{project_id}", response_model=schemas.ProjectResponse)
 def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session = Depends(get_db)):
-    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not proj: raise HTTPException(status_code=404, detail="Project not found")
+    proj = get_or_404(db, models.Project, project_id)
     update_data = update.model_dump(exclude_unset=True)
     # Project status transition validation
     if 'status' in update_data and update_data['status'] != proj.status and not update.skip_validation:
@@ -199,9 +193,8 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
 
 @router.delete("/projects/{project_id}")
 def delete_project(project_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    proj = db.query(models.Project).filter(models.Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Project not found")
+    proj = get_or_404(db, models.Project, project_id, deleted_filter=False)
+    # Re-check: the resolver skips deleted_filter so we get the entity even if deleted
     if proj.is_deleted:
         raise HTTPException(status_code=410, detail="Project already deleted")
 
@@ -236,8 +229,9 @@ def delete_project(project_id: str, current_user: models.User = Depends(auth.get
 
 @router.get("/projects/{project_id}/milestones", response_model=List[schemas.MilestoneResponse])
 def list_milestones(project_id: str, db: Session = Depends(get_db)):
+    resolved_project_id = resolve_uuid(db, models.Project, project_id)
     milestones = db.query(models.Milestone).filter(
-        models.Milestone.project_id == project_id,
+        models.Milestone.project_id == resolved_project_id,
         models.Milestone.is_deleted == False,
     ).order_by(models.Milestone.sequence.asc()).all()
     for ms in milestones:
@@ -246,6 +240,8 @@ def list_milestones(project_id: str, db: Session = Depends(get_db)):
 
 @router.post("/projects/{project_id}/milestones", response_model=schemas.MilestoneResponse)
 def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Session = Depends(get_db)):
+    resolved_project_id = resolve_uuid(db, models.Project, project_id)
+    project_id = str(resolved_project_id)
     validate_milestone_status(milestone.status, db)
     shift_sequences_for_insert(project_id, milestone.sequence, db)
     new_milestone = models.Milestone(**milestone.model_dump(), project_id=project_id)
@@ -258,9 +254,7 @@ def create_milestone(project_id: str, milestone: schemas.MilestoneCreate, db: Se
 
 @router.delete("/milestones/{milestone_id}")
 def delete_milestone(milestone_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
-    if not ms:
-        raise HTTPException(status_code=404, detail="Milestone not found")
+    ms = get_or_404(db, models.Milestone, milestone_id, deleted_filter=False)
     if ms.is_deleted:
         raise HTTPException(status_code=410, detail="Milestone already deleted")
 
@@ -287,8 +281,7 @@ def delete_milestone(milestone_id: str, current_user: models.User = Depends(auth
 
 @router.put("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
 def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Session = Depends(get_db)):
-    ms = db.query(models.Milestone).filter(models.Milestone.id == milestone_id).first()
-    if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    ms = get_or_404(db, models.Milestone, milestone_id, deleted_filter=False)
     if ms.is_deleted: raise HTTPException(status_code=410, detail="Milestone already deleted")
 
     # Status transition validation (before applying changes)
@@ -320,11 +313,10 @@ def update_milestone(milestone_id: str, update: schemas.MilestoneUpdate, db: Ses
 
 @router.get("/milestones/{milestone_id}", response_model=schemas.MilestoneResponse)
 def get_milestone_detail(milestone_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
-    ms = db.query(models.Milestone).options(
+    ms = get_or_404(db, models.Milestone, milestone_id, options=[
         joinedload(models.Milestone.tickets),
         joinedload(models.Milestone.project).joinedload(models.Project.account)
-    ).filter(models.Milestone.id == milestone_id).first()
-    if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    ], deleted_filter=False)
     if ms.is_deleted: raise HTTPException(status_code=410, detail="Milestone already deleted")
     ms.project_name = ms.project.name if ms.project else None
     ms.account_id = ms.project.account_id if ms.project else None
@@ -421,9 +413,10 @@ def get_milestone_detail(milestone_id: str, expand: ExpandConfig = Depends(get_e
 
 @router.get("/projects/{project_id}/artefacts", response_model=List[schemas.ArtefactLite])
 def project_artefacts(project_id: str, db: Session = Depends(get_db)):
+    resolved_project_id = resolve_uuid(db, models.Project, project_id)
     artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
         models.ArtefactLink.linked_entity_type == "project",
-        models.ArtefactLink.linked_entity_id == project_id,
+        models.ArtefactLink.linked_entity_id == str(resolved_project_id),
     ).all()
     ids = [r[0] for r in artefact_ids]
     if not ids:
@@ -435,9 +428,10 @@ def project_artefacts(project_id: str, db: Session = Depends(get_db)):
 
 @router.get("/milestones/{milestone_id}/artefacts", response_model=List[schemas.ArtefactLite])
 def milestone_artefacts(milestone_id: str, db: Session = Depends(get_db)):
+    resolved_ms_id = resolve_uuid(db, models.Milestone, milestone_id)
     artefact_ids = db.query(models.ArtefactLink.artefact_id).filter(
         models.ArtefactLink.linked_entity_type == "milestone",
-        models.ArtefactLink.linked_entity_id == milestone_id,
+        models.ArtefactLink.linked_entity_id == str(resolved_ms_id),
     ).all()
     ids = [r[0] for r in artefact_ids]
     if not ids:
@@ -457,8 +451,9 @@ def reorder_milestones(project_id: str, payload: schemas.MilestoneReorderRequest
 
 @router.post("/milestones/{milestone_id}/invoice", response_model=schemas.InvoiceResponse)
 def generate_milestone_invoice(milestone_id: str, db: Session = Depends(get_db)):
-    ms = db.query(models.Milestone).join(models.Project).filter(models.Milestone.id == milestone_id).first()
-    if not ms: raise HTTPException(status_code=404, detail="Milestone not found")
+    ms = get_or_404(db, models.Milestone, milestone_id, options=[
+        joinedload(models.Milestone.project)
+    ])
     if ms.billable_amount <= 0: raise HTTPException(status_code=400, detail="Nothing to bill")
     if ms.invoice_id: raise HTTPException(status_code=400, detail="Already invoiced")
 
@@ -508,8 +503,7 @@ def get_audits(account_id: Optional[str] = None, current_user: models.User = Dep
 
 @router.get("/audits/{audit_id}", response_model=schemas.AuditResponse)
 def get_audit_detail(audit_id: str, db: Session = Depends(get_db)):
-    audit = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
-    if not audit: raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
     return audit
 
 @router.post("/audits", response_model=schemas.AuditResponse)
@@ -529,8 +523,7 @@ def create_audit_draft(audit: schemas.AuditCreate, db: Session = Depends(get_db)
 
 @router.put("/audits/{audit_id}", response_model=schemas.AuditResponse)
 def update_audit_content(audit_id: str, audit_update: schemas.AuditUpdate, db: Session = Depends(get_db)):
-    audit = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
-    if not audit: raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
     content_payload = {"items": [item.model_dump() for item in audit_update.items]}
     audit.content = content_payload
     total_score = 0
@@ -551,8 +544,7 @@ def update_audit_content(audit_id: str, audit_update: schemas.AuditUpdate, db: S
 
 @router.post("/audits/{audit_id}/finalize", response_model=schemas.AuditResponse)
 def finalize_audit(audit_id: str, db: Session = Depends(get_db)):
-    audit_record = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
-    if not audit_record: raise HTTPException(status_code=404, detail="Audit not found")
+    audit_record = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
     account = db.query(models.Account).filter(models.Account.id == audit_record.account_id).first()
     items = audit_record.content.get('items', [])
     if not items: raise HTTPException(status_code=400, detail="Cannot finalize empty audit")
@@ -633,9 +625,7 @@ def create_rate_card(card: schemas.RateCardCreate, current_user: models.User = D
 
 @router.put("/rate-cards/{card_id}", response_model=schemas.RateCardResponse)
 def update_rate_card(card_id: str, update: schemas.RateCardUpdate, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    card = db.query(models.RateCard).filter(models.RateCard.id == card_id).first()
-    if not card:
-        raise HTTPException(status_code=404, detail="Rate card not found")
+    card = get_or_404(db, models.RateCard, card_id, deleted_filter=False)
     update_data = update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(card, field, value)

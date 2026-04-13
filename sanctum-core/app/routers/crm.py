@@ -8,6 +8,7 @@ from ..database import get_db
 from ..services.email_service import email_service
 from ..services.auth_service import auth_service
 from ..services.portal_provisioning import provision_portal_user
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 
 
 router = APIRouter(tags=["CRM"])
@@ -23,10 +24,9 @@ def get_accounts(current_user: models.User = Depends(auth.get_current_active_use
 
 @router.get("/accounts/{account_id}", response_model=schemas.AccountDetail)
 def get_account_detail(account_id: str, db: Session = Depends(get_db)):
-    account = db.query(models.Account)\
-        .options(joinedload(models.Account.contacts), joinedload(models.Account.deals), joinedload(models.Account.projects), joinedload(models.Account.invoices), joinedload(models.Account.tickets).joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user), joinedload(models.Account.assets))\
-        .filter(models.Account.id == account_id).first()
-    if not account: raise HTTPException(status_code=404, detail="Account not found")
+    account = get_or_404(db, models.Account, account_id, options=[
+        joinedload(models.Account.contacts), joinedload(models.Account.deals), joinedload(models.Account.projects), joinedload(models.Account.invoices), joinedload(models.Account.tickets).joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user), joinedload(models.Account.assets)
+    ], deleted_filter=False)
     account.projects = [p for p in account.projects if not p.is_deleted]
     account.tickets = [t for t in account.tickets if not t.is_deleted]
     for t in account.tickets:
@@ -60,9 +60,7 @@ def create_account(account: schemas.AccountCreate, current_user: models.User = D
 
 @router.put("/accounts/{account_id}", response_model=schemas.AccountResponse)
 def update_account(account_id: str, account_update: schemas.AccountUpdate, db: Session = Depends(get_db)):
-    db_account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not db_account:
-        raise HTTPException(status_code=404, detail="Account not found")
+    db_account = get_or_404(db, models.Account, account_id, deleted_filter=False)
 
     update_data = account_update.model_dump(exclude_unset=True)
 
@@ -100,8 +98,7 @@ def get_client_users(account_id: str, db: Session = Depends(get_db)):
 
 @router.delete("/users/{user_id}")
 def delete_user(user_id: str, db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user: raise HTTPException(status_code=404, detail="User not found")
+    user = get_or_404(db, models.User, user_id, deleted_filter=False)
     db.delete(user)
     db.commit()
     return {"status": "deleted"}
@@ -119,12 +116,9 @@ def get_deals(current_user: models.User = Depends(auth.get_current_active_user),
 
 @router.get("/deals/{deal_id}", response_model=schemas.DealResponse)
 def get_deal_detail(deal_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    deal = db.query(models.Deal)\
-        .options(joinedload(models.Deal.items).joinedload(models.DealItem.product))\
-        .filter(models.Deal.id == deal_id).first()
-
-    if not deal:
-        raise HTTPException(status_code=404, detail="Deal not found")
+    deal = get_or_404(db, models.Deal, deal_id, options=[
+        joinedload(models.Deal.items).joinedload(models.DealItem.product)
+    ], deleted_filter=False)
 
     if current_user.access_scope == 'nt_only' and deal.account.brand_affinity == 'ds':
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -171,8 +165,7 @@ def create_deal(deal: schemas.DealCreate, db: Session = Depends(get_db)):
 
 @router.put("/deals/{deal_id}", response_model=schemas.DealResponse)
 def update_deal(deal_id: str, deal_update: schemas.DealUpdate, db: Session = Depends(get_db)):
-    deal = db.query(models.Deal).filter(models.Deal.id == deal_id).first()
-    if not deal: raise HTTPException(status_code=404, detail="Deal not found")
+    deal = get_or_404(db, models.Deal, deal_id, deleted_filter=False)
     update_data = deal_update.model_dump(exclude_unset=True)
     for key, value in update_data.items(): setattr(deal, key, value)
     db.commit()
@@ -192,8 +185,7 @@ def get_products(product_type: str | None = None, current_user: models.User = De
 @router.get("/products/{product_id}", response_model=schemas.ProductResponse)
 def get_product(product_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.role == 'client': raise HTTPException(status_code=403, detail="Forbidden")
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product: raise HTTPException(status_code=404, detail="Product not found")
+    product = get_or_404(db, models.Product, product_id, deleted_filter=False)
     return product
 
 @router.post("/products", response_model=schemas.ProductResponse)
@@ -209,8 +201,7 @@ def create_product(product: schemas.ProductCreate, current_user: models.User = D
 def update_product(product_id: str, product_update: schemas.ProductUpdate, db: Session = Depends(get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     if current_user.access_scope != 'global': raise HTTPException(status_code=403, detail="Forbidden")
 
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product: raise HTTPException(status_code=404, detail="Product not found")
+    product = get_or_404(db, models.Product, product_id, deleted_filter=False)
 
     # Update fields
     update_data = product_update.model_dump(exclude_unset=True)
@@ -228,8 +219,7 @@ def update_product(product_id: str, product_update: schemas.ProductUpdate, db: S
 @router.delete("/products/{product_id}")
 def archive_product(product_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     if current_user.access_scope != 'global': raise HTTPException(status_code=403, detail="Forbidden")
-    product = db.query(models.Product).filter(models.Product.id == product_id).first()
-    if not product: raise HTTPException(status_code=404, detail="Product not found")
+    product = get_or_404(db, models.Product, product_id, deleted_filter=False)
     product.is_active = False
     db.commit()
     return {"status": "archived"}
@@ -273,8 +263,7 @@ def create_contact(contact: schemas.ContactCreate, background_tasks: BackgroundT
 
 @router.put("/contacts/{contact_id}", response_model=schemas.ContactResponse)
 def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
-    if not contact: raise HTTPException(status_code=404, detail="Contact not found")
+    contact = get_or_404(db, models.Contact, contact_id, deleted_filter=False)
 
     update_data = contact_update.model_dump(exclude_unset=True)
     enable_portal = update_data.pop('enable_portal_access', None)
@@ -310,8 +299,7 @@ def update_contact(contact_id: str, contact_update: schemas.ContactUpdate, backg
 
 @router.delete("/contacts/{contact_id}")
 def delete_contact(contact_id: str, db: Session = Depends(get_db)):
-    contact = db.query(models.Contact).filter(models.Contact.id == contact_id).first()
-    if not contact: raise HTTPException(status_code=404, detail="Contact not found")
+    contact = get_or_404(db, models.Contact, contact_id, deleted_filter=False)
     db.delete(contact)
     db.commit()
     return {"status": "deleted"}
