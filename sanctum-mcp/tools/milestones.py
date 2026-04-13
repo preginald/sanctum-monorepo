@@ -3,7 +3,7 @@
 import json
 import re
 from app import mcp
-from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
+from cost_tiers import DESTRUCTIVE, HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
 from telemetry import with_telemetry
 import client
 
@@ -136,4 +136,19 @@ async def milestone_update(
     if sequence is not None:
         payload["sequence"] = sequence
     result = await client.put(f"/milestones/{milestone_id}", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
+async def milestone_delete(milestone_id: str) -> str:
+    """Soft-delete a milestone and cascade to its tickets.
+
+    Requires all child tickets to have no work started. Returns 409
+    with blocking entities if any ticket has started work.
+
+    Args:
+        milestone_id: UUID of the milestone.
+    """
+    result = await client.delete(f"/milestones/{milestone_id}")
     return json.dumps(result, indent=2)

@@ -2,7 +2,7 @@
 
 import json
 from app import mcp
-from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
+from cost_tiers import DESTRUCTIVE, HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
 from telemetry import with_telemetry
 import client
 
@@ -295,4 +295,20 @@ async def rate_card_lookup(
     if as_of:
         params["as_of"] = as_of
     result = await client.get("/rate-cards/lookup", params=params)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
+async def project_delete(project_id: str) -> str:
+    """Soft-delete a project and cascade to milestones and tickets.
+
+    Requires all children to have no work started (no comments, time entries,
+    materials, or status transitions beyond creation). Returns 409 with
+    blocking entities if any child has started work.
+
+    Args:
+        project_id: UUID of the project.
+    """
+    result = await client.delete(f"/projects/{project_id}")
     return json.dumps(result, indent=2)
