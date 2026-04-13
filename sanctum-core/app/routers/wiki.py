@@ -43,8 +43,10 @@ def _resolve_article(db: Session, article_id: str):
         try:
             resolved_id = resolve_uuid(db, models.Article, article_id, deleted_filter=False)
             return db.query(models.Article).filter(models.Article.id == resolved_id).first()
-        except Exception:
-            pass  # Fall through to slug/identifier
+        except HTTPException as e:
+            if e.status_code in (409, 422):
+                raise
+            pass  # 404 falls through to slug/identifier
 
     # 3. Slug
     article = db.query(models.Article).filter(models.Article.slug == article_id).first()

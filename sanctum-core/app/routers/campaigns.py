@@ -61,7 +61,8 @@ def add_campaign_targets(campaign_id: str, filters: schemas.CampaignTargetFilter
 
 @router.get("/campaigns/{campaign_id}/targets", response_model=List[schemas.CampaignTargetResponse])
 def get_campaign_targets(campaign_id: str, db: Session = Depends(get_db)):
-    targets = db.query(models.CampaignTarget).options(joinedload(models.CampaignTarget.contact)).filter(models.CampaignTarget.campaign_id == campaign_id).all()
+    camp = get_or_404(db, models.Campaign, campaign_id, deleted_filter=False)
+    targets = db.query(models.CampaignTarget).options(joinedload(models.CampaignTarget.contact)).filter(models.CampaignTarget.campaign_id == camp.id).all()
     results = []
     for t in targets:
         t_dict = t.__dict__.copy()

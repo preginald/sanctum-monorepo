@@ -458,13 +458,14 @@ def delete_invoice(invoice_id: str, db: Session = Depends(get_db), current_user:
 
 @router.post("/{invoice_id}/items", response_model=schemas.InvoiceResponse)
 def add_invoice_item(invoice_id: str, item: schemas.InvoiceItemCreate, db: Session = Depends(get_db)):
+    resolved_id = resolve_uuid(db, models.Invoice, invoice_id, deleted_filter=False)
     new_item = models.InvoiceItem(
-        invoice_id=invoice_id, description=item.description, quantity=item.quantity, unit_price=item.unit_price,
+        invoice_id=resolved_id, description=item.description, quantity=item.quantity, unit_price=item.unit_price,
         total=round(item.quantity * item.unit_price, 2)
     )
     db.add(new_item)
     db.commit()
-    inv = recalculate_invoice(invoice_id, db)
+    inv = recalculate_invoice(resolved_id, db)
     regenerate_pdf_file(inv, db) # Regen PDF
     return inv
 
