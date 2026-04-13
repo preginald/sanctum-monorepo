@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Sparkles, MoreVertical } from 'lucide-react';
+import { CheckCircle, Sparkles, MoreVertical, Pin } from 'lucide-react';
 import { computeMetrics } from '../../../utils/projectMetrics';
 
 // ---------------------------------------------------------------------------
@@ -39,15 +39,34 @@ function formatAccountAbbrev(name) {
 // ---------------------------------------------------------------------------
 // Section 1: Hero cards for Recommended Parallel Set
 // ---------------------------------------------------------------------------
-export function HeroCard({ project, analysis, onNavigate }) {
+export function HeroCard({ project, analysis, onNavigate, pinned, onPin, pinDisabled }) {
   const leverageTypes = project.leverage_data?.types || [];
   const score = analysis?.total || 0;
 
   return (
     <div
       onClick={() => onNavigate(project.id)}
-      className="bg-slate-800 border border-slate-700 p-3 rounded h-[120px] flex flex-col justify-between hover:border-slate-600 cursor-pointer transition-all"
+      className="bg-slate-800 border border-slate-700 p-3 rounded h-[120px] flex flex-col justify-between hover:border-slate-600 cursor-pointer transition-all relative group"
     >
+      {onPin && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!pinned && !pinDisabled) onPin(project.id);
+          }}
+          disabled={pinned || pinDisabled}
+          className={`absolute top-2 right-2 p-1 rounded transition-colors opacity-0 group-hover:opacity-100 ${
+            pinned
+              ? 'text-sanctum-gold opacity-100'
+              : pinDisabled
+                ? 'text-slate-600 cursor-not-allowed'
+                : 'text-slate-500 hover:text-sanctum-gold'
+          }`}
+          title={pinned ? 'Already pinned' : pinDisabled ? 'Workbench full' : 'Pin to Workbench'}
+        >
+          <Pin size={14} className={pinned ? 'fill-current' : ''} />
+        </button>
+      )}
       <div className="flex justify-between items-start">
         <div>
           <h4 className="font-bold text-slate-50">{project.name}</h4>
@@ -132,7 +151,7 @@ function FactorDots({ analysis }) {
   );
 }
 
-export function BacklogRow({ project, analysis, onNavigate }) {
+export function BacklogRow({ project, analysis, onNavigate, pinned, onPin, pinDisabled }) {
   const score = analysis?.total || 0;
   const pct = Math.round((score / 125) * 100);
   const leverageTypes = project.leverage_data?.types || [];
@@ -160,7 +179,27 @@ export function BacklogRow({ project, analysis, onNavigate }) {
             );
           })}
         </div>
-        <MoreVertical size={14} className="text-slate-500 shrink-0" />
+        {onPin ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!pinned && !pinDisabled) onPin(project.id);
+            }}
+            disabled={pinned || pinDisabled}
+            className={`p-1 rounded transition-colors ${
+              pinned
+                ? 'text-sanctum-gold'
+                : pinDisabled
+                  ? 'text-slate-600 cursor-not-allowed'
+                  : 'text-slate-500 hover:text-sanctum-gold'
+            }`}
+            title={pinned ? 'Already pinned' : pinDisabled ? 'Workbench full' : 'Pin to Workbench'}
+          >
+            <Pin size={14} className={pinned ? 'fill-current' : ''} />
+          </button>
+        ) : (
+          <MoreVertical size={14} className="text-slate-500 shrink-0" />
+        )}
       </div>
     </div>
   );

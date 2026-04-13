@@ -7,6 +7,7 @@ import ProjectDigestView from '../components/projects/digest/ProjectDigestView';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
+import useWorkbench from '../hooks/useWorkbench';
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -114,6 +115,8 @@ export default function ProjectIndex() {
       return localStorage.getItem('sanctum_project_view') || 'board';
   });
 
+  const { pins, maxPins, pinnedIds, pinProject, unpinProject, loading: wbLoading } = useWorkbench();
+
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
 
@@ -153,6 +156,22 @@ export default function ProjectIndex() {
       } catch (e) {
           addToast("Failed to create project", "error");
       }
+  };
+
+  const handlePin = async (projectId) => {
+    try {
+      await pinProject(projectId);
+    } catch (e) {
+      addToast('Failed to pin project', 'error');
+    }
+  };
+
+  const handleUnpin = async (projectId) => {
+    try {
+      await unpinProject(projectId);
+    } catch (e) {
+      addToast('Failed to unpin project', 'error');
+    }
   };
 
   const onDragEnd = async (result) => {
@@ -209,6 +228,11 @@ export default function ProjectIndex() {
           <ProjectDigestView
             projects={projects}
             onNavigate={(id) => navigate(`/projects/${id}`)}
+            pins={pins}
+            maxPins={maxPins}
+            pinnedIds={pinnedIds}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
           />
       )}
 

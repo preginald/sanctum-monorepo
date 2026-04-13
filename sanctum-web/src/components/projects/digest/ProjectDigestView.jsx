@@ -1,18 +1,30 @@
 import React, { useState, useMemo } from 'react';
 import { Sparkles } from 'lucide-react';
 import { HeroCard, InFlightRow, BacklogRow, CompletedRow } from './DigestProjectCard';
+import WorkbenchTier from './WorkbenchTier';
+import ActiveBacklogTier from './ActiveBacklogTier';
 import { buildClientLandscape, scoreFundamentals, dueDateAscComparator } from '../../../utils/projectMetrics';
 
 const COMPLETED_INITIAL = 3;
 const COMPLETED_MAX = 10;
 const PARALLEL_SET_SIZE = 3;
 
-export default function ProjectDigestView({ projects, onNavigate }) {
+export default function ProjectDigestView({
+  projects,
+  onNavigate,
+  pins = [],
+  maxPins = 5,
+  pinnedIds = new Set(),
+  onPin,
+  onUnpin,
+}) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
   const landscape = useMemo(() => buildClientLandscape(projects), [projects]);
 
-  const { recommended, inFlight, backlog, completed } = useMemo(() => {
+  const pinDisabled = pinnedIds.size >= maxPins;
+
+  const { recommended, inFlight, backlog, activeBacklog, completed } = useMemo(() => {
     // Score all backlog projects (capture + planning)
     const allBacklog = projects
       .filter(p => p.status === 'capture' || p.status === 'planning')
@@ -25,17 +37,22 @@ export default function ProjectDigestView({ projects, onNavigate }) {
         return a.name.localeCompare(b.name);
       });
 
-    // Recommended Parallel Set: top 3 projects with leverage_data (Factor 5 enriched)
-    const enriched = allBacklog.filter(p => p.leverage_data?.score > 0);
+    // Recommended Parallel Set: top 3 enriched, excluding pinned projects
+    const enriched = allBacklog.filter(p => p.leverage_data?.score > 0 && !pinnedIds.has(p.id));
     const recommended = enriched.slice(0, PARALLEL_SET_SIZE);
     const recommendedIds = new Set(recommended.map(p => p.id));
 
-    // Remaining backlog (excluding recommended set)
-    const backlog = allBacklog.filter(p => !recommendedIds.has(p.id));
+    // Remaining scored backlog (excluding recommended and pinned)
+    const backlog = allBacklog.filter(p => !recommendedIds.has(p.id) && !pinnedIds.has(p.id));
 
     const inFlight = projects
       .filter(p => p.status === 'active')
       .sort(dueDateAscComparator);
+
+    // Active Backlog: active + on_hold projects not already pinned
+    const activeBacklog = projects
+      .filter(p => (p.status === 'active' || p.status === 'on_hold') && !pinnedIds.has(p.id))
+      .sort((a, b) => a.name.localeCompare(b.name));
 
     const completed = projects
       .filter(p => p.status === 'completed')
@@ -47,14 +64,22 @@ export default function ProjectDigestView({ projects, onNavigate }) {
       })
       .slice(0, COMPLETED_MAX);
 
-    return { recommended, inFlight, backlog, completed };
-  }, [projects, landscape]);
+    return { recommended, inFlight, backlog, activeBacklog, completed };
+  }, [projects, landscape, pinnedIds]);
 
   const visibleCompleted = showAllCompleted ? completed : completed.slice(0, COMPLETED_INITIAL);
 
   return (
     <div className="max-w-[1200px] space-y-4">
-      {/* Section 1: Recommended Parallel Set */}
+      {/* Tier 1: Workbench */}
+      <WorkbenchTier
+        pins={pins}
+        maxPins={maxPins}
+        onUnpin={onUnpin}
+        onNavigate={onNavigate}
+      />
+
+      {/* Tier 2: Recommended Parallel Set */}
       <section className="border-l-4 border-indigo-500 bg-slate-800/30 p-4 rounded-r-lg">
         <div className="flex items-center gap-2 mb-3">
           <Sparkles size={16} className="text-indigo-400" />
@@ -65,7 +90,15 @@ export default function ProjectDigestView({ projects, onNavigate }) {
         {recommended.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {recommended.map(p => (
-              <HeroCard key={p.id} project={p} analysis={p._analysis} onNavigate={onNavigate} />
+              <HeroCard
+                key={p.id}
+                project={p}
+                analysis={p._analysis}
+                onNavigate={onNavigate}
+                pinned={pinnedIds.has(p.id)}
+                onPin={onPin}
+                pinDisabled={pinDisabled}
+              />
             ))}
           </div>
         ) : (
@@ -77,7 +110,16 @@ export default function ProjectDigestView({ projects, onNavigate }) {
         )}
       </section>
 
-      {/* Section 2: In Flight */}
+      {/* Tier 3: Active Backlog */}
+      <ActiveBacklogTier
+        projects={activeBacklog}
+        pinnedIds={pinnedIds}
+        pinDisabled={pinDisabled}
+        onPin={onPin}
+        onNavigate={onNavigate}
+      />
+
+      {/* Section: In Flight (unchanged) */}
       {inFlight.length > 0 && (
         <section className="bg-slate-800/50 border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-4 py-2 border-b border-slate-800 bg-slate-800/80">
@@ -106,7 +148,7 @@ export default function ProjectDigestView({ projects, onNavigate }) {
         </section>
       )}
 
-      {/* Section 3: Backlog */}
+      {/* Section: Scored Backlog (capture/planning, unchanged) */}
       {backlog.length > 0 && (
         <section className="space-y-1">
           <div className="px-1 mb-2">
@@ -116,13 +158,21 @@ export default function ProjectDigestView({ projects, onNavigate }) {
           </div>
           <div className="space-y-[1px]">
             {backlog.map(p => (
-              <BacklogRow key={p.id} project={p} analysis={p._analysis} onNavigate={onNavigate} />
+              <BacklogRow
+                key={p.id}
+                project={p}
+                analysis={p._analysis}
+                onNavigate={onNavigate}
+                pinned={pinnedIds.has(p.id)}
+                onPin={onPin}
+                pinDisabled={pinDisabled}
+              />
             ))}
           </div>
         </section>
       )}
 
-      {/* Section 4: Recently Completed */}
+      {/* Section: Recently Completed (unchanged) */}
       {completed.length > 0 && (
         <section className="bg-slate-900/40 p-4 border border-slate-800 rounded-lg">
           <div className="flex justify-between items-center mb-4">
