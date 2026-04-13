@@ -182,6 +182,15 @@ def update_project(project_id: str, update: schemas.ProjectUpdate, db: Session =
         update_data['discount_amount'] = discount_amount
         if discount_amount == 0:
             update_data['discount_reason'] = None
+    # Validate account_id if provided
+    if 'account_id' in update_data:
+        account = db.query(models.Account).filter(models.Account.id == update_data['account_id']).first()
+        if not account:
+            raise HTTPException(status_code=422, detail={
+                "detail": "account_not_found: the specified account_id does not exist",
+                "error_code": "account_not_found",
+                "account_id": str(update_data['account_id']),
+            })
     for field, value in update_data.items():
         setattr(proj, field, value)
     db.commit()

@@ -115,6 +115,7 @@ async def project_update(
     discount_reason: str | None = None,
     pricing_model: str | None = None,
     leverage_data: str | None = None,
+    account_id: str | None = None,
 ) -> str:
     """Update a project. Only provided fields are changed.
 
@@ -131,6 +132,7 @@ async def project_update(
         discount_reason: Required when discount_amount > 0 (e.g. "launch support").
         pricing_model: One of: fixed_price, time_and_materials.
         leverage_data: JSON string with Factor 5 leverage scoring, e.g. '{"score": 25, "types": ["ecosystem_accelerator"], "scored_at": "2026-04-06"}'.
+        account_id: UUID of the account to reassign the project to.
     """
     payload = {}
     for key, val in {
@@ -138,6 +140,7 @@ async def project_update(
         "budget": budget, "due_date": due_date, "market_value": market_value,
         "quoted_price": quoted_price, "discount_amount": discount_amount,
         "discount_reason": discount_reason, "pricing_model": pricing_model,
+        "account_id": account_id,
     }.items():
         if val is not None:
             payload[key] = val

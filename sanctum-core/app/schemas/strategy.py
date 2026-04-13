@@ -190,6 +190,7 @@ class ProjectUpdate(SanctumBase):
     pricing_model: Optional[str] = None
     template_id: Optional[UUID] = None
     leverage_data: Optional[dict] = None
+    account_id: Optional[UUID] = None
     skip_validation: bool = Field(default=False, exclude=True)
 
 class ProjectResponse(ProjectCreate):
