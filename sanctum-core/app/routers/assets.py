@@ -4,6 +4,7 @@ from typing import List, Optional
 from uuid import UUID
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 from datetime import datetime, timedelta, date
 
 from ..services.billing_service import billing_service
@@ -39,9 +40,8 @@ def create_asset(asset: schemas.AssetCreate, db: Session = Depends(get_db), curr
     return new_asset
 
 @router.put("/{asset_id}", response_model=schemas.AssetResponse)
-def update_asset(asset_id: UUID, update: schemas.AssetUpdate, db: Session = Depends(get_db)):
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not asset: raise HTTPException(status_code=404, detail="Asset not found")
+def update_asset(asset_id: str, update: schemas.AssetUpdate, db: Session = Depends(get_db)):
+    asset = get_or_404(db, models.Asset, asset_id, deleted_filter=False)
 
     # Capture state before update
     old_expires_at = asset.expires_at
@@ -93,9 +93,8 @@ def update_asset(asset_id: UUID, update: schemas.AssetUpdate, db: Session = Depe
     return asset
 
 @router.delete("/{asset_id}")
-def delete_asset(asset_id: UUID, db: Session = Depends(get_db)):
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not asset: raise HTTPException(status_code=404, detail="Asset not found")
+def delete_asset(asset_id: str, db: Session = Depends(get_db)):
+    asset = get_or_404(db, models.Asset, asset_id, deleted_filter=False)
     db.delete(asset)
     db.commit()
     return {"status": "deleted"}
@@ -168,19 +167,16 @@ def get_expiring_assets(
 
 @router.get("/{asset_id}")
 def get_asset_detail(
-    asset_id: UUID,
+    asset_id: str,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
     from sqlalchemy.orm import joinedload
 
-    asset = db.query(models.Asset).options(
+    asset = get_or_404(db, models.Asset, asset_id, options=[
         joinedload(models.Asset.account),
         joinedload(models.Asset.linked_product)
-    ).filter(models.Asset.id == asset_id).first()
-
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    ], deleted_filter=False)
 
     if current_user.role == 'client' and asset.account_id != current_user.account_id:
         raise HTTPException(status_code=403, detail="Forbidden")
@@ -226,7 +222,7 @@ def get_asset_detail(
 
 @router.post("/{asset_id}/renewal-ticket")
 def create_renewal_ticket(
-    asset_id: UUID,
+    asset_id: str,
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -234,9 +230,7 @@ def create_renewal_ticket(
     if current_user.role == 'client':
         raise HTTPException(status_code=403, detail="Admin only.")
 
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not asset:
-        raise HTTPException(status_code=404, detail="Asset not found")
+    asset = get_or_404(db, models.Asset, asset_id, deleted_filter=False)
 
     # Check for existing open renewal ticket
     existing = db.query(models.Ticket).filter(

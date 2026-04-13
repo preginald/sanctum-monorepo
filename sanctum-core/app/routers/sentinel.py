@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from uuid import UUID
 from .. import models, database, auth
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 from typing import Optional, Dict, List
 from datetime import datetime
 
@@ -111,20 +112,18 @@ def queue_sentinel_scan(payload: DeepScanRequest, db: Session = Depends(database
     return {"status": "queued", "message": f"Scan initiated for {payload.target_url}"}
 
 @router.get("/status/{audit_id}")
-def get_scan_status(audit_id: UUID, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
-    audit = db.query(models.AuditReport).filter(models.AuditReport.id == audit_id).first()
-    if not audit:
-        raise HTTPException(status_code=404, detail="Audit not found")
+def get_scan_status(audit_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
 
     return {
-        "audit_id": audit_id,
+        "audit_id": str(audit.id),
         "scan_status": audit.scan_status,
         "last_scan_at": audit.last_scan_at
     }
 
 @router.post("/audits/{audit_id}/scan")
 def trigger_website_scan(
-    audit_id: UUID,
+    audit_id: str,
     background_tasks: BackgroundTasks,
     payload: Optional[ScanRequest] = None,
     db: Session = Depends(database.get_db),
@@ -135,11 +134,7 @@ def trigger_website_scan(
     Only valid for audits linked to a template with scan_mode == 'automated'.
     Optionally accepts asset_id to target a specific website asset.
     """
-    audit = db.query(models.AuditReport).filter(
-        models.AuditReport.id == audit_id
-    ).first()
-    if not audit:
-        raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
 
     # Validate template is automated
     template = db.query(models.AuditTemplate).filter(
@@ -277,16 +272,11 @@ def _run_website_scan(
 
 
 @router.get("/audits/{audit_id}", response_model=AuditDetailResponse)
-def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
+def get_audit_detail(audit_id: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_active_user)):
     """
     Returns audit report with template structure and submitted responses.
     """
-    audit = db.query(models.AuditReport).filter(
-        models.AuditReport.id == audit_id
-    ).first()
-
-    if not audit:
-        raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
 
     # Get submission if exists
     submission = db.query(models.AuditSubmission).filter(
@@ -343,7 +333,7 @@ def get_audit_detail(audit_id: UUID, db: Session = Depends(database.get_db), cur
 
 @router.get("/audits/{audit_id}/results")
 async def get_audit_results(
-    audit_id: UUID,
+    audit_id: str,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user),
 ):
@@ -351,11 +341,7 @@ async def get_audit_results(
     import asyncio
     from ..services.audit_client import fetch_audit_result, AuditAPIError
 
-    audit = db.query(models.AuditReport).filter(
-        models.AuditReport.id == audit_id
-    ).first()
-    if not audit:
-        raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
 
     content = audit.content or {}
     sanctum_audit_id = content.get("sanctum_audit_id")
@@ -378,7 +364,7 @@ async def get_audit_results(
 
 @router.post("/audits/{audit_id}/submit")
 def submit_audit_responses(
-    audit_id: UUID,
+    audit_id: str,
     payload: AuditSubmissionRequest,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user),
@@ -386,12 +372,7 @@ def submit_audit_responses(
     """
     Submits or updates audit responses and recalculates security score.
     """
-    audit = db.query(models.AuditReport).filter(
-        models.AuditReport.id == audit_id
-    ).first()
-
-    if not audit:
-        raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
 
     if audit.status == 'finalized':
         raise HTTPException(status_code=400, detail="Cannot modify finalized audit")
@@ -461,7 +442,7 @@ def submit_audit_responses(
 
 @router.post("/audits/{audit_id}/generate-deal")
 def generate_remediation_deal(
-    audit_id: UUID,
+    audit_id: str,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_active_user),
 ):
@@ -471,12 +452,7 @@ def generate_remediation_deal(
     """
 
     # Get audit with responses
-    audit = db.query(models.AuditReport).filter(
-        models.AuditReport.id == audit_id
-    ).first()
-
-    if not audit:
-        raise HTTPException(status_code=404, detail="Audit not found")
+    audit = get_or_404(db, models.AuditReport, audit_id, deleted_filter=False)
 
     if not audit.template_id:
         raise HTTPException(status_code=400, detail="Audit has no template")
