@@ -31,7 +31,10 @@ def list_pins(
 
     result = []
     for pin in pins:
-        project = db.query(models.Project).filter(models.Project.id == pin.project_id).first()
+        project = db.query(models.Project).filter(
+            models.Project.id == pin.project_id,
+            models.Project.is_deleted == False,
+        ).first()
         if not project:
             continue
 
@@ -84,7 +87,10 @@ def pin_project(
 ):
     """Pin a project to the workbench. Upsert: 201 new, 200 updated."""
     # Verify project exists
-    project = db.query(models.Project).filter(models.Project.id == payload.project_id).first()
+    project = db.query(models.Project).filter(
+        models.Project.id == payload.project_id,
+        models.Project.is_deleted == False,
+    ).first()
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
@@ -115,7 +121,7 @@ def pin_project(
     stmt = pg_insert(models.WorkbenchPin.__table__).values(
         user_id=current_user.id,
         project_id=payload.project_id,
-        position=payload.position or 0,
+        position=payload.position if payload.position is not None else 0,
     )
     stmt = stmt.on_conflict_do_update(
         constraint="uq_workbench_pins_user_project",
