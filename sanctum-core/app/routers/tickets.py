@@ -14,6 +14,7 @@ from ..services.milestone_validation import validate_milestone_sealed, check_mil
 from ..services.cascade import cascade_from_ticket
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response, _get_optional_user
 from datetime import datetime, timezone
+from ..services.uuid_resolver import resolve_uuid, get_or_404 as uuid_get_or_404
 import os
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
@@ -525,8 +526,7 @@ def create_time_entry(ticket_id: int, entry: schemas.TimeEntryCreate, current_us
 
 @router.put("/time_entries/{entry_id}", response_model=schemas.TimeEntryResponse)
 def update_time_entry(entry_id: str, update: schemas.TimeEntryUpdate, db: Session = Depends(get_db)):
-    entry = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id).first()
-    if not entry: raise HTTPException(status_code=404, detail="Entry not found")
+    entry = uuid_get_or_404(db, models.TicketTimeEntry, entry_id, deleted_filter=False)
     if update.start_time: entry.start_time = update.start_time
     if update.end_time: entry.end_time = update.end_time
     # Minimum billing increment check after applying time changes (BUS-001 D4)
@@ -552,16 +552,14 @@ def update_time_entry(entry_id: str, update: schemas.TimeEntryUpdate, db: Sessio
 
 @router.delete("/{ticket_id}/time_entries/{entry_id}")
 def delete_time_entry(ticket_id: int, entry_id: str, db: Session = Depends(get_db)):
-    entry = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id).first()
-    if not entry: raise HTTPException(status_code=404, detail="Entry not found")
+    entry = uuid_get_or_404(db, models.TicketTimeEntry, entry_id, deleted_filter=False)
     db.delete(entry)
     db.commit()
     return {"status": "deleted"}
 
 @router.post("/time_entries/{entry_id}/duplicate", response_model=schemas.TimeEntryResponse)
 def duplicate_time_entry(entry_id: str, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    original = db.query(models.TicketTimeEntry).filter(models.TicketTimeEntry.id == entry_id).first()
-    if not original: raise HTTPException(status_code=404, detail="Entry not found")
+    original = uuid_get_or_404(db, models.TicketTimeEntry, entry_id, deleted_filter=False)
     new_entry = models.TicketTimeEntry(
         ticket_id=original.ticket_id, user_id=current_user.id, product_id=original.product_id,
         start_time=original.start_time, end_time=original.end_time, description=original.description,
@@ -585,8 +583,7 @@ def add_ticket_material(ticket_id: int, material: schemas.TicketMaterialCreate, 
 
 @router.put("/materials/{material_id}", response_model=schemas.TicketMaterialResponse)
 def update_ticket_material(material_id: str, update: schemas.TicketMaterialUpdate, db: Session = Depends(get_db)):
-    mat = db.query(models.TicketMaterial).filter(models.TicketMaterial.id == material_id).first()
-    if not mat: raise HTTPException(status_code=404, detail="Material not found")
+    mat = uuid_get_or_404(db, models.TicketMaterial, material_id, deleted_filter=False)
     if update.quantity is not None: mat.quantity = update.quantity
     if update.product_id: mat.product_id = update.product_id
     db.commit()
@@ -595,8 +592,7 @@ def update_ticket_material(material_id: str, update: schemas.TicketMaterialUpdat
 
 @router.delete("/{ticket_id}/materials/{material_id}")
 def delete_ticket_material(ticket_id: int, material_id: str, db: Session = Depends(get_db)):
-    mat = db.query(models.TicketMaterial).filter(models.TicketMaterial.id == material_id).first()
-    if not mat: raise HTTPException(status_code=404, detail="Material not found")
+    mat = uuid_get_or_404(db, models.TicketMaterial, material_id, deleted_filter=False)
     db.delete(mat)
     db.commit()
     return {"status": "deleted"}
@@ -604,8 +600,8 @@ def delete_ticket_material(ticket_id: int, material_id: str, db: Session = Depen
 @router.post("/{ticket_id}/articles/{article_id}")
 def link_article_to_ticket(ticket_id: int, article_id: str, db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
-    article = db.query(models.Article).filter(models.Article.id == article_id).first()
-    if not ticket or not article: raise HTTPException(status_code=404, detail="Not found")
+    article = uuid_get_or_404(db, models.Article, article_id, deleted_filter=False)
+    if not ticket: raise HTTPException(status_code=404, detail="Not found")
     if article not in ticket.articles:
         ticket.articles.append(article)
         db.commit()
@@ -614,8 +610,8 @@ def link_article_to_ticket(ticket_id: int, article_id: str, db: Session = Depend
 @router.delete("/{ticket_id}/articles/{article_id}")
 def unlink_article_from_ticket(ticket_id: int, article_id: str, db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
-    article = db.query(models.Article).filter(models.Article.id == article_id).first()
-    if not ticket or not article: raise HTTPException(status_code=404, detail="Not found")
+    article = uuid_get_or_404(db, models.Article, article_id, deleted_filter=False)
+    if not ticket: raise HTTPException(status_code=404, detail="Not found")
     if article in ticket.articles:
         ticket.articles.remove(article)
         db.commit()
@@ -624,8 +620,8 @@ def unlink_article_from_ticket(ticket_id: int, article_id: str, db: Session = De
 @router.post("/{ticket_id}/assets/{asset_id}")
 def link_asset_to_ticket(ticket_id: int, asset_id: str, db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
+    asset = uuid_get_or_404(db, models.Asset, asset_id, deleted_filter=False)
+    if not ticket: raise HTTPException(status_code=404, detail="Not found")
     if ticket.account_id != asset.account_id:
         raise HTTPException(status_code=400, detail="Asset belongs to a different account")
     if asset not in ticket.assets:
@@ -636,8 +632,8 @@ def link_asset_to_ticket(ticket_id: int, asset_id: str, db: Session = Depends(ge
 @router.delete("/{ticket_id}/assets/{asset_id}")
 def unlink_asset_from_ticket(ticket_id: int, asset_id: str, db: Session = Depends(get_db)):
     ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
-    asset = db.query(models.Asset).filter(models.Asset.id == asset_id).first()
-    if not ticket or not asset: raise HTTPException(status_code=404, detail="Not found")
+    asset = uuid_get_or_404(db, models.Asset, asset_id, deleted_filter=False)
+    if not ticket: raise HTTPException(status_code=404, detail="Not found")
     if asset in ticket.assets:
         ticket.assets.remove(asset)
         db.commit()

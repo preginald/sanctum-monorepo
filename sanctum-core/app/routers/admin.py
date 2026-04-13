@@ -14,6 +14,7 @@ from uuid import UUID
 
 # PHASE 63: Import Service Logic
 from ..services.account_service import process_questionnaire_submission
+from ..services.uuid_resolver import resolve_uuid, get_or_404
 
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
@@ -70,8 +71,7 @@ def admin_update_user(
     current_user: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user: raise HTTPException(status_code=404, detail="User not found")
+    user = get_or_404(db, models.User, user_id, deleted_filter=False)
 
     if update.full_name: user.full_name = update.full_name
     if update.email: user.email = update.email
@@ -89,8 +89,7 @@ def admin_delete_user(
     if str(current_user.id) == user_id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself")
 
-    user = db.query(models.User).filter(models.User.id == user_id).first()
-    if not user: raise HTTPException(status_code=404, detail="User not found")
+    user = get_or_404(db, models.User, user_id, deleted_filter=False)
 
     db.delete(user)
     db.commit()
@@ -214,7 +213,7 @@ def list_questionnaire_responses(
 
 @account_router.delete("/{account_id}/questionnaire")
 def reset_questionnaire(
-    account_id: UUID,
+    account_id: str,
     current_user: models.User = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
@@ -223,9 +222,7 @@ def reset_questionnaire(
     """
 
     # Get account
-    account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+    account = get_or_404(db, models.Account, account_id, deleted_filter=False)
 
     summary = {
         "account_id": str(account_id),
@@ -276,7 +273,7 @@ def reset_questionnaire(
 # NEW ENDPOINT FOR ADMIN DISCOVERY
 @account_router.patch("/{account_id}/audit-data")
 def update_account_audit_data(
-    account_id: UUID,
+    account_id: str,
     payload: schemas.QuestionnaireSubmit, # We reuse the schema because the form is identical
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_admin)
@@ -285,9 +282,7 @@ def update_account_audit_data(
     Admin: Submit Discovery Questionnaire on behalf of client.
     Triggers asset creation and risk mapping.
     """
-    account = db.query(models.Account).filter(models.Account.id == account_id).first()
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+    account = get_or_404(db, models.Account, account_id, deleted_filter=False)
 
     result = process_questionnaire_submission(
         db=db,

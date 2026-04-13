@@ -13,6 +13,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..models import ticket_contacts, Ticket, Invoice, InvoiceItem, Contact, Comment, Asset, Project, Milestone
 from ..services.event_bus import event_bus
+from ..services.uuid_resolver import get_or_404
 from ..services.account_service import account_needs_questionnaire, get_account_lifecycle_stage, process_questionnaire_submission
 from ..services.content_engine import resolve_content
 from ..services.ticket_validation import auto_transition_from_new
@@ -94,10 +95,7 @@ def get_portal_dashboard(
     db: Session = Depends(get_db)
 ):
     aid = resolve_portal_account_id(current_user, impersonate)
-    account = db.query(models.Account).filter(models.Account.id == aid).first()
-
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found.")
+    account = get_or_404(db, models.Account, str(aid), deleted_filter=False)
 
     contact = get_current_contact(current_user, db, aid)
 
