@@ -28,14 +28,14 @@ def validate_milestone_deletable(milestone, db: Session) -> list[dict]:
         if ticket.status != "new":
             reasons.append("status_progressed")
 
-        transition_count = db.query(func.count(models.TicketTransition.id)).filter(
-            models.TicketTransition.ticket_id == ticket.id,
+        transition_count = db.query(func.count(models.TicketStatusTransition.id)).filter(
+            models.TicketStatusTransition.ticket_id == ticket.id,
         ).scalar()
         if transition_count > 1:
             reasons.append("has_transitions")
 
-        comment_count = db.query(func.count(models.TicketComment.id)).filter(
-            models.TicketComment.ticket_id == ticket.id,
+        comment_count = db.query(func.count(models.Comment.id)).filter(
+            models.Comment.ticket_id == ticket.id,
         ).scalar()
         if comment_count > 0:
             reasons.append("has_comments")
