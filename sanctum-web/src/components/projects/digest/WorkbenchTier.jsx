@@ -33,7 +33,7 @@ function WorkbenchCard({ pin, onUnpin, onNavigate }) {
       <div>
         <h4 className="font-bold text-slate-50 text-sm pr-5 truncate">{pin.project_name}</h4>
         <div className="flex items-center gap-2 mt-1">
-          <StatusBadge value={pin.status} map="projectStatus" />
+          <StatusBadge value={pin.project_status} map="projectStatus" />
           <span className="text-[10px] text-slate-500 truncate">{pin.account_name}</span>
         </div>
       </div>

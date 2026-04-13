@@ -24,11 +24,9 @@ export default function useWorkbench() {
 
   const pinProject = useCallback(async (projectId) => {
     const prev = pins;
-    // Optimistic: add a placeholder pin
-    setPins(cur => [...cur, { project_id: projectId, position: cur.length + 1 }]);
     try {
       await api.post('/workbench/pin', { project_id: projectId });
-      await fetchPins(); // refresh to get full pin data from server
+      await fetchPins();
     } catch (e) {
       setPins(prev);
       throw e;
