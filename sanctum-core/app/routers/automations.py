@@ -4,7 +4,7 @@ from typing import List
 from uuid import UUID
 from .. import models, schemas, auth
 from ..database import get_db
-from ..services.uuid_resolver import get_or_404
+from ..services.uuid_resolver import get_or_404, resolve_uuid
 
 router = APIRouter(prefix="/admin/automations", tags=["Automations"])
 
@@ -75,7 +75,6 @@ def delete_automation(auto_id: str, db: Session = Depends(get_db), _: models.Use
 
 @router.get("/{auto_id}/logs", response_model=List[schemas.AutomationLogResponse])
 def get_automation_logs(auto_id: str, db: Session = Depends(get_db), _: models.User = Depends(get_admin)):
-    from ..services.uuid_resolver import resolve_uuid
     resolved_id = resolve_uuid(db, models.Automation, auto_id, deleted_filter=False)
     logs = db.query(models.AutomationLog).options(joinedload(models.AutomationLog.automation)).filter(models.AutomationLog.automation_id == resolved_id).order_by(models.AutomationLog.triggered_at.desc()).limit(50).all()
 
