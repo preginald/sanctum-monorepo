@@ -108,6 +108,9 @@ def get_stats(
             case((models.McpToolCall.status == "error", 1), else_=0)
         ).label("error_count"),
         func.sum(models.McpToolCall.token_estimate).label("total_token_estimate"),
+        func.sum(models.McpToolCall.input_tokens).label("total_input_tokens"),
+        func.sum(models.McpToolCall.cache_read_input_tokens).label("total_cache_read_input_tokens"),
+        func.sum(models.McpToolCall.cache_creation_input_tokens).label("total_cache_creation_input_tokens"),
     )
 
     if cutoff:
@@ -119,6 +122,13 @@ def get_stats(
     results = []
     for r in rows:
         error_rate = (r.error_count / r.call_count * 100) if r.call_count else 0.0
+        # Cache hit rate: cache_read / (input + cache_read + cache_creation) * 100
+        t_input = r.total_input_tokens or 0
+        t_cache_read = r.total_cache_read_input_tokens or 0
+        t_cache_creation = r.total_cache_creation_input_tokens or 0
+        total_cache_tokens = t_input + t_cache_read + t_cache_creation
+        cache_hit_rate = round((t_cache_read / total_cache_tokens) * 100, 2) if total_cache_tokens > 0 else None
+
         results.append(McpToolCallStats(
             tool_name=r.group_key,
             call_count=r.call_count,
@@ -128,6 +138,10 @@ def get_stats(
             error_count=r.error_count,
             error_rate=round(error_rate, 2),
             total_token_estimate=r.total_token_estimate,
+            total_input_tokens=r.total_input_tokens,
+            total_cache_read_input_tokens=r.total_cache_read_input_tokens,
+            total_cache_creation_input_tokens=r.total_cache_creation_input_tokens,
+            cache_hit_rate=cache_hit_rate,
         ))
     return results
 
