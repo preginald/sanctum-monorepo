@@ -55,6 +55,12 @@ SERVICE_ACCOUNTS = [
         "name": "The Scribe",
         "token_name": "Scribe MCP Token",
     },
+    {
+        "user_id": "a1b2c3d4-0007-4000-8000-000000000007",
+        "name": "The Chat",
+        "token_name": "Chat MCP Token",
+        "prefix": "sntm_chat",
+    },
 ]
 
 with engine.connect() as conn:
@@ -69,7 +75,8 @@ with engine.connect() as conn:
             print(f"SKIP: {sa['name']} already has an active token (id: {existing[0]})")
             continue
 
-        raw_token = f"sntm_{secrets.token_hex(20)}"
+        token_prefix = sa.get("prefix", "sntm")
+        raw_token = f"{token_prefix}_{secrets.token_hex(20)}"
         prefix = raw_token[:12]
         token_hash = pwd_context.hash(raw_token)
 

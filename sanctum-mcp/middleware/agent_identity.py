@@ -26,11 +26,11 @@ _TOKEN_ENV_MAP = {
     "sanctum-sentinel": "SANCTUM_TOKEN_SENTINEL",
     "sanctum-surgeon": "SANCTUM_TOKEN_SURGEON",
     "sanctum-oracle": "SANCTUM_TOKEN_ORACLE",
+    "sanctum-chat": "SANCTUM_TOKEN_CHAT",
     "sanctum-hermes": "SANCTUM_TOKEN_HERMES",
 }
 
 _ALIASES = {
-    "sanctum-chat": "sanctum-oracle",
     "sanctum-code": "sanctum-operator",
 }
 
