@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func as sa_func_top
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..models import Article, ArticleHistory
 from ..database import get_db
+from ..services.pagination import pagination_params
 from uuid import UUID
 import re
 import os
@@ -118,10 +120,22 @@ def _increment_version(current_version: str) -> str:
 # --- ENDPOINTS ---
 
 @router.get("/articles", response_model=List[schemas.ArticleResponse])
-def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
+def get_articles(
+    category: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+):
+    filters = []
+    if category:
+        filters.append(models.Article.category == category)
+
+    total = db.query(sa_func_top.count(models.Article.id)).filter(*filters).scalar() if filters else db.query(sa_func_top.count(models.Article.id)).scalar()
+
     query = db.query(models.Article).options(joinedload(models.Article.author))
-    if category: query = query.filter(models.Article.category == category)
-    articles = query.order_by(models.Article.identifier.asc()).all()
+    if filters:
+        query = query.filter(*filters)
+    articles = query.order_by(models.Article.identifier.asc()).offset(offset).limit(limit).all()
 
     for a in articles:
         if a.author: a.author_name = a.author.full_name
@@ -129,7 +143,7 @@ def get_articles(category: Optional[str] = None, db: Session = Depends(get_db)):
     result = jsonable_encoder([schemas.ArticleResponse.model_validate(a) for a in articles])
     for item in result:
         item.pop("content", None)
-    return JSONResponse(content=result)
+    return JSONResponse(content=result, headers={"X-Total-Count": str(total)})
 
 @router.get("/articles/{slug}", response_model=schemas.ArticleResponse)
 def get_article_detail(slug: str, resolve_embeds: bool = False, inline_embeds: bool = False, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):

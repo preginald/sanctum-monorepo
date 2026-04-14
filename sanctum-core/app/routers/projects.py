@@ -45,20 +45,35 @@ def _validate_discount(market_value, quoted_price, discount_reason):
 
 # --- PROJECTS ---
 @router.get("/projects", response_model=None)
-def get_projects(account_id: Optional[str] = None, expand: ExpandConfig = Depends(get_expand_config_lean), current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+def get_projects(
+    account_id: Optional[str] = None,
+    expand: ExpandConfig = Depends(get_expand_config_lean),
+    pagination: dict = Depends(pagination_params),
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
     load_milestones = expand.should_expand("milestones")
+
+    filters = [models.Project.is_deleted == False]
+    if current_user.role == 'client':
+        filters.append(models.Project.account_id == current_user.account_id)
+    if account_id:
+        filters.append(models.Project.account_id == account_id)
+
+    # Lightweight count query
+    total = db.query(func.count(models.Project.id)).filter(*filters).scalar()
+
     opts = [
         joinedload(models.Project.account),
         joinedload(models.Project.template),
     ]
     if load_milestones:
         opts.append(selectinload(models.Project.milestones).selectinload(models.Milestone.tickets))
-    query = db.query(models.Project).options(*opts).filter(models.Project.is_deleted == False)
-    if current_user.role == 'client':
-        query = query.filter(models.Project.account_id == current_user.account_id)
-    if account_id:
-        query = query.filter(models.Project.account_id == account_id)
-    projects = query.all()
+
+    limit, offset = pagination["limit"], pagination["offset"]
+    projects = db.query(models.Project).options(*opts).filter(*filters)\
+        .offset(offset).limit(limit).all()
+
     transitions_map = get_project_transition_map(db)
     for p in projects:
         p.account_name = p.account.name if p.account else "Unknown Account"
@@ -68,7 +83,11 @@ def get_projects(account_id: Optional[str] = None, expand: ExpandConfig = Depend
         schema = schemas.ProjectResponse
     else:
         schema = schemas.ProjectListResponse
-    return [schema.model_validate(p).model_dump() for p in projects]
+
+    from fastapi.responses import JSONResponse
+    from fastapi.encoders import jsonable_encoder
+    result = jsonable_encoder([schema.model_validate(p).model_dump() for p in projects])
+    return JSONResponse(content=result, headers={"X-Total-Count": str(total)})
 
 @router.get("/projects/{project_id}", response_model=schemas.ProjectResponse)
 def get_project_detail(project_id: str, expand: ExpandConfig = Depends(get_expand_config), db: Session = Depends(get_db)):
