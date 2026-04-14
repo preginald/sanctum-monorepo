@@ -27,6 +27,7 @@ declare -A AGENTS=(
     [surgeon]="$MCP_DIR/.env.surgeon"
     [sentinel]="$MCP_DIR/.env.sentinel"
     [scribe]="$MCP_DIR/.env.scribe"
+    [chat]="$MCP_DIR/.env.chat"
 )
 
 read_token() {
@@ -49,7 +50,7 @@ if [[ -f "$MCP_ENV" ]]; then
     mv "$MCP_ENV.tmp" "$MCP_ENV"
 fi
 
-for agent in architect operator oracle surgeon sentinel scribe; do
+for agent in architect operator oracle surgeon sentinel scribe chat; do
     token="$(read_token "${AGENTS[$agent]}")" || continue
     echo "SANCTUM_TOKEN_${agent^^}=$token" >> "$MCP_ENV"
     echo "  SANCTUM_TOKEN_${agent^^} loaded from .env.$agent"
@@ -77,7 +78,7 @@ echo "Registering per-agent MCP entries -> $MCP_URL"
 echo "  Auth: shared Bearer token (operator)"
 echo ""
 
-for agent in architect operator oracle surgeon sentinel scribe; do
+for agent in architect operator oracle surgeon sentinel scribe chat; do
     entry_name="sanctum-$agent"
     claude mcp add "$entry_name" "$MCP_URL" -t http \
         -H "Authorization: Bearer $SHARED_TOKEN" \
@@ -86,5 +87,5 @@ for agent in architect operator oracle surgeon sentinel scribe; do
 done
 
 echo ""
-echo "Done. 6 entries registered (6 x 64 = 384 tool defs vs original 8 x 64 = 512)."
+echo "Done. 7 entries registered (7 x 64 = 448 tool defs)."
 echo "Start the MCP server with: scripts/dev/mcp-server.sh start"

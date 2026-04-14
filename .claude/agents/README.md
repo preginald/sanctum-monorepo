@@ -14,7 +14,8 @@
 
 | Context | Identity | MCP Server |
 |---|---|---|
-| Claude Chat (claude.ai) | The Oracle | `sanctum-oracle` / `sanctum-chat` |
+| Claude Chat (claude.ai) | The Chat | `sanctum-chat` |
+| Claude Chat (legacy/oracle) | The Oracle | `sanctum-oracle` |
 | Claude Code (parent session) | The Operator | `sanctum-operator` / `sanctum-code` |
 
 ## Architecture
@@ -28,8 +29,9 @@ Claude Code
   |-- sanctum-surgeon   (Bearer sntm_surgeon_...)  ---|
   |-- sanctum-sentinel  (Bearer sntm_sentinel_...) ---|--- MCP Server (:8100) ---> Core API
   |-- sanctum-scribe    (Bearer sntm_scribe_...)   ---|
-  |-- sanctum-operator  (Bearer sntm_operator_...) ---/
-  |-- sanctum-oracle    (Bearer sntm_oracle_...)   --/
+  |-- sanctum-operator  (Bearer sntm_operator_...) ---|
+  |-- sanctum-oracle    (Bearer sntm_oracle_...)   ---|
+  |-- sanctum-chat      (Bearer sntm_chat_...)     ---/
 ```
 
 ## Service Accounts
@@ -42,6 +44,7 @@ Claude Code
 | The Surgeon | `a1b2c3d4-0004-4000-8000-000000000004` | `the-surgeon@system.local` |
 | The Sentinel | `a1b2c3d4-0005-4000-8000-000000000005` | `the-sentinel@system.local` |
 | The Scribe | `a1b2c3d4-0006-4000-8000-000000000006` | `the-scribe@system.local` |
+| The Chat | `a1b2c3d4-0007-4000-8000-000000000007` | `the-chat@system.local` |
 
 ## Setup
 
@@ -62,6 +65,7 @@ Save each token to the corresponding `sanctum-mcp/.env.<identity>` file:
 - `.env.surgeon` — The Surgeon (new)
 - `.env.sentinel` — The Sentinel (new)
 - `.env.scribe` — The Scribe (new)
+- `.env.chat` — The Chat (new)
 
 ### 3. Configure Claude Code MCP entries
 ```bash
