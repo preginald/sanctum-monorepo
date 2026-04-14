@@ -37,10 +37,8 @@ async def milestone_list(project_id: str) -> str:
     Args:
         project_id: UUID of the project.
     """
-    # No dedicated milestones list endpoint — extract from project detail
-    project = await client.get(f"/projects/{project_id}", params={"expand": "milestones"})
-    milestones = project.get("milestones", []) if isinstance(project, dict) else []
-    # Return summary fields only to keep response concise
+    result = await client.get("/milestones", params={"project_id": project_id})
+    milestones = result if isinstance(result, list) else []
     summary = []
     for m in milestones:
         summary.append({

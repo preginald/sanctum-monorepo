@@ -111,9 +111,15 @@ def _check_upstream(r: httpx.Response, method: str, path: str) -> None:
     r.raise_for_status()
 
 
+# Stash last GET response headers so tools can read X-Total-Count etc.
+_last_headers: dict = {}
+
+
 async def get(path: str, params: dict | None = None) -> dict | list:
+    global _last_headers
     r = await _request("GET", path, params=params)
     _check_upstream(r, "GET", path)
+    _last_headers = dict(r.headers)
     return r.json()
 
 

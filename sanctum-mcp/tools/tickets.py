@@ -64,21 +64,25 @@ async def ticket_list(
         status: Filter by status: new, open, pending, qa, resolved.
         limit: Max results to return (default 50).
     """
-    result = await client.get("/tickets")
+    params: dict = {"limit": limit}
+    if status:
+        params["status"] = status
+    result = await client.get("/tickets", params=params)
+    total = client._last_headers.get("x-total-count")
     tickets = result if isinstance(result, list) else []
 
+    # Client-side filtering for project/milestone name substring matches
+    # (these require join logic that is deferred to a future ticket)
     if project:
         p = project.lower()
         tickets = [t for t in tickets if p in (t.get("project_name") or "").lower()]
     if milestone:
         m = milestone.lower()
         tickets = [t for t in tickets if m in (t.get("milestone_name") or "").lower()]
-    if status:
-        tickets = [t for t in tickets if t.get("status") == status]
 
     # Return summary fields only to keep response concise
     summary = []
-    for t in tickets[:limit]:
+    for t in tickets:
         summary.append({
             "id": t["id"],
             "subject": t["subject"],
@@ -90,7 +94,8 @@ async def ticket_list(
             "account_name": t.get("account_name"),
             "created_at": t.get("created_at"),
         })
-    return json.dumps(summary, indent=2)
+    result_obj = {"tickets": summary, "total": int(total) if total else len(summary)}
+    return json.dumps(result_obj, indent=2)
 
 
 @mcp.tool(annotations=STANDARD_READ)

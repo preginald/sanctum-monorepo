@@ -20,7 +20,7 @@ async def project_list(
     Args:
         account_id: Filter by account UUID. Omit for all projects.
     """
-    params = {}
+    params: dict = {}
     if account_id:
         params["account_id"] = account_id
     result = await client.get("/projects", params=params)

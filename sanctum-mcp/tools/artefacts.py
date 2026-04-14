@@ -55,7 +55,7 @@ async def artefact_list(
         sort_by: Sort column: name, created_at, updated_at, status (default: created_at).
         sort_order: Sort direction: asc or desc (default: desc).
     """
-    params = {}
+    params: dict = {}
     if account_id:
         params["account_id"] = account_id
     if artefact_type:
