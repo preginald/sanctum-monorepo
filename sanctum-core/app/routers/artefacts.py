@@ -2,11 +2,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import text as sa_text
+from sqlalchemy import func, or_, text as sa_text
 from typing import List, Optional
 import re
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.pagination import pagination_params
 from ..services.artefact_validation import validate_session_handover_authorship
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 from ..services.uuid_resolver import resolve_uuid, get_or_404
@@ -125,26 +126,67 @@ def create_artefact(
     return _attach_transitions(new)
 
 
+# Allowlist for sort_by to prevent arbitrary column injection
+_ARTEFACT_SORT_COLUMNS = {
+    "name": models.Artefact.name,
+    "created_at": models.Artefact.created_at,
+    "updated_at": models.Artefact.updated_at,
+    "status": models.Artefact.status,
+}
+
+
 @router.get("/artefacts", response_model=List[schemas.ArtefactResponse])
 def list_artefacts(
     account_id: Optional[str] = None,
     artefact_type: Optional[str] = None,
+    status: Optional[str] = None,
+    category: Optional[str] = None,
+    sensitivity: Optional[str] = None,
+    search: Optional[str] = None,
+    sort_by: Optional[str] = None,
+    sort_order: Optional[str] = None,
+    pagination: dict = Depends(pagination_params),
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
     try:
+        filters = [models.Artefact.is_deleted == False]
+
+        if account_id:
+            filters.append(models.Artefact.account_id == account_id)
+        if artefact_type:
+            filters.append(models.Artefact.artefact_type == artefact_type)
+        if status:
+            filters.append(models.Artefact.status == status)
+        if category:
+            filters.append(models.Artefact.category == category)
+        if sensitivity:
+            filters.append(models.Artefact.sensitivity == sensitivity)
+        if search:
+            filters.append(or_(
+                models.Artefact.name.ilike(f"%{search}%"),
+                models.Artefact.description.ilike(f"%{search}%"),
+            ))
+
+        # Lightweight count query
+        total = db.query(func.count(models.Artefact.id)).filter(*filters).scalar()
+
+        # Data query with eager loads
         query = db.query(models.Artefact).options(
             joinedload(models.Artefact.account),
             joinedload(models.Artefact.creator),
             joinedload(models.Artefact.links),
-        ).filter(models.Artefact.is_deleted == False)
+        ).filter(*filters)
 
-        if account_id:
-            query = query.filter(models.Artefact.account_id == account_id)
-        if artefact_type:
-            query = query.filter(models.Artefact.artefact_type == artefact_type)
+        # Sort (allowlist enforced)
+        sort_col = _ARTEFACT_SORT_COLUMNS.get(sort_by, models.Artefact.created_at)
+        if sort_order == "asc":
+            query = query.order_by(sort_col.asc())
+        else:
+            query = query.order_by(sort_col.desc())
 
-        artefacts = query.order_by(models.Artefact.created_at.desc()).all()
+        limit, offset = pagination["limit"], pagination["offset"]
+        artefacts = query.offset(offset).limit(limit).all()
         for a in artefacts:
             a.account_name = a.account.name if a.account else None
             a.creator_name = a.creator.full_name if a.creator else None
@@ -154,7 +196,7 @@ def list_artefacts(
         for item in result:
             item.pop("content", None)
             item.pop("description", None)
-        return JSONResponse(content=result)
+        return JSONResponse(content=result, headers={"X-Total-Count": str(total)})
     except Exception:
         db.rollback()
         return JSONResponse(content=[])
