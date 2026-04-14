@@ -6,6 +6,7 @@ from sqlalchemy import func, desc, text as sa_text
 from typing import List, Optional
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.pagination import pagination_params
 from ..services.event_bus import event_bus
 from ..services.notification_service import notification_service
 from ..services.ticket_validation import validate_ticket_description, validate_ticket_transition, get_available_transitions, validate_ticket_type, validate_ticket_priority, auto_transition_from_new, SUBSTANTIVE_FIELDS
@@ -50,20 +51,39 @@ def _record_transition(
     db.flush()
 
 @router.get("")
-def get_tickets(current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
-    query = base_ticket_query(db)\
-        .join(models.Account)\
-        .filter(models.Ticket.is_deleted == False)
+def get_tickets(
+    status: Optional[str] = None,
+    pagination: dict = Depends(pagination_params),
+    current_user: models.User = Depends(auth.get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    # Build filter conditions (shared between count and data queries)
+    filters = [models.Ticket.is_deleted == False]
 
     if current_user.access_scope == 'nt_only':
-        query = query.filter(models.Account.brand_affinity.in_(['nt', 'both']))
+        filters.append(models.Account.brand_affinity.in_(['nt', 'both']))
     elif current_user.access_scope == 'ds_only':
-        query = query.filter(models.Account.brand_affinity.in_(['ds', 'both']))
+        filters.append(models.Account.brand_affinity.in_(['ds', 'both']))
 
     if current_user.role == 'client':
-        query = query.filter(models.Ticket.account_id == current_user.account_id)
+        filters.append(models.Ticket.account_id == current_user.account_id)
 
-    tickets = query.order_by(models.Ticket.id.desc()).all()
+    if status:
+        filters.append(models.Ticket.status == status)
+
+    # Lightweight count query (no joinedloads)
+    total = db.query(func.count(models.Ticket.id))\
+        .join(models.Account)\
+        .filter(*filters)\
+        .scalar()
+
+    # Data query with eager loads
+    query = base_ticket_query(db)\
+        .join(models.Account)\
+        .filter(*filters)
+
+    limit, offset = pagination["limit"], pagination["offset"]
+    tickets = query.order_by(models.Ticket.id.desc()).offset(offset).limit(limit).all()
     items = []
     for t in tickets:
         item = jsonable_encoder(schemas.TicketResponse.model_validate(enrich_ticket_response(t, db)))
@@ -71,7 +91,7 @@ def get_tickets(current_user: models.User = Depends(auth.get_current_active_user
         item.pop("resolution", None)
         item.pop("resolved_description", None)
         items.append(item)
-    return JSONResponse(content=items)
+    return JSONResponse(content=items, headers={"X-Total-Count": str(total)})
 
 @router.post("", response_model=schemas.TicketResponse)
 def create_ticket(
