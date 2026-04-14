@@ -947,6 +947,9 @@ class McpToolCall(Base):
     http_calls = Column(Integer, nullable=False, default=1)
     status = Column(String, nullable=False, default="success")
     error_message = Column(Text, nullable=True)
+    input_tokens = Column(Integer, nullable=True)
+    cache_read_input_tokens = Column(Integer, nullable=True)
+    cache_creation_input_tokens = Column(Integer, nullable=True)
 
 Index('ix_mcp_tool_calls_called_at_tool_name', McpToolCall.called_at, McpToolCall.tool_name)
 Index('ix_mcp_tool_calls_agent_persona', McpToolCall.agent_persona)

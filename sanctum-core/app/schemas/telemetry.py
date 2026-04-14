@@ -17,6 +17,9 @@ class McpToolCallCreate(BaseModel):
     http_calls: int = 1
     status: str = "success"
     error_message: Optional[str] = None
+    input_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
 
 
 class McpToolCallBatchCreate(BaseModel):
@@ -36,6 +39,9 @@ class McpToolCallRead(BaseModel):
     http_calls: int
     status: str
     error_message: Optional[str]
+    input_tokens: Optional[int] = None
+    cache_read_input_tokens: Optional[int] = None
+    cache_creation_input_tokens: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -50,3 +56,7 @@ class McpToolCallStats(BaseModel):
     error_count: int = 0
     error_rate: float = 0.0
     total_token_estimate: Optional[int] = None
+    total_input_tokens: Optional[int] = None
+    total_cache_read_input_tokens: Optional[int] = None
+    total_cache_creation_input_tokens: Optional[int] = None
+    cache_hit_rate: Optional[float] = None
