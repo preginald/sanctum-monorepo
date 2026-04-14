@@ -6,6 +6,7 @@ from typing import List, Optional
 from datetime import datetime, timedelta, date
 from .. import models, schemas, auth
 from ..database import get_db
+from ..services.pagination import pagination_params
 from ..services.pdf_engine import pdf_engine
 from ..services.milestone_validation import validate_milestone_transition, get_available_transitions as get_milestone_transitions, validate_milestone_status
 from ..services.project_validation import validate_project_transition, validate_project_status, get_available_transitions as get_project_transitions
@@ -235,6 +236,30 @@ def delete_project(project_id: str, current_user: models.User = Depends(auth.get
     proj.is_deleted = True
     db.commit()
     return {"status": "archived", "milestones_deleted": milestones_deleted, "tickets_deleted": tickets_deleted}
+
+@router.get("/milestones", response_model=List[schemas.MilestoneResponse])
+def list_milestones_top_level(
+    project_id: str,
+    pagination: dict = Depends(pagination_params),
+    db: Session = Depends(get_db),
+):
+    resolved_project_id = resolve_uuid(db, models.Project, project_id)
+    filters = [
+        models.Milestone.project_id == resolved_project_id,
+        models.Milestone.is_deleted == False,
+    ]
+    total = db.query(func.count(models.Milestone.id)).filter(*filters).scalar()
+    limit, offset = pagination["limit"], pagination["offset"]
+    milestones = db.query(models.Milestone).filter(*filters)\
+        .order_by(models.Milestone.sequence.asc())\
+        .offset(offset).limit(limit).all()
+    for ms in milestones:
+        ms.available_transitions = get_milestone_transitions(ms.status, db)
+    from fastapi.responses import JSONResponse
+    from fastapi.encoders import jsonable_encoder
+    result = jsonable_encoder([schemas.MilestoneResponse.model_validate(ms) for ms in milestones])
+    return JSONResponse(content=result, headers={"X-Total-Count": str(total)})
+
 
 @router.get("/projects/{project_id}/milestones", response_model=List[schemas.MilestoneResponse])
 def list_milestones(project_id: str, db: Session = Depends(get_db)):
