@@ -22,7 +22,7 @@ class UserResponse(SanctumBase):
     email: str
     full_name: Optional[str] = None
     role: str
-    access_scope: str
+    access_scope: Optional[str] = None
     is_active: bool
     account_id: Optional[UUID] = None
     has_2fa: bool = False
