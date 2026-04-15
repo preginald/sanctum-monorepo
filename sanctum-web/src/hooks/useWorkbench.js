@@ -20,6 +20,12 @@ export default function useWorkbench() {
 
   useEffect(() => { fetchPins(); }, [fetchPins]);
 
+  // Poll for external pin changes (e.g. MCP/API) every 30s
+  useEffect(() => {
+    const id = setInterval(fetchPins, 30000);
+    return () => clearInterval(id);
+  }, [fetchPins]);
+
   const pinnedIds = useMemo(() => new Set(pins.map(p => p.project_id)), [pins]);
 
   const pinProject = useCallback(async (projectId) => {

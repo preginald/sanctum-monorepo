@@ -115,7 +115,7 @@ export default function ProjectIndex() {
       return localStorage.getItem('sanctum_project_view') || 'board';
   });
 
-  const { pins, maxPins, pinnedIds, pinProject, unpinProject, loading: wbLoading } = useWorkbench();
+  const { pins, maxPins, pinnedIds, pinProject, unpinProject, refetch, loading: wbLoading } = useWorkbench();
 
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
@@ -192,10 +192,10 @@ export default function ProjectIndex() {
     }
   };
 
-  if (loading) return <Layout onRefresh={() => setRefreshKey(prev => prev + 1)} title="Project Governance"><Loading /></Layout>;
+  if (loading) return <Layout onRefresh={() => { setRefreshKey(prev => prev + 1); refetch(); }} title="Project Governance"><Loading /></Layout>;
 
   return (
-    <Layout onRefresh={() => setRefreshKey(prev => prev + 1)}
+    <Layout onRefresh={() => { setRefreshKey(prev => prev + 1); refetch(); }}
       title="Project Governance"
       viewMode={viewMode}
       onViewToggle={handleViewChange}
