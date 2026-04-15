@@ -72,6 +72,7 @@ def get_projects(
 
     limit, offset = pagination["limit"], pagination["offset"]
     projects = db.query(models.Project).options(*opts).filter(*filters)\
+        .order_by(models.Project.created_at.desc())\
         .offset(offset).limit(limit).all()
 
     transitions_map = get_project_transition_map(db)

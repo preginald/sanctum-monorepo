@@ -130,9 +130,9 @@ export default function ProjectIndex() {
 
   const fetchData = async () => {
     try {
-        const expand = viewMode === 'digest' ? '?expand=milestones' : '';
+        const params = viewMode === 'digest' ? '?expand=milestones&limit=200' : '?limit=200';
         const [pRes, cRes] = await Promise.all([
-            api.get(`/projects${expand}`),
+            api.get(`/projects${params}`),
             api.get('/accounts')
         ]);
         setProjects(pRes.data);
