@@ -16,15 +16,34 @@ router = APIRouter(prefix="/workbench", tags=["Workbench"])
 MAX_PINS = 5
 
 
+def _resolve_workbench_user(current_user: models.User, db: Session) -> models.User:
+    """Service accounts resolve to their account's primary human admin user.
+
+    This ensures MCP-originated pins appear on the operator's workbench,
+    not the service account's.
+    """
+    if current_user.user_type == "service_account" and current_user.account_id:
+        owner = db.query(models.User).filter(
+            models.User.account_id == current_user.account_id,
+            models.User.user_type == "human",
+            models.User.role == "admin",
+            models.User.is_active == True,
+        ).first()
+        if owner:
+            return owner
+    return current_user
+
+
 @router.get("", response_model=schemas.WorkbenchListResponse)
 def list_pins(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """List pinned projects for the current user with ticket summaries."""
+    target_user = _resolve_workbench_user(current_user, db)
     pins = (
         db.query(models.WorkbenchPin)
-        .filter(models.WorkbenchPin.user_id == current_user.id)
+        .filter(models.WorkbenchPin.user_id == target_user.id)
         .order_by(models.WorkbenchPin.position, models.WorkbenchPin.pinned_at)
         .all()
     )
@@ -94,6 +113,8 @@ def pin_project(
     current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """Pin a project to the workbench. Upsert: 201 new, 200 updated."""
+    target_user = _resolve_workbench_user(current_user, db)
+
     # Verify project exists
     project = db.query(models.Project).filter(
         models.Project.id == payload.project_id,
@@ -106,7 +127,7 @@ def pin_project(
     existing = (
         db.query(models.WorkbenchPin)
         .filter(
-            models.WorkbenchPin.user_id == current_user.id,
+            models.WorkbenchPin.user_id == target_user.id,
             models.WorkbenchPin.project_id == payload.project_id,
         )
         .first()
@@ -116,7 +137,7 @@ def pin_project(
     if not existing:
         pin_count = (
             db.query(sa_func.count(models.WorkbenchPin.id))
-            .filter(models.WorkbenchPin.user_id == current_user.id)
+            .filter(models.WorkbenchPin.user_id == target_user.id)
             .scalar()
         )
         if pin_count >= MAX_PINS:
@@ -127,7 +148,7 @@ def pin_project(
 
     # Upsert via PostgreSQL INSERT ... ON CONFLICT
     stmt = pg_insert(models.WorkbenchPin.__table__).values(
-        user_id=current_user.id,
+        user_id=target_user.id,
         project_id=payload.project_id,
         position=payload.position if payload.position is not None else 0,
     )
@@ -145,7 +166,7 @@ def pin_project(
     pin = (
         db.query(models.WorkbenchPin)
         .filter(
-            models.WorkbenchPin.user_id == current_user.id,
+            models.WorkbenchPin.user_id == target_user.id,
             models.WorkbenchPin.project_id == payload.project_id,
         )
         .first()
@@ -171,10 +192,11 @@ def unpin_project(
     current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """Remove a project pin."""
+    target_user = _resolve_workbench_user(current_user, db)
     pin = (
         db.query(models.WorkbenchPin)
         .filter(
-            models.WorkbenchPin.user_id == current_user.id,
+            models.WorkbenchPin.user_id == target_user.id,
             models.WorkbenchPin.project_id == project_id,
         )
         .first()
@@ -194,9 +216,10 @@ def reorder_pins(
     current_user: models.User = Depends(auth.get_current_active_user),
 ):
     """Bulk update pin positions."""
+    target_user = _resolve_workbench_user(current_user, db)
     for item in payload.pin_order:
         db.query(models.WorkbenchPin).filter(
-            models.WorkbenchPin.user_id == current_user.id,
+            models.WorkbenchPin.user_id == target_user.id,
             models.WorkbenchPin.project_id == item.project_id,
         ).update({"position": item.position})
     db.commit()
