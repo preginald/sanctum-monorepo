@@ -122,6 +122,11 @@ export default function ProjectIndex() {
 
   useEffect(() => { fetchData(); }, [token, refreshKey, viewMode]);
 
+  useEffect(() => {
+    const id = setInterval(fetchData, 30000);
+    return () => clearInterval(id);
+  }, [token, viewMode]);
+
   // Handle View Toggle & Save
   const handleViewChange = (mode) => {
       setViewMode(mode);

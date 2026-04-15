@@ -38,6 +38,11 @@ export default function MilestoneDetail() {
 
   useEffect(() => { fetchMilestone(); }, [id]);
 
+  useEffect(() => {
+    const pid = setInterval(fetchMilestone, 30000);
+    return () => clearInterval(pid);
+  }, [id]);
+
   const fetchMilestone = async () => {
     try {
       const res = await api.get(`/milestones/${id}`);

@@ -98,6 +98,11 @@ export default function TicketDetail() {
   }, [id]);
 
   useEffect(() => {
+    const pid = setInterval(fetchTicket, 30000);
+    return () => clearInterval(pid);
+  }, [id]);
+
+  useEffect(() => {
       if (ticket?.account_id) {
           api.get(`/projects?account_id=${ticket.account_id}&expand=milestones`).then(res => setAccountProjects(res.data));
           fetchContacts(ticket.account_id);
