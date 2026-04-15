@@ -147,7 +147,7 @@ export default function TicketDetail() {
   }, [id]);
 
   const fetchContacts = async (accountId) => {
-    try { const res = await api.get(`/accounts/${accountId}`); if (res.data?.contacts) setContacts(res.data.contacts); } catch (e) { }
+    try { const res = await api.get(`/contacts?account_id=${accountId}`); setContacts(res.data); } catch (e) { }
   };
   const fetchCatalog = async () => { try { const res = await api.get('/products'); setProducts(res.data); } catch (e) { } };
   const fetchArticles = async () => { try { const res = await api.get('/articles'); setAllArticles(res.data); } catch(e) {} };

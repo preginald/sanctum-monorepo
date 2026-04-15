@@ -225,6 +225,13 @@ def archive_product(product_id: str, current_user: models.User = Depends(auth.ge
     return {"status": "archived"}
 
 # --- CONTACTS ---
+@router.get("/contacts", response_model=List[schemas.ContactResponse])
+def list_contacts(account_id: Optional[str] = None, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
+    query = db.query(models.Contact)
+    if account_id:
+        query = query.filter(models.Contact.account_id == account_id)
+    return query.order_by(models.Contact.first_name).all()
+
 @router.post("/contacts", response_model=schemas.ContactResponse)
 def create_contact(contact: schemas.ContactCreate, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), db: Session = Depends(get_db)):
     contact_data = contact.model_dump()
