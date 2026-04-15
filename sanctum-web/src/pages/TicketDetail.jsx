@@ -97,14 +97,6 @@ export default function TicketDetail() {
       fetchTechs();
   }, [id]);
 
-  const fetchTicketRef = useRef(fetchTicket);
-  fetchTicketRef.current = fetchTicket;
-
-  useEffect(() => {
-    const pid = setInterval(() => fetchTicketRef.current(), 30000);
-    return () => clearInterval(pid);
-  }, [id]);
-
   useEffect(() => {
       if (ticket?.account_id) {
           api.get(`/projects?account_id=${ticket.account_id}&expand=milestones`).then(res => setAccountProjects(res.data));
@@ -145,6 +137,14 @@ export default function TicketDetail() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
+
+  const fetchTicketRef = useRef(fetchTicket);
+  fetchTicketRef.current = fetchTicket;
+
+  useEffect(() => {
+    const pid = setInterval(() => fetchTicketRef.current(), 30000);
+    return () => clearInterval(pid);
+  }, [id]);
 
   const fetchContacts = async (accountId) => {
     try { const res = await api.get(`/accounts/${accountId}`); if (res.data?.contacts) setContacts(res.data.contacts); } catch (e) { }
