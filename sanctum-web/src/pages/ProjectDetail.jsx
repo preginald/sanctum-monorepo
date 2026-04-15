@@ -47,6 +47,11 @@ export default function ProjectDetail() {
 
   useEffect(() => { fetchProject(); }, [id]);
 
+  useEffect(() => {
+    const pid = setInterval(fetchProject, 30000);
+    return () => clearInterval(pid);
+  }, [id]);
+
   const fetchProject = async () => {
     try {
       const pRes = await api.get(`/projects/${id}`);
