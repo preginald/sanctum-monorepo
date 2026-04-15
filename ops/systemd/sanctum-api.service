@@ -14,7 +14,7 @@ EnvironmentFile=/home/preginald/DigitalSanctum/sanctum-core/.env
 # However, since your Frontend currently points to port 8000 externally,
 # we will keep 0.0.0.0 for this transition phase.
 ExecStartPre=-/usr/bin/fuser -k -s 8000/tcp
-ExecStart=/home/preginald/DigitalSanctum/sanctum-core/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+ExecStart=/home/preginald/DigitalSanctum/sanctum-core/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --limit-max-requests 1000
 ExecStopPost=-/usr/bin/fuser -k -s 8000/tcp
 Restart=on-failure
 RestartSec=5
