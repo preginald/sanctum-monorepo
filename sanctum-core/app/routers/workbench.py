@@ -23,11 +23,15 @@ def _resolve_workbench_user(current_user: models.User, db: Session) -> models.Us
     not the service account's.
     """
     if current_user.user_type == "service_account" and current_user.account_id:
+        # Try admin first, fall back to any active human user in the account
         owner = db.query(models.User).filter(
             models.User.account_id == current_user.account_id,
             models.User.user_type == "human",
-            models.User.role == "admin",
             models.User.is_active == True,
+        ).order_by(
+            # Prefer admin role, then by earliest created
+            (models.User.role != "admin"),
+            models.User.id,
         ).first()
         if owner:
             return owner
