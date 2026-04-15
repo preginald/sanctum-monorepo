@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import {
@@ -45,13 +45,6 @@ export default function ProjectDetail() {
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => { fetchProject(); }, [id]);
-
-  useEffect(() => {
-    const pid = setInterval(fetchProject, 30000);
-    return () => clearInterval(pid);
-  }, [id]);
-
   const fetchProject = async () => {
     try {
       const pRes = await api.get(`/projects/${id}`);
@@ -60,6 +53,16 @@ export default function ProjectDetail() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
+
+  const fetchRef = useRef(fetchProject);
+  fetchRef.current = fetchProject;
+
+  useEffect(() => { fetchProject(); }, [id]);
+
+  useEffect(() => {
+    const pid = setInterval(() => fetchRef.current(), 30000);
+    return () => clearInterval(pid);
+  }, [id]);
 
   // --- ACTIONS ---
   const handleSaveMilestone = async (e) => {

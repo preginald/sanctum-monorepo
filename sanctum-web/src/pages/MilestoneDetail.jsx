@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { handleSmartWrap } from '../lib/textUtils';
@@ -36,13 +36,6 @@ export default function MilestoneDetail() {
     return () => scrollContainer.removeEventListener('scroll', handleScroll);
   }, []);
 
-  useEffect(() => { fetchMilestone(); }, [id]);
-
-  useEffect(() => {
-    const pid = setInterval(fetchMilestone, 30000);
-    return () => clearInterval(pid);
-  }, [id]);
-
   const fetchMilestone = async () => {
     try {
       const res = await api.get(`/milestones/${id}`);
@@ -50,6 +43,16 @@ export default function MilestoneDetail() {
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
   };
+
+  const fetchMilestoneRef = useRef(fetchMilestone);
+  fetchMilestoneRef.current = fetchMilestone;
+
+  useEffect(() => { fetchMilestone(); }, [id]);
+
+  useEffect(() => {
+    const pid = setInterval(() => fetchMilestoneRef.current(), 30000);
+    return () => clearInterval(pid);
+  }, [id]);
 
   const handleSaveMilestone = async (e) => {
     e.preventDefault();

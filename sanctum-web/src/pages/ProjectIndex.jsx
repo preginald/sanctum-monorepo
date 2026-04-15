@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../store/authStore';
 import Layout from '../components/Layout';
@@ -120,19 +120,6 @@ export default function ProjectIndex() {
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
 
-  useEffect(() => { fetchData(); }, [token, refreshKey, viewMode]);
-
-  useEffect(() => {
-    const id = setInterval(fetchData, 30000);
-    return () => clearInterval(id);
-  }, [token, viewMode]);
-
-  // Handle View Toggle & Save
-  const handleViewChange = (mode) => {
-      setViewMode(mode);
-      localStorage.setItem('sanctum_project_view', mode);
-  };
-
   const fetchData = async () => {
     try {
         const params = viewMode === 'digest' ? '?expand=milestones&limit=200' : '?limit=200';
@@ -144,6 +131,22 @@ export default function ProjectIndex() {
         setClients(cRes.data);
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
+  };
+
+  const fetchDataRef = useRef(fetchData);
+  fetchDataRef.current = fetchData;
+
+  useEffect(() => { fetchData(); }, [token, refreshKey, viewMode]);
+
+  useEffect(() => {
+    const id = setInterval(() => fetchDataRef.current(), 30000);
+    return () => clearInterval(id);
+  }, [token, viewMode]);
+
+  // Handle View Toggle & Save
+  const handleViewChange = (mode) => {
+      setViewMode(mode);
+      localStorage.setItem('sanctum_project_view', mode);
   };
 
   const handleCreate = async (e) => {

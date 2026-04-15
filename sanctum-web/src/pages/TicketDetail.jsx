@@ -97,8 +97,11 @@ export default function TicketDetail() {
       fetchTechs();
   }, [id]);
 
+  const fetchTicketRef = useRef(fetchTicket);
+  fetchTicketRef.current = fetchTicket;
+
   useEffect(() => {
-    const pid = setInterval(fetchTicket, 30000);
+    const pid = setInterval(() => fetchTicketRef.current(), 30000);
     return () => clearInterval(pid);
   }, [id]);
 
