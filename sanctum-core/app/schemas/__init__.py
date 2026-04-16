@@ -47,7 +47,8 @@ from .sso import SSORegisterRequest, SSORegisterResponse, SSORotateResponse, SSO
 
 from .workbench import (
     WorkbenchPinCreate, WorkbenchPinResponse, WorkbenchListResponse,
-    WorkbenchReorderRequest, WorkbenchReorderItem, TicketSummary
+    WorkbenchReorderRequest, WorkbenchReorderItem, TicketSummary,
+    WorkbenchSummaryResponse,
 )
 
 from .automation import (

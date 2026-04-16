@@ -39,3 +39,40 @@ class WorkbenchReorderItem(SanctumBase):
 
 class WorkbenchReorderRequest(SanctumBase):
     pin_order: List[WorkbenchReorderItem]
+
+
+# --- Workbench Summary (rich card data) ---
+
+class SummaryMilestone(SanctumBase):
+    id: UUID
+    name: str
+    status: str
+
+
+class SummaryTicket(SanctumBase):
+    id: int
+    subject: str
+    status: str
+
+
+class SummaryProgress(SanctumBase):
+    resolved: int
+    total: int
+
+
+class SummaryHealth(SanctumBase):
+    colour: str
+    tooltip: str
+
+
+class WorkbenchSummaryResponse(SanctumBase):
+    project_id: UUID
+    project_name: str
+    status: str
+    account_name: Optional[str] = None
+    active_milestone: Optional[SummaryMilestone] = None
+    current_ticket: Optional[SummaryTicket] = None
+    next_ticket: Optional[SummaryTicket] = None
+    progress: SummaryProgress
+    health: SummaryHealth
+    last_activity_at: Optional[datetime] = None

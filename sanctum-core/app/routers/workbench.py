@@ -1,5 +1,6 @@
 """Workbench router — per-operator project pinning (#1917)."""
 
+from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -228,3 +229,165 @@ def reorder_pins(
         ).update({"position": item.position})
     db.commit()
     return {"status": "reordered", "count": len(payload.pin_order)}
+
+
+# --- Workbench Summary ---
+
+RESOLVED_STATUSES = {"resolved"}
+PENDING_STATUSES = {"pending"}
+
+
+def _compute_health(tickets, last_activity_at, milestones):
+    """Compute health colour and tooltip per design spec."""
+    now = datetime.now(timezone.utc)
+
+    has_pending = any(t.status in PENDING_STATUSES for t in tickets)
+    overdue_milestones = [
+        m for m in milestones
+        if m.due_date and m.status != "completed"
+        and datetime.combine(m.due_date, datetime.min.time()).replace(tzinfo=timezone.utc) < now
+    ]
+
+    if last_activity_at:
+        days_stale = (now - last_activity_at).days
+    else:
+        days_stale = 999
+
+    # Red: 7+ days stale or milestone overdue
+    if days_stale >= 7:
+        return schemas.workbench.SummaryHealth(
+            colour="red",
+            tooltip=f"No activity for {days_stale} days",
+        )
+    if overdue_milestones:
+        names = ", ".join(m.name for m in overdue_milestones[:2])
+        return schemas.workbench.SummaryHealth(
+            colour="red",
+            tooltip=f"Milestone overdue: {names}",
+        )
+
+    # Amber: pending tickets or 3-7 days stale
+    if has_pending:
+        pending_count = sum(1 for t in tickets if t.status in PENDING_STATUSES)
+        return schemas.workbench.SummaryHealth(
+            colour="amber",
+            tooltip=f"{pending_count} ticket{'s' if pending_count != 1 else ''} in pending status — needs attention",
+        )
+    if days_stale >= 3:
+        return schemas.workbench.SummaryHealth(
+            colour="amber",
+            tooltip=f"No activity for {days_stale} days",
+        )
+
+    # Green
+    return schemas.workbench.SummaryHealth(colour="green", tooltip="On track")
+
+
+@router.get("/{project_id}/summary", response_model=schemas.WorkbenchSummaryResponse)
+def get_workbench_summary(
+    project_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """Lightweight workbench summary for a single pinned project."""
+    project = db.query(models.Project).filter(
+        models.Project.id == project_id,
+        models.Project.is_deleted == False,
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    account = db.query(models.Account).filter(
+        models.Account.id == project.account_id
+    ).first()
+
+    # Fetch milestones ordered by sequence
+    milestones = (
+        db.query(models.Milestone)
+        .filter(
+            models.Milestone.project_id == project_id,
+            models.Milestone.is_deleted == False,
+        )
+        .order_by(models.Milestone.sequence)
+        .all()
+    )
+    milestone_ids = [m.id for m in milestones]
+
+    # Fetch all tickets across milestones
+    tickets = []
+    if milestone_ids:
+        tickets = (
+            db.query(models.Ticket)
+            .filter(
+                models.Ticket.milestone_id.in_(milestone_ids),
+                models.Ticket.is_deleted == False,
+            )
+            .all()
+        )
+
+    # Progress
+    total = len(tickets)
+    resolved = sum(1 for t in tickets if t.status in RESOLVED_STATUSES)
+
+    # Active milestone: first non-completed milestone
+    active_milestone = None
+    for m in milestones:
+        if m.status in ("active", "pending"):
+            active_milestone = m
+            break
+
+    # Current ticket: first non-resolved ticket in active milestone by sequence
+    # If no open tickets in active milestone, check subsequent milestones
+    current_ticket = None
+    next_ticket = None
+
+    # Build ordered list of open tickets across milestones (by milestone sequence, then ticket id)
+    open_tickets_ordered = []
+    milestone_map = {m.id: m.sequence for m in milestones}
+    for t in tickets:
+        if t.status not in RESOLVED_STATUSES:
+            ms_seq = milestone_map.get(t.milestone_id, 999)
+            open_tickets_ordered.append((ms_seq, t.id, t))
+    open_tickets_ordered.sort(key=lambda x: (x[0], x[1]))
+
+    if open_tickets_ordered:
+        current_ticket = open_tickets_ordered[0][2]
+        if len(open_tickets_ordered) > 1:
+            next_ticket = open_tickets_ordered[1][2]
+
+    # Last activity: most recent updated_at or created_at across tickets
+    last_activity_at = None
+    for t in tickets:
+        ts = t.updated_at or t.created_at
+        if ts and (last_activity_at is None or ts > last_activity_at):
+            last_activity_at = ts
+
+    health = _compute_health(tickets, last_activity_at, milestones)
+
+    return schemas.WorkbenchSummaryResponse(
+        project_id=project.id,
+        project_name=project.name,
+        status=project.status,
+        account_name=account.name if account else None,
+        active_milestone=schemas.workbench.SummaryMilestone(
+            id=active_milestone.id,
+            name=active_milestone.name,
+            status=active_milestone.status,
+        ) if active_milestone else None,
+        current_ticket=schemas.workbench.SummaryTicket(
+            id=current_ticket.id,
+            subject=current_ticket.subject,
+            status=current_ticket.status,
+        ) if current_ticket else None,
+        next_ticket=schemas.workbench.SummaryTicket(
+            id=next_ticket.id,
+            subject=next_ticket.subject,
+            status=next_ticket.status,
+        ) if next_ticket else None,
+        progress=schemas.workbench.SummaryProgress(
+            resolved=resolved,
+            total=total,
+        ),
+        health=health,
+        last_activity_at=last_activity_at,
+    )
