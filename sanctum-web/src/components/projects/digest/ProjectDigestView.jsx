@@ -13,7 +13,7 @@ export default function ProjectDigestView({
   projects,
   onNavigate,
   pins = [],
-  maxPins = 5,
+  maxPins = 6,
   pinnedIds = new Set(),
   onPin,
   onUnpin,

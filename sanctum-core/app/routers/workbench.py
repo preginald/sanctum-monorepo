@@ -14,7 +14,7 @@ from ..database import get_db
 
 router = APIRouter(prefix="/workbench", tags=["Workbench"])
 
-MAX_PINS = 5
+MAX_PINS = 6
 
 
 def _resolve_workbench_user(current_user: models.User, db: Session) -> models.User:

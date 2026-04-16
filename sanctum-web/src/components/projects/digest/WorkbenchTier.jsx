@@ -13,7 +13,7 @@ export default function WorkbenchTier({ pins, maxPins, onUnpin, onNavigate, onOp
         <span className="text-[10px] text-slate-500 ml-1">{pins.length}/{maxPins}</span>
       </div>
       {pins.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           {pins.map(pin => (
             <WorkbenchCard
               key={pin.project_id}
