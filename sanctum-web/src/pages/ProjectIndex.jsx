@@ -259,6 +259,8 @@ export default function ProjectIndex() {
             pinnedIds={pinnedIds}
             onPin={handlePin}
             onUnpin={handleUnpin}
+            onOpenTicket={(ticketId) => navigate(`/tickets/${ticketId}`)}
+            onOpenMilestone={(milestoneId) => navigate(`/milestones/${milestoneId}`)}
           />
       )}
 
