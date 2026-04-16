@@ -39,9 +39,12 @@ export default function useWorkbenchNotifications() {
   }, [addToast]);
 
   useEffect(() => {
-    fetchNotifications();
+    // Fire initial fetch via timeout so setState runs in a callback,
+    // not synchronously in the effect body (react-hooks/set-state-in-effect).
+    const initialTimeout = setTimeout(fetchNotifications, 0);
     intervalRef.current = setInterval(fetchNotifications, POLL_INTERVAL);
     return () => {
+      clearTimeout(initialTimeout);
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [fetchNotifications]);

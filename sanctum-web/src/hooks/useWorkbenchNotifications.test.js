@@ -21,7 +21,7 @@ const MOCK_NOTIFICATIONS = {
 
 describe('useWorkbenchNotifications', () => {
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     mockAddToast.mockClear();
     server.use(
       http.get('*/workbench/notifications', () => HttpResponse.json(MOCK_NOTIFICATIONS)),
