@@ -13,12 +13,13 @@ export default function ProjectDigestView({
   projects,
   onNavigate,
   pins = [],
-  maxPins = 5,
+  maxPins = 6,
   pinnedIds = new Set(),
   onPin,
   onUnpin,
   onOpenTicket,
   onOpenMilestone,
+  onOpenProject,
 }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
@@ -81,6 +82,7 @@ export default function ProjectDigestView({
         onNavigate={onNavigate}
         onOpenTicket={onOpenTicket}
         onOpenMilestone={onOpenMilestone}
+        onOpenProject={onOpenProject}
       />
 
       {/* Tier 2: Recommended Parallel Set */}

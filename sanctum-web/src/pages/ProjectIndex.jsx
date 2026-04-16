@@ -8,6 +8,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import useWorkbench from '../hooks/useWorkbench';
+import useModalStore from '../store/modalStore';
 import ProjectRowActions from '../components/projects/ProjectRowActions';
 
 // UI Components
@@ -123,6 +124,7 @@ export default function ProjectIndex() {
   });
 
   const { pins, maxPins, pinnedIds, pinProject, unpinProject, refetch, loading: wbLoading } = useWorkbench();
+  const { openModal } = useModalStore();
 
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ account_id: '', name: '', budget: '', due_date: '' });
@@ -240,7 +242,7 @@ export default function ProjectIndex() {
             pinnedIds={pinnedIds}
             onPin={handlePin}
             onUnpin={handleUnpin}
-            onOpenModal={(id) => navigate(`/projects/${id}`)}
+            onOpenModal={(id) => openModal('PROJECT_DETAIL', { projectId: id })}
           />
       )}
       {viewMode === 'board' && (
@@ -259,8 +261,9 @@ export default function ProjectIndex() {
             pinnedIds={pinnedIds}
             onPin={handlePin}
             onUnpin={handleUnpin}
-            onOpenTicket={(ticketId) => navigate(`/tickets/${ticketId}`)}
-            onOpenMilestone={(milestoneId) => navigate(`/milestones/${milestoneId}`)}
+            onOpenTicket={(ticketId) => openModal('TICKET_DETAIL', { ticketId })}
+            onOpenMilestone={(milestoneId) => openModal('MILESTONE_DETAIL', { milestoneId })}
+            onOpenProject={(projectId) => openModal('PROJECT_DETAIL', { projectId })}
           />
       )}
 

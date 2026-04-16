@@ -3,14 +3,14 @@ import api from '../lib/api';
 
 export default function useWorkbench() {
   const [pins, setPins] = useState([]);
-  const [maxPins, setMaxPins] = useState(5);
+  const [maxPins, setMaxPins] = useState(6);
   const [loading, setLoading] = useState(true);
 
   const fetchPins = useCallback(async () => {
     try {
       const res = await api.get('/workbench');
       setPins(res.data.pins || []);
-      setMaxPins(res.data.max_pins || 5);
+      setMaxPins(res.data.max_pins ?? 6);
     } catch (e) {
       console.error('Failed to fetch workbench pins', e);
     } finally {
