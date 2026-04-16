@@ -86,6 +86,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
           <TicketBadge
             ticketId={summary.current_ticket.id}
             variant="current"
+            status={summary.current_ticket.status}
             onOpenModal={onOpenTicket}
           />
           <span className="text-[11px] text-slate-300 truncate">{summary.current_ticket.subject}</span>
@@ -97,6 +98,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
           <TicketBadge
             ticketId={summary.next_ticket.id}
             variant="next"
+            status={summary.next_ticket.status !== 'new' ? summary.next_ticket.status : undefined}
             onOpenModal={onOpenTicket}
           />
           <span className="text-[11px] text-slate-500 truncate">{summary.next_ticket.subject}</span>

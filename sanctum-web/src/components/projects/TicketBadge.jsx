@@ -6,7 +6,23 @@ const VARIANT_CLASSES = {
   next: 'bg-slate-700/50 text-slate-500',
 };
 
-export default function TicketBadge({ ticketId, variant = 'current', onOpenModal }) {
+const STATUS_PILL_CLASSES = {
+  new: 'bg-gray-100 text-gray-500',
+  recon: 'bg-purple-100 text-purple-700',
+  proposal: 'bg-purple-100 text-purple-700',
+  pending: 'bg-amber-100 text-amber-700',
+  implementation: 'bg-blue-100 text-blue-700',
+  verification: 'bg-green-100 text-green-700',
+  review: 'bg-green-100 text-green-700',
+  resolved: 'bg-green-100 text-green-700',
+};
+
+const STATUS_LABELS = {
+  implementation: 'impl',
+  verification: 'verify',
+};
+
+export default function TicketBadge({ ticketId, variant = 'current', status, onOpenModal }) {
   const { addToast } = useToast();
   const clickTimer = useRef(null);
 
@@ -26,13 +42,23 @@ export default function TicketBadge({ ticketId, variant = 'current', onOpenModal
     if (onOpenModal) onOpenModal(ticketId);
   }, [ticketId, onOpenModal]);
 
+  const pillClasses = status ? STATUS_PILL_CLASSES[status] : null;
+  const pillLabel = status ? (STATUS_LABELS[status] || status) : null;
+
   return (
     <span
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
-      className={`inline-block text-[11px] px-2 py-0.5 rounded cursor-pointer select-none ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.current}`}
+      className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded cursor-pointer select-none ${VARIANT_CLASSES[variant] || VARIANT_CLASSES.current}`}
     >
       #{ticketId}
+      {pillClasses && (
+        <span
+          className={`inline-block text-[10px] leading-none py-[1px] px-[6px] rounded-[3px] ${pillClasses}`}
+        >
+          {pillLabel}
+        </span>
+      )}
     </span>
   );
 }
