@@ -360,6 +360,14 @@ def get_workbench_summary(
         if len(open_tickets_ordered) > 1:
             next_ticket = open_tickets_ordered[1][2]
 
+    # Fallback: if no active/pending milestone but we have open tickets,
+    # resolve milestone from the current ticket's milestone_id
+    if active_milestone is None and current_ticket is not None:
+        for m in milestones:
+            if m.id == current_ticket.milestone_id:
+                active_milestone = m
+                break
+
     # Last activity: most recent updated_at or created_at across tickets
     last_activity_at = None
     for t in tickets:

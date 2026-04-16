@@ -254,3 +254,78 @@ class TestStatusFilter:
 
     def test_trailing_comma(self):
         assert parse_status_filter("active,") == ["active"]
+
+
+# ---------------------------------------------------------------------------
+# Active Milestone Detection (mirrors workbench router logic)
+# ---------------------------------------------------------------------------
+
+def find_active_milestone(milestones, current_ticket):
+    """Mirror of active milestone logic from workbench summary endpoint,
+    including the fallback when all milestones are completed."""
+    active_milestone = None
+    for m in milestones:
+        if m.status in ("active", "pending"):
+            active_milestone = m
+            break
+
+    # Fallback: resolve from current_ticket's milestone
+    if active_milestone is None and current_ticket is not None:
+        for m in milestones:
+            if m.id == current_ticket.milestone_id:
+                active_milestone = m
+                break
+
+    return active_milestone
+
+
+# ---------------------------------------------------------------------------
+# Tests: Active Milestone Fallback (#2732 Issue 4)
+# ---------------------------------------------------------------------------
+
+class TestActiveMilestoneFallback:
+    def test_active_milestone_found_normally(self):
+        """Standard case: active milestone exists."""
+        ms = FakeMilestone(status="active", name="Phase 1")
+        result = find_active_milestone([ms], None)
+        assert result is not None
+        assert result.name == "Phase 1"
+
+    def test_pending_milestone_found(self):
+        """Pending milestone is also valid."""
+        ms = FakeMilestone(status="pending", name="Phase 2")
+        result = find_active_milestone([ms], None)
+        assert result is not None
+        assert result.name == "Phase 2"
+
+    def test_all_completed_no_tickets_returns_none(self):
+        """All milestones completed, no current ticket = None."""
+        ms = FakeMilestone(status="completed", name="Done")
+        result = find_active_milestone([ms], None)
+        assert result is None
+
+    def test_all_completed_with_open_ticket_falls_back(self):
+        """All milestones completed but open ticket exists -> fallback to ticket's milestone."""
+        ms = FakeMilestone(status="completed", name="Completed Phase")
+        ticket = FakeTicket(id=100, milestone_id=ms.id, status="open")
+        result = find_active_milestone([ms], ticket)
+        assert result is not None
+        assert result.id == ms.id
+        assert result.name == "Completed Phase"
+
+    def test_fallback_picks_correct_milestone(self):
+        """Fallback matches ticket's milestone_id, not just the first one."""
+        ms1 = FakeMilestone(status="completed", name="Phase 1")
+        ms2 = FakeMilestone(status="completed", name="Phase 2")
+        ticket = FakeTicket(id=50, milestone_id=ms2.id, status="new")
+        result = find_active_milestone([ms1, ms2], ticket)
+        assert result is not None
+        assert result.id == ms2.id
+
+    def test_active_milestone_takes_priority_over_fallback(self):
+        """If an active milestone exists, fallback is not needed."""
+        ms_active = FakeMilestone(status="active", name="Active Phase")
+        ms_completed = FakeMilestone(status="completed", name="Done Phase")
+        ticket = FakeTicket(id=50, milestone_id=ms_completed.id, status="new")
+        result = find_active_milestone([ms_active, ms_completed], ticket)
+        assert result.name == "Active Phase"
