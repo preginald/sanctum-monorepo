@@ -37,7 +37,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
     >
       {/* Header: project name + hover actions */}
       <div className="flex items-start justify-between gap-2">
-        <h4 className="font-bold text-slate-50 text-sm truncate flex-1">{pin.project_name}</h4>
+        <h4 className="font-bold text-slate-50 text-sm line-clamp-2 flex-1" title={pin.project_name}>{pin.project_name}</h4>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           <button
             onClick={(e) => { e.stopPropagation(); onUnpin(pin.project_id); }}
