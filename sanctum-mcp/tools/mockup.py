@@ -2,10 +2,15 @@
 
 import json
 import re
+from datetime import datetime, timezone
 from app import mcp
 from cost_tiers import HEAVY_WRITE, LIGHT_READ
 from telemetry import with_telemetry
 import client
+
+# Valid enum values for annotation fields
+_ANNOTATION_TYPES = {"design_intent", "constraint", "interaction", "token_ref", "todo"}
+_ANNOTATION_PRIORITIES = {"low", "normal", "high"}
 
 # Robust extension mapping from mime_type to file extension
 _EXT_MAP = {
@@ -182,6 +187,215 @@ async def mockup_list(
     return json.dumps([_summarise(a) for a in mockups], indent=2)
 
 
+@mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
+async def mockup_annotate(
+    artefact_id: str,
+    element: str,
+    note: str,
+    annotation_type: str = "design_intent",
+    priority: str = "normal",
+) -> str:
+    """Add an annotation to a mockup artefact.
+
+    Annotations are stored in the artefact's metadata and accumulate over
+    multiple calls.  Each annotation is assigned a monotonically increasing
+    ID via the ``annotation_seq`` counter.
+
+    Args:
+        artefact_id: UUID of the mockup artefact to annotate.
+        element: Component name or CSS selector identifying the annotated element.
+        note: Free-text annotation body (required, must not be empty).
+        annotation_type: One of ``design_intent``, ``constraint``,
+            ``interaction``, ``token_ref``, ``todo``.
+        priority: One of ``low``, ``normal``, ``high`` (default ``normal``).
+    """
+    # Validate enums (O4)
+    if annotation_type not in _ANNOTATION_TYPES:
+        return json.dumps({
+            "error": f"Invalid annotation_type '{annotation_type}'",
+            "valid": sorted(_ANNOTATION_TYPES),
+        }, indent=2)
+    if priority not in _ANNOTATION_PRIORITIES:
+        return json.dumps({
+            "error": f"Invalid priority '{priority}'",
+            "valid": sorted(_ANNOTATION_PRIORITIES),
+        }, indent=2)
+    # Validate note is non-empty (O1)
+    if not note or not note.strip():
+        return json.dumps({"error": "note must not be empty"}, indent=2)
+
+    # GET-merge-PUT cycle to append annotation without overwriting.
+    # NOTE: This is NOT atomic.  If two concurrent annotate calls race on the
+    # same artefact, the second PUT may overwrite the first's annotation.
+    # A proper fix requires server-side PATCH/append support.  (O2)
+    artefact = await client.get(f"/artefacts/{artefact_id}")
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    meta = artefact.get("metadata") or {}
+    if not isinstance(meta, dict):
+        meta = {}
+
+    annotations = meta.get("annotations", [])
+    if not isinstance(annotations, list):
+        annotations = []
+
+    # Monotonic counter (O3) — survives deletions unlike len(annotations)
+    seq = meta.get("annotation_seq", 0) + 1
+
+    annotation = {
+        "id": seq,
+        "element": element,
+        "annotation_type": annotation_type,
+        "note": note.strip(),
+        "priority": priority,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    annotations.append(annotation)
+    meta["annotations"] = annotations
+    meta["annotation_seq"] = seq
+
+    await client.put(f"/artefacts/{artefact_id}", json={"metadata": meta})
+
+    return json.dumps({
+        "annotation_id": seq,
+        "artefact_id": artefact_id,
+        "element": element,
+        "annotation_type": annotation_type,
+        "priority": priority,
+        "total_annotations": len(annotations),
+    }, indent=2)
+
+
+@mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
+async def mockup_annotate_list(
+    artefact_id: str,
+    element: str | None = None,
+    annotation_type: str | None = None,
+) -> str:
+    """List annotations on a mockup artefact.
+
+    Args:
+        artefact_id: UUID of the mockup artefact.
+        element: Optional filter — only return annotations for this element.
+        annotation_type: Optional filter — only return annotations of this type.
+    """
+    artefact = await client.get(f"/artefacts/{artefact_id}")
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    meta = artefact.get("metadata") or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    annotations = meta.get("annotations", [])
+    if not isinstance(annotations, list):
+        annotations = []
+
+    # Apply optional filters
+    if element is not None:
+        annotations = [a for a in annotations if a.get("element") == element]
+    if annotation_type is not None:
+        annotations = [a for a in annotations if a.get("annotation_type") == annotation_type]
+
+    # Group by element for the response
+    grouped: dict[str, list[dict]] = {}
+    for a in annotations:
+        el = a.get("element", "unknown")
+        grouped.setdefault(el, []).append(a)
+
+    return json.dumps({
+        "artefact_id": artefact_id,
+        "total": len(annotations),
+        "by_element": grouped,
+    }, indent=2)
+
+
+def _generate_annotation_panel_jsx(annotations_by_version: dict[str, list[dict]]) -> str:
+    """Generate the ANNOTATIONS constant and AnnotationPanel component for the viewer.
+
+    Returns a JS code block containing:
+    - ``ANNOTATIONS`` — a map from version short_id to its annotation list
+    - ``AnnotationPanel`` — a collapsible React component that renders
+      annotations grouped by element, colour-coded by type, with priority badges.
+
+    The panel is rendered *below* each mockup column so it does not obscure
+    the mockup content.  (O5)
+
+    Args:
+        annotations_by_version: Map of version short_id to list of annotation dicts.
+    """
+    # Serialise the annotations map as a JS constant
+    annotations_json = json.dumps(annotations_by_version, indent=2)
+
+    return f"""
+const ANNOTATIONS = {annotations_json};
+
+const TYPE_COLORS = {{
+  design_intent: "#5c6ff2",
+  constraint: "#ef4444",
+  interaction: "#22c55e",
+  token_ref: "#a855f7",
+  todo: "#f59e0b",
+}};
+
+function AnnotationPanel({{ versionId }}) {{
+  const [open, setOpen] = useState(false);
+  const anns = ANNOTATIONS[versionId] || [];
+  if (anns.length === 0) return null;
+
+  // Group by element
+  const grouped = {{}};
+  anns.forEach(a => {{
+    const el = a.element || "unknown";
+    if (!grouped[el]) grouped[el] = [];
+    grouped[el].push(a);
+  }});
+
+  return (
+    <div style={{{{ borderTop: `1px solid ${{C.border}}`, marginTop: 0 }}}}>
+      <button
+        onClick={{() => setOpen(o => !o)}}
+        style={{{{
+          width: "100%", padding: "8px 16px", background: "transparent",
+          border: "none", color: C.textDim, fontSize: 11, cursor: "pointer",
+          textAlign: "left", fontFamily: "inherit",
+        }}}}
+      >
+        {{open ? "\\u25bc" : "\\u25b6"}} Annotations ({{anns.length}})
+      </button>
+      {{open && (
+        <div style={{{{ padding: "0 16px 16px", maxHeight: 400, overflowY: "auto" }}}}>
+          {{Object.entries(grouped).map(([el, items]) => (
+            <div key={{el}} style={{{{ marginBottom: 12 }}}}>
+              <div style={{{{ fontSize: 11, fontWeight: 600, color: "#a3a3a3", marginBottom: 6, fontFamily: "monospace" }}}}>{{el}}</div>
+              {{items.map(a => (
+                <div key={{a.id}} style={{{{ borderLeft: `3px solid ${{TYPE_COLORS[a.annotation_type] || "#737373"}}`, paddingLeft: 10, marginBottom: 8 }}}}>
+                  <div style={{{{ display: "flex", alignItems: "center", gap: 6 }}}}>
+                    <span style={{{{ fontSize: 10, color: TYPE_COLORS[a.annotation_type] || "#737373", fontWeight: 600, textTransform: "uppercase" }}}}>{{a.annotation_type}}</span>
+                    {{a.priority === "high" && <span style={{{{ color: "#ef4444", fontSize: 10, fontWeight: 700, marginLeft: 8 }}}}>\\u25cf HIGH</span>}}
+                    {{a.priority === "low" && <span style={{{{ color: "#737373", fontSize: 10, marginLeft: 8 }}}}>\\u25cb low</span>}}
+                  </div>
+                  <div style={{{{ fontSize: 12, color: C.text, marginTop: 2 }}}}>{{a.note}}</div>
+                </div>
+              ))}}
+            </div>
+          ))}}
+        </div>
+      )}}
+    </div>
+  );
+}}
+"""
+
+
 def _to_pascal_case(label: str) -> str:
     """Convert a version label to a valid JS identifier in PascalCase.
 
@@ -192,7 +406,10 @@ def _to_pascal_case(label: str) -> str:
     return f"Mockup{pascal}" if pascal else "MockupDefault"
 
 
-def _generate_comparison_jsx(versions: list[dict]) -> str:
+def _generate_comparison_jsx(
+    versions: list[dict],
+    annotations_by_version: dict[str, list[dict]] | None = None,
+) -> str:
     """Generate MockupComparison.jsx content from a version manifest.
 
     Each entry in *versions* must have keys:
@@ -200,6 +417,9 @@ def _generate_comparison_jsx(versions: list[dict]) -> str:
         version_label – human-readable label
         import_alias  – unique PascalCase identifier
         short_id      – short id for the VERSIONS array (e.g. "v1")
+
+    If *annotations_by_version* is provided, an AnnotationPanel component is
+    included and rendered below each mockup column.
     """
     # Build import lines
     import_lines = ['import { useState } from "react";']
@@ -216,6 +436,11 @@ def _generate_comparison_jsx(versions: list[dict]) -> str:
             f'component: {v["import_alias"]} }},'
         )
     versions_block = "const VERSIONS = [\n" + "\n".join(version_entries) + "\n];"
+
+    # Generate annotation panel code if annotations exist
+    annotation_block = ""
+    if annotations_by_version:
+        annotation_block = _generate_annotation_panel_jsx(annotations_by_version)
 
     # Static UI shell (copied verbatim from the canonical MockupComparison.jsx)
     ui_shell = r'''
@@ -377,6 +602,7 @@ export default function MockupComparison() {
               </div>
             )}
             <v.component />
+            <AnnotationPanel versionId={v.id} />
           </div>
         ))}
       </div>
@@ -384,7 +610,12 @@ export default function MockupComparison() {
   );
 }'''
 
-    return "\n".join(import_lines) + "\n\n" + versions_block + "\n" + ui_shell + "\n"
+    return (
+        "\n".join(import_lines) + "\n\n"
+        + versions_block + "\n"
+        + annotation_block
+        + ui_shell + "\n"
+    )
 
 
 @mcp.tool(annotations=HEAVY_WRITE)
@@ -463,8 +694,22 @@ async def mockup_compare(
             "artefact_id": a.get("id"),
         })
 
-    # 6. Generate JSX
-    jsx_content = _generate_comparison_jsx(manifest)
+    # 5b. Collect annotations for each version artefact
+    annotations_by_version: dict[str, list[dict]] = {}
+    for entry in manifest:
+        a = next(
+            (art for art in version_artefacts if art.get("id") == entry["artefact_id"]),
+            None,
+        )
+        if a:
+            meta = a.get("metadata") or {}
+            if isinstance(meta, dict):
+                anns = meta.get("annotations", [])
+                if isinstance(anns, list) and anns:
+                    annotations_by_version[entry["short_id"]] = anns
+
+    # 6. Generate JSX (with annotations baked in)
+    jsx_content = _generate_comparison_jsx(manifest, annotations_by_version or None)
 
     # 7. Create or update the comparison-wrapper artefact
     artefact_payload = {
