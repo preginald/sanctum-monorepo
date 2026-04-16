@@ -5,6 +5,9 @@ import { useToast } from '../context/ToastContext'; // <--- NEW
 
 // IMPORT MODALS
 import TicketCreateModal from './tickets/TicketCreateModal';
+import TicketDetailModal from './tickets/TicketDetailModal';
+import MilestoneDetailModal from './milestones/MilestoneDetailModal';
+import ProjectDetailModal from './projects/ProjectDetailModal';
 
 export default function GlobalModalManager() {
   const { activeModal, modalProps, closeModal } = useModalStore();
@@ -49,6 +52,27 @@ export default function GlobalModalManager() {
             onClose={handleClose}
             onSuccess={handleTicketSuccess}
             {...modalProps}
+        />
+      )}
+      {activeModal === 'TICKET_DETAIL' && (
+        <TicketDetailModal
+            isOpen={true}
+            onClose={closeModal}
+            ticketId={modalProps.ticketId}
+        />
+      )}
+      {activeModal === 'MILESTONE_DETAIL' && (
+        <MilestoneDetailModal
+            isOpen={true}
+            onClose={closeModal}
+            milestoneId={modalProps.milestoneId}
+        />
+      )}
+      {activeModal === 'PROJECT_DETAIL' && (
+        <ProjectDetailModal
+            isOpen={true}
+            onClose={closeModal}
+            projectId={modalProps.projectId}
         />
       )}
     </>

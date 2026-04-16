@@ -14,7 +14,7 @@ function formatTimeAgo(dateStr) {
   return `${days}d ago`;
 }
 
-export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone }) {
+export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject }) {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
             <PinOff size={14} className="stroke-slate-500 hover:stroke-slate-200" />
           </button>
           <button
-            onClick={(e) => { e.stopPropagation(); onNavigate(pin.project_id); }}
+            onClick={(e) => { e.stopPropagation(); (onOpenProject || onNavigate)(pin.project_id); }}
             className="w-[26px] h-[26px] flex items-center justify-center rounded-md hover:bg-slate-700 transition-colors"
             title="Open project"
           >

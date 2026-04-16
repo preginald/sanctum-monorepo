@@ -2,7 +2,7 @@ import React from 'react';
 import { Wrench } from 'lucide-react';
 import WorkbenchCard from '../WorkbenchCard';
 
-export default function WorkbenchTier({ pins, maxPins, onUnpin, onNavigate, onOpenTicket, onOpenMilestone }) {
+export default function WorkbenchTier({ pins, maxPins, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject }) {
   return (
     <section className="border-l-4 border-sanctum-gold/50 bg-slate-800/30 p-4 rounded-r-lg">
       <div className="flex items-center gap-2 mb-3">
@@ -22,6 +22,7 @@ export default function WorkbenchTier({ pins, maxPins, onUnpin, onNavigate, onOp
               onNavigate={onNavigate}
               onOpenTicket={onOpenTicket}
               onOpenMilestone={onOpenMilestone}
+              onOpenProject={onOpenProject}
             />
           ))}
         </div>

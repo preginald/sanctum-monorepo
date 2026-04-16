@@ -19,6 +19,7 @@ export default function ProjectDigestView({
   onUnpin,
   onOpenTicket,
   onOpenMilestone,
+  onOpenProject,
 }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
@@ -81,6 +82,7 @@ export default function ProjectDigestView({
         onNavigate={onNavigate}
         onOpenTicket={onOpenTicket}
         onOpenMilestone={onOpenMilestone}
+        onOpenProject={onOpenProject}
       />
 
       {/* Tier 2: Recommended Parallel Set */}
