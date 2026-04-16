@@ -1,12 +1,15 @@
-"""MCP tools for pushing and listing mockup artefacts."""
+"""MCP tools for pushing, listing, and annotating mockup artefacts."""
 
 import json
+import logging
 import re
 from datetime import datetime, timezone
 from app import mcp
 from cost_tiers import HEAVY_WRITE, LIGHT_READ
 from telemetry import with_telemetry
 import client
+
+logger = logging.getLogger(__name__)
 
 # Valid enum values for annotation fields
 _ANNOTATION_TYPES = {"design_intent", "constraint", "interaction", "token_ref", "todo"}
@@ -22,6 +25,132 @@ _EXT_MAP = {
     "text/javascript": ".js",
     "text/typescript": ".ts",
 }
+
+
+async def _fetch_article_content(slug: str) -> str | None:
+    """Fetch article content by slug, returning None on failure."""
+    try:
+        result = await client.get(
+            f"/articles/{slug}", params={"expand": "content"}
+        )
+        if isinstance(result, dict):
+            return result.get("content")
+    except Exception as exc:
+        logger.warning("Failed to fetch article %s: %s", slug, exc)
+    return None
+
+
+def _extract_design_tokens(article_content: str) -> dict:
+    """Parse GFM markdown tables from article content to extract design tokens.
+
+    Returns a dict with keys: colours, radius, shadows.
+    Each is a dict mapping canonical token names to their values.
+
+    Colour token names use the format ``{scale}-{step}`` (e.g. ``primary-500``).
+    Radius/shadow token names use ``{category}-{name}`` (e.g. ``radius-sm``).
+    """
+    colours: dict[str, str] = {}
+    radius: dict[str, str] = {}
+    shadows: dict[str, str] = {}
+
+    # --- Colour tokens ---
+    # DOC-085 format:
+    #   | `primary` | 50 - 950 (full) | `#f0f4ff` (50), `#5c6ff2` (500), ... |
+    colour_row_re = re.compile(
+        r"^\|\s*`?(\w+)`?\s*\|[^|]*\|(.+)\|",
+        re.MULTILINE,
+    )
+    hex_pair_re = re.compile(r"`?(#[0-9a-fA-F]{3,8})`?\s*\((\w+)\)")
+
+    in_colour_section = False
+    for line in article_content.splitlines():
+        if re.match(r"^###?\s+Colour Tokens", line, re.IGNORECASE):
+            in_colour_section = True
+            continue
+        if re.match(r"^###?\s+", line) and in_colour_section:
+            in_colour_section = False
+
+        if in_colour_section:
+            m = colour_row_re.match(line)
+            if m:
+                scale_name = m.group(1).lower()
+                if scale_name in ("token", "name", "---"):
+                    continue
+                examples_col = m.group(2)
+                for hm in hex_pair_re.finditer(examples_col):
+                    hex_val = hm.group(1)
+                    step = hm.group(2)
+                    colours[f"{scale_name}-{step}"] = hex_val
+
+    # Fallback: scan all table rows for colour-like patterns
+    if not colours:
+        for line in article_content.splitlines():
+            m = colour_row_re.match(line)
+            if m:
+                scale_name = m.group(1).lower()
+                if scale_name in ("token", "name", "prop", "---", "variant"):
+                    continue
+                examples_col = m.group(2)
+                pairs = hex_pair_re.findall(examples_col)
+                if pairs:
+                    for hex_val, step in pairs:
+                        colours[f"{scale_name}-{step}"] = hex_val
+
+    # --- Border Radius tokens ---
+    # DOC-085 format: | `sm` | `0.25rem` (4px) |
+    radius_row_re = re.compile(
+        r"^\|\s*`?(\w+)`?\s*\|\s*`?([^|`]+)`?\s*\|",
+        re.MULTILINE,
+    )
+    in_radius_section = False
+    for line in article_content.splitlines():
+        if re.match(r"^###?\s+Border Radius", line, re.IGNORECASE):
+            in_radius_section = True
+            continue
+        if re.match(r"^###?\s+", line) and in_radius_section:
+            in_radius_section = False
+
+        if in_radius_section:
+            m = radius_row_re.match(line)
+            if m:
+                name = m.group(1).strip()
+                value = m.group(2).strip().strip("`").strip()
+                if name.lower() in ("token", "name", "---"):
+                    continue
+                radius[f"radius-{name}"] = value
+
+    # --- Box Shadow tokens ---
+    in_shadow_section = False
+    for line in article_content.splitlines():
+        if re.match(r"^###?\s+Box Shadow", line, re.IGNORECASE):
+            in_shadow_section = True
+            continue
+        if re.match(r"^###?\s+", line) and in_shadow_section:
+            in_shadow_section = False
+
+        if in_shadow_section:
+            m = radius_row_re.match(line)
+            if m:
+                name = m.group(1).strip()
+                value = m.group(2).strip().strip("`").strip()
+                if name.lower() in ("token", "name", "---"):
+                    continue
+                shadows[f"shadow-{name}"] = value
+
+    return {
+        "colours": colours,
+        "radius": radius,
+        "shadows": shadows,
+    }
+
+
+def _resolve_token(design_tokens: dict, token_name: str) -> str | None:
+    """Look up a token name across all categories in a design_tokens dict."""
+    for category in ("colours", "radius", "shadows"):
+        category_tokens = design_tokens.get(category, {})
+        if token_name in category_tokens:
+            return category_tokens[token_name]
+    return None
 
 
 def _slugify(label: str) -> str:
@@ -60,7 +189,35 @@ async def mockup_push(
     ext = _EXT_MAP.get(mime_type, ".jsx")
     filename = f"{slug}{ext}"
 
+    # 1b. Fetch design tokens from referenced articles
+    design_tokens: dict = {}
+    token_source_refs: list[str] = []
+    if design_system_refs:
+        for ref in design_system_refs:
+            ref_stripped = ref.strip()
+            content = await _fetch_article_content(ref_stripped)
+            if content:
+                tokens = _extract_design_tokens(content)
+                for category in ("colours", "radius", "shadows"):
+                    if tokens.get(category):
+                        design_tokens.setdefault(category, {}).update(
+                            tokens[category]
+                        )
+                token_source_refs.append(ref_stripped)
+            else:
+                logger.warning(
+                    "Could not fetch tokens from %s -- continuing without",
+                    ref_stripped,
+                )
+
     # 2. Create artefact
+    metadata = {
+        "version_label": version_label,
+        "design_system_refs": design_system_refs or [],
+    }
+    if design_tokens:
+        metadata["design_tokens"] = design_tokens
+
     artefact_payload = {
         "name": f"Mockup: {version_label} (#{ticket_id})",
         "artefact_type": "document",
@@ -68,10 +225,7 @@ async def mockup_push(
         "content": source,
         "mime_type": mime_type,
         "sensitivity": "internal",
-        "metadata": {
-            "version_label": version_label,
-            "design_system_refs": design_system_refs or [],
-        },
+        "metadata": metadata,
     }
     artefact_result = await client.post("/artefacts", json=artefact_payload)
     artefact_id = artefact_result.get("id")
@@ -98,12 +252,37 @@ async def mockup_push(
         refs = ", ".join(design_system_refs)
         ds_section = f"\n**Design system:** {refs}\n"
 
+    # Build design tokens summary section
+    tokens_section = ""
+    if design_tokens:
+        tokens_section = "\n### Design Tokens Used\n\n"
+        if design_tokens.get("colours"):
+            tokens_section += "**Colours:**\n"
+            for name, hex_val in sorted(design_tokens["colours"].items()):
+                tokens_section += f"- `{name}`: `{hex_val}`\n"
+            tokens_section += "\n"
+        if design_tokens.get("radius"):
+            tokens_section += "**Border Radius:**\n"
+            for name, val in sorted(design_tokens["radius"].items()):
+                tokens_section += f"- `{name}`: `{val}`\n"
+            tokens_section += "\n"
+        if design_tokens.get("shadows"):
+            tokens_section += "**Box Shadow:**\n"
+            for name, val in sorted(design_tokens["shadows"].items()):
+                tokens_section += f"- `{name}`: `{val}`\n"
+            tokens_section += "\n"
+        if token_source_refs:
+            tokens_section += (
+                f"*Token source: {', '.join(token_source_refs)}*\n"
+            )
+
     comment_body = (
         f"## Mockup Handoff -- {version_label}\n\n"
         f"**Artefact:** `{artefact_id}`\n"
         f"**File:** `mockups/{filename}`\n"
         f"**MIME:** `{mime_type}`\n"
         f"{ds_section}"
+        f"{tokens_section}"
         f"\n### Integration Steps\n\n"
         f"1. Save artefact content to `mockups/{filename}`\n"
         f"2. Install any missing dependencies from the design system refs\n"
@@ -202,9 +381,15 @@ async def mockup_annotate(
     multiple calls.  Each annotation is assigned a monotonically increasing
     ID via the ``annotation_seq`` counter.
 
+    When ``annotation_type`` is ``token_ref``, the ``element`` field is
+    treated as a canonical token name (e.g. ``primary-500``, ``radius-md``)
+    and the resolved value is looked up from the artefact's
+    ``design_tokens`` metadata.
+
     Args:
         artefact_id: UUID of the mockup artefact to annotate.
-        element: Component name or CSS selector identifying the annotated element.
+        element: Component name or CSS selector identifying the annotated
+            element. For ``token_ref`` type, use the canonical token name.
         note: Free-text annotation body (required, must not be empty).
         annotation_type: One of ``design_intent``, ``constraint``,
             ``interaction``, ``token_ref``, ``todo``.
@@ -247,6 +432,19 @@ async def mockup_annotate(
     # Monotonic counter (O3) — survives deletions unlike len(annotations)
     seq = meta.get("annotation_seq", 0) + 1
 
+    # Resolve token value when annotation_type is token_ref
+    resolved_value = None
+    if annotation_type == "token_ref":
+        design_tokens = meta.get("design_tokens", {})
+        if isinstance(design_tokens, dict) and element:
+            resolved_value = _resolve_token(design_tokens, element)
+        if resolved_value is None:
+            logger.warning(
+                "Token %s not found in artefact %s design_tokens",
+                element,
+                artefact_id,
+            )
+
     annotation = {
         "id": seq,
         "element": element,
@@ -255,20 +453,25 @@ async def mockup_annotate(
         "priority": priority,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
+    if resolved_value is not None:
+        annotation["resolved_value"] = resolved_value
     annotations.append(annotation)
     meta["annotations"] = annotations
     meta["annotation_seq"] = seq
 
     await client.put(f"/artefacts/{artefact_id}", json={"metadata": meta})
 
-    return json.dumps({
+    result = {
         "annotation_id": seq,
         "artefact_id": artefact_id,
         "element": element,
         "annotation_type": annotation_type,
         "priority": priority,
         "total_annotations": len(annotations),
-    }, indent=2)
+    }
+    if resolved_value is not None:
+        result["resolved_value"] = resolved_value
+    return json.dumps(result, indent=2)
 
 
 @mcp.tool(annotations=LIGHT_READ)
@@ -382,6 +585,12 @@ function AnnotationPanel({{ versionId }}) {{
                     <span style={{{{ fontSize: 10, color: TYPE_COLORS[a.annotation_type] || "#737373", fontWeight: 600, textTransform: "uppercase" }}}}>{{a.annotation_type}}</span>
                     {{a.priority === "high" && <span style={{{{ color: "#ef4444", fontSize: 10, fontWeight: 700, marginLeft: 8 }}}}>\\u25cf HIGH</span>}}
                     {{a.priority === "low" && <span style={{{{ color: "#737373", fontSize: 10, marginLeft: 8 }}}}>\\u25cb low</span>}}
+                    {{a.annotation_type === "token_ref" && a.resolved_value && /^#[0-9a-fA-F]{{3,8}}$/.test(a.resolved_value) && (
+                      <span style={{{{ display: "inline-block", width: 14, height: 14, borderRadius: 3, backgroundColor: a.resolved_value, border: "1px solid rgba(255,255,255,0.15)", marginLeft: 4, verticalAlign: "middle" }}}} title={{a.resolved_value}} />
+                    )}}
+                    {{a.annotation_type === "token_ref" && a.resolved_value && (
+                      <span style={{{{ fontSize: 10, color: "#a3a3a3", fontFamily: "monospace", marginLeft: 4 }}}}>{{a.resolved_value}}</span>
+                    )}}
                   </div>
                   <div style={{{{ fontSize: 12, color: C.text, marginTop: 2 }}}}>{{a.note}}</div>
                 </div>
