@@ -33,7 +33,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
   return (
     <div
       onClick={() => onNavigate(pin.project_id)}
-      className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3.5 cursor-pointer transition-all hover:border-slate-600 relative group"
+      className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3.5 cursor-pointer transition-all hover:border-slate-600 relative group flex flex-col"
     >
       {/* Header: project name + hover actions */}
       <div className="flex items-start justify-between gap-2">
@@ -105,7 +105,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
 
       {/* Footer: progress bar + count + timestamp */}
       {progress && progress.total > 0 && (
-        <div className="flex items-center gap-2 mt-3">
+        <div className="flex items-center gap-2 mt-auto pt-3">
           <div className="flex-1 bg-slate-700 h-[3px] rounded-full overflow-hidden">
             <div className="bg-indigo-500 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
           </div>
