@@ -140,9 +140,14 @@ def pin_project(
 
     # Enforce max pins (only for new pins)
     if not existing:
+        # Only count pins for non-deleted projects to avoid ghost pin blocking
         pin_count = (
             db.query(sa_func.count(models.WorkbenchPin.id))
-            .filter(models.WorkbenchPin.user_id == target_user.id)
+            .join(models.Project, models.WorkbenchPin.project_id == models.Project.id)
+            .filter(
+                models.WorkbenchPin.user_id == target_user.id,
+                models.Project.is_deleted == False,
+            )
             .scalar()
         )
         if pin_count >= MAX_PINS:

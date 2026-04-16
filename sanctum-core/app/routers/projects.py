@@ -259,8 +259,14 @@ def delete_project(project_id: str, current_user: models.User = Depends(auth.get
             tickets_deleted += 1
 
     proj.is_deleted = True
+
+    # Cascade: remove workbench pins referencing this project
+    pins_deleted = db.query(models.WorkbenchPin).filter(
+        models.WorkbenchPin.project_id == proj.id,
+    ).delete(synchronize_session="fetch")
+
     db.commit()
-    return {"status": "archived", "milestones_deleted": milestones_deleted, "tickets_deleted": tickets_deleted}
+    return {"status": "archived", "milestones_deleted": milestones_deleted, "tickets_deleted": tickets_deleted, "pins_deleted": pins_deleted}
 
 @router.get("/milestones", response_model=List[schemas.MilestoneResponse])
 def list_milestones_top_level(
