@@ -1,9 +1,9 @@
-"""MCP tool for pushing mockup artefacts to tickets."""
+"""MCP tools for pushing and listing mockup artefacts."""
 
 import json
 import re
 from app import mcp
-from cost_tiers import HEAVY_WRITE
+from cost_tiers import HEAVY_WRITE, LIGHT_READ
 from telemetry import with_telemetry
 import client
 
@@ -63,6 +63,10 @@ async def mockup_push(
         "content": source,
         "mime_type": mime_type,
         "sensitivity": "internal",
+        "metadata": {
+            "version_label": version_label,
+            "design_system_refs": design_system_refs or [],
+        },
     }
     artefact_result = await client.post("/artefacts", json=artefact_payload)
     artefact_id = artefact_result.get("id")
@@ -122,3 +126,57 @@ async def mockup_push(
     if not link_ok:
         result["warning"] = "Artefact created but link to ticket failed"
     return json.dumps(result, indent=2)
+
+
+# Regex for extracting version_label from legacy artefact names
+_NAME_RE = re.compile(r"^Mockup:\s+(.+?)\s+\(#\d+\)$")
+
+
+def _extract_version_label(artefact: dict) -> str | None:
+    """Extract version_label from metadata, falling back to name parsing."""
+    meta = artefact.get("metadata") or {}
+    if isinstance(meta, dict) and meta.get("version_label"):
+        return meta["version_label"]
+    # Fallback: parse from name pattern "Mockup: {label} (#{id})"
+    name = artefact.get("name", "")
+    m = _NAME_RE.match(name)
+    return m.group(1) if m else None
+
+
+def _summarise(artefact: dict) -> dict:
+    """Build a summary dict for a mockup artefact."""
+    meta = artefact.get("metadata") or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    return {
+        "id": artefact.get("id"),
+        "name": artefact.get("name"),
+        "mime_type": artefact.get("mime_type"),
+        "created_at": artefact.get("created_at"),
+        "version_label": _extract_version_label(artefact),
+        "design_system_refs": meta.get("design_system_refs") or None,
+    }
+
+
+@mcp.tool(annotations=LIGHT_READ)
+@with_telemetry("light")
+async def mockup_list(
+    ticket_id: int | None = None,
+) -> str:
+    """List mockup artefacts linked to a ticket, or all mockups for the account.
+
+    Args:
+        ticket_id: Filter to mockups linked to this ticket.
+            If omitted, returns all mockup artefacts.
+    """
+    if ticket_id is not None:
+        ticket = await client.get(
+            f"/tickets/{ticket_id}", params={"expand": "artefacts"}
+        )
+        all_artefacts = ticket.get("artefacts", []) if isinstance(ticket, dict) else []
+        mockups = [a for a in all_artefacts if a.get("category") == "mockup"]
+    else:
+        result = await client.get("/artefacts", params={"category": "mockup"})
+        mockups = result if isinstance(result, list) else []
+
+    return json.dumps([_summarise(a) for a in mockups], indent=2)
