@@ -8,6 +8,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import useWorkbench from '../hooks/useWorkbench';
+import ProjectRowActions from '../components/projects/ProjectRowActions';
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -25,15 +26,20 @@ const PROJECT_COLS = {
 };
 
 // --- SUB-COMPONENT: List View ---
-const ProjectListView = ({ projects, onNavigate }) => (
+const ProjectListView = ({ projects, onNavigate, pinnedIds, onPin, onUnpin }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {projects.map(p => (
       <div
         key={p.id}
         onClick={() => onNavigate(p.id)}
-        // FIX: Replaced <Card> with <div> to ensure onClick works reliably
-        className="bg-slate-900 border border-slate-700 rounded-xl p-6 hover:border-sanctum-gold/50 cursor-pointer transition-all group relative overflow-hidden"
+        className="bg-slate-900 border border-slate-700 rounded-xl p-6 hover:border-sanctum-gold/50 cursor-pointer transition-all group relative overflow-visible"
       >
+        <ProjectRowActions
+          projectId={p.id}
+          isPinned={pinnedIds.has(p.id)}
+          onPin={onPin}
+          onUnpin={onUnpin}
+        />
         <div className="flex justify-between items-start mb-4">
           <div className="p-3 bg-black/30 rounded-lg">
             <Briefcase className="text-sanctum-gold" size={24} />
@@ -122,7 +128,14 @@ export default function ProjectIndex() {
 
   const fetchData = async () => {
     try {
-        const params = viewMode === 'digest' ? '?expand=milestones&limit=200' : '?limit=200';
+        let params;
+        if (viewMode === 'digest') {
+            params = '?expand=milestones&limit=200';
+        } else if (viewMode === 'board') {
+            params = '?status=capture,planning,active,on_hold&limit=200';
+        } else {
+            params = '?status=active,planning&limit=200';
+        }
         const [pRes, cRes] = await Promise.all([
             api.get(`/projects${params}`),
             api.get('/accounts')
@@ -223,6 +236,9 @@ export default function ProjectIndex() {
           <ProjectListView
             projects={projects}
             onNavigate={(id) => navigate(`/projects/${id}`)}
+            pinnedIds={pinnedIds}
+            onPin={handlePin}
+            onUnpin={handleUnpin}
           />
       )}
       {viewMode === 'board' && (
