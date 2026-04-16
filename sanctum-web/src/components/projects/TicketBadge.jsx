@@ -7,14 +7,14 @@ const VARIANT_CLASSES = {
 };
 
 const STATUS_PILL_CLASSES = {
-  new: 'bg-gray-100 text-gray-500',
-  recon: 'bg-purple-100 text-purple-700',
-  proposal: 'bg-purple-100 text-purple-700',
-  pending: 'bg-amber-100 text-amber-700',
-  implementation: 'bg-blue-100 text-blue-700',
-  verification: 'bg-green-100 text-green-700',
-  review: 'bg-green-100 text-green-700',
-  resolved: 'bg-green-100 text-green-700',
+  new: 'bg-gray-500/20 text-gray-400',
+  recon: 'bg-purple-500/20 text-purple-400',
+  proposal: 'bg-purple-500/20 text-purple-400',
+  pending: 'bg-amber-500/20 text-amber-400',
+  implementation: 'bg-blue-500/20 text-blue-400',
+  verification: 'bg-green-500/20 text-green-400',
+  review: 'bg-green-500/20 text-green-400',
+  resolved: 'bg-green-500/20 text-green-400',
 };
 
 const STATUS_LABELS = {

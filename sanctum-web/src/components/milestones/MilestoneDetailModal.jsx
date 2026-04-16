@@ -35,7 +35,7 @@ export default function MilestoneDetailModal({ isOpen, onClose, milestoneId }) {
         <div className="space-y-4">
           <h3 className="text-lg font-bold text-white">{milestone.name}</h3>
           <div className="flex items-center gap-2 flex-wrap">
-            <StatusBadge value={milestone.status} map="ticketStatus" />
+            <StatusBadge value={milestone.status} map="milestoneStatus" />
             {milestone.due_date && (
               <span className="text-sm text-slate-400 flex items-center gap-1">
                 <Calendar size={14} /> {milestone.due_date}
