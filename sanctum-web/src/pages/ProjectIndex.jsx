@@ -26,7 +26,7 @@ const PROJECT_COLS = {
 };
 
 // --- SUB-COMPONENT: List View ---
-const ProjectListView = ({ projects, onNavigate, pinnedIds, onPin, onUnpin }) => (
+const ProjectListView = ({ projects, onNavigate, pinnedIds, onPin, onUnpin, onOpenModal }) => (
   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
     {projects.map(p => (
       <div
@@ -39,6 +39,7 @@ const ProjectListView = ({ projects, onNavigate, pinnedIds, onPin, onUnpin }) =>
           isPinned={pinnedIds.has(p.id)}
           onPin={onPin}
           onUnpin={onUnpin}
+          onOpenModal={onOpenModal}
         />
         <div className="flex justify-between items-start mb-4">
           <div className="p-3 bg-black/30 rounded-lg">
@@ -239,6 +240,7 @@ export default function ProjectIndex() {
             pinnedIds={pinnedIds}
             onPin={handlePin}
             onUnpin={handleUnpin}
+            onOpenModal={(id) => navigate(`/projects/${id}`)}
           />
       )}
       {viewMode === 'board' && (
