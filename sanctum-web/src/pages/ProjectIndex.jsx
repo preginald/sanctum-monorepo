@@ -228,12 +228,8 @@ export default function ProjectIndex() {
         { value: 'board', icon: <KanbanIcon size={14} /> },
         { value: 'digest', icon: <Newspaper size={14} /> }
       ]}
+      actions={<Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">New Project</Button>}
     >
-      <div className="flex justify-end items-center mb-6">
-        <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">
-          New Project
-        </Button>
-      </div>
 
       {viewMode === 'list' && (
           <ProjectListView

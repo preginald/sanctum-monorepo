@@ -19,10 +19,14 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
 
   useEffect(() => {
     let cancelled = false;
-    api.get(`/workbench/${pin.project_id}/summary`).then(res => {
-      if (!cancelled) setSummary(res.data);
-    }).catch(() => {});
-    return () => { cancelled = true; };
+    const fetchSummary = () => {
+      api.get(`/workbench/${pin.project_id}/summary`).then(res => {
+        if (!cancelled) setSummary(res.data);
+      }).catch(() => {});
+    };
+    fetchSummary();
+    const id = setInterval(fetchSummary, 30000);
+    return () => { cancelled = true; clearInterval(id); };
   }, [pin.project_id]);
 
   const progress = summary?.progress;
