@@ -47,6 +47,7 @@ def _validate_discount(market_value, quoted_price, discount_reason):
 @router.get("/projects", response_model=None)
 def get_projects(
     account_id: Optional[str] = None,
+    status: Optional[str] = None,
     expand: ExpandConfig = Depends(get_expand_config_lean),
     pagination: dict = Depends(pagination_params),
     current_user: models.User = Depends(auth.get_current_active_user),
@@ -59,6 +60,10 @@ def get_projects(
         filters.append(models.Project.account_id == current_user.account_id)
     if account_id:
         filters.append(models.Project.account_id == account_id)
+    if status:
+        status_list = [s.strip() for s in status.split(",") if s.strip()]
+        if status_list:
+            filters.append(models.Project.status.in_(status_list))
 
     # Lightweight count query
     total = db.query(func.count(models.Project.id)).filter(*filters).scalar()
