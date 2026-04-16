@@ -10,11 +10,12 @@ logger = logging.getLogger(__name__)
 
 class NotificationDispatcher:
 
-    def enqueue(self, db: Session, recipients: list[dict], subject: str, message: str, link: str = None, event_payload: dict = {}, priority: str = 'normal', event_type: str = None, template_data: dict = None):
+    def enqueue(self, db: Session, recipients: list[dict], subject: str, message: str, link: str = None, event_payload: dict = {}, priority: str = 'normal', event_type: str = None, template_data: dict = None, delivery_channel: str = 'email', project_id=None):
         """
         The Entry Point.
         1. Creates DB records for ALL recipients (User or External).
         2. Checks logic: External -> Send Now. User -> Check Prefs.
+           For in_app delivery: write to DB only, skip email dispatch.
         """
         dispatched_count = 0
 
@@ -22,19 +23,25 @@ class NotificationDispatcher:
             # 1. Create the Record (The Queue)
             note = Notification(
                 user_id=r['user_id'],
-                recipient_email=r['email'],
+                recipient_email=r.get('email'),
                 title=subject,
                 message=message,
                 link=link,
                 priority=priority,
                 event_payload=event_payload,
                 event_type=event_type,
-                status='pending', # Default start state
-                delivery_channel='email', # Default for now
+                status='delivered' if delivery_channel == 'in_app' else 'pending',
+                delivery_channel=delivery_channel,
+                project_id=project_id,
                 is_read=False
             )
             db.add(note)
             db.flush() # Get ID
+
+            # in_app notifications are written to DB only — no email dispatch
+            if delivery_channel == 'in_app':
+                dispatched_count += 1
+                continue
 
             # 2. Dispatch Logic
             should_send_now = False
