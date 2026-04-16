@@ -628,6 +628,8 @@ class Notification(Base):
     # NEW: Channel Preference (email, in_app, etc)
     delivery_channel = Column(String, default='email')
 
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id", ondelete="SET NULL"), nullable=True, index=True)
+
     batch_id = Column(UUID(as_uuid=True), nullable=True)
     sent_at = Column(TIMESTAMP(timezone=True), nullable=True)
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
