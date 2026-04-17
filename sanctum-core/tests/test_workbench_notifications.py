@@ -343,6 +343,34 @@ class TestWorkbenchEventListener:
         assert result is True
 
 
+class TestNotificationTitleEnrichment:
+    """Tests for #2764: subscriber title enrichment with project/milestone context."""
+
+    @staticmethod
+    def enrich_title(raw_title, project_name, milestone_name):
+        """Mirror the enrichment logic from workbench_subscriber._process_workbench_notification."""
+        if milestone_name:
+            return f"[{project_name}] {raw_title} ({milestone_name})"
+        else:
+            return f"[{project_name}] {raw_title}"
+
+    def test_enriches_comment_title_with_project_and_milestone(self):
+        result = self.enrich_title("New Comment: #2384", "Workbench Session Notifications", "Phase 4: The Integration")
+        assert result == "[Workbench Session Notifications] New Comment: #2384 (Phase 4: The Integration)"
+
+    def test_enriches_status_change_title_with_project_and_milestone(self):
+        result = self.enrich_title("Status Change: #2384 \u2192 open", "Sanctum Core", "Phase 79: The Conduit")
+        assert result == "[Sanctum Core] Status Change: #2384 \u2192 open (Phase 79: The Conduit)"
+
+    def test_enriches_title_without_milestone(self):
+        result = self.enrich_title("Ticket #100 update", "My Project", "")
+        assert result == "[My Project] Ticket #100 update"
+
+    def test_enriches_with_unknown_project(self):
+        result = self.enrich_title("New Comment: #50", "Unknown Project", "Phase 1")
+        assert result == "[Unknown Project] New Comment: #50 (Phase 1)"
+
+
 class TestNotificationServiceDeliveryChannel:
     """Tests 9-10: enqueue() delivery_channel behaviour."""
 

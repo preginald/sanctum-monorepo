@@ -59,6 +59,13 @@ def _process_workbench_notification(payload: dict):
 
         project_id = milestone.project_id
 
+        # Resolve project and milestone names for enriched notification title
+        project = db.query(models.Project).filter(
+            models.Project.id == project_id
+        ).first()
+        project_name = project.name if project else "Unknown Project"
+        milestone_name = milestone.name if milestone else ""
+
         # Find all users who have this project pinned
         pins = db.query(models.WorkbenchPin).filter(
             models.WorkbenchPin.project_id == project_id
@@ -88,8 +95,12 @@ def _process_workbench_notification(payload: dict):
             if existing:
                 continue
 
-            # Build notification content
-            title = payload.get("title", f"Ticket #{ticket_id} update")
+            # Build notification content with project/milestone context
+            raw_title = payload.get("title", f"Ticket #{ticket_id} update")
+            if milestone_name:
+                title = f"[{project_name}] {raw_title} ({milestone_name})"
+            else:
+                title = f"[{project_name}] {raw_title}"
             message = payload.get("message", "")
             link = payload.get("link", f"/tickets/{ticket_id}")
 
