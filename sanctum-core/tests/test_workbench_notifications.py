@@ -73,10 +73,17 @@ class FakeTicket:
         self.status = status
 
 
+class FakeProject:
+    def __init__(self, id=None, name="Test Project"):
+        self.id = id or uuid4()
+        self.name = name
+
+
 class FakeMilestone:
-    def __init__(self, id=None, project_id=None):
+    def __init__(self, id=None, project_id=None, name="Test Milestone"):
         self.id = id or uuid4()
         self.project_id = project_id
+        self.name = name
 
 
 # ---------------------------------------------------------------------------
@@ -396,3 +403,179 @@ class TestNotificationServiceDeliveryChannel:
 
         assert expected_status == 'pending'
         assert should_skip_email is False
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: call _process_workbench_notification directly (#2766)
+# ---------------------------------------------------------------------------
+
+def _build_mock_session(ticket, milestone, project, pins, existing_notifications=None):
+    """Build a MagicMock session that routes query() calls by model class.
+
+    Uses side_effect keyed on the model class to prevent false positives
+    where the wrong model is returned for a given query.
+    """
+    # Deferred import to avoid triggering database engine creation at module level
+    from app import models as app_models
+
+    session = MagicMock()
+
+    def query_router(model_class):
+        chain = MagicMock()
+        if model_class is app_models.Ticket:
+            chain.filter.return_value.first.return_value = ticket
+        elif model_class is app_models.Milestone:
+            chain.filter.return_value.first.return_value = milestone
+        elif model_class is app_models.Project:
+            chain.filter.return_value.first.return_value = project
+        elif model_class is app_models.WorkbenchPin:
+            chain.filter.return_value.all.return_value = pins
+        elif model_class is app_models.Notification:
+            chain.filter.return_value.first.return_value = (
+                existing_notifications[0] if existing_notifications else None
+            )
+        return chain
+
+    session.query.side_effect = query_router
+    return session
+
+
+class TestProcessWorkbenchNotificationIntegration:
+    """Integration tests for _process_workbench_notification (#2766).
+
+    These tests call the actual subscriber function (not a static mirror)
+    and assert the enriched Notification.title written to the DB session.
+    Patch target is app.services.workbench_subscriber.SessionLocal to
+    return a mock session, avoiding any real database dependency.
+    """
+
+    def test_comment_event_with_milestone(self):
+        """Comment event produces enriched title with project and milestone context."""
+        from app import models as app_models
+
+        user_id = uuid4()
+        project_id = uuid4()
+        milestone_id = uuid4()
+
+        ticket = FakeTicket(id=100, milestone_id=milestone_id)
+        milestone = FakeMilestone(id=milestone_id, project_id=project_id, name="Phase 4: The Integration")
+        project = FakeProject(id=project_id, name="Workbench Session Notifications")
+        pin = FakeWorkbenchPin(user_id=user_id, project_id=project_id)
+
+        session = _build_mock_session(ticket, milestone, project, [pin])
+
+        payload = {
+            "ticket_id": 100,
+            "actor_user_id": str(uuid4()),  # different from pin user
+            "event_type": "ticket_comment",
+            "title": "New Comment: #100",
+            "message": "A comment was added",
+            "link": "/tickets/100",
+        }
+
+        with patch("app.services.workbench_subscriber.SessionLocal", return_value=session):
+            from app.services.workbench_subscriber import _process_workbench_notification
+            _process_workbench_notification(payload)
+
+        session.add.assert_called_once()
+        note = session.add.call_args[0][0]
+        assert isinstance(note, app_models.Notification)
+        assert note.title == "[Workbench Session Notifications] New Comment: #100 (Phase 4: The Integration)"
+        session.commit.assert_called_once()
+
+    def test_status_change_event_with_milestone(self):
+        """Status change event produces enriched title with project and milestone context."""
+        from app import models as app_models
+
+        user_id = uuid4()
+        project_id = uuid4()
+        milestone_id = uuid4()
+
+        ticket = FakeTicket(id=200, milestone_id=milestone_id)
+        milestone = FakeMilestone(id=milestone_id, project_id=project_id, name="Phase 79: The Conduit")
+        project = FakeProject(id=project_id, name="Sanctum Core")
+        pin = FakeWorkbenchPin(user_id=user_id, project_id=project_id)
+
+        session = _build_mock_session(ticket, milestone, project, [pin])
+
+        payload = {
+            "ticket_id": 200,
+            "actor_user_id": str(uuid4()),
+            "event_type": "ticket_status_change",
+            "title": "Status Change: #200 \u2192 open",
+            "message": "Status was changed",
+            "link": "/tickets/200",
+        }
+
+        with patch("app.services.workbench_subscriber.SessionLocal", return_value=session):
+            from app.services.workbench_subscriber import _process_workbench_notification
+            _process_workbench_notification(payload)
+
+        session.add.assert_called_once()
+        note = session.add.call_args[0][0]
+        assert isinstance(note, app_models.Notification)
+        assert note.title == "[Sanctum Core] Status Change: #200 \u2192 open (Phase 79: The Conduit)"
+        session.commit.assert_called_once()
+
+    def test_empty_milestone_name_fallback(self):
+        """Empty milestone name omits parenthesised suffix from title.
+
+        Note: The ticket's original AC #3 described a "no milestone_id" fallback,
+        but _process_workbench_notification early-returns at line 51 when
+        ticket.milestone_id is falsy. This test instead exercises the else branch
+        at line 102-103 where milestone exists but has an empty name string.
+        """
+        from app import models as app_models
+
+        user_id = uuid4()
+        project_id = uuid4()
+        milestone_id = uuid4()
+
+        ticket = FakeTicket(id=300, milestone_id=milestone_id)
+        milestone = FakeMilestone(id=milestone_id, project_id=project_id, name="")
+        project = FakeProject(id=project_id, name="My Project")
+        pin = FakeWorkbenchPin(user_id=user_id, project_id=project_id)
+
+        session = _build_mock_session(ticket, milestone, project, [pin])
+
+        payload = {
+            "ticket_id": 300,
+            "actor_user_id": str(uuid4()),
+            "event_type": "ticket_comment",
+            "title": "New Comment: #300",
+            "message": "",
+            "link": "/tickets/300",
+        }
+
+        with patch("app.services.workbench_subscriber.SessionLocal", return_value=session):
+            from app.services.workbench_subscriber import _process_workbench_notification
+            _process_workbench_notification(payload)
+
+        session.add.assert_called_once()
+        note = session.add.call_args[0][0]
+        assert isinstance(note, app_models.Notification)
+        assert note.title == "[My Project] New Comment: #300"
+        session.commit.assert_called_once()
+
+    def test_no_milestone_id_early_return(self):
+        """Ticket with no milestone_id causes early return -- no notification created.
+
+        Covers the silent-failure path at line 51 where the function returns
+        without writing any Notification records.
+        """
+        ticket = FakeTicket(id=400, milestone_id=None)
+        session = _build_mock_session(ticket, None, None, [])
+
+        payload = {
+            "ticket_id": 400,
+            "actor_user_id": str(uuid4()),
+            "event_type": "ticket_comment",
+            "title": "New Comment: #400",
+        }
+
+        with patch("app.services.workbench_subscriber.SessionLocal", return_value=session):
+            from app.services.workbench_subscriber import _process_workbench_notification
+            _process_workbench_notification(payload)
+
+        session.add.assert_not_called()
+        session.commit.assert_not_called()
