@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+SANCTUM_PROJECT_ID=335650e8-1a85-4263-9a25-4cf2ca55fb79
+
 ## Project Overview
 
 Sanctum Core is a full-stack ERP/MSP/CRM platform for Digital Sanctum, a managed IT services business. It is both the product sold to clients and the internal system used to run the business (dogfooded).
