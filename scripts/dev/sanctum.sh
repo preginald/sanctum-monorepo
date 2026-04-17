@@ -39,6 +39,7 @@ usage() {
     echo "  invoice    Manage invoices (create, update, delete, show)"
     echo "  article    Manage knowledge base articles (create, update, show)"
     echo "  artefact   Manage artefacts (create, update, show, delete, link, unlink)"
+    echo "  mockup     Manage mockup artefacts (list, show, create, update, delete)"
     echo "  compose    Manage compositions (list, show, create, update, delete)"
     echo "  context    Session context loader (batch article reader)"
     echo "  search     Omnisearch — cross-entity fuzzy search"
@@ -2587,6 +2588,265 @@ artefact_unlink() {
 }
 
 # ─────────────────────────────────────────────
+# MOCKUP FUNCTIONS (#2712)
+# ─────────────────────────────────────────────
+
+mockup_usage() {
+    echo ""
+    echo -e "${BLUE}sanctum.sh mockup — Manage Mockup Artefacts${NC}"
+    echo ""
+    echo "Usage: sanctum.sh mockup <command> [options]"
+    echo ""
+    echo -e "${YELLOW}COMMANDS${NC}"
+    echo "  list       List mockup artefacts"
+    echo "  show       Show mockup details"
+    echo "  create     Upload a new mockup from a local file"
+    echo "  update     Update mockup name, label, or file content"
+    echo "  delete     Soft-delete a mockup"
+    echo ""
+    echo -e "${YELLOW}OPTIONS BY COMMAND${NC}"
+    echo "  list:    [--ticket <id>], [--limit <n>], [-e|--env]"
+    echo "  show:    <uuid>, [--content], [-e|--env]"
+    echo "  create:  --name <text>, --file <path>, [--label <text>], [--ticket <id>], [-e|--env]"
+    echo "  update:  <uuid>, [--name <text>], [--label <text>], [--file <path>], [-e|--env]"
+    echo "  delete:  <uuid>, [-e|--env]"
+    echo ""
+    echo -e "${YELLOW}EXAMPLES${NC}"
+    echo "  sanctum.sh mockup list"
+    echo "  sanctum.sh mockup list --ticket 2712"
+    echo "  sanctum.sh mockup create --name 'Login Page' --file ./login.png --ticket 2712"
+    echo "  sanctum.sh mockup show abc123 --content"
+    echo "  sanctum.sh mockup update abc123 --name 'Login Page v2' --file ./login-v2.png"
+    echo "  sanctum.sh mockup delete abc123"
+    echo ""
+    exit 0
+}
+
+mockup_list() {
+    local TICKET_ID="" LIMIT=50 ENV="prod"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) mockup_usage; exit 0 ;;
+            --ticket)  TICKET_ID="$2"; shift 2 ;;
+            --limit)   LIMIT="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    if [ -n "$TICKET_ID" ]; then
+        RESULT=$(api_get "/tickets/${TICKET_ID}?expand=artefacts")
+        echo -e "${YELLOW}Mockups linked to ticket #${TICKET_ID}:${NC}"
+        echo ""
+        printf "  ${BOLD}%-38s %-30s %-15s %-20s %s${NC}\n" "UUID" "NAME" "LABEL" "MIME_TYPE" "CREATED_AT"
+        echo "$RESULT" | jq -r '(.artefacts // [])[] | select(.category == "mockup") | "\(.id)|\(.name // "N/A")|\(.metadata.version_label // "N/A")|\(.mime_type // "N/A")|\(.created_at // "N/A")"' | while IFS='|' read -r ID NAME LABEL MIME CREATED; do
+            printf "  %-38s %-30s %-15s %-20s %s\n" "$ID" "$NAME" "$LABEL" "$MIME" "${CREATED:0:19}"
+        done
+    else
+        RESULT=$(api_get "/artefacts?category=mockup&page_size=${LIMIT}")
+        TOTAL=$(echo "$RESULT" | jq '.total // 0')
+        echo -e "${YELLOW}Mockup artefacts (${TOTAL} total, showing up to ${LIMIT}):${NC}"
+        echo ""
+        printf "  ${BOLD}%-38s %-30s %-15s %-20s %s${NC}\n" "UUID" "NAME" "LABEL" "MIME_TYPE" "CREATED_AT"
+        echo "$RESULT" | jq -r '(.items // [])[] | "\(.id)|\(.name // "N/A")|\(.metadata.version_label // "N/A")|\(.mime_type // "N/A")|\(.created_at // "N/A")"' | while IFS='|' read -r ID NAME LABEL MIME CREATED; do
+            printf "  %-38s %-30s %-15s %-20s %s\n" "$ID" "$NAME" "$LABEL" "$MIME" "${CREATED:0:19}"
+        done
+    fi
+}
+
+mockup_show() {
+    local MOCKUP_ID="$1"; shift || true
+    local CONTENT_FLAG=0 ENV="prod"
+
+    [ -z "$MOCKUP_ID" ] && echo -e "${RED}✗ Mockup UUID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help)  mockup_usage; exit 0 ;;
+            --content)  CONTENT_FLAG=1; shift ;;
+            -e|--env)   ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    ensure_auth
+
+    local ENDPOINT="/artefacts/${MOCKUP_ID}"
+    [ "$CONTENT_FLAG" -eq 1 ] && ENDPOINT="${ENDPOINT}?expand=content"
+
+    RESULT=$(api_get "$ENDPOINT")
+    if [ "$CONTENT_FLAG" -eq 0 ]; then
+        echo "$RESULT" | jq 'del(.content)'
+    else
+        echo "$RESULT" | jq '.'
+    fi
+}
+
+mockup_create() {
+    local NAME="" FILE="" LABEL="" TICKET_ID="" ENV="prod"
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) mockup_usage; exit 0 ;;
+            --name)    NAME="$2"; shift 2 ;;
+            --file)    FILE="$2"; shift 2 ;;
+            --label)   LABEL="$2"; shift 2 ;;
+            --ticket)  TICKET_ID="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    [ -z "$NAME" ] && echo -e "${RED}✗ --name is required${NC}" && exit 1
+    [ -z "$FILE" ] && echo -e "${RED}✗ --file is required${NC}" && exit 1
+    [ ! -f "$FILE" ] && echo -e "${RED}✗ File not found: ${FILE}${NC}" && exit 1
+
+    # Warn if file is larger than 5MB (#2712 observation 1)
+    local FILE_SIZE
+    FILE_SIZE=$(wc -c < "$FILE")
+    if [ "$FILE_SIZE" -gt 5242880 ]; then
+        echo -e "${YELLOW}⚠ File is $(( FILE_SIZE / 1048576 ))MB — large files may be slow to upload${NC}"
+    fi
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — mockup create"
+    ensure_auth
+
+    local MIME_TYPE
+    MIME_TYPE=$(file --mime-type -b "$FILE")
+    local CONTENT
+    CONTENT="data:${MIME_TYPE};base64,$(base64 -w0 "$FILE")"
+
+    [ -z "$LABEL" ] && LABEL="$NAME"
+
+    PAYLOAD=$(jq -n \
+        --arg name "$NAME" \
+        --arg mime_type "$MIME_TYPE" \
+        --arg label "$LABEL" \
+        --arg content "$CONTENT" \
+        '{name: $name, category: "mockup", artefact_type: "document",
+          mime_type: $mime_type,
+          metadata: {version_label: $label},
+          content: $content}')
+
+    RESULT=$(api_post "/artefacts" "$PAYLOAD")
+    ARTEFACT_ID=$(echo "$RESULT" | jq -r '.id // empty')
+    if [ -z "$ARTEFACT_ID" ]; then
+        echo -e "${RED}✗ Failed to create mockup${NC}"
+        echo "$RESULT" | jq; exit 1
+    fi
+
+    echo -e "${GREEN}✓ Mockup created${NC}"
+    echo -e "  ID:    ${BLUE}${ARTEFACT_ID}${NC}"
+    echo -e "  Name:  ${BLUE}${NAME}${NC}"
+    echo -e "  Label: ${BLUE}${LABEL}${NC}"
+    echo -e "  MIME:  ${BLUE}${MIME_TYPE}${NC}"
+
+    # Auto-link to ticket if --ticket was provided
+    if [ -n "$TICKET_ID" ]; then
+        LINK_PAYLOAD=$(jq -n --arg eid "$TICKET_ID" '{entity_type: "ticket", entity_id: $eid}')
+        api_post "/artefacts/${ARTEFACT_ID}/link" "$LINK_PAYLOAD" > /dev/null
+        echo -e "${GREEN}✓ Linked to ticket #${TICKET_ID}${NC}"
+    fi
+}
+
+mockup_update() {
+    local MOCKUP_ID="$1"; shift || true
+    local NAME="" LABEL="" FILE="" ENV="prod"
+
+    [ -z "$MOCKUP_ID" ] && echo -e "${RED}✗ Mockup UUID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) mockup_usage; exit 0 ;;
+            --name)    NAME="$2"; shift 2 ;;
+            --label)   LABEL="$2"; shift 2 ;;
+            --file)    FILE="$2"; shift 2 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    # No-op guard (#2712 observation 3)
+    if [ -z "$NAME" ] && [ -z "$LABEL" ] && [ -z "$FILE" ]; then
+        echo -e "${RED}✗ Nothing to update — provide at least one of --name, --label, or --file${NC}"
+        exit 1
+    fi
+
+    if [ -n "$FILE" ]; then
+        [ ! -f "$FILE" ] && echo -e "${RED}✗ File not found: ${FILE}${NC}" && exit 1
+        # Warn if file is larger than 5MB (#2712 observation 1)
+        local FILE_SIZE
+        FILE_SIZE=$(wc -c < "$FILE")
+        if [ "$FILE_SIZE" -gt 5242880 ]; then
+            echo -e "${YELLOW}⚠ File is $(( FILE_SIZE / 1048576 ))MB — large files may be slow to upload${NC}"
+        fi
+    fi
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — mockup update"
+    ensure_auth
+
+    # Step 1: GET current artefact (strip content field before merge — #2712 observation 2)
+    CURRENT=$(api_get "/artefacts/${MOCKUP_ID}" | jq 'del(.content)')
+
+    # Step 2: Merge changed fields
+    local MERGE_NAME
+    MERGE_NAME="${NAME:-$(echo "$CURRENT" | jq -r '.name // "N/A"')}"
+
+    PAYLOAD=$(echo "$CURRENT" | jq \
+        --arg name "$MERGE_NAME" \
+        --arg label "$LABEL" \
+        '{name: $name, category: "mockup", artefact_type: "document",
+          mime_type: .mime_type,
+          metadata: ((.metadata // {}) | if $label != "" then .version_label = $label else . end)}')
+
+    # If --file: re-encode content and update mime_type
+    if [ -n "$FILE" ]; then
+        local MIME_TYPE
+        MIME_TYPE=$(file --mime-type -b "$FILE")
+        local CONTENT
+        CONTENT="data:${MIME_TYPE};base64,$(base64 -w0 "$FILE")"
+        PAYLOAD=$(echo "$PAYLOAD" | jq \
+            --arg mime_type "$MIME_TYPE" \
+            --arg content "$CONTENT" \
+            '. + {mime_type: $mime_type, content: $content}')
+    fi
+
+    RESULT=$(api_put "/artefacts/${MOCKUP_ID}" "$PAYLOAD")
+    echo -e "${GREEN}✓ Mockup updated${NC}"
+    echo "$RESULT" | jq '{id, name, version, mime_type, metadata}'
+}
+
+mockup_delete() {
+    local MOCKUP_ID="$1"; shift || true
+    local ENV="prod"
+
+    [ -z "$MOCKUP_ID" ] && echo -e "${RED}✗ Mockup UUID is required${NC}" && exit 1
+
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -h|--help) mockup_usage; exit 0 ;;
+            -e|--env)  ENV="$2"; shift 2 ;;
+            *) echo -e "${RED}✗ Unknown option: $1${NC}"; exit 1 ;;
+        esac
+    done
+
+    resolve_env "$ENV"
+    print_env_banner "sanctum.sh — mockup delete"
+    ensure_auth
+    confirm_prod "About to archive mockup: ${MOCKUP_ID}"
+
+    api_delete "/artefacts/${MOCKUP_ID}" > /dev/null
+    echo -e "${GREEN}✓ Mockup archived${NC}"
+}
+
+# ─────────────────────────────────────────────
 # ADMIN FUNCTIONS (#643)
 # ─────────────────────────────────────────────
 
@@ -2981,6 +3241,22 @@ case "$DOMAIN" in
                 ;;
         esac
         ;;
+    mockup)
+        shift 2 || true
+        case "$COMMAND" in
+            -h|--help) mockup_usage ;;
+            list)    mockup_list "$@" ;;
+            show)    mockup_show "$@" ;;
+            create)  mockup_create "$@" ;;
+            update)  mockup_update "$@" ;;
+            delete)  mockup_delete "$@" ;;
+            *)
+                echo -e "${RED}✗ Unknown mockup command: ${COMMAND}${NC}"
+                echo "  Valid commands: list, show, create, update, delete"
+                exit 1
+                ;;
+        esac
+        ;;
     compose)
         shift 2 || true
         case "$COMMAND" in
@@ -3012,7 +3288,7 @@ case "$DOMAIN" in
         ;;
     *)
         echo -e "${RED}✗ Unknown domain: ${DOMAIN}${NC}"
-        echo "  Valid domains: ticket, milestone, invoice, article, artefact, compose, context, search, admin"
+        echo "  Valid domains: ticket, milestone, invoice, article, artefact, mockup, compose, context, search, admin"
         exit 1
         ;;
 esac
