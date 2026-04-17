@@ -33,7 +33,7 @@ export default function WorkbenchTier({
     try {
       await onReorder(newOrder);
       // Silent success — no toast.
-    } catch (e) {
+    } catch {
       addToast("Couldn't save new order — reverted.", 'error');
     }
   };
