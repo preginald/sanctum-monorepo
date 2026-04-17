@@ -125,7 +125,7 @@ export default function ProjectIndex() {
       return localStorage.getItem('sanctum_project_view') || 'board';
   });
 
-  const { pins, maxPins, pinnedIds, pinProject, unpinProject, refetch, loading: wbLoading } = useWorkbench();
+  const { pins, maxPins, pinnedIds, pinProject, unpinProject, reorderPins, refetch, loading: wbLoading } = useWorkbench();
   const { notifications: wbNotifications, markRead: wbMarkRead } = useWorkbenchNotifications();
   const { openModal } = useModalStore();
 
@@ -262,6 +262,7 @@ export default function ProjectIndex() {
             pinnedIds={pinnedIds}
             onPin={handlePin}
             onUnpin={handleUnpin}
+            onReorder={reorderPins}
             onOpenTicket={(ticketId) => openModal('TICKET_DETAIL', { ticketId })}
             onOpenMilestone={(milestoneId) => openModal('MILESTONE_DETAIL', { milestoneId })}
             onOpenProject={(projectId) => openModal('PROJECT_DETAIL', { projectId })}
