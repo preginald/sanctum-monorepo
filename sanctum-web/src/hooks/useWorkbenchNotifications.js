@@ -1,15 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import api from '../lib/api';
-import { useToast } from '../context/ToastContext';
 
 const POLL_INTERVAL = 30000; // 30 seconds
-const MAX_TOASTS_PER_POLL = 3;
 
 export default function useWorkbenchNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const seenIdsRef = useRef(new Set());
-  const { addToast } = useToast();
   const intervalRef = useRef(null);
 
   const fetchNotifications = useCallback(async () => {
@@ -18,25 +14,11 @@ export default function useWorkbenchNotifications() {
       const data = res.data;
       setNotifications(data.notifications || []);
       setUnreadCount(data.unread_count || 0);
-
-      // Fire toasts for new notification IDs
-      const newItems = (data.notifications || []).filter(
-        n => !seenIdsRef.current.has(n.id)
-      );
-      const toastBatch = newItems.slice(0, MAX_TOASTS_PER_POLL);
-      for (const item of toastBatch) {
-        addToast(item.title, 'info');
-      }
-
-      // Add all new IDs to seen set
-      for (const item of newItems) {
-        seenIdsRef.current.add(item.id);
-      }
     } catch (e) {
       // Silently fail — polling should not disrupt the UI
       console.error('Workbench notifications poll failed', e);
     }
-  }, [addToast]);
+  }, []);
 
   useEffect(() => {
     // Fire initial fetch via timeout so setState runs in a callback,

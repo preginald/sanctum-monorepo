@@ -12,7 +12,7 @@ const ERROR_TYPES = new Set(['agent_error']);
 
 function getPrimaryNotification(notifications) {
   if (!notifications || notifications.length === 0) return null;
-  const errors = notifications.filter(n => ERROR_TYPES.has(n.type));
+  const errors = notifications.filter(n => ERROR_TYPES.has(n.event_type));
   if (errors.length > 0) {
     return errors.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
   }
@@ -23,8 +23,8 @@ export default function CardNotificationFooter({ notifications = [], onDismiss }
   const primary = getPrimaryNotification(notifications);
   if (!primary) return null;
 
-  const isError = ERROR_TYPES.has(primary.type);
-  const Icon = ICON_MAP[primary.type] || MessageSquare;
+  const isError = ERROR_TYPES.has(primary.event_type);
+  const Icon = ICON_MAP[primary.event_type] || MessageSquare;
   const remaining = notifications.length - 1;
 
   const handleClick = (e) => {
@@ -54,7 +54,7 @@ export default function CardNotificationFooter({ notifications = [], onDismiss }
           ${isError ? 'text-red-400' : 'text-slate-400'}
         `}
       >
-        {primary.text}
+        {primary.title || primary.message}
       </span>
       {remaining > 0 && (
         <span className="text-[10px] text-slate-500 flex-shrink-0 whitespace-nowrap">

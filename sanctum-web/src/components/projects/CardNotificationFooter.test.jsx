@@ -5,8 +5,8 @@ import CardNotificationFooter from './CardNotificationFooter';
 
 const makeNotification = (overrides = {}) => ({
   id: 'n-1',
-  type: 'comment',
-  text: 'Comment on #2384 — Phase 4 review posted',
+  event_type: 'comment',
+  title: 'Comment on #2384 — Phase 4 review posted',
   created_at: '2026-04-17T10:00:00Z',
   ...overrides,
 });
@@ -25,7 +25,7 @@ describe('CardNotificationFooter', () => {
   it('renders a single non-error notification with blue icon and text', () => {
     const n = makeNotification();
     render(<CardNotificationFooter notifications={[n]} onDismiss={vi.fn()} />);
-    expect(screen.getByText(n.text)).toBeInTheDocument();
+    expect(screen.getByText(n.title)).toBeInTheDocument();
     expect(screen.getByText('dismiss')).toBeInTheDocument();
     expect(screen.queryByText(/more/)).not.toBeInTheDocument();
   });
@@ -33,8 +33,8 @@ describe('CardNotificationFooter', () => {
   it('shows "+N more" when multiple notifications exist', () => {
     const notifications = [
       makeNotification({ id: 'n-1' }),
-      makeNotification({ id: 'n-2', text: 'Another comment', created_at: '2026-04-17T09:00:00Z' }),
-      makeNotification({ id: 'n-3', text: 'Third comment', created_at: '2026-04-17T08:00:00Z' }),
+      makeNotification({ id: 'n-2', title: 'Another comment', created_at: '2026-04-17T09:00:00Z' }),
+      makeNotification({ id: 'n-3', title: 'Third comment', created_at: '2026-04-17T08:00:00Z' }),
     ];
     render(<CardNotificationFooter notifications={notifications} onDismiss={vi.fn()} />);
     expect(screen.getByText('+2 more')).toBeInTheDocument();
@@ -42,8 +42,8 @@ describe('CardNotificationFooter', () => {
 
   it('prioritises error notifications over non-errors', () => {
     const notifications = [
-      makeNotification({ id: 'n-1', type: 'comment', text: 'A comment', created_at: '2026-04-17T12:00:00Z' }),
-      makeNotification({ id: 'n-2', type: 'agent_error', text: 'TypeError: null ref', created_at: '2026-04-17T08:00:00Z' }),
+      makeNotification({ id: 'n-1', event_type: 'comment', title: 'A comment', created_at: '2026-04-17T12:00:00Z' }),
+      makeNotification({ id: 'n-2', event_type: 'agent_error', title: 'TypeError: null ref', created_at: '2026-04-17T08:00:00Z' }),
     ];
     render(<CardNotificationFooter notifications={notifications} onDismiss={vi.fn()} />);
     // Error should display even though it's older
@@ -53,8 +53,8 @@ describe('CardNotificationFooter', () => {
 
   it('shows most recent non-error when no errors exist', () => {
     const notifications = [
-      makeNotification({ id: 'n-1', type: 'comment', text: 'Old comment', created_at: '2026-04-17T08:00:00Z' }),
-      makeNotification({ id: 'n-2', type: 'status_change', text: 'Status changed', created_at: '2026-04-17T12:00:00Z' }),
+      makeNotification({ id: 'n-1', event_type: 'comment', title: 'Old comment', created_at: '2026-04-17T08:00:00Z' }),
+      makeNotification({ id: 'n-2', event_type: 'status_change', title: 'Status changed', created_at: '2026-04-17T12:00:00Z' }),
     ];
     render(<CardNotificationFooter notifications={notifications} onDismiss={vi.fn()} />);
     expect(screen.getByText('Status changed')).toBeInTheDocument();
@@ -62,25 +62,24 @@ describe('CardNotificationFooter', () => {
 
   it('calls onDismiss with primary notification id and stops propagation', () => {
     const onDismiss = vi.fn();
-    const stopPropagation = vi.fn();
     const n = makeNotification({ id: 'notif-42' });
 
     render(<CardNotificationFooter notifications={[n]} onDismiss={onDismiss} />);
-    const row = screen.getByText(n.text).closest('[class*="flex items-center"]');
-    fireEvent.click(row, { stopPropagation });
+    const row = screen.getByText(n.title).closest('[class*="flex items-center"]');
+    fireEvent.click(row);
 
     expect(onDismiss).toHaveBeenCalledWith('notif-42');
   });
 
   it('applies error styling for agent_error type', () => {
-    const n = makeNotification({ type: 'agent_error', text: 'Agent crashed' });
+    const n = makeNotification({ event_type: 'agent_error', title: 'Agent crashed' });
     render(<CardNotificationFooter notifications={[n]} onDismiss={vi.fn()} />);
     const row = screen.getByText('Agent crashed').closest('[class*="flex items-center"]');
     expect(row.className).toContain('bg-red-500');
   });
 
   it('applies normal styling for non-error types', () => {
-    const n = makeNotification({ type: 'comment', text: 'New comment' });
+    const n = makeNotification({ event_type: 'comment', title: 'New comment' });
     render(<CardNotificationFooter notifications={[n]} onDismiss={vi.fn()} />);
     const row = screen.getByText('New comment').closest('[class*="flex items-center"]');
     expect(row.className).toContain('bg-slate-400');
@@ -88,14 +87,14 @@ describe('CardNotificationFooter', () => {
 
   it('renders correct icon for each event type', () => {
     const types = ['agent_stop', 'agent_error', 'comment', 'status_change', 'health_degraded'];
-    for (const type of types) {
+    for (const event_type of types) {
       const { unmount } = render(
         <CardNotificationFooter
-          notifications={[makeNotification({ type, text: `event-${type}` })]}
+          notifications={[makeNotification({ event_type, title: `event-${event_type}` })]}
           onDismiss={vi.fn()}
         />
       );
-      expect(screen.getByText(`event-${type}`)).toBeInTheDocument();
+      expect(screen.getByText(`event-${event_type}`)).toBeInTheDocument();
       unmount();
     }
   });

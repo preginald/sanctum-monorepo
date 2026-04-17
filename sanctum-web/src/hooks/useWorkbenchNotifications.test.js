@@ -3,12 +3,6 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { server } from '../test/server';
 
-// Mock ToastContext
-const mockAddToast = vi.fn();
-vi.mock('../context/ToastContext', () => ({
-  useToast: () => ({ addToast: mockAddToast }),
-}));
-
 import useWorkbenchNotifications from './useWorkbenchNotifications';
 
 const MOCK_NOTIFICATIONS = {
@@ -22,7 +16,6 @@ const MOCK_NOTIFICATIONS = {
 describe('useWorkbenchNotifications', () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    mockAddToast.mockClear();
     server.use(
       http.get('*/workbench/notifications', () => HttpResponse.json(MOCK_NOTIFICATIONS)),
       http.put('*/notifications/:id/read', () => HttpResponse.json({ status: 'updated' })),
@@ -52,27 +45,6 @@ describe('useWorkbenchNotifications', () => {
     // Advance 30s
     await act(async () => { vi.advanceTimersByTime(30000); });
     await waitFor(() => expect(callCount).toBeGreaterThan(initialCount));
-  });
-
-  it('fires toasts for new notification IDs (max 3 per poll)', async () => {
-    const manyNotifications = {
-      notifications: [
-        { id: 'a1', title: 'T1', message: 'M1', link: '/t/1', is_read: false, created_at: new Date().toISOString(), priority: 'normal' },
-        { id: 'a2', title: 'T2', message: 'M2', link: '/t/2', is_read: false, created_at: new Date().toISOString(), priority: 'normal' },
-        { id: 'a3', title: 'T3', message: 'M3', link: '/t/3', is_read: false, created_at: new Date().toISOString(), priority: 'normal' },
-        { id: 'a4', title: 'T4', message: 'M4', link: '/t/4', is_read: false, created_at: new Date().toISOString(), priority: 'normal' },
-      ],
-      unread_count: 4,
-    };
-    server.use(
-      http.get('*/workbench/notifications', () => HttpResponse.json(manyNotifications)),
-    );
-
-    renderHook(() => useWorkbenchNotifications());
-
-    await waitFor(() => expect(mockAddToast).toHaveBeenCalled());
-    // Max 3 toasts even though 4 notifications
-    expect(mockAddToast).toHaveBeenCalledTimes(3);
   });
 
   it('badge count matches unread_count from API', async () => {
