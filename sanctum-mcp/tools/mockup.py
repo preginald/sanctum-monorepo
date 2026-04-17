@@ -5,7 +5,7 @@ import logging
 import re
 from datetime import datetime, timezone
 from app import mcp
-from cost_tiers import HEAVY_WRITE, LIGHT_READ
+from cost_tiers import DESTRUCTIVE, HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
 from telemetry import with_telemetry
 import client
 
@@ -1007,3 +1007,193 @@ async def mockup_compare(
     if warnings:
         result["warnings"] = warnings
     return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=STANDARD_READ)
+@with_telemetry("standard")
+async def mockup_get(
+    artefact_id: str,
+    expand: bool = False,
+) -> str:
+    """Get a single mockup artefact by UUID.
+
+    Fetches the artefact and validates that its category is "mockup" before
+    returning.  Use ``expand=True`` to include the full source content.
+
+    Args:
+        artefact_id: UUID of the mockup artefact.
+        expand: If True, include the artefact's source content in the response.
+    """
+    params = {}
+    if expand:
+        params["expand"] = "content"
+
+    artefact = await client.get(
+        f"/artefacts/{artefact_id}", params=params or None
+    )
+
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    if artefact.get("category") != "mockup":
+        return json.dumps({
+            "error": f"Artefact {artefact_id} is not a mockup (category={artefact.get('category')})",
+        }, indent=2)
+
+    if expand:
+        summary = _summarise(artefact)
+        summary["content"] = artefact.get("content")
+        summary["metadata"] = artefact.get("metadata")
+        return json.dumps(summary, indent=2)
+
+    return json.dumps(_summarise(artefact), indent=2)
+
+
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
+async def mockup_update(
+    artefact_id: str,
+    source: str | None = None,
+    version_label: str | None = None,
+    mime_type: str | None = None,
+    design_system_refs: list[str] | None = None,
+    name: str | None = None,
+) -> str:
+    """Update a mockup artefact.  Only provided fields are changed.
+
+    Fetches the existing artefact, merges the changes, and PUTs back.
+    Annotations and design tokens in metadata are preserved.  If
+    ``design_system_refs`` changes, design tokens are re-fetched from
+    the referenced articles.
+
+    Args:
+        artefact_id: UUID of the mockup artefact to update.
+        source: New source code content (replaces existing content).
+        version_label: New version label (updates metadata and artefact name).
+        mime_type: New MIME type for the source.
+        design_system_refs: New list of design system reference slugs.
+            When changed, design tokens are re-fetched from the articles.
+        name: New artefact name (overrides auto-generated name from version_label).
+    """
+    # 1. Fetch existing artefact
+    artefact = await client.get(f"/artefacts/{artefact_id}")
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    if artefact.get("category") != "mockup":
+        return json.dumps({
+            "error": f"Artefact {artefact_id} is not a mockup (category={artefact.get('category')})",
+        }, indent=2)
+
+    # 2. Build payload — only include changed fields
+    payload: dict = {}
+    meta = artefact.get("metadata") or {}
+    if not isinstance(meta, dict):
+        meta = {}
+    meta_changed = False
+
+    if source is not None:
+        payload["content"] = source
+
+    if mime_type is not None:
+        payload["mime_type"] = mime_type
+
+    if version_label is not None:
+        meta["version_label"] = version_label
+        meta_changed = True
+        # Auto-update name unless caller provided an explicit name
+        if name is None:
+            # Try to extract ticket_id from existing name
+            existing_name = artefact.get("name", "")
+            ticket_match = re.search(r"\(#(\d+)\)", existing_name)
+            if ticket_match:
+                payload["name"] = f"Mockup: {version_label} (#{ticket_match.group(1)})"
+            else:
+                payload["name"] = f"Mockup: {version_label}"
+
+    if name is not None:
+        payload["name"] = name
+
+    # 3. Re-fetch design tokens if design_system_refs changed
+    if design_system_refs is not None:
+        meta["design_system_refs"] = design_system_refs
+        meta_changed = True
+
+        # Re-fetch tokens from the new refs
+        design_tokens: dict = {}
+        for ref in design_system_refs:
+            ref_stripped = ref.strip()
+            content = await _fetch_article_content(ref_stripped)
+            if content:
+                tokens = _extract_design_tokens(content)
+                for category in ("colours", "radius", "shadows"):
+                    if tokens.get(category):
+                        design_tokens.setdefault(category, {}).update(
+                            tokens[category]
+                        )
+            else:
+                logger.warning(
+                    "Could not fetch tokens from %s -- continuing without",
+                    ref_stripped,
+                )
+        meta["design_tokens"] = design_tokens
+
+    if meta_changed:
+        payload["metadata"] = meta
+
+    if not payload:
+        return json.dumps({
+            "message": "No changes provided",
+            "artefact_id": artefact_id,
+        }, indent=2)
+
+    # 4. PUT the merged payload
+    result = await client.put(f"/artefacts/{artefact_id}", json=payload)
+
+    return json.dumps({
+        "artefact_id": artefact_id,
+        "updated_fields": list(payload.keys()),
+        "detail": result if isinstance(result, dict) else str(result),
+    }, indent=2)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("destructive")
+async def mockup_delete(
+    artefact_id: str,
+) -> str:
+    """Delete a mockup artefact.
+
+    Validates that the artefact exists and is a mockup before deleting.
+
+    Args:
+        artefact_id: UUID of the mockup artefact to delete.
+    """
+    # Pre-flight: validate the artefact exists and is a mockup
+    artefact = await client.get(f"/artefacts/{artefact_id}")
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    if artefact.get("category") != "mockup":
+        return json.dumps({
+            "error": f"Artefact {artefact_id} is not a mockup (category={artefact.get('category')})",
+        }, indent=2)
+
+    # Delete the artefact
+    result = await client.delete(f"/artefacts/{artefact_id}")
+
+    return json.dumps({
+        "deleted": True,
+        "artefact_id": artefact_id,
+        "name": artefact.get("name"),
+        "detail": result if isinstance(result, dict) else str(result),
+    }, indent=2)
