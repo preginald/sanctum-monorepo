@@ -46,6 +46,7 @@ from .portal import PortalDashboard, AccountDetail, QuestionnaireSubmit
 from .sso import SSORegisterRequest, SSORegisterResponse, SSORotateResponse, SSOStatusResponse
 
 from .workbench import (
+    AgentEventCreate,
     WorkbenchPinCreate, WorkbenchPinResponse, WorkbenchListResponse,
     WorkbenchReorderRequest, WorkbenchReorderItem, TicketSummary,
     WorkbenchSummaryResponse,

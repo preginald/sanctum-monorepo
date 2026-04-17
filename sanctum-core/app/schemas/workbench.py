@@ -1,7 +1,15 @@
-from typing import Optional, List
+from typing import Literal, Optional, List
 from uuid import UUID
 from datetime import datetime
 from .shared import SanctumBase
+
+
+class AgentEventCreate(SanctumBase):
+    project_id: UUID
+    event_type: Literal["agent_stop", "agent_error"]
+    title: str
+    message: Optional[str] = ""
+    event_payload: Optional[dict] = {}
 
 
 class TicketSummary(SanctumBase):

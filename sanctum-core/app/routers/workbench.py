@@ -1,5 +1,6 @@
 """Workbench router — per-operator project pinning (#1917)."""
 
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from uuid import UUID
@@ -12,6 +13,8 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas, auth
 from ..database import get_db
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/workbench", tags=["Workbench"])
 
@@ -235,6 +238,91 @@ def reorder_pins(
         ).update({"position": item.position})
     db.commit()
     return {"status": "reordered", "count": len(payload.pin_order)}
+
+
+AGENT_EVENT_DEDUP_SECONDS = 60
+
+
+@router.post("/agent-events")
+def create_agent_event(
+    payload: schemas.AgentEventCreate,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """Accept agent stop/error events and create in_app notifications.
+
+    Only creates a notification if the project is pinned on the resolved
+    user's workbench. Unpinned projects are silently ignored (200 no-op)
+    because notifications for non-workbench projects are out of scope.
+    """
+    target_user = _resolve_workbench_user(current_user, db)
+
+    # Validate project exists
+    project = db.query(models.Project).filter(
+        models.Project.id == payload.project_id,
+        models.Project.is_deleted == False,
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Guard: only create notification if project is pinned on workbench.
+    # If operator unpins/re-pins, notifications from the unpinned window
+    # are lost — acceptable for v1.
+    pin = db.query(models.WorkbenchPin).filter(
+        models.WorkbenchPin.user_id == target_user.id,
+        models.WorkbenchPin.project_id == payload.project_id,
+    ).first()
+    if not pin:
+        return JSONResponse(
+            status_code=200,
+            content={"status": "skipped", "reason": "project not pinned"},
+        )
+
+    # Dedup: skip if identical notification exists within window
+    dedup_cutoff = datetime.now(timezone.utc) - timedelta(seconds=AGENT_EVENT_DEDUP_SECONDS)
+    existing = db.query(models.Notification).filter(
+        and_(
+            models.Notification.user_id == target_user.id,
+            models.Notification.project_id == payload.project_id,
+            models.Notification.event_type == payload.event_type,
+            models.Notification.delivery_channel == "in_app",
+            models.Notification.created_at > dedup_cutoff,
+        )
+    ).first()
+    if existing:
+        return JSONResponse(
+            status_code=200,
+            content={"status": "deduped", "existing_id": str(existing.id)},
+        )
+
+    priority = "high" if payload.event_type == "agent_error" else "normal"
+
+    note = models.Notification(
+        user_id=target_user.id,
+        title=payload.title,
+        message=payload.message or "",
+        link=f"/projects/{payload.project_id}",
+        priority=priority,
+        event_type=payload.event_type,
+        event_payload=payload.event_payload or {},
+        status="delivered",
+        delivery_channel="in_app",
+        project_id=payload.project_id,
+        is_read=False,
+    )
+    db.add(note)
+    db.commit()
+    db.refresh(note)
+
+    logger.info(
+        "[AgentEvent] Created %s notification for project %s (user %s)",
+        payload.event_type, payload.project_id, target_user.id,
+    )
+
+    return JSONResponse(
+        status_code=201,
+        content={"id": str(note.id), "status": "created"},
+    )
 
 
 # --- Workbench Summary ---
