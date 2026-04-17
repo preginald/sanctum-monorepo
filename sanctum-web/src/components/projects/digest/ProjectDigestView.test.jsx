@@ -1,8 +1,13 @@
 import React from 'react';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProjectDigestView from './ProjectDigestView';
+import { ToastProvider } from '../../../context/ToastContext';
+
+function renderWithProviders(ui) {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+}
 
 const MOCK_PROJECTS = [
   {
@@ -60,7 +65,7 @@ describe('ProjectDigestView', () => {
   });
 
   it('renders four sections with clear hierarchy', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     expect(screen.getByText('Recommended Parallel Set')).toBeInTheDocument();
     expect(screen.getByText('In Flight')).toBeInTheDocument();
     expect(screen.getByText('Backlog')).toBeInTheDocument();
@@ -68,20 +73,20 @@ describe('ProjectDigestView', () => {
   });
 
   it('shows top 3 enriched projects in Recommended Parallel Set hero cards', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     expect(screen.getByText('Mobile App')).toBeInTheDocument();
     expect(screen.getByText('Analytics Dashboard')).toBeInTheDocument();
     expect(screen.getByText('Portal Redesign')).toBeInTheDocument();
   });
 
   it('displays combined scores out of 125 on hero cards', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     const scoreLabels = screen.getAllByText('/125');
     expect(scoreLabels.length).toBeGreaterThanOrEqual(3);
   });
 
   it('shows leverage type pills with bordered styling on hero cards', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     expect(screen.getAllByText('ECOSYSTEM').length).toBeGreaterThan(0);
     expect(screen.getAllByText('DUAL QOL').length).toBeGreaterThan(0);
     expect(screen.getAllByText('CAPABILITY').length).toBeGreaterThan(0);
@@ -90,12 +95,12 @@ describe('ProjectDigestView', () => {
 
   it('shows CTA when no projects have leverage data', () => {
     const noLeverageProjects = MOCK_PROJECTS.map(p => ({ ...p, leverage_data: null }));
-    render(<ProjectDigestView projects={noLeverageProjects} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={noLeverageProjects} onNavigate={mockNavigate} />);
     expect(screen.getByText(/Run enrichment to generate recommendations/i)).toBeInTheDocument();
   });
 
   it('In Flight uses table rows sorted by due_date ascending with percentage labels', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     const rows = screen.getAllByRole('row');
     // First data row should be API Integration (earlier due_date)
     const cells = rows[1].querySelectorAll('td');
@@ -106,19 +111,19 @@ describe('ProjectDigestView', () => {
   });
 
   it('In Flight shows remaining tickets as plain numbers', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     // Both active projects have 1 remaining ticket each
     const ones = screen.getAllByText('1');
     expect(ones.length).toBeGreaterThanOrEqual(2);
   });
 
   it('backlog shows un-enriched projects with factor dots', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     expect(screen.getByText('Email Migration')).toBeInTheDocument();
   });
 
   it('completed section shows green checkmarks and short dates', () => {
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
     expect(screen.getByText('Old Project A')).toBeInTheDocument();
     // Short date format
     expect(screen.getByText('Jan 15')).toBeInTheDocument();
@@ -126,7 +131,7 @@ describe('ProjectDigestView', () => {
 
   it('completed section has expand/collapse', async () => {
     const user = userEvent.setup();
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
     expect(screen.getByText('Show more')).toBeInTheDocument();
     await user.click(screen.getByText('Show more'));
@@ -135,14 +140,14 @@ describe('ProjectDigestView', () => {
 
   it('navigates on project click', async () => {
     const user = userEvent.setup();
-    render(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={MOCK_PROJECTS} onNavigate={mockNavigate} />);
 
     await user.click(screen.getByText('Website Rebuild'));
     expect(mockNavigate).toHaveBeenCalledWith('active-1');
   });
 
   it('renders empty state', () => {
-    render(<ProjectDigestView projects={[]} onNavigate={mockNavigate} />);
+    renderWithProviders(<ProjectDigestView projects={[]} onNavigate={mockNavigate} />);
     expect(screen.getByText('No projects to display.')).toBeInTheDocument();
   });
 });

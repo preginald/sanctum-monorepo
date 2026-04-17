@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import WorkbenchTier from './WorkbenchTier';
+import { ToastProvider } from '../../../context/ToastContext';
 
 // WorkbenchCard fetches from API — mock it to avoid network calls
 vi.mock('../WorkbenchCard', () => ({
@@ -13,17 +14,21 @@ const MOCK_PINS = [
   { project_id: 'p2', project_name: 'Beta Project', project_status: 'active', account_name: 'Acme' },
 ];
 
+function renderWithProviders(ui) {
+  return render(<ToastProvider>{ui}</ToastProvider>);
+}
+
 describe('WorkbenchTier', () => {
   const noop = () => {};
 
   it('renders cards for each pin', () => {
-    render(<WorkbenchTier pins={MOCK_PINS} maxPins={6} onUnpin={noop} onNavigate={noop} />);
+    renderWithProviders(<WorkbenchTier pins={MOCK_PINS} maxPins={6} onUnpin={noop} onNavigate={noop} />);
     expect(screen.getByText('Alpha Project')).toBeInTheDocument();
     expect(screen.getByText('Beta Project')).toBeInTheDocument();
   });
 
   it('grid container has md:grid-cols-3 class', () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <WorkbenchTier pins={MOCK_PINS} maxPins={6} onUnpin={noop} onNavigate={noop} />
     );
     const grid = container.querySelector('.grid');
@@ -31,12 +36,12 @@ describe('WorkbenchTier', () => {
   });
 
   it('renders counter as 2/6 when 2 pins with maxPins=6', () => {
-    render(<WorkbenchTier pins={MOCK_PINS} maxPins={6} onUnpin={noop} onNavigate={noop} />);
+    renderWithProviders(<WorkbenchTier pins={MOCK_PINS} maxPins={6} onUnpin={noop} onNavigate={noop} />);
     expect(screen.getByText('2/6')).toBeInTheDocument();
   });
 
   it('shows empty state when no pins', () => {
-    render(<WorkbenchTier pins={[]} maxPins={6} onUnpin={noop} onNavigate={noop} />);
+    renderWithProviders(<WorkbenchTier pins={[]} maxPins={6} onUnpin={noop} onNavigate={noop} />);
     expect(screen.getByText("Pin projects you're working on")).toBeInTheDocument();
   });
 });
