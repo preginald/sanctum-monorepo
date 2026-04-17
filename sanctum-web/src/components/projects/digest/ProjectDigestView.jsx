@@ -17,6 +17,7 @@ export default function ProjectDigestView({
   pinnedIds = new Set(),
   onPin,
   onUnpin,
+  onReorder,
   onOpenTicket,
   onOpenMilestone,
   onOpenProject,
@@ -82,6 +83,7 @@ export default function ProjectDigestView({
         maxPins={maxPins}
         onUnpin={onUnpin}
         onNavigate={onNavigate}
+        onReorder={onReorder}
         onOpenTicket={onOpenTicket}
         onOpenMilestone={onOpenMilestone}
         onOpenProject={onOpenProject}

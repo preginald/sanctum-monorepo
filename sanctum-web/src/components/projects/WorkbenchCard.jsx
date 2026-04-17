@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { PinOff, Maximize2, Diamond } from 'lucide-react';
+import { PinOff, Maximize2, Diamond, GripVertical } from 'lucide-react';
 import StatusBadge from '../ui/StatusBadge';
 import HealthDot from './HealthDot';
 import TicketBadge from './TicketBadge';
@@ -15,7 +15,7 @@ function formatTimeAgo(dateStr) {
   return `${days}d ago`;
 }
 
-export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notifications = [], onDismiss }) {
+export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notifications = [], onDismiss, dragHandleProps, isDragging = false }) {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
@@ -38,10 +38,21 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
   return (
     <div
       onClick={() => onNavigate(pin.project_id)}
-      className="bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3.5 cursor-pointer transition-all hover:border-slate-600 relative group flex flex-col"
+      data-dragging={isDragging ? 'true' : undefined}
+      className={`bg-slate-800/50 border border-slate-700/50 rounded-lg px-4 py-3.5 cursor-pointer transition-all hover:border-slate-600 relative group flex flex-col ${isDragging ? 'opacity-60 ring-2 ring-amber-400/60 shadow-lg scale-[0.98]' : ''}`}
     >
-      {/* Header: project name + hover actions */}
+      {/* Header: drag handle + project name + hover actions */}
       <div className="flex items-start justify-between gap-2">
+        {dragHandleProps && (
+          <span
+            {...dragHandleProps}
+            onClick={(e) => e.stopPropagation()}
+            aria-label="Drag to reorder"
+            className="flex-shrink-0 flex items-center justify-center -ml-1 mr-1 mt-0.5 rounded cursor-grab active:cursor-grabbing opacity-40 group-hover:opacity-100 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <GripVertical className="h-4 w-4 text-muted-foreground" />
+          </span>
+        )}
         <h4 className="font-bold text-slate-50 text-sm line-clamp-2 flex-1" title={pin.project_name}>{pin.project_name}</h4>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
           <button
