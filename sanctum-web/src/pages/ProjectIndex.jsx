@@ -11,7 +11,7 @@ import useWorkbench from '../hooks/useWorkbench';
 import useWorkbenchNotifications from '../hooks/useWorkbenchNotifications';
 import useModalStore from '../store/modalStore';
 import ProjectRowActions from '../components/projects/ProjectRowActions';
-import WorkbenchNotificationDropdown from '../components/projects/WorkbenchNotificationDropdown';
+
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -126,7 +126,7 @@ export default function ProjectIndex() {
   });
 
   const { pins, maxPins, pinnedIds, pinProject, unpinProject, refetch, loading: wbLoading } = useWorkbench();
-  const { notifications: wbNotifications, unreadCount: wbUnreadCount, markRead: wbMarkRead, markAllRead: wbMarkAllRead } = useWorkbenchNotifications();
+  const { notifications: wbNotifications, markRead: wbMarkRead } = useWorkbenchNotifications();
   const { openModal } = useModalStore();
 
   const [showModal, setShowModal] = useState(false);
@@ -232,15 +232,7 @@ export default function ProjectIndex() {
         { value: 'digest', icon: <Newspaper size={14} /> }
       ]}
       actions={
-        <div className="flex items-center gap-2">
-          <WorkbenchNotificationDropdown
-            notifications={wbNotifications}
-            unreadCount={wbUnreadCount}
-            markRead={wbMarkRead}
-            markAllRead={wbMarkAllRead}
-          />
-          <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">New Project</Button>
-        </div>
+        <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">New Project</Button>
       }
     >
 
@@ -273,6 +265,8 @@ export default function ProjectIndex() {
             onOpenTicket={(ticketId) => openModal('TICKET_DETAIL', { ticketId })}
             onOpenMilestone={(milestoneId) => openModal('MILESTONE_DETAIL', { milestoneId })}
             onOpenProject={(projectId) => openModal('PROJECT_DETAIL', { projectId })}
+            notifications={wbNotifications}
+            onMarkNotificationRead={wbMarkRead}
           />
       )}
 
