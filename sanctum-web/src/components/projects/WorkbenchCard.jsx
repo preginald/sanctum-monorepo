@@ -14,7 +14,7 @@ function formatTimeAgo(dateStr) {
   return `${days}d ago`;
 }
 
-export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject }) {
+export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notificationCount = 0 }) {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
@@ -123,6 +123,16 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
               {formatTimeAgo(summary.last_activity_at)}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Activity indicator */}
+      {notificationCount > 0 && (
+        <div className="flex items-center gap-1.5 mt-2 px-1">
+          <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+          <span className="text-[10px] text-indigo-400">
+            {notificationCount} new {notificationCount === 1 ? 'update' : 'updates'}
+          </span>
         </div>
       )}
     </div>

@@ -20,6 +20,8 @@ export default function ProjectDigestView({
   onOpenTicket,
   onOpenMilestone,
   onOpenProject,
+  notifications = [],
+  onMarkNotificationRead,
 }) {
   const [showAllCompleted, setShowAllCompleted] = useState(false);
 
@@ -83,6 +85,8 @@ export default function ProjectDigestView({
         onOpenTicket={onOpenTicket}
         onOpenMilestone={onOpenMilestone}
         onOpenProject={onOpenProject}
+        notifications={notifications}
+        onMarkNotificationRead={onMarkNotificationRead}
       />
 
       {/* Tier 2: Recommended Parallel Set */}
