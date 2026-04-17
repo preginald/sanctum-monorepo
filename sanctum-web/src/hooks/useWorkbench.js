@@ -1,10 +1,16 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import api from '../lib/api';
 
 export default function useWorkbench() {
   const [pins, setPins] = useState([]);
   const [maxPins, setMaxPins] = useState(6);
   const [loading, setLoading] = useState(true);
+  const [isReordering, setIsReordering] = useState(false);
+
+  // Mirror isReordering in a ref so the 30s poll (set up once) always
+  // reads the latest value without needing to re-create the interval.
+  const isReorderingRef = useRef(false);
+  useEffect(() => { isReorderingRef.current = isReordering; }, [isReordering]);
 
   const fetchPins = useCallback(async () => {
     try {
@@ -20,9 +26,14 @@ export default function useWorkbench() {
 
   useEffect(() => { fetchPins(); }, [fetchPins]);
 
-  // Poll for external pin changes (e.g. MCP/API) every 30s
+  // Poll for external pin changes (e.g. MCP/API) every 30s.
+  // Skip the poll while a reorder PATCH is in flight so the GET response
+  // cannot clobber the optimistic order.
   useEffect(() => {
-    const id = setInterval(fetchPins, 30000);
+    const id = setInterval(() => {
+      if (isReorderingRef.current) return;
+      fetchPins();
+    }, 30000);
     return () => clearInterval(id);
   }, [fetchPins]);
 
@@ -32,7 +43,9 @@ export default function useWorkbench() {
     const prev = pins;
     try {
       await api.post('/workbench/pin', { project_id: projectId });
-      await fetchPins();
+      // Gate refetch while a reorder is in flight — otherwise the
+      // GET /workbench response would clobber the optimistic order.
+      if (!isReorderingRef.current) await fetchPins();
     } catch (e) {
       setPins(prev);
       throw e;
@@ -50,5 +63,32 @@ export default function useWorkbench() {
     }
   }, [pins]);
 
-  return { pins, maxPins, loading, pinnedIds, pinProject, unpinProject, refetch: fetchPins };
+  const reorderPins = useCallback(async (newOrder) => {
+    const prev = pins;
+    setIsReordering(true);
+    setPins(newOrder);
+    const payload = newOrder.map((p, i) => ({ project_id: p.project_id, position: i }));
+    try {
+      await api.patch('/workbench/reorder', { pin_order: payload });
+      // No refetch — trust the optimistic state. Server response carries
+      // no order data and a refetch would race the 30s poll.
+    } catch (e) {
+      setPins(prev);
+      throw e;
+    } finally {
+      setIsReordering(false);
+    }
+  }, [pins]);
+
+  return {
+    pins,
+    maxPins,
+    loading,
+    isReordering,
+    pinnedIds,
+    pinProject,
+    unpinProject,
+    reorderPins,
+    refetch: fetchPins,
+  };
 }
