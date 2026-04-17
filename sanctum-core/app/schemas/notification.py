@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime
 from .shared import SanctumBase
@@ -25,6 +25,26 @@ class NotificationResponse(SanctumBase):
     status: str
     priority: str
     event_type: Optional[str] = None
+    project_id: Optional[UUID] = None
+    delivery_channel: Optional[str] = None
 
 class NotificationUpdate(SanctumBase):
     is_read: bool
+
+
+# --- WORKBENCH NOTIFICATIONS (#2758) ---
+class WorkbenchNotificationItem(SanctumBase):
+    id: UUID
+    title: str
+    message: str
+    link: Optional[str] = None
+    is_read: bool
+    created_at: datetime
+    event_type: Optional[str] = None
+    event_payload: Optional[dict] = None
+    project_id: Optional[UUID] = None
+    priority: str
+
+class WorkbenchNotificationResponse(SanctumBase):
+    notifications: List[WorkbenchNotificationItem]
+    unread_count: int

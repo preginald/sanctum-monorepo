@@ -61,6 +61,10 @@ from .services.event_bus import event_bus
 from .services.audit_subscriber import handle_template_applied
 event_bus.subscribe("template_applied", handle_template_applied)
 
+from .services.workbench_subscriber import handle_workbench_ticket_event
+event_bus.subscribe("ticket_status_change", handle_workbench_ticket_event)
+event_bus.subscribe("ticket_comment", handle_workbench_ticket_event)
+
 # ROOT HEALTH CHECK
 @app.get("/")
 def read_root():

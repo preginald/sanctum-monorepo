@@ -58,7 +58,8 @@ from .automation import (
 # UPDATED: Added PreferenceUpdate and PreferenceResponse
 from .notification import (
     NotificationResponse, NotificationUpdate,
-    PreferenceUpdate, PreferenceResponse
+    PreferenceUpdate, PreferenceResponse,
+    WorkbenchNotificationItem, WorkbenchNotificationResponse,
 )
 
 # Analytics

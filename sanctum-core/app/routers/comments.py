@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
@@ -6,6 +6,7 @@ from .. import models, schemas, auth
 from ..database import get_db
 from ..services.ticket_validation import auto_transition_from_new
 from ..services.notification_service import notification_service
+from ..services.event_bus import event_bus
 from ..services.uuid_resolver import get_or_404
 
 router = APIRouter(tags=["Comments"])
@@ -26,7 +27,7 @@ def get_comments(ticket_id: Optional[int] = None, deal_id: Optional[str] = None,
     return comments
 
 @router.post("/comments", response_model=schemas.CommentResponse)
-def create_comment(comment: schemas.CommentCreate, current_user: models.User = Depends(auth.get_current_active_user), resolve_embeds: bool = False, db: Session = Depends(get_db)):
+def create_comment(comment: schemas.CommentCreate, background_tasks: BackgroundTasks, current_user: models.User = Depends(auth.get_current_active_user), resolve_embeds: bool = False, db: Session = Depends(get_db)):
     # Auto-transition ticket from 'new' → 'open' when commenting (#774)
     if comment.ticket_id:
         ticket = db.query(models.Ticket).filter(models.Ticket.id == comment.ticket_id).first()
@@ -68,6 +69,20 @@ def create_comment(comment: schemas.CommentCreate, current_user: models.User = D
                         "url": f"{frontend_url}/tickets/{ticket.id}",
                     },
                 )
+
+    # Emit workbench ticket_comment event for in_app notifications (#2758)
+    if comment.ticket_id:
+        ticket_for_event = db.query(models.Ticket).filter(models.Ticket.id == comment.ticket_id).first()
+        if ticket_for_event:
+            event_bus.emit("ticket_comment", {
+                "ticket_id": ticket_for_event.id,
+                "event_type": "ticket_comment",
+                "actor_user_id": str(current_user.id),
+                "title": f"New Comment: #{ticket_for_event.id}",
+                "message": f"{current_user.full_name or current_user.email} commented on #{ticket_for_event.id} ({ticket_for_event.subject})",
+                "link": f"/tickets/{ticket_for_event.id}",
+                "priority": ticket_for_event.priority,
+            }, background_tasks)
 
     return new_comment
 

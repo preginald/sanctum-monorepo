@@ -1,11 +1,12 @@
 """Workbench router — per-operator project pinning (#1917)."""
 
 from datetime import datetime, timezone, timedelta
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy import func as sa_func, case
+from sqlalchemy import func as sa_func, case, and_
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -286,6 +287,70 @@ def _compute_health(tickets, last_activity_at, milestones):
 
     # Green
     return schemas.workbench.SummaryHealth(colour="green", tooltip="On track")
+
+
+@router.get("/notifications", response_model=schemas.WorkbenchNotificationResponse)
+def get_workbench_notifications(
+    limit: int = Query(20, le=50),
+    since: Optional[datetime] = Query(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_active_user),
+):
+    """Get in_app notifications for the current user's pinned projects."""
+    target_user = _resolve_workbench_user(current_user, db)
+
+    # Get pinned project IDs
+    pinned_project_ids = [
+        p.project_id for p in db.query(models.WorkbenchPin.project_id).filter(
+            models.WorkbenchPin.user_id == target_user.id
+        ).all()
+    ]
+
+    if not pinned_project_ids:
+        return schemas.WorkbenchNotificationResponse(notifications=[], unread_count=0)
+
+    # Base filter for in_app notifications on pinned projects
+    base_filter = and_(
+        models.Notification.user_id == target_user.id,
+        models.Notification.delivery_channel == 'in_app',
+        models.Notification.project_id.in_(pinned_project_ids),
+        models.Notification.is_read == False,
+    )
+
+    # Optional since filter
+    if since:
+        base_filter = and_(base_filter, models.Notification.created_at > since)
+
+    # Query notifications
+    notifications = (
+        db.query(models.Notification)
+        .filter(base_filter)
+        .order_by(models.Notification.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    # Count total unread (same filter, no limit)
+    unread_count = db.query(sa_func.count(models.Notification.id)).filter(base_filter).scalar()
+
+    return schemas.WorkbenchNotificationResponse(
+        notifications=[
+            schemas.WorkbenchNotificationItem(
+                id=n.id,
+                title=n.title,
+                message=n.message,
+                link=n.link,
+                is_read=n.is_read,
+                created_at=n.created_at,
+                event_type=n.event_type,
+                event_payload=n.event_payload,
+                project_id=n.project_id,
+                priority=n.priority,
+            )
+            for n in notifications
+        ],
+        unread_count=unread_count or 0,
+    )
 
 
 @router.get("/{project_id}/summary", response_model=schemas.WorkbenchSummaryResponse)

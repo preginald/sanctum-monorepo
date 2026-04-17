@@ -459,6 +459,20 @@ def update_ticket(
                 },
             )
 
+    # 4c. EMIT: Workbench status change event (for in_app notifications)
+    if ticket.status != old_status:
+        event_bus.emit("ticket_status_change", {
+            "ticket_id": ticket.id,
+            "event_type": "ticket_status_change",
+            "actor_user_id": str(current_user.id) if current_user else None,
+            "title": f"Status Change: #{ticket.id} {old_status} -> {ticket.status}",
+            "message": f"Ticket #{ticket.id} ({ticket.subject}) moved from {old_status} to {ticket.status}",
+            "link": f"/tickets/{ticket.id}",
+            "priority": ticket.priority,
+            "from_status": old_status,
+            "to_status": ticket.status,
+        }, background_tasks)
+
     # 5. NOTIFY: RESOLUTION
     if ticket.status == 'resolved' and not was_resolved:
         event_bus.emit("ticket_resolved", ticket, background_tasks)

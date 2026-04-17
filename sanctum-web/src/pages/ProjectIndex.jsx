@@ -8,8 +8,10 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import api from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import useWorkbench from '../hooks/useWorkbench';
+import useWorkbenchNotifications from '../hooks/useWorkbenchNotifications';
 import useModalStore from '../store/modalStore';
 import ProjectRowActions from '../components/projects/ProjectRowActions';
+import WorkbenchNotificationDropdown from '../components/projects/WorkbenchNotificationDropdown';
 
 // UI Components
 import Button from '../components/ui/Button';
@@ -124,6 +126,7 @@ export default function ProjectIndex() {
   });
 
   const { pins, maxPins, pinnedIds, pinProject, unpinProject, refetch, loading: wbLoading } = useWorkbench();
+  const { notifications: wbNotifications, unreadCount: wbUnreadCount, markRead: wbMarkRead, markAllRead: wbMarkAllRead } = useWorkbenchNotifications();
   const { openModal } = useModalStore();
 
   const [showModal, setShowModal] = useState(false);
@@ -228,7 +231,17 @@ export default function ProjectIndex() {
         { value: 'board', icon: <KanbanIcon size={14} /> },
         { value: 'digest', icon: <Newspaper size={14} /> }
       ]}
-      actions={<Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">New Project</Button>}
+      actions={
+        <div className="flex items-center gap-2">
+          <WorkbenchNotificationDropdown
+            notifications={wbNotifications}
+            unreadCount={wbUnreadCount}
+            markRead={wbMarkRead}
+            markAllRead={wbMarkAllRead}
+          />
+          <Button onClick={() => setShowModal(true)} icon={Plus} variant="gold">New Project</Button>
+        </div>
+      }
     >
 
       {viewMode === 'list' && (
