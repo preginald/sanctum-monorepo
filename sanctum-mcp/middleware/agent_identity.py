@@ -28,6 +28,7 @@ _TOKEN_ENV_MAP = {
     "sanctum-oracle": "SANCTUM_TOKEN_ORACLE",
     "sanctum-chat": "SANCTUM_TOKEN_CHAT",
     "sanctum-hermes": "SANCTUM_TOKEN_HERMES",
+    "sanctum-mock": "SANCTUM_TOKEN_MOCK",
 }
 
 _ALIASES = {

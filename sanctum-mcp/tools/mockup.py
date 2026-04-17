@@ -163,7 +163,7 @@ def _slugify(label: str) -> str:
 
 @mcp.tool(annotations=HEAVY_WRITE)
 @with_telemetry("heavy")
-async def mockup_push(
+async def mockup_create(
     source: str,
     ticket_id: int,
     version_label: str,
@@ -476,7 +476,7 @@ async def mockup_annotate(
 
 @mcp.tool(annotations=LIGHT_READ)
 @with_telemetry("light")
-async def mockup_annotate_list(
+async def mockup_annotations(
     artefact_id: str,
     element: str | None = None,
     annotation_type: str | None = None,
@@ -1011,7 +1011,7 @@ async def mockup_compare(
 
 @mcp.tool(annotations=STANDARD_READ)
 @with_telemetry("standard")
-async def mockup_get(
+async def mockup_show(
     artefact_id: str,
     expand: bool = False,
 ) -> str:
@@ -1197,3 +1197,68 @@ async def mockup_delete(
         "name": artefact.get("name"),
         "detail": result if isinstance(result, dict) else str(result),
     }, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
+async def mockup_link(
+    artefact_id: str,
+    entity_type: str,
+    entity_id: str,
+) -> str:
+    """Link a mockup artefact to a ticket, account, article, project, or milestone.
+
+    Validates that the artefact is a mockup before linking.
+
+    Args:
+        artefact_id: UUID of the mockup artefact.
+        entity_type: One of: ticket, account, article, project, milestone.
+        entity_id: ID of the entity (ticket number or UUID).
+    """
+    artefact = await client.get(f"/artefacts/{artefact_id}")
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    if artefact.get("category") != "mockup":
+        return json.dumps({
+            "error": f"Artefact {artefact_id} is not a mockup (category={artefact.get('category')})",
+        }, indent=2)
+
+    payload = {"entity_type": entity_type, "entity_id": entity_id}
+    result = await client.post(f"/artefacts/{artefact_id}/link", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
+async def mockup_unlink(
+    artefact_id: str,
+    entity_type: str,
+    entity_id: str,
+) -> str:
+    """Remove a link between a mockup artefact and a ticket, account, article, project, or milestone.
+
+    Validates that the artefact is a mockup before unlinking.
+
+    Args:
+        artefact_id: UUID of the mockup artefact.
+        entity_type: One of: ticket, account, article, project, milestone.
+        entity_id: ID of the entity (ticket number or UUID).
+    """
+    artefact = await client.get(f"/artefacts/{artefact_id}")
+    if not isinstance(artefact, dict) or not artefact.get("id"):
+        return json.dumps({
+            "error": f"Artefact {artefact_id} not found",
+            "detail": artefact,
+        }, indent=2)
+
+    if artefact.get("category") != "mockup":
+        return json.dumps({
+            "error": f"Artefact {artefact_id} is not a mockup (category={artefact.get('category')})",
+        }, indent=2)
+
+    result = await client.delete(f"/artefacts/{artefact_id}/link/{entity_type}/{entity_id}")
+    return json.dumps(result, indent=2)
