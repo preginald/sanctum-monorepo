@@ -3,6 +3,7 @@ import { PinOff, Maximize2, Diamond } from 'lucide-react';
 import StatusBadge from '../ui/StatusBadge';
 import HealthDot from './HealthDot';
 import TicketBadge from './TicketBadge';
+import CardNotificationFooter from './CardNotificationFooter';
 import api from '../../lib/api';
 
 function formatTimeAgo(dateStr) {
@@ -14,7 +15,7 @@ function formatTimeAgo(dateStr) {
   return `${days}d ago`;
 }
 
-export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notificationCount = 0 }) {
+export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notifications = [], onDismiss }) {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
@@ -126,15 +127,8 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
         </div>
       )}
 
-      {/* Activity indicator */}
-      {notificationCount > 0 && (
-        <div className="flex items-center gap-1.5 mt-2 px-1">
-          <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-          <span className="text-[10px] text-indigo-400">
-            {notificationCount} new {notificationCount === 1 ? 'update' : 'updates'}
-          </span>
-        </div>
-      )}
+      {/* In-card notification footer */}
+      <CardNotificationFooter notifications={notifications} onDismiss={onDismiss} />
     </div>
   );
 }
