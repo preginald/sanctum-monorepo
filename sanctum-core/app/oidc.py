@@ -107,6 +107,45 @@ async def validate_id_token(token: str, config: OIDCConfig) -> dict:
     return claims
 
 
+def peek_unverified_claims(token: str) -> dict:
+    """Return unverified JWT claims — used to branch on ``grant_type`` before
+    selecting the right verifier. The caller MUST verify the token afterwards;
+    the returned dict carries zero trust on its own."""
+    return jwt.get_unverified_claims(token)
+
+
+async def validate_m2m_token(token: str, config: OIDCConfig) -> dict:
+    """Validate an OAuth2 Client-Credentials (M2M) token from Sanctum Auth.
+
+    Per DOC-064 §3b, M2M tokens carry ``aud = client_id`` (the *caller's* own
+    client_id, not Sanctum Core's). Signature, issuer and expiry are still
+    enforced strictly via JWKS; audience is intentionally NOT enforced here —
+    the caller is responsible for checking ``grant_type == "client_credentials"``
+    before trusting these claims.
+
+    Raises :class:`jose.JWTError` on any verification failure. The caller MUST
+    reject the token if ``claims["grant_type"] != "client_credentials"``.
+    """
+    headers = jwt.get_unverified_headers(token)
+    kid = headers.get("kid")
+    if not kid:
+        raise JWTError("Token missing kid header")
+
+    jwks = await fetch_jwks(config)
+    signing_key = _find_signing_key(jwks, kid)
+
+    claims = jwt.decode(
+        token,
+        signing_key,
+        algorithms=["RS256"],
+        issuer=config.issuer,
+        options={"verify_aud": False},
+    )
+    if claims.get("grant_type") != "client_credentials":
+        raise JWTError("Token is not a client_credentials grant")
+    return claims
+
+
 async def exchange_code_for_tokens(
     code: str, code_verifier: str, redirect_uri: str, config: OIDCConfig
 ) -> dict:
