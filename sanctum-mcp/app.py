@@ -45,5 +45,14 @@ template_type is immutable after creation.
 - template_apply scaffolds milestones and tickets from a template. Pass project_id to apply \
 to an existing project, or omit to create a new one. Only template_type="project" is supported. \
 Pass variables (dict) to substitute {key} placeholders in milestone names, ticket subjects, and descriptions.
+
+Notify tools (Sanctum Notify upstream, see DOC-093):
+- notify_send / notify_send_batch dispatch real email — HEAVY_WRITE. Upstream silently \
+shadow-accepts spam-keyword payloads with a fake UUID and no DB row; a returned id does NOT \
+guarantee delivery, verify with notify_show if unsure.
+- notify_list / notify_show / notify_list_dead_letter inspect notification state.
+- notify_retry requeues a dead-lettered notification.
+- notify_suppress_create / _delete / _list manage the per-tenant suppression list.
+- Tenant scoping is implied by the configured NOTIFY_API_TOKEN — do not pass tenant_id.
 """,
 )
