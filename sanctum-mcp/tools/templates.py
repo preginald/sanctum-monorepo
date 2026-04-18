@@ -2,7 +2,7 @@
 
 import json
 from app import mcp
-from cost_tiers import HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
+from cost_tiers import DESTRUCTIVE, HEAVY_IDEMPOTENT, HEAVY_WRITE, LIGHT_READ, STANDARD_READ
 from telemetry import with_telemetry
 import client
 
@@ -172,4 +172,185 @@ async def template_update(
     if is_active is not None:
         payload["is_active"] = is_active
     result = await client.put(f"/templates/{template_id}", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
+async def template_section_create(
+    template_id: str,
+    name: str,
+    description: str | None = None,
+    sequence: int | None = None,
+) -> str:
+    """Create a new section under a template.
+
+    Args:
+        template_id: UUID of the parent template.
+        name: Section name.
+        description: Optional section description.
+        sequence: Optional ordering sequence (default 1 server-side).
+    """
+    payload = {
+        k: v
+        for k, v in {
+            "name": name,
+            "description": description,
+            "sequence": sequence,
+        }.items()
+        if v is not None
+    }
+    result = await client.post(f"/templates/{template_id}/sections", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
+async def template_section_update(
+    template_id: str,
+    section_id: str,
+    name: str | None = None,
+    description: str | None = None,
+    sequence: int | None = None,
+) -> str:
+    """Update a template section. Only provided fields are changed.
+
+    Args:
+        template_id: UUID of the parent template (for caller clarity; not
+            forwarded to the Core API — the section_id is sufficient).
+        section_id: UUID of the section to update.
+        name: New section name.
+        description: New section description.
+        sequence: New ordering sequence.
+    """
+    payload = {
+        k: v
+        for k, v in {
+            "name": name,
+            "description": description,
+            "sequence": sequence,
+        }.items()
+        if v is not None
+    }
+    result = await client.put(f"/templates/sections/{section_id}", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("heavy")
+async def template_section_delete(template_id: str, section_id: str) -> str:
+    """Delete a section from a template.
+
+    WARNING: This is a hard delete. All items under this section are
+    cascade-deleted by the database (models.py line 795-796 configures
+    `cascade="all, delete-orphan"` on TemplateSection.items). There is
+    no soft-delete and no confirmation guard on the Core API.
+
+    Args:
+        template_id: UUID of the parent template (for caller clarity; not
+            forwarded to the Core API — the section_id is sufficient).
+        section_id: UUID of the section to delete.
+    """
+    result = await client.delete(f"/templates/sections/{section_id}")
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_WRITE)
+@with_telemetry("heavy")
+async def template_item_create(
+    template_id: str,
+    section_id: str,
+    subject: str,
+    description: str | None = None,
+    item_type: str = "task",
+    priority: str = "normal",
+    sequence: int | None = None,
+    config: dict | None = None,
+) -> str:
+    """Create a new item under a template section.
+
+    Args:
+        template_id: UUID of the parent template (for caller clarity; not
+            forwarded to the Core API — the section_id is sufficient).
+        section_id: UUID of the parent section.
+        subject: Item subject line.
+        description: Optional item description.
+        item_type: Item type (default "task").
+        priority: Item priority (default "normal").
+        sequence: Optional ordering sequence (default 1 server-side).
+        config: Optional JSON config dict.
+    """
+    payload = {
+        k: v
+        for k, v in {
+            "subject": subject,
+            "description": description,
+            "item_type": item_type,
+            "priority": priority,
+            "sequence": sequence,
+            "config": config,
+        }.items()
+        if v is not None
+    }
+    result = await client.post(
+        f"/templates/sections/{section_id}/items", json=payload
+    )
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=HEAVY_IDEMPOTENT)
+@with_telemetry("heavy")
+async def template_item_update(
+    template_id: str,
+    item_id: str,
+    subject: str | None = None,
+    description: str | None = None,
+    item_type: str | None = None,
+    priority: str | None = None,
+    sequence: int | None = None,
+    config: dict | None = None,
+) -> str:
+    """Update a template item. Only provided fields are changed.
+
+    Args:
+        template_id: UUID of the parent template (for caller clarity; not
+            forwarded to the Core API — the item_id is sufficient).
+        item_id: UUID of the item to update.
+        subject: New item subject.
+        description: New item description.
+        item_type: New item type.
+        priority: New item priority.
+        sequence: New ordering sequence.
+        config: New JSON config dict.
+    """
+    payload = {
+        k: v
+        for k, v in {
+            "subject": subject,
+            "description": description,
+            "item_type": item_type,
+            "priority": priority,
+            "sequence": sequence,
+            "config": config,
+        }.items()
+        if v is not None
+    }
+    result = await client.put(f"/templates/items/{item_id}", json=payload)
+    return json.dumps(result, indent=2)
+
+
+@mcp.tool(annotations=DESTRUCTIVE)
+@with_telemetry("heavy")
+async def template_item_delete(template_id: str, item_id: str) -> str:
+    """Delete an item from a template section.
+
+    WARNING: This is a hard delete. There is no soft-delete and no
+    confirmation guard on the Core API.
+
+    Args:
+        template_id: UUID of the parent template (for caller clarity; not
+            forwarded to the Core API — the item_id is sufficient).
+        item_id: UUID of the item to delete.
+    """
+    result = await client.delete(f"/templates/items/{item_id}")
     return json.dumps(result, indent=2)
