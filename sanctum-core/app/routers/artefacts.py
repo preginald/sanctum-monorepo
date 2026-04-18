@@ -1,3 +1,4 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
@@ -7,10 +8,37 @@ from typing import List, Optional
 import re
 from .. import models, schemas, auth
 from ..database import get_db
+from ..principals import ServicePrincipal, principal_type_of
 from ..services.pagination import pagination_params
 from ..services.artefact_validation import validate_session_handover_authorship
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response
 from ..services.uuid_resolver import resolve_uuid, get_or_404
+
+log = logging.getLogger(__name__)
+
+
+def _emit_principal_audit(principal: auth.Principal, *, endpoint: str) -> None:
+    """Emit a structured access-audit line that disambiguates user vs service
+    callers. Forward-compatible shim for any future central audit log —
+    today we just log at INFO. See ticket #2793.
+    """
+    ptype = principal_type_of(principal)
+    if isinstance(principal, ServicePrincipal):
+        log.info(
+            "artefacts.audit endpoint=%s principal_type=%s client_id=%s client_name=%s scopes=%s",
+            endpoint,
+            ptype,
+            principal.client_id,
+            principal.display_name,
+            " ".join(principal.scopes) or "-",
+        )
+    else:
+        log.info(
+            "artefacts.audit endpoint=%s principal_type=%s user_id=%s",
+            endpoint,
+            ptype,
+            getattr(principal, "id", None),
+        )
 
 router = APIRouter(tags=["Artefacts"])
 
@@ -146,9 +174,15 @@ def list_artefacts(
     sort_by: Optional[str] = None,
     sort_order: Optional[str] = None,
     pagination: dict = Depends(pagination_params),
-    current_user: models.User = Depends(auth.get_current_active_user),
+    # #2793: v1 opt-in for M2M service principals. Users pass through unchanged
+    # (require_scope is a no-op for them); service principals must carry the
+    # "artefacts:read" scope claim per DOC-064 §3b.
+    current_principal: auth.Principal = Depends(auth.require_scope("artefacts:read")),
     db: Session = Depends(get_db),
 ):
+    # #2793 audit hook: stamp principal_type on the access log so downstream
+    # observability can distinguish user vs service reads of /artefacts.
+    _emit_principal_audit(current_principal, endpoint="artefacts.list")
     try:
         filters = [models.Artefact.is_deleted == False]
 
