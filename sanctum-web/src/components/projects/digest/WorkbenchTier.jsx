@@ -21,7 +21,7 @@ export default function WorkbenchTier({
   onOpenProject,
   onReorder,
   notifications = [],
-  onMarkNotificationRead,
+  onDismissAllForPin,
 }) {
   const { addToast } = useToast();
 
@@ -82,7 +82,7 @@ export default function WorkbenchTier({
                           onOpenMilestone={onOpenMilestone}
                           onOpenProject={onOpenProject}
                           notifications={cardNotifications}
-                          onDismiss={onMarkNotificationRead}
+                          onDismissAll={onDismissAllForPin}
                           dragHandleProps={dragProvided.dragHandleProps}
                           isDragging={dragSnapshot.isDragging}
                         />

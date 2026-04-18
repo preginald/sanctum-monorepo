@@ -15,7 +15,7 @@ function formatTimeAgo(dateStr) {
   return `${days}d ago`;
 }
 
-export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notifications = [], onDismiss, dragHandleProps, isDragging = false }) {
+export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, onOpenMilestone, onOpenProject, notifications = [], onDismissAll, dragHandleProps, isDragging = false }) {
   const [summary, setSummary] = useState(null);
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export default function WorkbenchCard({ pin, onUnpin, onNavigate, onOpenTicket, 
       )}
 
       {/* In-card notification footer */}
-      <CardNotificationFooter notifications={notifications} onDismiss={onDismiss} />
+      <CardNotificationFooter notifications={notifications} onDismissAll={onDismissAll} />
     </div>
   );
 }

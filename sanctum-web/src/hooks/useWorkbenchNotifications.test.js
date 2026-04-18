@@ -36,7 +36,7 @@ describe('useWorkbenchNotifications', () => {
       }),
     );
 
-    const { result } = renderHook(() => useWorkbenchNotifications());
+    renderHook(() => useWorkbenchNotifications());
 
     // Initial fetch
     await waitFor(() => expect(callCount).toBeGreaterThanOrEqual(1));
@@ -66,6 +66,39 @@ describe('useWorkbenchNotifications', () => {
     expect(result.current.notifications).toHaveLength(1);
     expect(result.current.notifications[0].id).toBe('n2');
     expect(result.current.unreadCount).toBe(1);
+  });
+
+  it('markManyRead removes multiple items and decrements unread count', async () => {
+    const putCalls = [];
+    server.use(
+      http.put('*/notifications/:id/read', ({ params }) => {
+        putCalls.push(params.id);
+        return HttpResponse.json({ status: 'updated' });
+      }),
+    );
+
+    const { result } = renderHook(() => useWorkbenchNotifications());
+    await waitFor(() => expect(result.current.notifications).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.markManyRead(['n1', 'n2']);
+    });
+
+    expect(result.current.notifications).toHaveLength(0);
+    expect(result.current.unreadCount).toBe(0);
+    expect(putCalls.sort()).toEqual(['n1', 'n2']);
+  });
+
+  it('markManyRead with empty array is a no-op', async () => {
+    const { result } = renderHook(() => useWorkbenchNotifications());
+    await waitFor(() => expect(result.current.notifications).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.markManyRead([]);
+    });
+
+    expect(result.current.notifications).toHaveLength(2);
+    expect(result.current.unreadCount).toBe(2);
   });
 
   it('cleanup stops polling on unmount', async () => {

@@ -1,10 +1,11 @@
-import { MessageSquare, XCircle, CheckCircle, ArrowUpRight, AlertTriangle } from 'lucide-react';
+import { MessageSquare, XCircle, CheckCircle, ArrowUpRight, AlertTriangle, UserPlus } from 'lucide-react';
 
 const ICON_MAP = {
   agent_stop: CheckCircle,
   agent_error: XCircle,
-  comment: MessageSquare,
-  status_change: ArrowUpRight,
+  ticket_comment: MessageSquare,
+  ticket_status_change: ArrowUpRight,
+  ticket_assigned: UserPlus,
   health_degraded: AlertTriangle,
 };
 
@@ -19,17 +20,16 @@ function getPrimaryNotification(notifications) {
   return [...notifications].sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
 }
 
-export default function CardNotificationFooter({ notifications = [], onDismiss }) {
+export default function CardNotificationFooter({ notifications = [], onDismissAll }) {
   const primary = getPrimaryNotification(notifications);
   if (!primary) return null;
 
   const isError = ERROR_TYPES.has(primary.event_type);
   const Icon = ICON_MAP[primary.event_type] || MessageSquare;
-  const remaining = notifications.length - 1;
 
   const handleClick = (e) => {
     e.stopPropagation();
-    onDismiss?.(primary.id);
+    onDismissAll?.(notifications.map(n => n.id));
   };
 
   return (
@@ -56,11 +56,6 @@ export default function CardNotificationFooter({ notifications = [], onDismiss }
       >
         {primary.title || primary.message}
       </span>
-      {remaining > 0 && (
-        <span className="text-[10px] text-slate-500 flex-shrink-0 whitespace-nowrap">
-          +{remaining} more
-        </span>
-      )}
       <span className="text-[10px] text-slate-600 flex-shrink-0 opacity-0 group-hover/notif:opacity-100 transition-opacity duration-150">
         dismiss
       </span>

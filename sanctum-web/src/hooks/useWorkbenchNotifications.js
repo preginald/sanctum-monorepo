@@ -51,5 +51,17 @@ export default function useWorkbenchNotifications() {
     }
   }, []);
 
-  return { notifications, unreadCount, markRead, markAllRead };
+  const markManyRead = useCallback(async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    setNotifications(prev => prev.filter(n => !idSet.has(n.id)));
+    setUnreadCount(prev => Math.max(0, prev - ids.length));
+    try {
+      await Promise.all(ids.map(id => api.put(`/notifications/${id}/read`)));
+    } catch (e) {
+      console.error('Failed to mark notifications read', e);
+    }
+  }, []);
+
+  return { notifications, unreadCount, markRead, markAllRead, markManyRead };
 }

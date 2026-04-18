@@ -126,7 +126,7 @@ export default function ProjectIndex() {
   });
 
   const { pins, maxPins, pinnedIds, pinProject, unpinProject, reorderPins, refetch, loading: wbLoading } = useWorkbench();
-  const { notifications: wbNotifications, markRead: wbMarkRead } = useWorkbenchNotifications();
+  const { notifications: wbNotifications, markManyRead: wbMarkManyRead } = useWorkbenchNotifications();
   const { openModal } = useModalStore();
 
   const [showModal, setShowModal] = useState(false);
@@ -267,7 +267,7 @@ export default function ProjectIndex() {
             onOpenMilestone={(milestoneId) => openModal('MILESTONE_DETAIL', { milestoneId })}
             onOpenProject={(projectId) => openModal('PROJECT_DETAIL', { projectId })}
             notifications={wbNotifications}
-            onMarkNotificationRead={wbMarkRead}
+            onDismissAllForPin={wbMarkManyRead}
           />
       )}
 
