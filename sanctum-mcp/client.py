@@ -148,4 +148,6 @@ async def patch(path: str, json: dict | None = None) -> dict:
 async def delete(path: str) -> dict:
     r = await _request("DELETE", path)
     _check_upstream(r, "DELETE", path)
+    if r.status_code == 204 or not r.content:
+        return {"status": "deleted"}
     return r.json()
