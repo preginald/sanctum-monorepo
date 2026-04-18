@@ -16,6 +16,9 @@ from uuid import UUID
 from ..services.account_service import process_questionnaire_submission
 from ..services.uuid_resolver import resolve_uuid, get_or_404
 
+# #2806 — shared PAT mint + audit helpers
+from .api_tokens import CreateApiTokenRequest, _mint_pat, _emit_token_audit
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[str] = None
@@ -94,6 +97,55 @@ def admin_delete_user(
     db.delete(user)
     db.commit()
     return {"status": "deleted"}
+
+# --- ADMIN-MINT PERSONAL ACCESS TOKENS (#2806) ---
+@user_router.post("/{user_id}/api-tokens")
+def admin_create_api_token(
+    user_id: str,
+    body: CreateApiTokenRequest,
+    current_user: models.User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    """
+    Admin-only: mint a scoped Personal Access Token on behalf of ``user_id``.
+
+    Returns the plain token ONCE — the operator must deliver it to the target
+    user over a secure channel. Intended for service/test accounts (e.g. the
+    sanctum-mock integration-test agent). Audit log emits
+    ``endpoint=admin.users.mint_api_token`` with both ``principal_id`` (admin)
+    and ``target_user_id`` / ``acted_on_behalf_of_user_id`` (target) so the
+    provenance of every minted token is attributable.
+    """
+    if not body.name:
+        raise HTTPException(status_code=400, detail="name is required")
+
+    target = get_or_404(db, models.User, user_id, deleted_filter=False)
+    api_token, raw = _mint_pat(
+        db, target, body.name, body.expires_in_days, body.scopes
+    )
+
+    _emit_token_audit(
+        endpoint="admin.users.mint_api_token",
+        principal_id=current_user.id,
+        target_user_id=target.id,
+        acted_on_behalf_of_user_id=target.id,
+        token_prefix=api_token.token_prefix,
+        scopes=api_token.scopes,
+    )
+
+    return {
+        "id": str(api_token.id),
+        "name": api_token.name,
+        "token": raw,  # ONLY time the full token is returned
+        "prefix": api_token.token_prefix,
+        "expires_at": api_token.expires_at.isoformat() if api_token.expires_at else None,
+        "created_at": api_token.created_at.isoformat(),
+        "minted_for_user_id": str(target.id),
+        "warning": (
+            "Save this token now — it cannot be retrieved again. "
+            "Deliver it to the target user over a secure channel."
+        ),
+    }
 
 # --- DATABASE BACKUP ---
 @user_router.get("/backup", response_class=FileResponse)
