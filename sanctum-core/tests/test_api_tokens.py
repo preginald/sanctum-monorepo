@@ -16,7 +16,6 @@ minimum (per proposal observation #6).
 from __future__ import annotations
 
 import logging
-from types import SimpleNamespace
 from unittest.mock import MagicMock
 from uuid import uuid4
 
