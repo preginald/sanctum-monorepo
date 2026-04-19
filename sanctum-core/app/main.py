@@ -2,23 +2,16 @@ import os
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from .cors import CORS_ORIGIN_REGEX
 # UPDATED IMPORTS: Added 'analytics'
 from .routers import auth, system, tickets, crm, invoices, projects, campaigns, wiki, portal, comments, admin, search, sentinel, assets, automations, timesheets, analytics, notifications, vendors, ingest, api_tokens, templates, artefacts, mcp_telemetry, sso, workbench
 
 app = FastAPI(title="Sanctum Core", version="1.9.1", root_path=os.getenv("ROOT_PATH", ""))
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# CORS
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://core.digitalsanctum.com.au",
-    "https://digitalsanctum.com.au"
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
