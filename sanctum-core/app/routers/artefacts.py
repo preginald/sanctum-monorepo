@@ -239,10 +239,15 @@ def list_artefacts(
 @router.get("/artefacts/{artefact_id}", response_model=schemas.ArtefactResponse)
 def get_artefact(
     artefact_id: str,
-    current_user: models.User = Depends(auth.get_current_active_user),
+    # #2793 continuation: opt detail reads into M2M scope-gating. Users pass
+    # through unchanged (require_scope is a no-op for them); service principals
+    # must carry the "artefacts:read" scope claim per DOC-064 §3b, matching the
+    # list endpoint's contract.
+    current_principal: auth.Principal = Depends(auth.require_scope("artefacts:read")),
     expand: ExpandConfig = Depends(get_expand_config),
     db: Session = Depends(get_db),
 ):
+    _emit_principal_audit(current_principal, endpoint="artefacts.show")
     artefact = get_or_404(db, models.Artefact, artefact_id, options=[
         joinedload(models.Artefact.account),
         joinedload(models.Artefact.creator),
