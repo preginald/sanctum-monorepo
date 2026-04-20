@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from ..auth import get_current_user
 from ..database import get_db
+from ..principals import Principal, ServicePrincipal
 from .. import models
 
 
@@ -52,11 +53,18 @@ class ExpandConfig:
         return field_name in self.fields
 
 
-def _detect_consumer_type(user: Optional[models.User]) -> str:
-    """Determine consumer type from authenticated user."""
-    if user is None:
+def _detect_consumer_type(principal: Optional[Principal]) -> str:
+    """Determine consumer type from the authenticated principal.
+
+    ``ServicePrincipal`` is inherently a service caller. Users with
+    ``user_type == "service_account"`` are the pre-#2793 service-account
+    users modelled in the ``users`` table; they are still treated as service.
+    """
+    if principal is None:
         return "human"
-    if user.user_type == "service_account":
+    if isinstance(principal, ServicePrincipal):
+        return "service"
+    if principal.user_type == "service_account":
         return "service"
     return "human"
 
@@ -69,8 +77,13 @@ def _default_expand_all(consumer_type: str) -> bool:
 async def _get_optional_user(
     request: Request,
     db: Session = Depends(get_db),
-) -> Optional[models.User]:
-    """Soft auth — returns user if a valid token is present, None otherwise."""
+) -> Optional[Principal]:
+    """Soft auth — returns the resolved principal (user or service) if a
+    valid token is present, None otherwise.
+
+    Name retained for import-compat with ``tickets.py``; return type is a
+    ``Principal`` union since #2793 widened ``get_current_user``.
+    """
     auth_header = request.headers.get("authorization", "")
     if not auth_header.lower().startswith("bearer "):
         return None
@@ -127,10 +140,10 @@ def get_expand_config(
             "'none' for lean response. Omit for consumer-aware default."
         ),
     ),
-    current_user: Optional[models.User] = Depends(_get_optional_user),
+    current_principal: Optional[Principal] = Depends(_get_optional_user),
 ) -> ExpandConfig:
     """FastAPI dependency that parses ?expand= with optional consumer detection."""
-    consumer_type = _detect_consumer_type(current_user)
+    consumer_type = _detect_consumer_type(current_principal)
     return _parse_expand(expand, consumer_type)
 
 
