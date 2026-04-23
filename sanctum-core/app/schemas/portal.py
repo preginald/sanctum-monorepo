@@ -47,7 +47,6 @@ class PortalDashboard(SanctumBase):
 class AccountDetail(AccountResponse):
     contacts: List[ContactResponse] = []
     deals: List[DealResponse] = []
-    tickets: List[TicketResponse] = []
     projects: List[ProjectResponse] = []
     audit_data: Optional[Dict] = None
     invoices: List[InvoiceResponse] = []

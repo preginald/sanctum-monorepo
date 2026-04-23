@@ -71,21 +71,21 @@ export default function ClientDetail() {
 
   const fetchAll = async () => {
       try {
-          const [accRes, auditRes, userRes, assetRes] = await Promise.all([
+          const [accRes, auditRes, userRes, assetRes, ticketRes] = await Promise.all([
               api.get(`/accounts/${id}`),
               api.get(`/audits?account_id=${id}`),
               api.get(`/accounts/${id}/users`),
-              api.get(`/assets?account_id=${id}`)
+              api.get(`/assets?account_id=${id}`),
+              api.get(`/tickets?account_id=${id}&limit=50`)
           ]);
           setAccount(accRes.data);
           setAudits(auditRes.data);
           setUsers(userRes.data);
           setAssets(assetRes.data);
 
-          if (accRes.data.tickets) {
-              const sorted = accRes.data.tickets.sort((a, b) => b.id - a.id);
-              setTickets(sorted);
-          }
+          const ticketList = Array.isArray(ticketRes.data) ? ticketRes.data : [];
+          const sorted = [...ticketList].sort((a, b) => b.id - a.id);
+          setTickets(sorted);
       } catch(e) { console.error(e); }
       finally { setLoading(false); }
   };
