@@ -15,6 +15,7 @@ from ..services.milestone_validation import validate_milestone_sealed, check_mil
 from ..services.cascade import cascade_from_ticket
 from ..services.expand import ExpandConfig, get_expand_config, expanded_response, _get_optional_user
 from datetime import datetime, timezone
+from uuid import UUID
 from ..services.uuid_resolver import resolve_uuid, get_or_404 as uuid_get_or_404
 import os
 
@@ -53,6 +54,7 @@ def _record_transition(
 @router.get("")
 def get_tickets(
     status: Optional[str] = None,
+    account_id: Optional[UUID] = None,
     pagination: dict = Depends(pagination_params),
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
@@ -67,6 +69,12 @@ def get_tickets(
 
     if current_user.role == 'client':
         filters.append(models.Ticket.account_id == current_user.account_id)
+
+    # Scoped account filter — only honoured for non-client users. Clients
+    # remain auto-scoped to their own account via the guard above; a client
+    # passing account_id=<other> is silently ignored (no cross-scope).
+    if account_id and current_user.role != 'client':
+        filters.append(models.Ticket.account_id == account_id)
 
     if status:
         filters.append(models.Ticket.status == status)

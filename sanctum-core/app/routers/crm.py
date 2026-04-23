@@ -1,6 +1,5 @@
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy.orm.attributes import set_committed_value
+from sqlalchemy.orm import Session, joinedload, selectinload
 from sqlalchemy import func
 from typing import List, Optional
 from .. import models, schemas, auth
@@ -25,13 +24,13 @@ def get_accounts(current_user: models.User = Depends(auth.get_current_active_use
 @router.get("/accounts/{account_id}", response_model=schemas.AccountDetail)
 def get_account_detail(account_id: str, db: Session = Depends(get_db)):
     account = get_or_404(db, models.Account, account_id, options=[
-        joinedload(models.Account.contacts), joinedload(models.Account.deals), joinedload(models.Account.projects), joinedload(models.Account.invoices), joinedload(models.Account.tickets).joinedload(models.Ticket.time_entries).joinedload(models.TicketTimeEntry.user), joinedload(models.Account.assets)
+        selectinload(models.Account.contacts),
+        selectinload(models.Account.deals),
+        selectinload(models.Account.projects),
+        selectinload(models.Account.invoices),
+        selectinload(models.Account.assets),
     ], deleted_filter=False)
     account.projects = [p for p in account.projects if not p.is_deleted]
-    account.tickets = [t for t in account.tickets if not t.is_deleted]
-    for t in account.tickets:
-        set_committed_value(t, 'related_tickets', [])
-        set_committed_value(t, 'comments', [])
 
     # Load linked artefacts (graceful if table doesn't exist yet)
     try:
