@@ -107,9 +107,9 @@ FALLBACK_TICKET_TRANSITIONS = {
     "implementation": ["verification", "proposal", "pending"],
     "open":           ["pending", "resolved", "verification"],
     "verification":   ["review", "resolved", "implementation", "pending"],
-    "review":         ["resolved", "verification", "implementation", "pending"],
+    "review":         ["documented", "verification", "implementation", "pending"],
+    "documented":     ["resolved", "review"],
     "pending":        ["open"],
-    "qa":             ["resolved"],
     "resolved":       [],
 }
 
@@ -118,14 +118,14 @@ FALLBACK_TICKET_TRANSITIONS = {
 # ---------------------------------------------------------------------------
 TICKET_STATUS_FLOWS = {
     # Templated types: full delivery pipeline
-    "feature":  {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
-                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
-    "bug":      {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
-                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
-    "task":     {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
-                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
-    "refactor": {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "resolved"],
-                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"]}},
+    "feature":  {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
+    "bug":      {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
+    "task":     {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
+    "refactor": {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+                 "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
     # Short-pipeline types
     "hotfix":      {"forward": ["new", "implementation", "verification", "resolved"],
                     "backward": {"verification": ["implementation"]}},
