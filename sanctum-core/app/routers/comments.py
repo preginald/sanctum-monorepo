@@ -37,6 +37,9 @@ def create_comment(comment: schemas.CommentCreate, background_tasks: BackgroundT
                 from .tickets import _record_transition
                 _record_transition(db, ticket.id, auto_from, auto_to, changed_by=current_user.full_name or "system")
 
+    if bool(getattr(comment, 'mirror', False)) and current_user.role not in ('admin', 'agent'):
+        raise HTTPException(status_code=403, detail="Only admin/agent roles may set mirror=true")
+
     new_comment = models.Comment(
         author_id=current_user.id, body=comment.body, visibility=comment.visibility,
         ticket_id=comment.ticket_id, deal_id=comment.deal_id, audit_id=comment.audit_id,
