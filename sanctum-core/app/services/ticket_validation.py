@@ -43,13 +43,57 @@ def validate_ticket_transition(
     db: Session,
     ticket_type: str | None = None,
     previous_status: str | None = None,
+    phase_criteria: dict | None = None,
 ) -> None:
     """Validate a status transition. Raises HTTPException(422) if invalid.
 
     When ticket_type is provided, validates against per-type flow definitions.
+
+    Governor Gate 2 (#2876): when ``phase_criteria`` is supplied and contains an
+    entry for the ``current`` status with any falsy values, the forward
+    transition is rejected. Reopening (``requested == "new"``) and tickets with
+    empty/missing phase_criteria bypass the check. The caller is expected to
+    gate this under the existing ``skip_validation`` flag for the break-glass
+    override path.
     """
     if requested == "new":
         return  # Reopening is always allowed
+
+    # Governor Gate 2 — phase_criteria enforcement for forward transitions
+    if phase_criteria and current in phase_criteria:
+        criteria = phase_criteria.get(current)
+        # Support both the flat `{key: bool}` and nested `{"items": [...]}`
+        # shapes. A dict with an `items` list is treated as ticked iff every
+        # item's `done` (or `checked`) flag is truthy; otherwise every value
+        # in the dict must be truthy.
+        unticked: list[str] = []
+        if isinstance(criteria, dict):
+            if isinstance(criteria.get("items"), list):
+                for idx, item in enumerate(criteria["items"]):
+                    if isinstance(item, dict):
+                        done = item.get("done", item.get("checked", False))
+                        if not done:
+                            unticked.append(str(item.get("key", item.get("label", f"item_{idx}"))))
+                    elif not item:
+                        unticked.append(f"item_{idx}")
+            else:
+                unticked = [str(k) for k, v in criteria.items() if not v]
+        if unticked:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "detail": f"Cannot leave '{current}' — phase criteria incomplete.",
+                    "error_code": "GOVERNOR_GATE_PHASE_CRITERIA",
+                    "current": current,
+                    "requested": requested,
+                    "phase": current,
+                    "missing_criteria": unticked,
+                    "next_action": f"Tick all items in phase_criteria['{current}'] via ticket_update before transitioning.",
+                    "reference": "SYS-005",
+                    "help": "See SYS-005 for the ticket status lifecycle and phase criteria model.",
+                },
+            )
+
     allowed = get_available_transitions(current, db, ticket_type=ticket_type, previous_status=previous_status)
     if requested not in allowed:
         type_label = f" {ticket_type}" if ticket_type else ""

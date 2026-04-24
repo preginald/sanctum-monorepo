@@ -287,12 +287,16 @@ def update_ticket(
         effective_desc = update_data.get('description', ticket.description)
         validate_ticket_description(effective_type, effective_desc)
 
-    # Status transition validation
+    # Status transition validation (includes Governor Gate 2: phase_criteria)
     if not ticket_update.skip_validation and 'status' in update_data and update_data['status'] != ticket.status:
+        # Prefer the phase_criteria from the payload if the caller is updating
+        # it in the same request; otherwise fall back to the persisted value.
+        effective_phase_criteria = update_data.get('phase_criteria', ticket.phase_criteria)
         validate_ticket_transition(
             ticket.status, update_data['status'], db,
             ticket_type=ticket.ticket_type,
             previous_status=ticket.previous_status,
+            phase_criteria=effective_phase_criteria,
         )
 
     # Resolution comment enforcement
