@@ -11,6 +11,9 @@ class CommentCreate(SanctumBase):
     ticket_id: Optional[int] = None
     deal_id: Optional[UUID] = None
     audit_id: Optional[UUID] = None
+    # Governor Gate 3 (#2876) — flag a comment as a Mirror assessment. At
+    # least one mirror=True comment is required to close a ticket. See DOC-073.
+    mirror: bool = False
 
 class CommentResponse(SanctumBase):
     id: UUID
@@ -19,6 +22,7 @@ class CommentResponse(SanctumBase):
     visibility: str
     created_at: datetime
     resolved_body: Optional[str] = None
+    mirror: bool = False
 
 # --- WIKI ---
 class ArticleCreate(SanctumBase):

@@ -502,6 +502,9 @@ class Comment(Base):
     ticket_id = Column(Integer, ForeignKey("tickets.id"), nullable=True)
     deal_id = Column(UUID(as_uuid=True), ForeignKey("deals.id"), nullable=True)
     audit_id = Column(UUID(as_uuid=True), ForeignKey("audit_reports.id"), nullable=True)
+    # Governor Gate 3 (#2876) — Mirror comment flag. Required on at least one
+    # comment before a ticket can transition resolved -> closed. See DOC-073.
+    mirror = Column(Boolean, nullable=False, default=False, server_default=text('false'))
 
     author = relationship("User")
     ticket = relationship("Ticket", back_populates="comments", foreign_keys=[ticket_id])

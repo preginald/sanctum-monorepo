@@ -287,12 +287,16 @@ def update_ticket(
         effective_desc = update_data.get('description', ticket.description)
         validate_ticket_description(effective_type, effective_desc)
 
-    # Status transition validation
+    # Status transition validation (includes Governor Gate 2: phase_criteria)
     if not ticket_update.skip_validation and 'status' in update_data and update_data['status'] != ticket.status:
+        # Prefer the phase_criteria from the payload if the caller is updating
+        # it in the same request; otherwise fall back to the persisted value.
+        effective_phase_criteria = update_data.get('phase_criteria', ticket.phase_criteria)
         validate_ticket_transition(
             ticket.status, update_data['status'], db,
             ticket_type=ticket.ticket_type,
             previous_status=ticket.previous_status,
+            phase_criteria=effective_phase_criteria,
         )
 
     # Resolution comment enforcement
@@ -302,6 +306,32 @@ def update_ticket(
             raise HTTPException(
                 status_code=422,
                 detail="Resolution requires a resolution comment. See SYS-005."
+            )
+
+    # Governor Gate 3 (#2876) — Mirror comment gate on resolved → closed.
+    # Require at least one ticket comment with mirror=True before closing. See
+    # DOC-073. Respects the existing skip_validation break-glass override.
+    if (
+        not ticket_update.skip_validation
+        and update_data.get('status') == 'closed'
+        and ticket.status == 'resolved'
+    ):
+        has_mirror = db.query(models.Comment).filter(
+            models.Comment.ticket_id == ticket.id,
+            models.Comment.mirror == True,
+        ).first() is not None
+        if not has_mirror:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "detail": "Cannot close — Mirror comment required.",
+                    "error_code": "GOVERNOR_GATE_MIRROR",
+                    "current": ticket.status,
+                    "requested": "closed",
+                    "next_action": "Post a comment with mirror=true assessing process gaps before closing. See DOC-073.",
+                    "reference": "DOC-073",
+                    "help": "DOC-073 describes the Mirror phase — a short self-review of the delivery process posted as a comment with mirror=true.",
+                },
             )
 
     # Billable item enforcement (BUS-001 D7, replaces time_entry_required)
