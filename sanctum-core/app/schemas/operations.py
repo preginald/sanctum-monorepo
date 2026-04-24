@@ -117,6 +117,10 @@ class TicketCreate(SanctumBase):
     assigned_tech_id: Optional[UUID] = None
     ticket_type: str = "support"
     milestone_id: Optional[UUID] = None
+    phase_criteria: Optional[dict] = Field(
+        default=None,
+        description="Phase-gated acceptance criteria keyed by phase name (see #2873 design)",
+    )
     skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketUpdate(SanctumBase):
@@ -135,6 +139,10 @@ class TicketUpdate(SanctumBase):
     resolution_comment_id: Optional[UUID] = None
     no_billable: Optional[bool] = None
     no_billable_reason: Optional[str] = None
+    phase_criteria: Optional[dict] = Field(
+        default=None,
+        description="Phase-gated acceptance criteria keyed by phase name (see #2873 design)",
+    )
     skip_validation: bool = Field(default=False, exclude=True)
 
 class TicketRelationResponse(SanctumBase):

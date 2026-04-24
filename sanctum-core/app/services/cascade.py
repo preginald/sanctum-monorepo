@@ -16,8 +16,9 @@ from .. import models
 logger = logging.getLogger(__name__)
 
 # Ticket statuses that indicate active work
-ACTIVE_TICKET_STATUSES = {"open", "recon", "proposal", "implementation", "verification", "review", "pending"}
+ACTIVE_TICKET_STATUSES = {"open", "recon", "proposal", "implementation", "verification", "review", "documented", "pending"}
 # Ticket statuses that indicate completion
+# TODO(#3028): remove "closed" after 2026-10-31 deprecation window.
 TERMINAL_TICKET_STATUSES = {"resolved", "closed"}
 
 

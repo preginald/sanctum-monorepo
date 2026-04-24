@@ -32,6 +32,7 @@ export const TICKET_STATUSES = [
     "implementation",
     "verification",
     "review",
+    "documented",
     "open",
     "pending",
     "resolved"

@@ -73,6 +73,7 @@ def validate_milestone_transition(
 
     # Conditional: active → completed requires all tickets resolved/closed
     if current == "active" and requested == "completed":
+        # TODO(#3028): remove "closed" after 2026-10-31 deprecation window.
         open_tickets = db.query(models.Ticket).filter(
             models.Ticket.milestone_id == milestone.id,
             models.Ticket.is_deleted == False,
@@ -136,6 +137,7 @@ def check_milestone_completion_advisory(milestone_id, db: Session) -> dict | Non
     ).first()
     if not milestone:
         return None
+    # TODO(#3028): remove "closed" after 2026-10-31 deprecation window.
     open_count = db.query(func.count(models.Ticket.id)).filter(
         models.Ticket.milestone_id == milestone_id,
         models.Ticket.is_deleted == False,

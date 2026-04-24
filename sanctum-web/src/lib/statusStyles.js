@@ -16,9 +16,9 @@ export const ticketStatusStyles = {
   implementation: "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
   verification:   "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-purple-500/20 text-purple-400 border-purple-500/30",
   review:         "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-cyan-500/20 text-cyan-400 border-cyan-500/30",
+  documented:     "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
   open:           "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-blue-500/20 text-blue-400 border-blue-500/30",
   pending:        "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-amber-500/20 text-amber-400 border-amber-500/30",
-  qa:             "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-purple-500/20 text-purple-400 border-purple-500/30",
   resolved:       "px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border bg-green-500/20 text-green-400 border-green-500/30",
 };
 

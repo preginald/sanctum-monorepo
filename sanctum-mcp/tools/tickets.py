@@ -61,7 +61,7 @@ async def ticket_list(
     Args:
         project: Filter by project name (substring match).
         milestone: Filter by milestone name (substring match).
-        status: Filter by status: new, open, pending, qa, resolved.
+        status: Filter by status: new, recon, proposal, implementation, verification, review, documented, open, pending, resolved.
         limit: Max results to return (default 50).
     """
     params: dict = {"limit": limit}
@@ -211,7 +211,7 @@ async def ticket_update(
         ticket_id: The ticket number.
         subject: New subject line.
         description: New description in markdown.
-        status: One of: new, open, pending, qa, resolved.
+        status: One of: new, recon, proposal, implementation, verification, review, documented, open, pending, resolved.
         priority: One of: low, normal, high, critical.
         ticket_type: One of: support, bug, feature, refactor, task, access, maintenance, alert, hotfix, test.
         milestone_id: UUID of the milestone.
