@@ -39,7 +39,8 @@ def create_comment(comment: schemas.CommentCreate, background_tasks: BackgroundT
 
     new_comment = models.Comment(
         author_id=current_user.id, body=comment.body, visibility=comment.visibility,
-        ticket_id=comment.ticket_id, deal_id=comment.deal_id, audit_id=comment.audit_id
+        ticket_id=comment.ticket_id, deal_id=comment.deal_id, audit_id=comment.audit_id,
+        mirror=bool(getattr(comment, 'mirror', False)),
     )
     db.add(new_comment)
     db.commit()

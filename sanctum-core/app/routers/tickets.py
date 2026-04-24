@@ -308,6 +308,32 @@ def update_ticket(
                 detail="Resolution requires a resolution comment. See SYS-005."
             )
 
+    # Governor Gate 3 (#2876) — Mirror comment gate on resolved → closed.
+    # Require at least one ticket comment with mirror=True before closing. See
+    # DOC-073. Respects the existing skip_validation break-glass override.
+    if (
+        not ticket_update.skip_validation
+        and update_data.get('status') == 'closed'
+        and ticket.status == 'resolved'
+    ):
+        has_mirror = db.query(models.Comment).filter(
+            models.Comment.ticket_id == ticket.id,
+            models.Comment.mirror == True,
+        ).first() is not None
+        if not has_mirror:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "detail": "Cannot close — Mirror comment required.",
+                    "error_code": "GOVERNOR_GATE_MIRROR",
+                    "current": ticket.status,
+                    "requested": "closed",
+                    "next_action": "Post a comment with mirror=true assessing process gaps before closing. See DOC-073.",
+                    "reference": "DOC-073",
+                    "help": "DOC-073 describes the Mirror phase — a short self-review of the delivery process posted as a comment with mirror=true.",
+                },
+            )
+
     # Billable item enforcement (BUS-001 D7, replaces time_entry_required)
     if update_data.get('status') == 'resolved' and ticket.status != 'resolved':
         has_time_entries = len(ticket.time_entries) > 0
