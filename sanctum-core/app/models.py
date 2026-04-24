@@ -244,6 +244,15 @@ class Ticket(Base):
     no_billable = Column(Boolean, default=False, server_default=text("false"))
     no_billable_reason = Column(Text, nullable=True)
 
+    # Phase-gated acceptance criteria (see #2873 design / #2875 implementation).
+    # Nullable with '{}' server default so existing rows materialise as empty dict.
+    phase_criteria = Column(
+        JSONB,
+        nullable=True,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+
     account = relationship("Account", back_populates="tickets")
     contact = relationship("Contact", foreign_keys=[contact_id]) # Legacy Relationship
 
