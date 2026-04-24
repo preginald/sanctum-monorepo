@@ -113,6 +113,7 @@ const PortalTicketDetail = () => {
     messageMe: isNaked ? 'bg-naked-pink text-white' : 'bg-[#7ba2a8]/10 text-[#7ba2a8] border border-[#7ba2a8]/20',
     messageOther: isNaked ? 'bg-slate-100 text-slate-700' : 'bg-white/10 text-slate-200',
     statusTag: (status) => {
+        if (status === 'documented') return 'bg-emerald-500/20 text-emerald-500';
         if (status === 'resolved') return 'bg-green-500/20 text-green-500';
         if (status === 'new') return 'bg-blue-500/20 text-blue-500';
         return 'bg-yellow-500/20 text-yellow-600';
