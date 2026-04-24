@@ -253,6 +253,7 @@ async def ticket_comment(
     ticket_id: int,
     body: str,
     visibility: str = "internal",
+    mirror: bool = False,
 ) -> str:
     """Add a comment to a ticket.
 
@@ -260,12 +261,22 @@ async def ticket_comment(
         ticket_id: The ticket number.
         body: Comment text in markdown.
         visibility: One of: internal, public.
+        mirror: When True, flag this comment as a Mirror retrospective
+            assessment. Required to satisfy Gate 3 of the ticket
+            lifecycle (resolved → closed) per SYS-005. At least one
+            comment with mirror=True must exist on a ticket before it
+            can transition from resolved to closed without
+            skip_validation. Backend restricts mirror=True to callers
+            holding admin or agent role. Defaults to False to preserve
+            payload shape for non-Mirror callers.
     """
     payload = {
         "body": _unescape(body),
         "visibility": visibility,
         "ticket_id": ticket_id,
     }
+    if mirror:
+        payload["mirror"] = True
     result = await client.post("/comments", json=payload)
     return json.dumps(result, indent=2)
 
