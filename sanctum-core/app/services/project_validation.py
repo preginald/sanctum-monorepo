@@ -54,23 +54,42 @@ def validate_project_transition(
             },
         )
 
-    # Conditional: planning → active requires template_id or at least one milestone
+    # Conditional: planning → active requires template_id or at least one milestone.
+    #
+    # Governor gate exception (#2876): a project scaffolded from a "zero-milestone"
+    # template (e.g. refactored Feature Delivery, Bug Investigation) is allowed to
+    # activate without milestones — such templates carry a ticket-only payload
+    # (sections but no milestone mapping) or genuinely scaffold zero sections.
+    # Detection is implicit: `len(template.sections) == 0`. A template author who
+    # deletes all sections opts the type in automatically. Revisit with an explicit
+    # `Template.allows_zero_milestones` flag if this becomes a misconfiguration risk.
     if current == "planning" and requested == "active":
         milestone_count = db.query(models.Milestone).filter(
             models.Milestone.project_id == project.id,
             models.Milestone.is_deleted == False,
         ).count()
-        if project.template_id is None and milestone_count == 0:
-            raise HTTPException(
-                status_code=422,
-                detail={
-                    "detail": "template_id_required: apply a project template before activating this project",
-                    "error_code": "template_id_required",
-                    "project_id": str(project.id),
-                    "project_name": project.name,
-                    "help": "Use template_apply to scaffold the project, then transition to active. See SYS-030.",
-                },
-            )
+        if milestone_count == 0:
+            # Zero-milestone template exception
+            is_zero_milestone_template = False
+            if project.template_id is not None:
+                section_count = db.query(models.TemplateSection).filter(
+                    models.TemplateSection.template_id == project.template_id,
+                ).count()
+                is_zero_milestone_template = section_count == 0
+
+            if not is_zero_milestone_template:
+                raise HTTPException(
+                    status_code=422,
+                    detail={
+                        "detail": "template_id_required: apply a project template before activating this project",
+                        "error_code": "GOVERNOR_GATE_ACTIVATION",
+                        "project_id": str(project.id),
+                        "project_name": project.name,
+                        "next_action": "Apply a project template (template_apply) or add at least one milestone, then transition to active.",
+                        "reference": "SYS-030",
+                        "help": "Use template_apply to scaffold the project, then transition to active. See SYS-030.",
+                    },
+                )
 
     # Conditional: active → completed requires all milestones completed
     if current == "active" and requested == "completed":
