@@ -1,0 +1,10 @@
+[Unit]
+Description=Sanctum API Health Check Timer (every 30s)
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=30s
+Unit=sanctum-api-health.service
+
+[Install]
+WantedBy=timers.target

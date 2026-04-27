@@ -18,6 +18,9 @@ ExecStart=/home/preginald/DigitalSanctum/sanctum-core/venv/bin/uvicorn app.main:
 ExecStopPost=-/usr/bin/fuser -k -s 8000/tcp
 Restart=on-failure
 RestartSec=5
+MemoryMax=768M
+MemoryHigh=640M
+OOMScoreAdjust=500
 
 [Install]
 WantedBy=multi-user.target

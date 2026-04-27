@@ -357,7 +357,7 @@ def update_account_audit_data(
 import re
 
 # Only these services can be restarted via POST /restart
-RESTART_ALLOWED_SERVICES = {"sanctum-mcp"}
+RESTART_ALLOWED_SERVICES = {"sanctum-mcp", "sanctum-api"}
 
 # Service name validation: alphanumeric + hyphens only (prevents command injection)
 _SERVICE_NAME_RE = re.compile(r"^sanctum-[a-z0-9-]+$")
