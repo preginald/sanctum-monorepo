@@ -154,6 +154,7 @@ The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
 - State management: Zustand (`src/store/`)
 - Styling: Tailwind CSS
 - Tests use Vitest + Testing Library + MSW for API mocking (`src/test/`)
+- **Live browser verification** (per SOP-149): Playwright MCP is installed on this project for UI tickets whose ACs can't be proven by mocked tests (drag/drop, keyboard a11y, animations, real-network auth). Chrome DevTools MCP remains as a fallback/complement for DevTools-specific work (perf traces, Lighthouse).
 
 ### Knowledge Base
 - Articles use identifiers like `DOC-001`, `SOP-099`, `SYS-007`, `WIKI-024`
@@ -165,6 +166,8 @@ The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
 | Identifier | What |
 |---|---|
 | SOP-099 | The Phoenix Protocol — session migration & operational workflow |
+| SOP-102 | Ticket Delivery Checklist |
+| SOP-149 | Live Browser Verification for UI Features (Playwright MCP + CDP fallback) |
 | DOC-009 | CLI Guide: sanctum.sh |
 | DOC-001 | API Guide: Managing Tickets |
 | DOC-012 | UI Standard: SendNotificationForm |
@@ -181,7 +184,7 @@ The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`).
 ## Git Workflow
 
 - **Always work on a feature branch** (`feat/<ticket>-<description>`). Never commit directly to `main`.
-- Pete tests and merges to `main` after verifying the branch. Pushes to `main` auto-deploy to production.
+- Pete tests and merges to `main` after verifying the branch (see SOP-121 for full merge policy). Pushes to `main` auto-deploy to production.
 - Commit messages reference ticket numbers: `#574: add create-batch command`
 - **Never force push to main.**
 - **Rollback rule:** If a merge to `main` breaks production, immediately `git revert` the commit rather than attempting a forward fix.
