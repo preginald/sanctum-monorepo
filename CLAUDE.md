@@ -202,7 +202,7 @@ The `/deliver` pipeline routes each phase to the cheapest model that can handle 
 | Review | `sanctum-reviewer` | opus | Defensive code review |
 | Document | `sanctum-writer` | sonnet | Documentation updates |
 
-**Override:** The Operator can force opus for recon by delegating to `sanctum-reviewer` instead of `sanctum-recon` when the ticket involves complex cross-system dependencies or security-sensitive analysis.
+**Override:** The Architect (via sanctum-reviewer) can force opus for recon when the ticket involves complex cross-system dependencies or security-sensitive analysis.
 
 ## Session Efficiency
 
