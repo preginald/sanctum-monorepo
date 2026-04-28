@@ -10,7 +10,7 @@ Sanctum Core is a full-stack ERP/MSP/CRM platform for Digital Sanctum, a managed
 
 - **Backend:** FastAPI (`sanctum-core/`), PostgreSQL, Alembic migrations
 - **Frontend:** React 19 / Vite (`sanctum-web/`), deployed to core.digitalsanctum.com.au
-- **CLI:** `sanctum.sh` (`scripts/dev/sanctum.sh`), symlinked as `sanctum`
+- **CLI:** `sanctum-cli` (Python, pip-installable, primary); legacy `sanctum.sh` (`scripts/dev/sanctum.sh`), symlinked as `sanctum`
 - **Monorepo:** `github.com/preginald/sanctum-monorepo`
 - **Production:** 159.223.82.75, auto-deploys on push to `main`
 
