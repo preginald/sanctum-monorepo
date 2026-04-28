@@ -55,6 +55,8 @@ def _record_transition(
 def get_tickets(
     status: Optional[str] = None,
     account_id: Optional[UUID] = None,
+    milestone_id: Optional[UUID] = None,
+    project_id: Optional[UUID] = None,
     pagination: dict = Depends(pagination_params),
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
@@ -79,16 +81,25 @@ def get_tickets(
     if status:
         filters.append(models.Ticket.status == status)
 
+    if milestone_id:
+        filters.append(models.Ticket.milestone_id == milestone_id)
+
+    if project_id:
+        filters.append(models.Milestone.project_id == project_id)
+
     # Lightweight count query (no joinedloads)
-    total = db.query(func.count(models.Ticket.id))\
-        .join(models.Account)\
-        .filter(*filters)\
-        .scalar()
+    count_query = db.query(func.count(models.Ticket.id))\
+        .join(models.Account)
+    if project_id:
+        count_query = count_query.join(models.Ticket.milestone)
+    total = count_query.filter(*filters).scalar()
 
     # Data query with eager loads
-    query = base_ticket_query(db)\
-        .join(models.Account)\
-        .filter(*filters)
+    data_query = base_ticket_query(db)\
+        .join(models.Account)
+    if project_id:
+        data_query = data_query.join(models.Ticket.milestone)
+    query = data_query.filter(*filters)
 
     limit, offset = pagination["limit"], pagination["offset"]
     tickets = query.order_by(models.Ticket.id.desc()).offset(offset).limit(limit).all()

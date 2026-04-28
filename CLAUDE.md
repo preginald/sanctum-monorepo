@@ -10,7 +10,7 @@ Sanctum Core is a full-stack ERP/MSP/CRM platform for Digital Sanctum, a managed
 
 - **Backend:** FastAPI (`sanctum-core/`), PostgreSQL, Alembic migrations
 - **Frontend:** React 19 / Vite (`sanctum-web/`), deployed to core.digitalsanctum.com.au
-- **CLI:** `sanctum.sh` (`scripts/dev/sanctum.sh`), symlinked as `sanctum`
+- **CLI:** `sanctum-cli` (Python, pip-installable, primary); legacy `sanctum.sh` (`scripts/dev/sanctum.sh`), symlinked as `sanctum`
 - **Monorepo:** `github.com/preginald/sanctum-monorepo`
 - **Production:** 159.223.82.75, auto-deploys on push to `main`
 
@@ -115,23 +115,72 @@ MCP tools return structured JSON directly — no TTY issues, no `--yes` flag nee
 
 ## CLI: sanctum
 
-The unified CLI tool lives at `scripts/dev/sanctum.sh` (symlinked as `sanctum`). Use the MCP tools above instead when operating from Claude Code.
+Two CLIs exist. The **Python CLI** (`sanctum-cli`) is the primary tool for AI agents. The **bash CLI** (`sanctum.sh`) is legacy.
 
-- **Check DOC-009** before using any subcommand — don't guess flags.
-- **Use `--articles` flag** when creating tickets to link relevant KB articles.
-- **Use `-f /tmp/file.md`** for large content — write to `/tmp/` first, then reference with `-f` flag.
+### Python CLI (recommended)
 
-### Domains
-- `ticket` — create, update, comment, resolve, list, show, delete, create-batch
-- `article` — create, update, show
-- `milestone` — create, update, list, show
-- `invoice` — create, update, delete, show
-- `context` — batch article reader (`context load DOC-001,DOC-002,...`)
-- `search` — omnisearch across all entities
+**Repository:** `github.com/preginald/sanctum-cli` (standalone, pip-installable)
+**Stack:** Python 3.11+ / Click
+**Installation:** `pip install git+https://github.com/preginald/sanctum-cli.git`
+
+**Every command requires either `--agent <name>` or `--user <email>`.** There is no anonymous fallback. The `--agent` flag resolves to the correct service account token via `SANCTUM_TOKEN_<AGENT>` env var or `.env.<agent>` file.
+
+**Agent identities (10):**
+
+| Agent | Env Var | Domain |
+|---|---|---|
+| architect | `SANCTUM_TOKEN_ARCHITECT` | Design, review, recon |
+| surgeon | `SANCTUM_TOKEN_SURGEON` | Implementation |
+| sentinel | `SANCTUM_TOKEN_SENTINEL` | QA, verification |
+| scribe | `SANCTUM_TOKEN_SCRIBE` | Documentation, articles |
+| oracle | `SANCTUM_TOKEN_ORACLE` | Queries, search, read-only |
+| guardian | `SANCTUM_TOKEN_GUARDIAN` | Security engineering |
+| hermes | `SANCTUM_TOKEN_HERMES` | Infrastructure, ops |
+| chat | `SANCTUM_TOKEN_CHAT` | Chat interface |
+| mock | `SANCTUM_TOKEN_MOCK` | Test automation |
+| operator | (reserved for human use, not resolvable by AI) | |
+
+**Usage:**
+```bash
+sanctum --agent surgeon tickets list --limit 10
+sanctum --agent architect tickets show 3112
+sanctum --user peter@digitalsanctum.com.au tickets list  # human SSO
+```
+
+**Global flags:** `--env local|prod`, `--agent <name>`, `--user <email>`, `--yes`, `--json`, `--debug`
+
+**14 domain modules:**
+
+| Domain | Commands | Expected Agent |
+|---|---|---|
+| tickets | create, show, list, comment, update, resolve | surgeon (create/comment/update), architect (resolve), any (show/list) |
+| articles | show, list, create | scribe (create/update), any (show/list) |
+| milestones | list, show | any |
+| invoices | show, list | oracle |
+| search | search | any |
+| projects | list, show, overview | any |
+| templates | list, show | any |
+| products | list | any |
+| rate-cards | list, lookup | any |
+| workbench | list, pin, unpin | any |
+| time-entries | create, update | surgeon |
+| artefacts | show, list, create | surgeon |
+| notify | list | scribe |
+| mockups | list | any |
+
+**Token fallback chain:** `--agent` → env var → `.env.<agent>` file → error (never silent, never falls through to operator)
+
+**Config directory:** `~/.sanctum/tokens/` — agent tokens per profile
+**User tokens:** `~/.sanctum/users/` — saved PATs per email hash
+
+### Bash CLI (legacy)
+
+The original CLI at `scripts/dev/sanctum.sh` (symlinked as `sanctum`). Does not support `--agent` or `--user` — every call uses `SANCTUM_API_TOKEN` which is deprecated.
 
 ### Two-Step Ticket Resolve Flow
-1. `sanctum ticket update <id> --status resolved`
-2. `sanctum ticket resolve <id>` (adds resolution comment)
+1. `sanctum --agent architect tickets update <id> --status resolved`
+2. `sanctum --agent architect tickets resolve <id>` (adds resolution comment)
+(Or use `tickets resolve` which combines both steps.)
 
 ## Architecture Conventions
 
@@ -202,7 +251,7 @@ The `/deliver` pipeline routes each phase to the cheapest model that can handle 
 | Review | `sanctum-reviewer` | opus | Defensive code review |
 | Document | `sanctum-writer` | sonnet | Documentation updates |
 
-**Override:** The Operator can force opus for recon by delegating to `sanctum-reviewer` instead of `sanctum-recon` when the ticket involves complex cross-system dependencies or security-sensitive analysis.
+**Override:** The Architect (via sanctum-reviewer) can force opus for recon when the ticket involves complex cross-system dependencies or security-sensitive analysis.
 
 ## Session Efficiency
 

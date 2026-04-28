@@ -14,9 +14,9 @@ Deliver that ticket through the full pipeline.
 
 Determine the next task:
 
-1. **Read the latest session handover** — search artefacts for the most recent `session_handover` and read it via `sanctum artefact show <id>`. Extract the "What's Next" section.
-2. **Check milestone state** — run `sanctum milestone list -p "Sanctum Core"` to find the active milestone.
-3. **Check ticket state** — for the next ticket, run `sanctum ticket show <id> -c -r`. Read all linked articles and comments.
+1. **Read the latest session handover** — search artefacts for the most recent `session_handover` and read it via `sanctum --agent oracle artefact show <id>`. Extract the "What's Next" section.
+2. **Check milestone state** — run `sanctum --agent oracle milestone list -p "Sanctum Core"` to find the active milestone.
+3. **Check ticket state** — for the next ticket, run `sanctum --agent oracle ticket show <id> -c -r`. Read all linked articles and comments.
 4. **Determine the delivery phase** based on ticket status and comments:
    - No comments → start at Recon
    - Recon done but no proposal → start at Propose
@@ -50,7 +50,7 @@ Run linter, tests, walk through every AC. Post verification report. Observable A
 Run `gh run list --workflow=deploy.yml --branch=main --limit=1` and wait. PASS → proceed, FAIL → halt and recommend `git revert`.
 
 ### Phase 6: Resolve
-`sanctum ticket resolve <id> -b "<resolution body>"`
+`sanctum --agent architect ticket resolve <id> -b "<resolution body>"`
 
 ### Phase 7: Document
 Check KB articles, CLI docs, API guides. Update as needed.

@@ -1,5 +1,6 @@
 #!/bin/bash
-# sanctum.sh v1.0 — Unified CLI for Sanctum Core
+# sanctum.sh v1.0 — Unified CLI for Sanctum Core (LEGACY)
+# DEPRECATED: Use sanctum-cli (pip install git+https://github.com/preginald/sanctum-cli.git)
 # Usage: sanctum.sh <domain> <command> [options]
 #
 # Domains:  ticket, milestone, invoice, article
@@ -44,12 +45,17 @@ usage() {
     echo "  context    Session context loader (batch article reader)"
     echo "  search     Omnisearch — cross-entity fuzzy search"
     echo ""
-    echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
-    echo "  -e, --env       local | prod (default: prod)"
-    echo "  -h, --help      Show domain-specific help (e.g., sanctum.sh ticket --help)"
-    echo ""
-    echo -e "${YELLOW}AUTH${NC}"
-    echo "  Set SANCTUM_API_TOKEN for zero-friction auth. Falls back to saved JWT or interactive prompt."
+echo -e "${YELLOW}GLOBAL OPTIONS${NC}"
+echo "  -e, --env       local | prod (default: prod)"
+echo "  --agent <name>  Use a specific agent identity (e.g., sanctum-architect)."
+echo "                  Short names work too: architect, operator, sentinel, etc."
+echo "                  Requires the corresponding SANCTUM_TOKEN_* env var or"
+echo "                  a sanctum-mcp/.env.<name> file."
+echo "  -h, --help      Show domain-specific help (e.g., sanctum.sh ticket --help)"
+echo ""
+echo -e "${YELLOW}AUTH${NC}"
+echo "  Set SANCTUM_API_TOKEN for zero-friction auth. Falls back to saved JWT or interactive prompt."
+echo "  Use --agent <name> to switch between per-identity tokens (same mechanism as MCP)."
     echo ""
     exit 0
 }
@@ -3295,20 +3301,54 @@ esac
 
 }
 
-# Parse global flags: --batch (skip tee/xclip), --yes (skip confirm_prod)
+# Parse global flags: --agent (identity), --batch (skip tee/xclip), --yes (skip confirm_prod)
 _SANCTUM_YES=0
 export _SANCTUM_YES
-for _a in "$@"; do [[ "$_a" == "--yes" ]] && _SANCTUM_YES=1; done
+_SANCTUM_AGENT_FLAG=""
+_args_after_global=()
+_skip_next=0
+for _i in $(seq 1 $#); do
+    _a="${@:_i:1}"
+    if [ "$_skip_next" = "1" ]; then _skip_next=0; continue; fi
+    if [ "$_a" = "--yes" ]; then
+        _SANCTUM_YES=1
+    elif [ "$_a" = "--agent" ]; then
+        _n="$((_i + 1))"
+        _SANCTUM_AGENT_FLAG="${@:_n:1}"
+        _skip_next=1
+    elif [ "$_a" = "--batch" ]; then
+        : # consumed by the outer tee/xclip check, not passed to main
+    else
+        _args_after_global+=("$_a")
+    fi
+done
+
+# Resolve --agent token before dispatch
+if [ -n "$_SANCTUM_AGENT_FLAG" ]; then
+    _SANCTUM_AGENT="$_SANCTUM_AGENT_FLAG"
+    _agent_full="sanctum-${_SANCTUM_AGENT_FLAG}"
+    _agent_env_var="SANCTUM_TOKEN_$(echo "$_SANCTUM_AGENT_FLAG" | tr '[:lower:]-' '[:upper:]_')"
+    _agent_token="${!_agent_env_var}"
+    if [ -n "$_agent_token" ]; then
+        export SANCTUM_API_TOKEN="$_agent_token"
+    else
+        _script_dir="$(dirname "$(readlink -f "$0")")"
+        _project_root="$(dirname "$(dirname "$_script_dir")")"
+        _env_file="$_project_root/sanctum-mcp/.env.${_SANCTUM_AGENT_FLAG}"
+        if [ -f "$_env_file" ]; then
+            _agent_token=$(grep "^SANCTUM_API_TOKEN=" "$_env_file" | cut -d= -f2-)
+            [ -n "$_agent_token" ] && export SANCTUM_API_TOKEN="$_agent_token"
+        fi
+    fi
+fi
+
+# Check if --batch was in original args (before global flag stripping)
+_has_batch=0
+for _a in "$@"; do [[ "$_a" == "--batch" ]] && _has_batch=1; done
 
 # Non-interactive mode: skip tee/xclip when no TTY or --batch flag is passed
-if [[ " $* " == *" --batch "* ]] || [ ! -t 1 ]; then
-    # Strip --batch and --yes from args before passing to main
-    _args=()
-    for _a in "$@"; do [[ "$_a" != "--batch" && "$_a" != "--yes" ]] && _args+=("$_a"); done
-    main "${_args[@]}"
+if [ "$_has_batch" = "1" ] || [ ! -t 1 ]; then
+    main "${_args_after_global[@]}"
 else
-    # Strip --yes from args before passing to main
-    _args=()
-    for _a in "$@"; do [[ "$_a" != "--yes" ]] && _args+=("$_a"); done
-    main "${_args[@]}" 2>&1 | tee /dev/tty | sed "s/\x1b\[[0-9;]*m//g" | xclip -selection clipboard -i
+    main "${_args_after_global[@]}" 2>&1 | tee /dev/tty | sed "s/\x1b\[[0-9;]*m//g" | xclip -selection clipboard -i
 fi
