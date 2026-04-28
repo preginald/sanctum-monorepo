@@ -113,6 +113,8 @@ The Sanctum MCP server (`sanctum-mcp/`) provides the same operations as the CLI 
 
 MCP tools return structured JSON directly — no TTY issues, no `--yes` flag needed.
 
+For the CLI identity and MCP migration covenant, see `docs/cli-identity-mcp-migration-covenant.md`.
+
 ## CLI: sanctum
 
 Two CLIs exist. The **Python CLI** (`sanctum-cli`) is the primary tool for AI agents. The **bash CLI** (`sanctum.sh`) is legacy.
