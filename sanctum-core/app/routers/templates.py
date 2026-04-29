@@ -395,6 +395,16 @@ def _substitute(text: str | None, variables: dict[str, str]) -> str | None:
     return text
 
 
+def _ordered_project_template_sections(template: models.Template, max_seq: int):
+    return [
+        (section, sorted(list(section.items), key=lambda i: i.sequence), max_seq + idx)
+        for idx, section in enumerate(
+            sorted(template.sections, key=lambda s: s.sequence),
+            start=1,
+        )
+    ]
+
+
 def _apply_project(
     template: models.Template,
     payload: TemplateApply,
@@ -441,17 +451,14 @@ def _apply_project(
     # Pre-materialize section items before the flush loop to prevent
     # SQLAlchemy session state changes from causing lazy re-loads that
     # return empty collections for later sections.  See #1831.
-    sections_with_items = [
-        (section, sorted(list(section.items), key=lambda i: i.sequence))
-        for section in sorted(template.sections, key=lambda s: s.sequence)
-    ]
+    sections_with_items = _ordered_project_template_sections(template, max_seq)
 
-    for section, items in sections_with_items:
+    for section, items, milestone_sequence in sections_with_items:
         milestone = models.Milestone(
             project_id=project.id,
             name=_substitute(section.name, variables) if variables else section.name,
             description=_substitute(section.description, variables) if variables else section.description,
-            sequence=max_seq + section.sequence,
+            sequence=milestone_sequence,
             status="pending",
         )
         db.add(milestone)
