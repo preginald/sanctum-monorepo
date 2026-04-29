@@ -10,7 +10,8 @@ import Loading from '../components/ui/Loading';
 import {
     Layers, Plus, Copy, Download, Zap, Tag,
     Pencil, Trash2, ChevronDown, ChevronRight,
-    CheckCircle, Clock, AlertTriangle, Users, Link2
+    CheckCircle, Clock, AlertTriangle, Users, Link2,
+    ArrowUp, ArrowDown
 } from 'lucide-react';
 // ─────────────────────────────────────────────────────────────────────────────
 // CONSTANTS
@@ -31,7 +32,7 @@ const TYPE_BADGE = {
 // SUB-COMPONENT: Inline-editable section row
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SectionRow = ({ section, allSections, onAddItem, onDeleteSection, onDeleteItem }) => {
+const SectionRow = ({ section, allSections, sectionIndex, sectionCount, onAddItem, onDeleteSection, onDeleteItem, onMoveSection }) => {
     const [open, setOpen] = useState(true);
     const [addingItem, setAddingItem] = useState(false);
     const [newItem, setNewItem] = useState({ subject: '', description: '', item_type: 'task', priority: 'normal', config: { dependencies: [] } });
@@ -69,6 +70,24 @@ const SectionRow = ({ section, allSections, onAddItem, onDeleteSection, onDelete
                     </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-0.5 mr-1">
+                        <button
+                            onClick={() => onMoveSection(sectionIndex, sectionIndex - 1)}
+                            disabled={sectionIndex === 0}
+                            className="p-1 text-slate-500 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors rounded"
+                            title="Move section up"
+                        >
+                            <ArrowUp size={12} />
+                        </button>
+                        <button
+                            onClick={() => onMoveSection(sectionIndex, sectionIndex + 1)}
+                            disabled={sectionIndex === sectionCount - 1}
+                            className="p-1 text-slate-500 hover:text-white disabled:opacity-20 disabled:cursor-not-allowed transition-colors rounded"
+                            title="Move section down"
+                        >
+                            <ArrowDown size={12} />
+                        </button>
+                    </div>
                     <button
                         onClick={() => setAddingItem(a => !a)}
                         className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 text-slate-300 rounded hover:bg-slate-600 transition-colors"
@@ -370,6 +389,20 @@ export default function TemplateDetail() {
             addToast('Failed to delete section', 'error');
         }
     };
+    const handleMoveSection = async (fromIndex, toIndex) => {
+        const sections = [...template.sections];
+        const [moved] = sections.splice(fromIndex, 1);
+        sections.splice(toIndex, 0, moved);
+        const updated = sections.map((s, i) => ({ id: s.id, sequence: i + 1 }));
+        try {
+            await Promise.all(updated.map(s =>
+                api.put(`/templates/sections/${s.id}`, { sequence: s.sequence })
+            ));
+            load();
+        } catch {
+            addToast('Failed to reorder sections', 'error');
+        }
+    };
     const handleDeleteItem = async (itemId) => {
         try {
             await api.delete(`/templates/items/${itemId}`);
@@ -456,14 +489,17 @@ export default function TemplateDetail() {
                             <p>No sections yet. Add one to start building the template.</p>
                         </div>
                     ) : (
-                        template.sections.map(section => (
+                        template.sections.map((section, idx) => (
                             <SectionRow
                                 key={section.id}
                                 section={section}
                                 allSections={template.sections}
+                                sectionIndex={idx}
+                                sectionCount={template.sections.length}
                                 onAddItem={handleAddItem}
                                 onDeleteSection={handleDeleteSection}
                                 onDeleteItem={handleDeleteItem}
+                                onMoveSection={handleMoveSection}
                             />
                         ))
                     )}

@@ -42,6 +42,27 @@ def _get_or_404(template_id: str, db: Session) -> models.Template:
     ], deleted_filter=False)
 
 
+def _shift_section_sequences(template_id: str, target_sequence: int, db: Session) -> None:
+    """Shift existing sections at *target_sequence* or above up by one.
+
+    Called before inserting a new section so the new row can occupy
+    *target_sequence* without a collision.  If no section occupies the
+    target position this is a no-op.
+    """
+    sections = (
+        db.query(models.TemplateSection)
+        .filter(
+            models.TemplateSection.template_id == template_id,
+            models.TemplateSection.sequence >= target_sequence,
+        )
+        .order_by(models.TemplateSection.sequence.desc())
+        .all()
+    )
+    for s in sections:
+        s.sequence += 1
+    db.flush()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # LIST & GET
 # ─────────────────────────────────────────────────────────────────────────────
@@ -104,12 +125,17 @@ def create_template(
     db.add(template)
     db.flush()  # get template.id before adding children
 
+    used_sequences = set()
     for sec_idx, sec_data in enumerate(payload.sections or []):
+        seq = sec_data.sequence if sec_data.sequence else sec_idx + 1
+        while seq in used_sequences:
+            seq += 1
+        used_sequences.add(seq)
         section = models.TemplateSection(
             template_id=template.id,
             name=sec_data.name,
             description=sec_data.description,
-            sequence=sec_data.sequence if sec_data.sequence else sec_idx + 1,
+            sequence=seq,
         )
         db.add(section)
         db.flush()
@@ -536,6 +562,9 @@ def add_section(
     db: Session = Depends(get_db),
 ):
     _get_or_404(template_id, db)
+
+    _shift_section_sequences(template_id, payload.sequence, db)
+
     section = models.TemplateSection(
         template_id=template_id,
         name=payload.name,
@@ -573,8 +602,19 @@ def update_section(
     ).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+
+    old_sequence = section.sequence
+    new_sequence = payload.sequence if payload.sequence is not None else old_sequence
+
+    if new_sequence != old_sequence:
+        _shift_section_sequences(section.template_id, new_sequence, db)
+        section.sequence = new_sequence
+
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field == "sequence":
+            continue
         setattr(section, field, value)
+
     db.commit()
     db.refresh(section)
     return section
