@@ -78,6 +78,27 @@ def _normalize_template_sequences_for_id(template_id: str | uuid.UUID, db: Sessi
         _normalize_template_sequences(template)
 
 
+def _shift_section_sequences(template_id: str, target_sequence: int, db: Session) -> None:
+    """Shift existing sections at *target_sequence* or above up by one.
+
+    Called before inserting a new section so the new row can occupy
+    *target_sequence* without a collision.  If no section occupies the
+    target position this is a no-op.
+    """
+    sections = (
+        db.query(models.TemplateSection)
+        .filter(
+            models.TemplateSection.template_id == template_id,
+            models.TemplateSection.sequence >= target_sequence,
+        )
+        .order_by(models.TemplateSection.sequence.desc())
+        .all()
+    )
+    for s in sections:
+        s.sequence += 1
+    db.flush()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # LIST & GET
 # ─────────────────────────────────────────────────────────────────────────────
@@ -140,12 +161,17 @@ def create_template(
     db.add(template)
     db.flush()  # get template.id before adding children
 
+    used_sequences = set()
     for sec_idx, sec_data in enumerate(payload.sections or []):
+        seq = sec_data.sequence if sec_data.sequence else sec_idx + 1
+        while seq in used_sequences:
+            seq += 1
+        used_sequences.add(seq)
         section = models.TemplateSection(
             template_id=template.id,
             name=sec_data.name,
             description=sec_data.description,
-            sequence=sec_data.sequence if sec_data.sequence else sec_idx + 1,
+            sequence=seq,
         )
         db.add(section)
         db.flush()
@@ -433,6 +459,26 @@ def _substitute(text: str | None, variables: dict[str, str]) -> str | None:
     return text
 
 
+def _ordered_project_template_sections(template: models.Template, max_seq: int):
+    return [
+        (section, sorted(list(section.items), key=lambda i: i.sequence), max_seq + idx)
+        for idx, section in enumerate(
+            sorted(template.sections, key=lambda s: s.sequence),
+            start=1,
+        )
+    ]
+
+
+def _add_template_ticket_mapping(ticket_map, ambiguous_keys, key, ticket_id, item):
+    if key in ambiguous_keys:
+        return
+    if key in ticket_map:
+        del ticket_map[key]
+        ambiguous_keys.add(key)
+        return
+    ticket_map[key] = (ticket_id, item)
+
+
 def _apply_project(
     template: models.Template,
     payload: TemplateApply,
@@ -473,6 +519,7 @@ def _apply_project(
     tickets_created = 0
     # Pass 1: Create milestones + tickets, build lookup map
     ticket_map = {}  # (section_seq, item_seq) -> ticket_id
+    ambiguous_ticket_keys = set()
 
     variables = payload.variables or {}
 
@@ -510,7 +557,13 @@ def _apply_project(
             db.add(ticket)
             db.flush()
             tickets_created += 1
-            ticket_map[(section.sequence, item.sequence)] = (ticket.id, item)
+            _add_template_ticket_mapping(
+                ticket_map,
+                ambiguous_ticket_keys,
+                (section.sequence, item.sequence),
+                ticket.id,
+                item,
+            )
 
     # Pass 2: Wire ticket relations from template item dependencies
     for (sec_seq, item_seq), (ticket_id, item) in ticket_map.items():
@@ -549,15 +602,14 @@ def add_section(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    template = _get_or_404(template_id, db)
-    next_sequence = (
-        max((section.sequence or 0 for section in template.sections), default=0) + 1
-    )
+    _get_or_404(template_id, db)
+
+    _shift_section_sequences(template_id, payload.sequence, db)
     section = models.TemplateSection(
         template_id=template_id,
         name=payload.name,
         description=payload.description,
-        sequence=next_sequence,
+        sequence=payload.sequence,
     )
     db.add(section)
     db.flush()
@@ -593,8 +645,19 @@ def update_section(
     ).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+
+    old_sequence = section.sequence
+    new_sequence = payload.sequence if payload.sequence is not None else old_sequence
+
+    if new_sequence != old_sequence:
+        _shift_section_sequences(section.template_id, new_sequence, db)
+        section.sequence = new_sequence
+
     for field, value in payload.model_dump(exclude_unset=True).items():
+        if field == "sequence":
+            continue
         setattr(section, field, value)
+
     _normalize_template_sequences_for_id(section.template_id, db)
     db.commit()
     db.refresh(section)

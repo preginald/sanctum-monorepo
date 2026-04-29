@@ -508,9 +508,15 @@ def milestone_artefacts(milestone_id: str, db: Session = Depends(get_db)):
 
 @router.post("/projects/{project_id}/milestones/reorder")
 def reorder_milestones(project_id: str, payload: schemas.MilestoneReorderRequest, db: Session = Depends(get_db)):
+    sequences = []
     for item in payload.items:
         ms = db.query(models.Milestone).filter(models.Milestone.id == item.id, models.Milestone.project_id == project_id, models.Milestone.is_deleted == False).first()
-        if ms: ms.sequence = item.sequence
+        if ms:
+            ms.sequence = item.sequence
+            sequences.append(item.sequence)
+    if len(sequences) != len(set(sequences)):
+        db.rollback()
+        raise HTTPException(status_code=422, detail="Duplicate milestone sequences detected in reorder request")
     db.commit()
     return {"status": "updated"}
 
