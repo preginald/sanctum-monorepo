@@ -17,7 +17,7 @@ class TemplateItemCreate(SanctumBase):
     description: Optional[str] = None
     item_type: str = "task"
     priority: str = "normal"
-    sequence: int = 1
+    sequence: Optional[int] = None
     config: Optional[Dict[str, Any]] = {}
 
 
@@ -33,6 +33,7 @@ class TemplateItemUpdate(SanctumBase):
 class TemplateItemResponse(TemplateItemCreate):
     id: uuid.UUID
     section_id: uuid.UUID
+    sequence: int
     created_at: Optional[datetime] = None
 
 
@@ -43,7 +44,7 @@ class TemplateItemResponse(TemplateItemCreate):
 class TemplateSectionCreate(SanctumBase):
     name: str
     description: Optional[str] = None
-    sequence: int = 1
+    sequence: Optional[int] = None
     items: Optional[List[TemplateItemCreate]] = []
 
 
