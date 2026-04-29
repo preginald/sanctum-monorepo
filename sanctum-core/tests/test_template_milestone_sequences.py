@@ -1,6 +1,6 @@
 from types import SimpleNamespace
 
-from app.routers.templates import _ordered_project_template_sections
+from app.routers.templates import _add_template_ticket_mapping, _ordered_project_template_sections
 
 
 def _section(name: str, sequence: int):
@@ -24,3 +24,16 @@ def test_duplicate_template_section_sequences_create_unique_milestone_sequences(
         "Launch",
     ]
     assert [sequence for _section, _items, sequence in sections] == [5, 6, 7]
+
+
+def test_duplicate_dependency_lookup_keys_are_marked_ambiguous():
+    ticket_map = {}
+    ambiguous_keys = set()
+    key = (1, 1)
+
+    _add_template_ticket_mapping(ticket_map, ambiguous_keys, key, "ticket-1", object())
+    _add_template_ticket_mapping(ticket_map, ambiguous_keys, key, "ticket-2", object())
+    _add_template_ticket_mapping(ticket_map, ambiguous_keys, key, "ticket-3", object())
+
+    assert key not in ticket_map
+    assert ambiguous_keys == {key}
