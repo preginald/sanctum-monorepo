@@ -1,3 +1,4 @@
+from datetime import datetime
 from types import SimpleNamespace
 
 from app.routers.templates import (
@@ -20,8 +21,14 @@ class FakeSection:
         self.sequence = sequence
 
 
-def _section(name: str, sequence: int):
-    return SimpleNamespace(name=name, sequence=sequence, items=[])
+def _section(name: str, sequence: int, created_at: datetime):
+    return SimpleNamespace(
+        id=name,
+        name=name,
+        sequence=sequence,
+        created_at=created_at,
+        items=[],
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -55,9 +62,9 @@ def deduplicate_sequences(sequences: list[int]) -> list[int]:
 def test_duplicate_template_section_sequences_create_unique_milestone_sequences():
     template = SimpleNamespace(
         sections=[
-            _section("Discovery", 1),
-            _section("Build", 1),
-            _section("Launch", 2),
+            _section("Discovery", 1, datetime(2026, 1, 1)),
+            _section("Build", 1, datetime(2026, 1, 2)),
+            _section("Launch", 2, datetime(2026, 1, 3)),
         ]
     )
 
