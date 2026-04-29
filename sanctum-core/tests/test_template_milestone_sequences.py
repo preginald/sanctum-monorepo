@@ -1,6 +1,9 @@
 from types import SimpleNamespace
 
-from app.routers.templates import _add_template_ticket_mapping, _ordered_project_template_sections
+from app.routers.templates import (
+    _add_template_ticket_mapping,
+    _ordered_project_template_sections,
+)
 
 
 def _section(name: str, sequence: int):
