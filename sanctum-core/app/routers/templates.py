@@ -37,9 +37,45 @@ def _enrich(template: models.Template, db: Session) -> models.Template:
 
 
 def _get_or_404(template_id: str, db: Session) -> models.Template:
-    return _resolve_or_404(db, models.Template, template_id, options=[
-        joinedload(models.Template.sections).joinedload(models.TemplateSection.items)
-    ], deleted_filter=False)
+    return _resolve_or_404(
+        db,
+        models.Template,
+        template_id,
+        options=[
+            joinedload(models.Template.sections).joinedload(models.TemplateSection.items)
+        ],
+        deleted_filter=False,
+    )
+
+
+def _sequence_sort_key(obj):
+    created_at = obj.created_at.isoformat() if obj.created_at else ""
+    return (obj.sequence or 0, created_at, str(obj.id or ""))
+
+
+def _normalize_template_sequences(template: models.Template) -> None:
+    """Keep template sections/items in contiguous display/apply order."""
+    for section_idx, section in enumerate(
+        sorted(list(template.sections), key=_sequence_sort_key), start=1
+    ):
+        section.sequence = section_idx
+        for item_idx, item in enumerate(
+            sorted(list(section.items), key=_sequence_sort_key), start=1
+        ):
+            item.sequence = item_idx
+
+
+def _normalize_template_sequences_for_id(template_id: str | uuid.UUID, db: Session) -> None:
+    db.flush()
+    template = (
+        db.query(models.Template)
+        .options(joinedload(models.Template.sections).joinedload(models.TemplateSection.items))
+        .populate_existing()
+        .filter(models.Template.id == template_id)
+        .first()
+    )
+    if template:
+        _normalize_template_sequences(template)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -126,6 +162,7 @@ def create_template(
             )
             db.add(item)
 
+    _normalize_template_sequences_for_id(template.id, db)
     db.commit()
     db.refresh(template)
     return _enrich(_get_or_404(str(template.id), db), db)
@@ -298,6 +335,7 @@ def clone_template(
             )
             db.add(new_item)
 
+    _normalize_template_sequences_for_id(clone.id, db)
     db.commit()
     db.refresh(clone)
     return _enrich(_get_or_404(str(clone.id), db), db)
@@ -442,16 +480,16 @@ def _apply_project(
     # SQLAlchemy session state changes from causing lazy re-loads that
     # return empty collections for later sections.  See #1831.
     sections_with_items = [
-        (section, sorted(list(section.items), key=lambda i: i.sequence))
-        for section in sorted(template.sections, key=lambda s: s.sequence)
+        (section, sorted(list(section.items), key=_sequence_sort_key))
+        for section in sorted(template.sections, key=_sequence_sort_key)
     ]
 
-    for section, items in sections_with_items:
+    for section_idx, (section, items) in enumerate(sections_with_items, start=1):
         milestone = models.Milestone(
             project_id=project.id,
             name=_substitute(section.name, variables) if variables else section.name,
             description=_substitute(section.description, variables) if variables else section.description,
-            sequence=max_seq + section.sequence,
+            sequence=max_seq + section_idx,
             status="pending",
         )
         db.add(milestone)
@@ -511,27 +549,33 @@ def add_section(
     current_user: models.User = Depends(auth.get_current_active_user),
     db: Session = Depends(get_db),
 ):
-    _get_or_404(template_id, db)
+    template = _get_or_404(template_id, db)
+    next_sequence = (
+        max((section.sequence or 0 for section in template.sections), default=0) + 1
+    )
     section = models.TemplateSection(
         template_id=template_id,
         name=payload.name,
         description=payload.description,
-        sequence=payload.sequence,
+        sequence=next_sequence,
     )
     db.add(section)
     db.flush()
 
     for idx, item_data in enumerate(payload.items or []):
-        db.add(models.TemplateItem(
-            section_id=section.id,
-            subject=item_data.subject,
-            description=item_data.description,
-            item_type=item_data.item_type,
-            priority=item_data.priority,
-            sequence=item_data.sequence or idx + 1,
-            config=item_data.config or {},
-        ))
+        db.add(
+            models.TemplateItem(
+                section_id=section.id,
+                subject=item_data.subject,
+                description=item_data.description,
+                item_type=item_data.item_type,
+                priority=item_data.priority,
+                sequence=item_data.sequence or idx + 1,
+                config=item_data.config or {},
+            )
+        )
 
+    _normalize_template_sequences_for_id(template_id, db)
     db.commit()
     db.refresh(section)
     return section
@@ -551,6 +595,7 @@ def update_section(
         raise HTTPException(status_code=404, detail="Section not found")
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(section, field, value)
+    _normalize_template_sequences_for_id(section.template_id, db)
     db.commit()
     db.refresh(section)
     return section
@@ -567,7 +612,9 @@ def delete_section(
     ).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
+    template_id = section.template_id
     db.delete(section)
+    _normalize_template_sequences_for_id(template_id, db)
     db.commit()
 
 
@@ -587,8 +634,13 @@ def add_item(
     ).first()
     if not section:
         raise HTTPException(status_code=404, detail="Section not found")
-    item = models.TemplateItem(section_id=section_id, **payload.model_dump())
+    data = payload.model_dump()
+    data["sequence"] = (
+        max((item.sequence or 0 for item in section.items), default=0) + 1
+    )
+    item = models.TemplateItem(section_id=section_id, **data)
     db.add(item)
+    _normalize_template_sequences_for_id(section.template_id, db)
     db.commit()
     db.refresh(item)
     return item
@@ -602,8 +654,10 @@ def update_item(
     db: Session = Depends(get_db),
 ):
     item = _resolve_or_404(db, models.TemplateItem, item_id, deleted_filter=False)
+    template_id = item.section.template_id
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, field, value)
+    _normalize_template_sequences_for_id(template_id, db)
     db.commit()
     db.refresh(item)
     return item
@@ -616,7 +670,9 @@ def delete_item(
     db: Session = Depends(get_db),
 ):
     item = _resolve_or_404(db, models.TemplateItem, item_id, deleted_filter=False)
+    template_id = item.section.template_id
     db.delete(item)
+    _normalize_template_sequences_for_id(template_id, db)
     db.commit()
 
 
