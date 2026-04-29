@@ -109,7 +109,7 @@ FALLBACK_TICKET_TRANSITIONS = {
     "verification":   ["review", "resolved", "implementation", "pending"],
     "review":         ["documented", "verification", "implementation", "pending"],
     "documented":     ["resolved", "review"],
-    "pending":        ["open"],
+    "pending":        ["open", "resolved"],
     "resolved":       [],
 }
 
@@ -118,13 +118,13 @@ FALLBACK_TICKET_TRANSITIONS = {
 # ---------------------------------------------------------------------------
 TICKET_STATUS_FLOWS = {
     # Templated types: full delivery pipeline
-    "feature":  {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+    "feature":  {"forward": ["new", "recon", "proposal", "pending", "implementation", "verification", "review", "documented", "resolved"],
                  "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
-    "bug":      {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+    "bug":      {"forward": ["new", "recon", "proposal", "pending", "implementation", "verification", "review", "documented", "resolved"],
                  "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
-    "task":     {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+    "task":     {"forward": ["new", "recon", "proposal", "pending", "implementation", "verification", "review", "documented", "resolved"],
                  "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
-    "refactor": {"forward": ["new", "recon", "proposal", "implementation", "verification", "review", "documented", "resolved"],
+    "refactor": {"forward": ["new", "recon", "proposal", "pending", "implementation", "verification", "review", "documented", "resolved"],
                  "backward": {"proposal": ["recon"], "implementation": ["proposal"], "verification": ["implementation"], "review": ["verification", "implementation"], "documented": ["review"]}},
     # Short-pipeline types
     "hotfix":      {"forward": ["new", "implementation", "verification", "resolved"],
@@ -182,6 +182,8 @@ def get_transitions_for_type(
             pend_idx = forward.index("pending")
             if pend_idx + 1 < len(forward):
                 transitions.append(forward[pend_idx + 1])
+        # SYS-005: pending can go to resolved directly
+        transitions.append("resolved")
     else:
         # Forward: next status in the flow
         if current_status in forward:
