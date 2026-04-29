@@ -433,6 +433,26 @@ def _substitute(text: str | None, variables: dict[str, str]) -> str | None:
     return text
 
 
+def _ordered_project_template_sections(template: models.Template, max_seq: int):
+    return [
+        (section, sorted(list(section.items), key=_sequence_sort_key), max_seq + idx)
+        for idx, section in enumerate(
+            sorted(template.sections, key=_sequence_sort_key),
+            start=1,
+        )
+    ]
+
+
+def _add_template_ticket_mapping(ticket_map, ambiguous_keys, key, ticket_id, item):
+    if key in ambiguous_keys:
+        return
+    if key in ticket_map:
+        del ticket_map[key]
+        ambiguous_keys.add(key)
+        return
+    ticket_map[key] = (ticket_id, item)
+
+
 def _apply_project(
     template: models.Template,
     payload: TemplateApply,
@@ -473,23 +493,21 @@ def _apply_project(
     tickets_created = 0
     # Pass 1: Create milestones + tickets, build lookup map
     ticket_map = {}  # (section_seq, item_seq) -> ticket_id
+    ambiguous_ticket_keys = set()
 
     variables = payload.variables or {}
 
     # Pre-materialize section items before the flush loop to prevent
     # SQLAlchemy session state changes from causing lazy re-loads that
     # return empty collections for later sections.  See #1831.
-    sections_with_items = [
-        (section, sorted(list(section.items), key=_sequence_sort_key))
-        for section in sorted(template.sections, key=_sequence_sort_key)
-    ]
+    sections_with_items = _ordered_project_template_sections(template, max_seq)
 
-    for section_idx, (section, items) in enumerate(sections_with_items, start=1):
+    for section, items, milestone_sequence in sections_with_items:
         milestone = models.Milestone(
             project_id=project.id,
             name=_substitute(section.name, variables) if variables else section.name,
             description=_substitute(section.description, variables) if variables else section.description,
-            sequence=max_seq + section_idx,
+            sequence=milestone_sequence,
             status="pending",
         )
         db.add(milestone)
@@ -510,7 +528,13 @@ def _apply_project(
             db.add(ticket)
             db.flush()
             tickets_created += 1
-            ticket_map[(section.sequence, item.sequence)] = (ticket.id, item)
+            _add_template_ticket_mapping(
+                ticket_map,
+                ambiguous_ticket_keys,
+                (section.sequence, item.sequence),
+                ticket.id,
+                item,
+            )
 
     # Pass 2: Wire ticket relations from template item dependencies
     for (sec_seq, item_seq), (ticket_id, item) in ticket_map.items():
